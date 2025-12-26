@@ -1,0 +1,22 @@
+{
+  "last_updated": "2025-12-25",
+  "notes": "Update this file when drivers change. No date tracking needed - just update the current state.",
+  "current_lineups": {
+    "Red Bull Racing": ["VER", "LAW"],
+    "McLaren": ["NOR", "PIA"],
+    "Ferrari": ["LEC", "HAM"],
+    "Mercedes": ["RUS", "ANT"],
+    "Aston Martin": ["ALO", "STR"],
+    "Alpine": ["GAS", "DOO"],
+    "Haas F1 Team": ["OCO", "BEA"],
+    "RB": ["TSU", "HAD"],
+    "Williams": ["SAI", "COL"],
+    "Audi": ["HUL", "BOR"],
+    "Cadillac": ["TBD1", "TBD2"]
+  },
+  "update_instructions": {
+    "when_driver_changes": "Just edit the driver abbreviations above",
+    "example": "When Cadillac announces drivers, change TBD1 to actual driver code",
+    "no_dates_needed": "System extracts actual participants from 2024-2025 session data automatically"
+  }
+}

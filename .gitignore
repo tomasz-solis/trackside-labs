@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+venv/
+data/raw/
+data/processed/
+data/validation/
+*.parquet
+.fastf1_cache/
+notebooks/dirty_exploration/
+src_backup/
+changes.txt
+migrate_structure.py

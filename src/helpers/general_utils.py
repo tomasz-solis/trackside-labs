@@ -401,7 +401,7 @@ def load_session(year: int, event_name: str, session_name: str) -> dict:
             "reason": None
         }
     except Exception as e:
-        print(f"❌ OpenF1 fallback failed for {year} {event_name} {session_name}: {e}")
+        print(f"🔴 OpenF1 fallback failed for {year} {event_name} {session_name}: {e}")
         return {
             "source": None,
             "session": None,
@@ -830,7 +830,7 @@ def load_or_build_profiles(
         else:
             print(f"✅ Using cached {file_type} profile for {year}")
             df = pd.read_csv(cache_path)
-            from helpers.team_name_mapping import normalize_team_column
+            from utils.team_mapping import normalize_team_column
             df = normalize_team_column(df, col="team")
             skipped = pd.DataFrame()
 
@@ -898,7 +898,7 @@ def load_classifications(
     quali_df = pd.concat(quali_dfs, ignore_index=True) if quali_dfs else pd.DataFrame()
     race_df = pd.concat(race_dfs, ignore_index=True) if race_dfs else pd.DataFrame()
     
-    from helpers.team_name_mapping import normalize_team_column
+    from utils.team_mapping import normalize_team_column
     quali_df = normalize_team_column(quali_df, col='team')
     race_df = normalize_team_column(race_df,col='team')
 
@@ -945,7 +945,7 @@ def merge_driver_features_with_targets(
         print("   ⚠️  No classification data found!")
         return pd.DataFrame()
     
-    from helpers.team_name_mapping import normalize_team_column
+    from utils.team_mapping import normalize_team_column
     quali_df = normalize_team_column(quali_df, col='team')
     race_df = normalize_team_column(race_df, col='team')
 

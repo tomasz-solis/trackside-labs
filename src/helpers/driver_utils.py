@@ -1024,7 +1024,7 @@ def _build_driver_timing_profiles(
     
     df_all = pd.concat(dfs, ignore_index=True)
 
-    from helpers.team_name_mapping import normalize_team_column
+    from utils.team_mapping import normalize_team_column
     df_all = normalize_team_column(df_all, col='team')
 
     return df_all, pd.DataFrame(skipped)

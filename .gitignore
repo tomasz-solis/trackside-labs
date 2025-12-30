@@ -9,4 +9,4 @@ data/validation/
 notebooks/dirty_exploration/
 src_backup/
 changes.txt
-migrate_structure.py
+archive/

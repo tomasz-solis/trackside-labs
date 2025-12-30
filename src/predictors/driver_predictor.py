@@ -1,9 +1,8 @@
 """
-Driver position ranking from team performance.
+Driver position ranking from team performance - FIXED
 
-Converts team performance predictions (ranks 1-10) to individual driver
-positions (1-20) using driver characteristics and teammate comparisons.
-
+Fixed pace access to work with nested structure:
+  driver['pace']['quali_pace'] instead of driver['quali_pace']
 """
 
 import json
@@ -23,27 +22,13 @@ class DriverPrediction:
     confidence_upper: float
     experience_tier: str
     confidence_flag: str
-    pace_used: float  # The pace metric used for ranking
+    pace_used: float
 
 
 class DriverRanker:
-    """
-    Ranks individual drivers based on team performance and driver characteristics.
-    
-    Takes team-level predictions (ranks 1-10) and splits them into driver positions
-    (1-20) using:
-    - Driver pace metrics (quali_pace or race_pace)
-    - Experience tiers (rookie/developing/established/veteran)
-    - Confidence intervals based on data quality
-    """
+    """Ranks drivers based on team performance and driver characteristics."""
     
     def __init__(self, characteristics_path: str):
-        """
-        Initialize ranker with driver characteristics.
-        
-        Args:
-            characteristics_path: Path to driver_characteristics_enriched.json
-        """
         self.characteristics_path = Path(characteristics_path)
         self._load_characteristics()
         
@@ -58,7 +43,7 @@ class DriverRanker:
             data = json.load(f)
         
         self.drivers = data['drivers']
-        self.current_year = data.get('current_year', 2025)
+        self.current_year = data.get('year', 2025)
         
         print(f"Loaded characteristics for {len(self.drivers)} drivers")
         
@@ -68,32 +53,13 @@ class DriverRanker:
         team_lineups: Dict[str, List[str]],
         session_type: str = 'qualifying'
     ) -> Dict:
-        """
-        Convert team ranks to driver positions.
+        """Convert team ranks to driver positions."""
         
-        Args:
-            team_predictions: Dict mapping team name -> predicted rank (1-10)
-                Example: {'Red Bull Racing': 1, 'McLaren': 2, ...}
-            team_lineups: Dict mapping team name -> list of driver abbreviations
-                Example: {'Red Bull Racing': ['VER', 'LAW'], ...}
-            session_type: 'qualifying' or 'race' (determines which pace metric to use)
-            
-        Returns:
-            Dict containing:
-                - predictions: List[DriverPrediction]
-                - session_type: str
-                - total_drivers: int
-                - warnings: List[str] (missing drivers, etc.)
-        """
         if session_type not in ['qualifying', 'race']:
             raise ValueError(f"session_type must be 'qualifying' or 'race', got {session_type}")
         
         predictions = []
         warnings = []
-        
-        # Validate inputs
-        if len(team_predictions) != 10:
-            warnings.append(f"Expected 10 teams, got {len(team_predictions)}")
         
         # Process each team
         for team_name, team_rank in sorted(team_predictions.items(), key=lambda x: x[1]):
@@ -137,19 +103,8 @@ class DriverRanker:
         session_type: str,
         warnings: List[str]
     ) -> List[DriverPrediction]:
-        """
-        Rank the two drivers within a team.
+        """Rank the two drivers within a team."""
         
-        Args:
-            team_name: Name of the team
-            team_rank: Team's predicted rank (1-10)
-            drivers: List of 2 driver abbreviations
-            session_type: 'qualifying' or 'race'
-            warnings: List to append warnings to
-            
-        Returns:
-            List of 2 DriverPrediction objects
-        """
         d1_abbr, d2_abbr = drivers
         
         # Get driver characteristics
@@ -157,10 +112,7 @@ class DriverRanker:
         d2_char = self.drivers.get(d2_abbr)
         
         # Calculate baseline positions from team rank
-        # Team rank 1 → positions ~1-2
-        # Team rank 5 → positions ~9-10
-        # Team rank 10 → positions ~19-20
-        baseline_pos = (team_rank - 1) * 2 + 1.5  # Midpoint between the two positions
+        baseline_pos = (team_rank - 1) * 2 + 1.5
         
         # Determine pace metric to use
         pace_metric = 'quali_pace' if session_type == 'qualifying' else 'race_pace'
@@ -171,12 +123,11 @@ class DriverRanker:
                 f"Missing characteristics for {d1_abbr if d1_char is None else d2_abbr} "
                 f"- using equal split"
             )
-            # Fall back to equal split
             return self._equal_split(team_name, baseline_pos, d1_abbr, d2_abbr)
         
-        # Get pace ratios
-        d1_pace = d1_char.get(pace_metric)
-        d2_pace = d2_char.get(pace_metric)
+        # FIXED: Access pace from nested structure
+        d1_pace = d1_char.get('pace', {}).get(pace_metric)
+        d2_pace = d2_char.get('pace', {}).get(pace_metric)
         
         if d1_pace is None or d2_pace is None:
             warnings.append(
@@ -185,41 +136,37 @@ class DriverRanker:
             return self._equal_split(team_name, baseline_pos, d1_abbr, d2_abbr)
         
         # Calculate relative strength
-        # Lower pace ratio = faster driver
-        # If d1_pace < d2_pace, d1 is faster
         if d1_pace < d2_pace:
             faster_driver = d1_abbr
             slower_driver = d2_abbr
             faster_char = d1_char
             slower_char = d2_char
-            pace_diff = d2_pace - d1_pace  # How much faster is d1
+            pace_diff = d2_pace - d1_pace
         else:
             faster_driver = d2_abbr
             slower_driver = d1_abbr
             faster_char = d2_char
             slower_char = d1_char
-            pace_diff = d1_pace - d2_pace  # How much faster is d2
+            pace_diff = d1_pace - d2_pace
         
         # Convert pace difference to position difference
-        # Empirical scaling: 0.01 pace difference ≈ 0.5 positions
-        # This is conservative - teammate gaps can be larger
-        position_adjustment = pace_diff * 50.0  # 0.01 → 0.5 positions
-        position_adjustment = np.clip(position_adjustment, 0, 1.0)  # Max 1 position gap
+        position_adjustment = pace_diff * 50.0
+        position_adjustment = np.clip(position_adjustment, 0, 1.0)
         
         # Calculate final positions
         faster_pos = baseline_pos - (position_adjustment / 2)
         slower_pos = baseline_pos + (position_adjustment / 2)
         
-        # Calculate confidence intervals based on experience tier
+        # Calculate confidence intervals
         faster_pred = DriverPrediction(
             driver=faster_driver,
             team=team_name,
             position=faster_pos,
             confidence_lower=faster_pos - self._get_uncertainty(faster_char),
             confidence_upper=faster_pos + self._get_uncertainty(faster_char),
-            experience_tier=faster_char['experience']['tier'],
-            confidence_flag=faster_char['confidence'],
-            pace_used=faster_char[pace_metric]
+            experience_tier=faster_char.get('experience', {}).get('tier', 'unknown'),
+            confidence_flag=faster_char.get('pace', {}).get('confidence', 'medium'),
+            pace_used=faster_char['pace'][pace_metric]
         )
         
         slower_pred = DriverPrediction(
@@ -228,9 +175,9 @@ class DriverRanker:
             position=slower_pos,
             confidence_lower=slower_pos - self._get_uncertainty(slower_char),
             confidence_upper=slower_pos + self._get_uncertainty(slower_char),
-            experience_tier=slower_char['experience']['tier'],
-            confidence_flag=slower_char['confidence'],
-            pace_used=slower_char[pace_metric]
+            experience_tier=slower_char.get('experience', {}).get('tier', 'unknown'),
+            confidence_flag=slower_char.get('pace', {}).get('confidence', 'medium'),
+            pace_used=slower_char['pace'][pace_metric]
         )
         
         return [faster_pred, slower_pred]
@@ -242,19 +189,8 @@ class DriverRanker:
         d1_abbr: str,
         d2_abbr: str
     ) -> List[DriverPrediction]:
-        """
-        Create equal split prediction when driver data is missing.
+        """Create equal split prediction when driver data is missing."""
         
-        Args:
-            team_name: Team name
-            baseline_pos: Baseline position (midpoint)
-            d1_abbr: First driver abbreviation
-            d2_abbr: Second driver abbreviation
-            
-        Returns:
-            List of 2 DriverPrediction with equal positions
-        """
-        # Use large uncertainty for unknown drivers
         uncertainty = 3.0
         
         pred1 = DriverPrediction(
@@ -265,7 +201,7 @@ class DriverRanker:
             confidence_upper=baseline_pos - 0.5 + uncertainty,
             experience_tier='unknown',
             confidence_flag='low',
-            pace_used=1.0  # Neutral
+            pace_used=1.0
         )
         
         pred2 = DriverPrediction(
@@ -276,58 +212,37 @@ class DriverRanker:
             confidence_upper=baseline_pos + 0.5 + uncertainty,
             experience_tier='unknown',
             confidence_flag='low',
-            pace_used=1.0  # Neutral
+            pace_used=1.0
         )
         
         return [pred1, pred2]
     
     def _get_uncertainty(self, driver_char: Dict) -> float:
-        """
-        Calculate position uncertainty based on driver experience and confidence.
+        """Calculate position uncertainty based on driver experience."""
         
-        Args:
-            driver_char: Driver characteristics dict
-            
-        Returns:
-            Uncertainty in positions (±)
-        """
-        # Base uncertainty by experience tier
-        tier = driver_char['experience']['tier']
+        tier = driver_char.get('experience', {}).get('tier', 'unknown')
         tier_uncertainty = {
-            'rookie': 5.0,        # High uncertainty for rookies
+            'rookie': 5.0,
             'developing': 4.5,    
-            'established': 4.0,   # Low uncertainty
-            'veteran': 3.5,       # Very low uncertainty
-            'unknown': 5.5        # High uncertainty for unknowns
+            'established': 4.0,
+            'veteran': 3.5,
+            'unknown': 5.5
         }
         
-        base = tier_uncertainty.get(tier, 2.0)
+        base = tier_uncertainty.get(tier, 4.0)
         
         # Adjust for confidence flag
-        confidence_flag = driver_char.get('confidence', 'high')
-        if confidence_flag == 'gathering_info':
-            base *= 1.3  # 30% more uncertainty for unusual patterns
-        elif confidence_flag == 'low':
-            base *= 1.5  # 50% more uncertainty for insufficient data
-        
-        # Adjust for variance in performance
-        quali_std = driver_char.get('quali_std', 0.01)
-        if quali_std > 0.02:  # High variance
+        confidence_flag = driver_char.get('pace', {}).get('confidence', 'high')
+        if confidence_flag == 'low':
+            base *= 1.5
+        elif confidence_flag == 'medium':
             base *= 1.2
         
         return base
     
     def format_predictions(self, results: Dict, top_n: int = 20) -> str:
-        """
-        Format predictions as readable text.
+        """Format predictions as readable text."""
         
-        Args:
-            results: Output from predict_positions()
-            top_n: Number of drivers to show
-            
-        Returns:
-            Formatted string
-        """
         lines = []
         lines.append(f"=== DRIVER POSITION PREDICTIONS ({results['session_type'].upper()}) ===\n")
         lines.append(f"Total drivers: {results['total_drivers']}\n")
@@ -350,62 +265,3 @@ class DriverRanker:
             )
         
         return "\n".join(lines)
-
-
-def example_usage():
-    """Demonstrate driver ranker usage."""
-    
-    # Example team predictions (from your existing model)
-    team_predictions = {
-        'Red Bull Racing': 1,
-        'McLaren': 2,
-        'Ferrari': 3,
-        'Mercedes': 4,
-        'Aston Martin': 5,
-        'Alpine': 6,
-        'Haas F1 Team': 7,
-        'RB': 8,
-        'Williams': 9,
-        'Kick Sauber': 10
-    }
-    
-    # Current team lineups (2025)
-    team_lineups = {
-        'Red Bull Racing': ['VER', 'LAW'],
-        'McLaren': ['NOR', 'PIA'],
-        'Ferrari': ['LEC', 'HAM'],
-        'Mercedes': ['RUS', 'ANT'],
-        'Aston Martin': ['ALO', 'STR'],
-        'Alpine': ['GAS', 'DOO'],
-        'Haas F1 Team': ['OCO', 'BEA'],
-        'RB': ['TSU', 'HAD'],
-        'Williams': ['SAI', 'COL'],
-        'Kick Sauber': ['HUL', 'BOR']
-    }
-    
-    # Initialize ranker
-    chars_path = '../data/processed/driver_characteristics/driver_characteristics_enriched.json'
-    ranker = DriverRanker(chars_path)
-    
-    # Predict qualifying positions
-    quali_results = ranker.predict_positions(
-        team_predictions=team_predictions,
-        team_lineups=team_lineups,
-        session_type='qualifying'
-    )
-    
-    print(ranker.format_predictions(quali_results))
-    
-    # Predict race positions
-    print("\n")
-    race_results = ranker.predict_positions(
-        team_predictions=team_predictions,
-        team_lineups=team_lineups,
-        session_type='race'
-    )
-    
-    print(ranker.format_predictions(race_results))
-
-
-if __name__ == '__main__':
-    example_usage()

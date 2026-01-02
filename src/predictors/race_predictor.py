@@ -1,5 +1,5 @@
 """
-Race Predictor with Performance Tracking
+Race Predictor with Performance Tracking (UPDATED)
 
 Uses PerformanceTracker for:
 - Dynamic MAE estimates (no hardcoded values)

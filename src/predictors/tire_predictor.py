@@ -1,5 +1,5 @@
 """
-Tire Predictor with Configurable Parameters
+Tire Predictor with Configurable Parameters (UPDATED)
 
 Priority:
 1. FP2 long-run pace (PRIMARY)

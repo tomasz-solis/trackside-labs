@@ -1,5 +1,5 @@
 """
-Qualifying Predictor
+Qualifying Predictor (UPDATED)
 
 Uses PerformanceTracker for dynamic MAE estimates.
 No hardcoded performance values.
@@ -169,8 +169,13 @@ class QualifyingPredictor:
         if not track:
             raise ValueError(f"No track data for {race_name}")
         
-        model_session = 'post_sprint_quali' if weekend_type == 'sprint' else 'post_fp3'
-        team_rankings = rank_teams_for_track(car_data, track, model_session, weekend_type)
+        # Handle both 'conventional' (new) and 'normal' (old) terminology
+        is_sprint = weekend_type == 'sprint'
+        model_session = 'post_sprint_quali' if is_sprint else 'post_fp3'
+        
+        # Normalize weekend_type for team_predictor (may expect 'normal' not 'conventional')
+        weekend_type_normalized = 'sprint' if is_sprint else 'normal'
+        team_rankings = rank_teams_for_track(car_data, track, model_session, weekend_type_normalized)
         
         if not team_rankings:
             raise ValueError(f"Could not rank teams for {race_name}")
@@ -178,7 +183,8 @@ class QualifyingPredictor:
         model_ranks = {team: rank for rank, (team, _, _, _) in enumerate(team_rankings, 1)}
         
         # Get FP performance
-        fp_session = 'Sprint Qualifying' if weekend_type == 'sprint' else session
+        # Use Sprint Qualifying for sprint weekends, otherwise use provided session (FP3)
+        fp_session = 'Sprint Qualifying' if is_sprint else session
         fp_performance = get_fp_team_performance(year, race_name, fp_session)
         
         if not fp_performance:
@@ -206,8 +212,13 @@ class QualifyingPredictor:
         if not track:
             raise ValueError(f"No track data for {race_name}")
         
-        model_session = 'post_sprint_quali' if weekend_type == 'sprint' else 'post_fp3'
-        team_rankings = rank_teams_for_track(car_data, track, model_session, weekend_type)
+        # Handle both 'conventional' (new) and 'normal' (old) terminology
+        is_sprint = weekend_type == 'sprint'
+        model_session = 'post_sprint_quali' if is_sprint else 'post_fp3'
+        
+        # Normalize weekend_type for team_predictor
+        weekend_type_normalized = 'sprint' if is_sprint else 'normal'
+        team_rankings = rank_teams_for_track(car_data, track, model_session, weekend_type_normalized)
         
         if not team_rankings:
             raise ValueError(f"Could not rank teams for {race_name}")
@@ -287,16 +298,37 @@ class QualifyingPredictor:
             return json.load(f)['teams']
     
     def _get_weekend_type(self, year, race_name):
-        """Determine if sprint or normal weekend."""
-        sprint_races = [
-            'Chinese Grand Prix',
-            'Miami Grand Prix',
-            'Belgian Grand Prix',
-            'United States Grand Prix',
-            'São Paulo Grand Prix',
-            'Qatar Grand Prix'
-        ]
-        return 'sprint' if race_name in sprint_races else 'normal'
+        """
+        Determine weekend type from FastF1 EventFormat.
+        
+        NEVER hardcodes sprint races - reads from schedule!
+        EventFormat: 'sprint', 'sprint_qualifying', 'sprint_shootout' → sprint
+        EventFormat: 'conventional' → conventional
+        """
+        try:
+            from src.utils.weekend_utils import get_weekend_type
+            return get_weekend_type(year, race_name)
+        except ImportError:
+            # Fallback if weekend_utils not installed
+            import fastf1
+            try:
+                schedule = fastf1.get_event_schedule(year)
+                event = schedule[schedule['EventName'] == race_name]
+                
+                if event.empty:
+                    # Try case-insensitive
+                    event = schedule[schedule['EventName'].str.lower() == race_name.lower()]
+                
+                if not event.empty:
+                    event_format = str(event.iloc[0]['EventFormat']).lower()
+                    # Check for any sprint format
+                    return 'sprint' if 'sprint' in event_format else 'conventional'
+            except Exception as e:
+                if verbose:
+                    print(f"⚠️  Could not determine weekend type: {e}")
+            
+            # Conservative fallback
+            return 'conventional'
     
     def _determine_best_session(self, weekend_type):
         """Determine best session for predictions."""

@@ -1,18 +1,18 @@
 {
-  "last_updated": "2025-12-25",
+  "last_updated": "2026-01-03",
   "notes": "Update this file when drivers change. No date tracking needed - just update the current state.",
   "current_lineups": {
-    "Red Bull Racing": ["VER", "LAW"],
+    "Red Bull Racing": ["VER", "HAD"],
     "McLaren": ["NOR", "PIA"],
     "Ferrari": ["LEC", "HAM"],
     "Mercedes": ["RUS", "ANT"],
     "Aston Martin": ["ALO", "STR"],
-    "Alpine": ["GAS", "DOO"],
+    "Alpine": ["GAS", "COL"],
     "Haas F1 Team": ["OCO", "BEA"],
-    "RB": ["TSU", "HAD"],
-    "Williams": ["SAI", "COL"],
+    "RB": ["LAW", "LIN"],
+    "Williams": ["SAI", "ALB"],
     "Audi": ["HUL", "BOR"],
-    "Cadillac": ["TBD1", "TBD2"]
+    "Cadillac": ["PER", "BOT"]
   },
   "update_instructions": {
     "when_driver_changes": "Just edit the driver abbreviations above",

@@ -9,5 +9,8 @@ data/validation/
 notebooks/dirty_exploration/
 src_backup/
 changes.txt
-archive/
-*.py.backup
+*.py.backupvenv/
+__pycache__/
+.DS_Store
+*.pyc
+src/archive/*

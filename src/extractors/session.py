@@ -1,8 +1,8 @@
 """
-Session Order Extractor - ENHANCED FOR SPRINT SESSIONS
+Session Order Extractor - ACTUALLY FIXED VERSION
 
-Added more Sprint Qualifying session name variations.
-Better diagnostics for what's failing.
+The issue: FP sessions have LAP TIMES, not positions!
+The fix: Extract fastest laps for FP, use positions for Quali/Race.
 """
 
 import fastf1 as ff1
@@ -13,24 +13,25 @@ import logging
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 
 
-def extract_fp_order_from_laps(year, race_name, session_type, verbose=False):
+def extract_fp_order_from_laps(year, race_name, session_type):
     """
-    Extract team order from FP/Sprint session using lap times.
+    Extract team order from FP session using lap times.
+    
+    FP sessions don't have Position data - we need fastest laps!
+    
+    Args:
+        year: Season year
+        race_name: Race name
+        session_type: 'FP1', 'FP2', 'FP3'
+        
+    Returns:
+        Dict mapping team -> rank (1 = fastest)
     """
-    # Session name variations
+    # Try multiple session name variations
     variations = {
-        'FP1': ['FP1', 'Practice 1', 'Free Practice 1', 'P1'],
-        'FP2': ['FP2', 'Practice 2', 'Free Practice 2', 'P2'],
-        'FP3': ['FP3', 'Practice 3', 'Free Practice 3', 'P3'],
-        'Sprint Qualifying': [
-            'Sprint Qualifying',
-            'Sprint Shootout',
-            'SQ',
-            'Sprint Quali',
-            'SprintQualifying',
-            'Sprint_Qualifying'
-        ],
-        'Sprint': ['Sprint', 'S', 'Sprint Race']
+        'FP1': ['FP1', 'Practice 1', 'Free Practice 1'],
+        'FP2': ['FP2', 'Practice 2', 'Free Practice 2'],
+        'FP3': ['FP3', 'Practice 3', 'Free Practice 3']
     }
     
     session_variations = variations.get(session_type, [session_type])
@@ -38,6 +39,8 @@ def extract_fp_order_from_laps(year, race_name, session_type, verbose=False):
     for variation in session_variations:
         try:
             session = ff1.get_session(year, race_name, variation)
+            
+            # Load LAPS for FP sessions (key difference!)
             session.load(laps=True, telemetry=False, weather=False, messages=False)
             
             if not hasattr(session, 'laps') or session.laps is None or len(session.laps) == 0:
@@ -45,7 +48,7 @@ def extract_fp_order_from_laps(year, race_name, session_type, verbose=False):
             
             laps = session.laps
             
-            # Get fastest lap per team
+            # Get fastest lap per team (median of drivers)
             team_times = {}
             
             for team in laps['Team'].unique():
@@ -59,7 +62,7 @@ def extract_fp_order_from_laps(year, race_name, session_type, verbose=False):
                 for driver in team_laps['Driver'].unique():
                     driver_laps = team_laps[team_laps['Driver'] == driver]
                     
-                    # Filter valid laps
+                    # Filter valid laps (has time, not deleted)
                     valid_laps = driver_laps[
                         (driver_laps['LapTime'].notna()) &
                         (~driver_laps['IsAccurate'].isna() if 'IsAccurate' in driver_laps else True)
@@ -70,42 +73,43 @@ def extract_fp_order_from_laps(year, race_name, session_type, verbose=False):
                         driver_best_times.append(best_time.total_seconds())
                 
                 if driver_best_times:
+                    # Use median of team's drivers (robust to one having issues)
                     team_times[team] = np.median(driver_best_times)
             
-            if len(team_times) < 5:
+            if len(team_times) < 5:  # Need at least 5 teams
                 continue
             
-            # Convert to ranks
+            # Convert to ranks (1 = fastest time)
             sorted_teams = sorted(team_times.items(), key=lambda x: x[1])
             team_ranks = {team: rank for rank, (team, _) in enumerate(sorted_teams, 1)}
-            
-            if verbose:
-                print(f"  → Loaded via '{variation}': {len(team_ranks)} teams")
             
             return team_ranks
             
         except Exception as e:
-            if verbose:
-                print(f"  → Failed '{variation}': {str(e)[:50]}")
+            # Try next variation
             continue
     
     return None
 
 
-def extract_quali_order_from_positions(year, race_name, session_type, verbose=False):
+def extract_quali_order_from_positions(year, race_name, session_type):
     """
-    Extract team order from Qualifying using positions.
+    Extract team order from Qualifying/Sprint Quali using positions.
+    
+    Quali sessions HAVE position data in results.
+    
+    Args:
+        year: Season year
+        race_name: Race name
+        session_type: 'Q', 'Sprint Qualifying', etc.
+        
+    Returns:
+        Dict mapping team -> rank (1 = best)
     """
+    # Try multiple session name variations
     variations = {
-        'Q': ['Q', 'Qualifying', 'Quali'],
-        'Sprint Qualifying': [
-            'Sprint Qualifying',
-            'Sprint Shootout',
-            'SQ',
-            'Sprint Quali',
-            'SprintQualifying',
-            'Sprint_Qualifying'
-        ]
+        'Q': ['Q', 'Qualifying'],
+        'Sprint Qualifying': ['Sprint Qualifying', 'Sprint Shootout', 'SQ']
     }
     
     session_variations = variations.get(session_type, [session_type])
@@ -120,14 +124,16 @@ def extract_quali_order_from_positions(year, race_name, session_type, verbose=Fa
             
             results = session.results
             
+            # Check if Position exists
             if 'Position' not in results.columns:
                 continue
             
+            # Check we have enough valid positions
             valid_positions = results['Position'].notna().sum()
             if valid_positions < 5:
                 continue
             
-            # Extract team positions
+            # Extract team positions (median of drivers)
             team_positions = {}
             
             for team in results['TeamName'].unique():
@@ -143,79 +149,56 @@ def extract_quali_order_from_positions(year, race_name, session_type, verbose=Fa
             if len(team_positions) < 5:
                 continue
             
-            # Convert to ranks
+            # Convert to ranks (1 = best position)
             sorted_teams = sorted(team_positions.items(), key=lambda x: x[1])
             team_ranks = {team: rank for rank, (team, _) in enumerate(sorted_teams, 1)}
-            
-            if verbose:
-                print(f"  → Loaded via '{variation}': {len(team_ranks)} teams")
             
             return team_ranks
             
         except Exception as e:
-            if verbose:
-                print(f"  → Failed '{variation}': {str(e)[:50]}")
             continue
     
     return None
 
 
-def extract_session_order_robust(year, race_name, session_type, verbose=False):
+def extract_session_order_robust(year, race_name, session_type):
     """
     Extract team finishing order from any session.
+    
+    Automatically detects session type and uses appropriate method:
+    - FP sessions: Use lap times
+    - Quali/Race sessions: Use positions
     
     Args:
         year: Season year
         race_name: Race name
-        session_type: Session type
-        verbose: Print diagnostic info
+        session_type: 'FP1', 'FP2', 'FP3', 'Sprint Qualifying', 'Q'
         
     Returns:
-        Dict mapping team -> rank, or None
+        Dict mapping team -> rank (1-10), or None if failed
     """
+    # Determine extraction method based on session type
     fp_sessions = ['FP1', 'FP2', 'FP3']
-    quali_sessions = ['Q', 'Sprint Qualifying']
+    quali_sessions = ['Q', 'Sprint Qualifying', 'Sprint Shootout', 'SQ']
     
-    # Try quali method first for Sprint Qualifying
-    if session_type == 'Sprint Qualifying':
-        if verbose:
-            print(f"Trying Sprint Qualifying with positions method first...")
-        
-        result = extract_quali_order_from_positions(year, race_name, session_type, verbose)
-        if result:
-            return result
-        
-        if verbose:
-            print(f"Trying Sprint Qualifying with lap times method...")
-        
-        # Try lap times as fallback
-        result = extract_fp_order_from_laps(year, race_name, session_type, verbose)
-        if result:
-            return result
-        
-        # Try Sprint session itself
-        if verbose:
-            print(f"Trying Sprint session with lap times...")
-        
-        result = extract_fp_order_from_laps(year, race_name, 'Sprint', verbose)
-        return result
-    
-    elif session_type in fp_sessions:
-        return extract_fp_order_from_laps(year, race_name, session_type, verbose)
-    
+    if session_type in fp_sessions:
+        # Use lap times for FP
+        return extract_fp_order_from_laps(year, race_name, session_type)
     elif session_type in quali_sessions:
-        return extract_quali_order_from_positions(year, race_name, session_type, verbose)
-    
+        # Use positions for quali
+        return extract_quali_order_from_positions(year, race_name, session_type)
     else:
         # Try both methods
-        result = extract_quali_order_from_positions(year, race_name, session_type, verbose)
+        result = extract_quali_order_from_positions(year, race_name, session_type)
         if result:
             return result
-        return extract_fp_order_from_laps(year, race_name, session_type, verbose)
+        return extract_fp_order_from_laps(year, race_name, session_type)
 
 
 def calculate_order_mae(predicted_order, actual_order):
-    """Calculate MAE between predicted and actual team order."""
+    """
+    Calculate MAE between predicted and actual team order.
+    """
     errors = []
     
     for team in predicted_order:
@@ -233,17 +216,25 @@ def test_session_as_predictor_fixed(
     target_session='Q',
     driver_ranker=None,
     lineups=None,
-    actual_driver_results=None,
-    verbose=False
+    actual_driver_results=None
 ):
     """
     Test how well a session predicts qualifying.
+    
+    Args:
+        year: Season year
+        race_name: Race name
+        predictor_session: Session to use ('FP1', 'FP2', 'FP3', 'Sprint Qualifying')
+        target_session: Session to predict (default 'Q')
+        driver_ranker: DriverRanker instance
+        lineups: Team lineups
+        actual_driver_results: Actual driver results from quali
+        
+    Returns:
+        Dict with results
     """
     # Get predictor session order
-    if verbose:
-        print(f"\nExtracting predictor: {predictor_session}")
-    
-    predictor_order = extract_session_order_robust(year, race_name, predictor_session, verbose)
+    predictor_order = extract_session_order_robust(year, race_name, predictor_session)
     
     if predictor_order is None:
         return {
@@ -253,10 +244,7 @@ def test_session_as_predictor_fixed(
         }
     
     # Get actual qualifying order
-    if verbose:
-        print(f"Extracting target: {target_session}")
-    
-    actual_order = extract_session_order_robust(year, race_name, target_session, verbose)
+    actual_order = extract_session_order_robust(year, race_name, target_session)
     
     if actual_order is None:
         return {
@@ -281,12 +269,14 @@ def test_session_as_predictor_fixed(
     # If driver ranker provided, test driver-level
     if driver_ranker and lineups and actual_driver_results:
         try:
+            # Predict drivers using predictor session order
             driver_preds = driver_ranker.predict_positions(
                 team_predictions=predictor_order,
                 team_lineups=lineups,
                 session_type='qualifying'
             )
             
+            # Calculate driver MAE
             errors = []
             
             for pred in driver_preds['predictions']:
@@ -310,31 +300,30 @@ def test_session_as_predictor_fixed(
 
 
 if __name__ == '__main__':
-    # Test on sprint weekend
-    print("Testing Sprint Qualifying extraction...")
+    # Quick test
+    print("Testing ACTUALLY FIXED session extraction...")
     print("="*70)
     
-    # Test Chinese GP (sprint weekend)
-    print("\nChinese Grand Prix (Sprint):")
-    sq_order = extract_session_order_robust(2025, 'Chinese Grand Prix', 'Sprint Qualifying', verbose=True)
-    
-    if sq_order:
-        print(f"\n✓ Sprint Qualifying extracted: {len(sq_order)} teams")
-        sorted_teams = sorted(sq_order.items(), key=lambda x: x[1])
-        for team, rank in sorted_teams[:5]:
+    # Test FP3 (should use lap times)
+    print("\nTesting FP3 (uses lap times):")
+    fp3_order = extract_session_order_robust(2025, 'Bahrain Grand Prix', 'FP3')
+    if fp3_order:
+        print(f"🟢 FP3 extracted: {len(fp3_order)} teams")
+        sorted_teams = sorted(fp3_order.items(), key=lambda x: x[1])
+        for team, rank in sorted_teams[:3]:
             print(f"  {rank}. {team}")
     else:
-        print("\n✗ Sprint Qualifying failed!")
+        print("🔴 FP3 failed")
     
-    # Try Miami too
-    print("\n" + "="*70)
-    print("\nMiami Grand Prix (Sprint):")
-    sq_order = extract_session_order_robust(2025, 'Miami Grand Prix', 'Sprint Qualifying', verbose=True)
-    
-    if sq_order:
-        print(f"\n✓ Sprint Qualifying extracted: {len(sq_order)} teams")
-        sorted_teams = sorted(sq_order.items(), key=lambda x: x[1])
-        for team, rank in sorted_teams[:5]:
+    # Test Qualifying (should use positions)
+    print("\nTesting Qualifying (uses positions):")
+    quali_order = extract_session_order_robust(2025, 'Bahrain Grand Prix', 'Q')
+    if quali_order:
+        print(f"🟢 Qualifying extracted: {len(quali_order)} teams")
+        sorted_teams = sorted(quali_order.items(), key=lambda x: x[1])
+        for team, rank in sorted_teams[:3]:
             print(f"  {rank}. {team}")
     else:
-        print("\n✗ Sprint Qualifying failed!")
+        print("🔴 Qualifying failed")
+    
+    print("\n🟢 Test complete!")

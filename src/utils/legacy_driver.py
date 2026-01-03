@@ -46,7 +46,7 @@ from typing import Dict, List, Sequence, Tuple, Optional
 from tqdm import tqdm
 from sklearn.linear_model import LinearRegression
 from scipy.spatial import cKDTree
-from .general_utils import _official_schedule, _completed_sessions, load_session
+from ..archive.helpers.general_utils import _official_schedule, _completed_sessions, load_session
 
 
 # =============================================================================
@@ -1024,7 +1024,7 @@ def _build_driver_timing_profiles(
     
     df_all = pd.concat(dfs, ignore_index=True)
 
-    from utils.team_mapping import normalize_team_column
+    from src.utils.team_mapping import normalize_team_column
     df_all = normalize_team_column(df_all, col='team')
 
     return df_all, pd.DataFrame(skipped)

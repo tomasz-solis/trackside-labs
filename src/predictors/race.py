@@ -152,9 +152,9 @@ class RacePredictor:
         """Initialize tire predictor."""
         try:
             try:
-                from src.predictors.tire_predictor import TirePredictor
+                from src.predictors.tire import TirePredictor
             except ImportError:
-                from tire_predictor import TirePredictor
+                from src.predictors.tire import TirePredictor
             
             if self.driver_chars_path is None:
                 return None

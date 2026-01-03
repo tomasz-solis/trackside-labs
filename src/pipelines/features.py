@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 from typing import List
-from .telemetry_features import LapFeatureExtractor, SessionFeatureAggregator
+from ..features.telemetry import LapFeatureExtractor, SessionFeatureAggregator
 
 class RelativePerformanceCalculator:
     """Convert absolute features to relative performance vs field."""

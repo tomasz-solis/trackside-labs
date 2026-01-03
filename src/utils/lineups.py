@@ -18,7 +18,7 @@ def get_lineups_from_session(year, race_name, session_type='Q'):
     Extract actual lineups from a specific race session.
     
     Handles all corner cases automatically:
-    - Reserve drivers (BEA at Ferrari/Haas)
+    - Reserve drivers (BEA at Ferrari/Haas in 2024)
     - Mid-season swaps (LAW/TSU)
     - Injuries/replacements
     
@@ -56,7 +56,7 @@ def get_lineups_from_session(year, race_name, session_type='Q'):
         return None
 
 
-def load_current_lineups(config_path='../data/current_lineups.json'):
+def load_current_lineups(config_path='data/current_lineups.json'):
     """
     Load current team lineups from config file.
     
@@ -79,7 +79,7 @@ def load_current_lineups(config_path='../data/current_lineups.json'):
     return data.get('current_lineups', {})
 
 
-def get_lineups(year, race_name=None, config_path='../data/current_lineups.json'):
+def get_lineups(year, race_name=None, config_path='data/current_lineups.json'):
     """
     Get team lineups for a race.
     

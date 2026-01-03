@@ -1,109 +1,161 @@
-"""Bayesian ranking for F1 predictions."""
+"""
+Bayesian Ranking Engine for F1 Predictions.
 
-import pandas as pd
+This module implements a Gaussian Bayesian update mechanism to track driver performance
+ratings over time. It is designed to handle 'Concept Drift' (e.g., regulation changes)
+by incorporating a 'volatility' parameter that inflates uncertainty when observations
+deviate significantly from priors.
+"""
+
 import numpy as np
-from dataclasses import dataclass
+import pandas as pd
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple, Any
 
 @dataclass
 class DriverPrior:
-    """Prior belief about driver performance."""
+    """Configuration for a driver's initial belief state."""
     driver_number: str
     driver_code: str
     team: str
     team_tier: str  # 'top', 'midfield', 'backmarker'
-    driver_tier: str  # 'elite', 'experienced', 'rookie'
-    mu: float  # Expected rating (higher = better)
-    sigma: float  # Uncertainty
+    mu: float       # Expected rating (Higher = Better performance)
+    sigma: float    # Uncertainty (Standard Deviation)
+
+@dataclass
+class UpdateRecord:
+    """Audit trail for a single Bayesian update."""
+    driver_number: str
+    session_name: str
+    observed_pos: int
+    prior_mu: float
+    prior_sigma: float
+    posterior_mu: float
+    posterior_sigma: float
+    shock_factor: float
 
 class BayesianDriverRanking:
     """
-    Bayesian ranking with Gaussian priors.
-    Each driver: rating ~ N(μ, σ²)
-    Update via Bayesian inference.
+    Stateful engine for tracking driver ratings using Bayesian Inference.
+    
+    Model:
+        Rating ~ Normal(mu, sigma^2)
+        Update Rule: Conjugate Normal-Normal update.
+    
+    Key Features:
+        - Dynamic Volatility: Increases sigma when prediction error is high.
+        - Confidence Weighting: Trust Race results more than Practice.
     """
     
-    def __init__(self, priors):
-        """Initialize with prior beliefs (dict of driver_number -> DriverPrior)."""
-        self.ratings = {}
-        self.n_observations = {}
-        
-        for driver_num, prior in priors.items():
-            self.ratings[driver_num] = (prior.mu, prior.sigma)
-            self.n_observations[driver_num] = 0
-        
+    def __init__(self, priors: Dict[str, DriverPrior]):
         self.priors = priors
-        self.update_history = []
-    
-    def predict_positions(self):
-        """Predict positions based on current ratings."""
-        predictions = []
-        
-        for driver_num, (mu, sigma) in self.ratings.items():
-            # Rating to position: position = 21 - rating
-            predicted_pos = 21 - mu
-            ci_lower = max(1, predicted_pos - 1.96 * sigma)
-            ci_upper = min(20, predicted_pos + 1.96 * sigma)
+        # State: {driver_number: (mu, sigma)}
+        self.ratings: Dict[str, Tuple[float, float]] = {
+            d: (p.mu, p.sigma) for d, p in priors.items()
+        }
+        self.history: List[UpdateRecord] = []
+
+    def get_current_ratings(self) -> pd.DataFrame:
+        """Return current ratings as a DataFrame for analysis."""
+        data = []
+        for d_num, (mu, sigma) in self.ratings.items():
+            prior = self.priors[d_num]
+            # Convert latent rating to expected position (approximate inverse)
+            # Simple heuristic: Position ~= 21 - mu (clamped 1-20)
+            expected_pos = np.clip(21 - mu, 1, 20)
             
-            predictions.append({
-                'driver_number': driver_num,
-                'driver_code': self.priors[driver_num].driver_code,
-                'team': self.priors[driver_num].team,
-                'rating_mu': mu,
-                'rating_sigma': sigma,
-                'predicted_position': predicted_pos,
-                'ci_lower': ci_lower,
-                'ci_upper': ci_upper,
-                'n_observations': self.n_observations[driver_num]
+            data.append({
+                'driver_number': d_num,
+                'driver_code': prior.driver_code,
+                'team': prior.team,
+                'rating_mu': round(mu, 2),
+                'rating_sigma': round(sigma, 2),
+                'expected_position': round(expected_pos, 1),
+                'lower_ci': round(np.clip(21 - (mu + 1.96 * sigma), 1, 20), 1),
+                'upper_ci': round(np.clip(21 - (mu - 1.96 * sigma), 1, 20), 1)
             })
         
-        df = pd.DataFrame(predictions)
-        df = df.sort_values('predicted_position')
-        df['predicted_rank'] = range(1, len(df) + 1)
-        
-        return df
-    
-    def update_from_session(self, observed_positions, confidence_weight=1.0, session_name="Session"):
+        return pd.DataFrame(data).sort_values('rating_mu', ascending=False)
+
+    def update(
+        self, 
+        observations: Dict[str, int], 
+        session_name: str, 
+        confidence: float = 1.0
+    ) -> None:
         """
-        Update ratings from observed positions.
-        
-        confidence_weight: How much to trust this observation
-        - 0.1 = testing (low trust)
-        - 0.3 = practice (medium)
-        - 0.8 = sprint quali (high)
-        - 1.0 = race (full trust)
+        Update beliefs based on new race results.
+
+        Args:
+            observations: Dict mapping driver_number -> finished_position
+            session_name: Label for the event (e.g., 'R01_Bahrain_Race')
+            confidence: Trust level (0.0 to 1.0). Race=1.0, FP1=0.2.
         """
-        for driver_num, observed_pos in observed_positions.items():
-            if driver_num not in self.ratings:
+        # CONFIG: Volatility Factor for 2026 Regulation Changes
+        # This injects a small amount of uncertainty before every update,
+        # representing "Between-Race Development". Without this, the model
+        # becomes too stubborn by mid-season.
+        BASE_VOLATILITY = 0.1
+
+        for d_num, finish_pos in observations.items():
+            if d_num not in self.ratings:
                 continue
+
+            prior_mu, prior_sigma = self.ratings[d_num]
             
-            prior_mu, prior_sigma = self.ratings[driver_num]
+            # --- 1. Process Noise (Volatility Injection) ---
+            # Widen the prior slightly to account for development since last race
+            prior_sigma = np.sqrt(prior_sigma**2 + BASE_VOLATILITY**2)
             
-            # Position to rating
-            observed_rating = 21 - observed_pos
+            # --- 2. Observation Logic ---
+            # Convert position to latent performance rating (High rating = Low Position)
+            # Map Position 1 -> Rating 20, Pos 20 -> Rating 1
+            observed_rating = 21.0 - finish_pos
             
-            # Observation uncertainty (inversely proportional to confidence)
-            obs_sigma = 5.0 / confidence_weight
+            # Calculate Innovation (Prediction Error)
+            innovation = abs(observed_rating - prior_mu)
             
-            # Bayesian update
-            new_sigma_sq = 1 / (1/prior_sigma**2 + 1/obs_sigma**2)
-            new_sigma = np.sqrt(new_sigma_sq)
-            new_mu = (prior_mu/prior_sigma**2 + observed_rating/obs_sigma**2) * new_sigma_sq
+            # --- 3. Adaptive Shock Factor ---
+            # If result is > 2 std devs away, assume Concept Drift (e.g. massive upgrade)
+            # and inflate sigma further to learn faster.
+            shock = 0.0
+            if innovation > (2.0 * prior_sigma):
+                shock = 0.5 * (innovation / prior_sigma)
             
-            self.ratings[driver_num] = (new_mu, new_sigma)
-            self.n_observations[driver_num] += 1
+            # Effective observation noise (High confidence = Low noise)
+            # Base noise is 2.0 (approx 2 grid positions variance)
+            obs_noise = 2.0 / (confidence + 1e-6)
             
-            self.update_history.append({
-                'session': session_name,
-                'driver_number': driver_num,
-                'driver_code': self.priors[driver_num].driver_code,
-                'observed_position': observed_pos,
-                'prior_mu': prior_mu,
-                'prior_sigma': prior_sigma,
-                'new_mu': new_mu,
-                'new_sigma': new_sigma,
-                'confidence_weight': confidence_weight
-            })
-    
-    def get_update_summary(self):
-        """Get summary of all updates."""
-        return pd.DataFrame(self.update_history)
+            # Inflate prior uncertainty if shocked
+            effective_prior_sigma = prior_sigma * (1.0 + shock)
+
+            # --- 4. Bayesian Update (Normal-Normal Conjugate) ---
+            # Precision = 1 / variance
+            prior_prec = 1.0 / (effective_prior_sigma ** 2)
+            obs_prec = 1.0 / (obs_noise ** 2)
+            
+            posterior_sigma_sq = 1.0 / (prior_prec + obs_prec)
+            posterior_mu = (prior_mu * prior_prec + observed_rating * obs_prec) * posterior_sigma_sq
+            posterior_sigma = np.sqrt(posterior_sigma_sq)
+
+            # Update State
+            self.ratings[d_num] = (posterior_mu, posterior_sigma)
+            
+            # Log for audit
+            self.history.append(UpdateRecord(
+                driver_number=d_num,
+                session_name=session_name,
+                observed_pos=finish_pos,
+                prior_mu=prior_mu,
+                prior_sigma=prior_sigma,
+                posterior_mu=posterior_mu,
+                posterior_sigma=posterior_sigma,
+                shock_factor=shock
+            ))
+
+    # Alias for backward compatibility with older scripts/notebooks
+    update_from_session = update
+
+    def get_history_df(self) -> pd.DataFrame:
+        """Export update history for visualization."""
+        return pd.DataFrame([vars(r) for r in self.history])

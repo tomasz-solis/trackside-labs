@@ -33,7 +33,7 @@ from sklearn.preprocessing import StandardScaler
 from typing import Dict, Optional
 
 # Import from other helpers
-from .circuit_utils import extract_track_metrics
+from ..utils.circuit import extract_track_metrics
 
 
 def identify_corners(telemetry: pd.DataFrame, min_speed_drop: int = 15) -> pd.DataFrame:

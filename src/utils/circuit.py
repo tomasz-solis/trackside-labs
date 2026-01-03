@@ -80,7 +80,7 @@ def get_elevation(latitude: float,
         >>> print(f"Elevation: {elev}m")
         Elevation: 7.0m
     """
-    from .general_utils import get_elevation as _get_elev
+    from ..archive.helpers.general_utils import get_elevation as _get_elev
     return _get_elev(latitude, longitude, timeout)
 
 
@@ -410,7 +410,7 @@ def build_profiles_for_season(
     skipped: list[dict] = []
 
     try:
-        from .general_utils import _official_schedule, _session_list, _session_date_col, load_session, get_weather_info
+        from ..archive.helpers.general_utils import _official_schedule, _session_list, _session_date_col, load_session, get_weather_info
         sched = _official_schedule(year)
         past  = sched[sched.Session1DateUtc < datetime.now(timezone.utc)]
     except Exception as e:

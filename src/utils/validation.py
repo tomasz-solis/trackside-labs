@@ -11,7 +11,7 @@ from scipy.stats import spearmanr, kendalltau
 try:
     from src.utils.team_mapping import canonicalize_team
 except ImportError:
-    from utils.team_mapping import canonicalize_team
+    from src.utils.team_mapping import canonicalize_team
 
 
 def compare_rankings(

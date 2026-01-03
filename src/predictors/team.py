@@ -9,7 +9,7 @@ import numpy as np
 from typing import Dict, List, Tuple
 import sys
 sys.path.append('/home/claude')
-from src.extractors.performance_extractor import extract_all_teams_performance
+from src.extractors.performance import extract_all_teams_performance
 from src.helpers.session_selector import get_prediction_context
 
 

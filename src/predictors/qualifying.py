@@ -111,7 +111,7 @@ class QualifyingPredictor:
             raise ValueError(f"Failed to generate predictions for {race_name}")
         
         # Convert to driver grid
-        from src.utils.lineup_manager import get_lineups
+        from src.utils.lineups import get_lineups
         lineups = get_lineups(year, race_name)
         
         driver_preds = self.driver_ranker.predict_positions(
@@ -158,8 +158,8 @@ class QualifyingPredictor:
     def _predict_blended(self, year, race_name, session, weekend_type, 
                         blend_weight, track_data, car_data, verbose):
         """Blend FP data with model predictions."""
-        from src.predictors.team_predictor import rank_teams_for_track
-        from src.predictors.blended_predictor import (
+        from src.predictors.team import rank_teams_for_track
+        from src.predictors.blended import (
             get_fp_team_performance,
             blend_predictions
         )
@@ -206,7 +206,7 @@ class QualifyingPredictor:
     def _predict_model_only(self, race_name, session, weekend_type, 
                            track_data, car_data, verbose):
         """Model-only predictions (no FP data)."""
-        from src.predictors.team_predictor import rank_teams_for_track
+        from src.predictors.team import rank_teams_for_track
         
         track = track_data.get(race_name)
         if not track:
@@ -306,7 +306,7 @@ class QualifyingPredictor:
         EventFormat: 'conventional' → conventional
         """
         try:
-            from src.utils.weekend_utils import get_weekend_type
+            from src.utils.weekend import get_weekend_type
             return get_weekend_type(year, race_name)
         except ImportError:
             # Fallback if weekend_utils not installed

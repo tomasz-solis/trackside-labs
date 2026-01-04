@@ -1,125 +1,4 @@
-# F1 2026 Predictions
-
-Predict qualifying results using practice telemetry and Bayesian rankings.
-
-Built for 2026 when regulations reset and historical data becomes less useful.
-
-## What's Working
-
-Validated through notebook 03:
-- Data extraction from FastF1
-- Telemetry feature engineering
-- Bayesian ranking with temporal validation
-- Sequential learning (normal vs sprint weekends)
-
-Key finding: Testing data hurts predictions in stable regulations (2.88 MAE vs 2.60 MAE using just priors). This makes sense - teams sandbag when they know their cars. In 2026 with regulation reset, testing becomes the primary signal because nobody knows anything yet.
-
-## How It Works
-
-Two information sources:
-1. Priors: Championship standings, team/driver tiers
-2. Testing: Practice session telemetry
-
-Bayesian inference combines them based on how much you should trust each. In 2024 (stable regs), trust priors. In 2026 (reset), trust testing.
-
-## Notebooks
-
-### 01: Data Validation
-Wraps FastF1 API:
-- Fetch practice, qualifying, race data
-- Extract lap times, telemetry, weather
-- Cache to Parquet (faster reloading)
-
-### 02: Feature Engineering
-Converts raw telemetry into performance metrics:
-- Corner speeds (slow/medium/high by speed range)
-- Throttle patterns (% at full, average, smoothness)
-- Speed metrics (min/max/average across lap)
-
-Aggregates per session:
-- Median performance (robust to outliers)
-- Consistency (std dev)
-- Clean lap count
-
-Example:
-```
-VER - Bahrain Testing Day 3:
-  medium_corner_speed: 149.5 km/h
-  pct_full_throttle: 67.2%
-  clean_laps: 12
-```
-
-### 03: Bayesian Core
-Implements ranking system with proper validation:
-- DriverPrior: Initialize from championship standings
-- BayesianDriverRanking: Update beliefs from evidence
-- Temporal validation: Train on past, test on future
-
-Results (2024 season, 24 races):
-- Prior-only: 2.60 MAE (baseline)
-- With testing: 2.88 MAE (11% worse)
-
-Why testing hurts: Teams sandbag. They run heavy fuel, test programs, hide pace. Testing reveals car characteristics (good in slow corners, etc.) but not final positions.
-
-### 04: Sequential Learning
-Tests normal vs sprint weekends (24 races from 2024):
-
-Results:
-- Normal weekends: 6.3% improvement (FP1+FP2+FP3)
-- Sprint weekends: 14.5% improvement (FP1+Sprint Quali)
-
-Sprint qualifying is competitive (points on line), practice is sandbagged. One competitive session beats three practice sessions.
-
-Stats: p = 0.0009, d = 1.80. Sprint weekends definitively better.
-
-## Why These Features?
-
-Corner speeds show car performance at different speed ranges. Different tracks emphasize different corners (Monaco = slow, Monza = high-speed).
-
-Throttle metrics reveal driver confidence and car stability. Smooth throttle + high % full throttle = good balance.
-
-Speed ranges correlate with aero efficiency (slow), mechanical grip (medium), power/drag (high).
-
-## Structure
-
-```
-notebooks/
-├── 01_data_validation.ipynb
-├── 02_feature_engineering.ipynb
-├── 03_bayesian_core.ipynb
-└── 04_sequential_learning.ipynb
-
-src/
-├── features/
-│   ├── extractors.py    # Telemetry → features
-│   └── pipeline.py      # Full pipeline
-└── models/
-    ├── bayesian.py      # Ranking system
-    ├── scoring.py       # Performance scores
-    ├── car.py           # Car profiles
-    └── helpers.py       # Utilities
-```
-
-## Install
-
-```bash
-pip install -r requirements.txt
-```
-
-Core packages: fastf1, pandas, numpy, scipy, pyarrow
-
-## Usage
-
-Run notebooks in order:
-
-```bash
-jupyter notebook notebooks/01_data_validation.ipynb   # Fetch data
-jupyter notebook notebooks/02_feature_engineering.ipynb  # Extract features
-jupyter notebook notebooks/03_bayesian_core.ipynb     # Validate system
-jupyter notebook notebooks/04_sequential_learning.ipynb  # Test weekends
-```
-
-Outputs: Parquet files with features, validation metrics, predictions.
+# Formula 1 2026 Predictive Engine
 
 ## Why 2026?
 
@@ -132,37 +11,114 @@ Major regulation changes:
 
 When regs reset, historical performance matters less. Testing matters more. Current validation proves the system handles both scenarios - just needs weight adjustment.
 
-## Known Issues
+---
 
-Testing data degrades predictions in stable regulations. This is expected - validates the design. Architecture is correct for 2026, weights need adjustment based on reg state.
+## Logic
 
-Exact race positions are chaotic (strategy, safety cars, failures). Better targets: podium probability, points probability, beat teammate.
+**A physics-first simulation engine for F1 strategy and results.**
 
-Track characteristics manually defined (Bahrain = 25% slow corners). Should extract from telemetry automatically.
+Most F1 models are just black-box machine learning that overreacts to recent results. This project is different. It is built on a specific belief: **Drivers are car-limited, not skill-limited.**
 
-No sandbagging detection yet. Needs: fuel load estimation, throttle patterns, lap time variance.
+This system simulates the physics of a race weekend—tire degradation, pit loss, weather chaos, and lap 1 variance—layered with a Bayesian model that separates the car's ceiling from the driver's ability to reach it.
 
-## What's Next
+It also self-corrects. After every race, it looks back, calculates where it was wrong, and adjusts how much it trusts "Practice Data" vs. "Historical Baselines" for the next round.
 
-Research validation:
-- Track characteristic extraction from data
-- Sandbagging detection system
-- Car profile extraction (testing → car traits)
+---
 
-Production deployment:
-- API endpoints for live predictions
-- Automated retraining after race weekends
-- Regulation-aware weight adjustment
+## How it Works
+
+The system is split into three logical parts:
+
+1. **Factory** (Extraction)
+   Pulls raw telemetry to understand the physics. It doesn't just look at finishing positions; it calculates tire deg slopes, cornering speeds, and % gap to teammates to isolate driver skill.
+
+2. **Engine** (Simulation)
+   A Python implementation of a race. It simulates:
+   * **Lap 1 Chaos:** Rookies are more likely to lose positions or crash.
+   * **Tire Physics:** Uses degradation slopes to calculate a cumulative pace penalty. The model simulates how high-wear characteristics destroy a driver's net race time, regardless of the specific pit strategy chosen.
+   * **Weather:** Rain acts as a "skill multiplier," punishing low-consistency drivers.
+
+3. **Brain** (Learning)
+   Tracks its own performance. If the model consistently underestimates a team, it re-weights the priors automatically.
+
+---
+
+## Getting Started
+
+### 1. Setup
+
+```bash
+git clone [https://github.com/tomasz-solis/formula1-2026.git](https://github.com/tomasz-solis/formula1-2026.git)
+cd formula1-2026
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Initialize the Data
+Before you can predict anything, you need to build the knowledge base. This extracts the driver skills and track characteristics from the raw data.
+
+```bash
+# Calculate overtaking difficulty for every track
+python -m scripts.extract_overtaking_likelihood
+
+# Build driver profiles (Pace, Consistency, Tire Mgmt)
+python -m scripts.extract_driver_characteristics 2025
+```
+
+## 3. The Race Weekend Loop
+This is the actual workflow I use during a race weekend.
+
+1. Friday / Saturday (Live Prediction)
+Run this command whenever a session finishes. It detects what data is available (FP1, FP2, or Quali) and runs the best possible simulation.
+
+```bash
+# Example: It's Saturday afternoon
+python predict_weekend.py "Bahrain Grand Prix"
+```
+
+If Qualifying is done, it simulates the race using the real grid + tire data. If not, it predicts the grid first.
+
+2. Monday (The Learning Loop)
+Run this after the weekend. It fetches the official results, checks how the model performed, and updates the weights for the next race.
+
+```bash
+python -m scripts.post_race_analysis "Bahrain Grand Prix"
+```
+
+## Simulation & Testing
+You can run a full season simulation to test how 2026 regulation changes might play out:
+
+```bash
+python simulator.py
+```
+
+Or run the Stress Tests to verify the physics engine is actually working (e.g., checking if low-skill drivers actually crash more in wet simulations):
+
+```bash
+python src/tests/stress_test_race.py
+```
+
+## Project Structure
+```src/extractors/``` FastF1 logic for telemetry analysis.
+
+```src/models/``` Physics definitions (Car performance, Tire curves).
+
+```src/predictors/``` The core simulation engines (Race, Quali).
+
+```src/systems/``` The meta-learning logic.
+
+```scripts/``` Offline tools for data extraction and post-race analysis.
+
+```predict_weekend.py``` The main CLI tool.
 
 ## License
 
 MIT
 
-Data from [FastF1](https://github.com/theOehrly/Fast-F1).
-
 ## Contact
 
 Tomasz Solis
 - Email: tomasz.solis@gmail.com
-- LinkedIn: linkedin.com/in/tomaszsolis
-- GitHub: github.com/tomasz-solis
+- [LinkedIn](linkedin.com/in/tomaszsolis)
+- [GitHub](github.com/tomasz-solis)

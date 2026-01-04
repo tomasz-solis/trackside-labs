@@ -141,21 +141,20 @@ class RacePredictor:
             # Calculate raw pace advantage/deficit relative to field
             pace_delta = self._calculate_pace_delta(team, fp2_pace)
             
-            # --- PHASE 3: TIRE & STRATEGY ---
+            # --- PHASE 3: TIRE PHYSICS ---
             # Calculate Degradation Profile
             deg_profile = self._calculate_degradation_profile(
                 driver, team, race_name, fp2_pace
             )
             
-            # Determine Pit Strategy (1-stop vs 2-stop)
-            # This returns the TOTAL TIME LOST in pits
-            strategy_loss = self._determine_pit_strategy_loss(
-                race_name, deg_profile, track_info
+            # UPDATED: Calculate Pace Penalty (Cumulative Time Loss)
+            # Replaces the old specific "Pit Stop Count" logic
+            tire_penalty = self._calculate_tire_pace_penalty(
+                deg_profile, track_info
             )
             
             # --- PHASE 4: OVERTAKING ---
             # Can they actually use their pace?
-            # If track is Monaco (overtaking_factor > 0.8), pace advantage is nullified.
             effective_pace_gain = self._calculate_effective_pace_gain(
                 pos_after_lap1, pace_delta, overtaking_factor, skills['racecraft']
             )
@@ -173,11 +172,10 @@ class RacePredictor:
 
             # --- AGGREGATION ---
             # Calculate Expected Finishing Position
-            # We start from Lap 1 position, then apply modifiers
             expected_pos = (
                 pos_after_lap1 * 1.0 +         # Anchor
                 effective_pace_gain +          # Speed delta
-                (strategy_loss / 10.0) +       # ~10s strategy diff = 1 position?
+                tire_penalty +                 # Tire wear impact
                 weather_impact +
                 sc_impact
             )
@@ -233,7 +231,6 @@ class RacePredictor:
         """
         Simulate the first lap variance.
         Veterans (high racecraft/consistency) hold/gain positions.
-        Rookies or aggressive drivers have higher variance (gain or crash).
         """
         if start_pos <= 2: return start_pos # Front row usually holds
         
@@ -245,9 +242,7 @@ class RacePredictor:
         skill_mod = (racecraft - 0.5) * 2.0 # -1.0 to +1.0
         
         # Random fluctuation based on skill
-        # Good driver: tends to gain (-1) or hold (0)
         change = np.random.normal(-skill_mod, variance)
-        
         return max(1, start_pos + change)
 
     def _calculate_effective_pace_gain(self, current_pos, pace_delta, difficulty, skill):
@@ -255,18 +250,12 @@ class RacePredictor:
         Calculate positions gained/lost purely on pace, constrained by track difficulty.
         """
         # Pace Delta: Negative = Faster. -1.0 means ~0.8s faster per lap.
-        
-        # Theoretical positions gained over race distance
-        # ~55 laps * 0.1s advantage ~= 5.5s ~= 1-2 positions?
         theoretical_gain = pace_delta * 3.0 
         
         # Constrain by Overtaking Difficulty
-        # If difficulty is 1.0 (Monaco), gain is 10% of theoretical.
-        # If difficulty is 0.0 (Spa), gain is 100%.
         overtaking_efficiency = (1.0 - difficulty)
         
         # Driver Skill helps overcome difficulty
-        # Max (0.9 skill) can pass at Monaco better than Latifi.
         overtaking_efficiency += (skill * 0.3)
         
         return theoretical_gain * min(1.0, overtaking_efficiency)
@@ -280,42 +269,34 @@ class RacePredictor:
         )
         return impact['degradation'] # 0.0 (Low) to 1.0 (High)
 
-    def _determine_pit_strategy_loss(self, race_name, deg_factor, track_info):
+    def _calculate_tire_pace_penalty(self, deg_factor, track_info):
         """
-        Decide between 1-stop and 2-stop and calculate total pit time loss.
+        Calculate cumulative race time penalty due to tire degradation.
+        High Deg = Slower stints OR extra pit stop time.
+        
+        We convert this time loss into 'Position Loss' (approx).
         """
-        # Get Time Loss per Pit Stop (default 22s)
+        # Base penalty derived from track pit loss (time cost of stopping)
+        # Higher pit loss tracks punish high deg more severely.
         pit_time_loss = track_info.get('pit_stop_loss', 22.0)
         
-        # Logic:
-        # Low Deg (< 0.4) -> Easy 1-stop
-        # Med Deg (0.4-0.7) -> Marginal 1-stop / Fast 2-stop
-        # High Deg (> 0.7) -> Forced 2-stop or 3-stop
+        # Determine the penalty scale
+        # 0.5 is average/neutral deg.
+        # deg_factor 1.0 (High) -> Penalty
+        # deg_factor 0.0 (Low) -> Advantage
         
-        if deg_factor < 0.4:
-            # 1 Stop
-            stops = 1
-        elif deg_factor > 0.75:
-            # 2 Stops + potential fall off
-            stops = 2
-        else:
-            # Mixed strategy. 
-            # If overtaking is hard, prioritize track position (1 stop)
-            # If overtaking is easy, prioritize fresh tires (2 stop)
-            if track_info.get('overtaking_difficulty', 0.5) > 0.6:
-                stops = 1 # Hold position
-            else:
-                stops = 2 # Attack
+        deg_delta = deg_factor - 0.5
         
-        total_loss = stops * pit_time_loss
+        # If deg is high, you lose ~20s over race distance vs average
+        # 20s is roughly equivalent to 1 pit stop time.
+        # We scale this by the track's specific pit penalty.
+        time_penalty_factor = (pit_time_loss / 22.0) 
         
-        # Convert Time Loss to Position Loss (approx)
-        # In a spread out field, 20s might be 1 position. In a train, it's 5.
-        # We normalize relative to the 'Standard' strategy (say 1.5 stops avg)
-        avg_stops = 1.5
-        stop_delta = stops - avg_stops
+        # Convert to position impact
+        # 4.0 multiplier: High deg (1.0) costs ~2.0 positions vs Average (0.5)
+        position_impact = deg_delta * 4.0 * time_penalty_factor
         
-        return stop_delta * 2.0 # Each extra stop costs ~2 net positions if not recovered
+        return position_impact
 
     def _apply_safety_car_variance(self, track_info, current_pos):
         """
@@ -324,12 +305,9 @@ class RacePredictor:
         prob_sc = track_info.get('safety_car_prob', 0.3)
         
         # If SC is likely, gap advantages are erased.
-        # This helps cars behind catch up, hurts leaders.
         impact = 0.0
         if prob_sc > 0.6:
-            # High SC probability (e.g. Jeddah, Singapore)
             # Compress positions towards the mean
-            # Leaders (Pos 1) get penalty (+), Backmarkers (Pos 20) get boost (-)
             dist_from_mean = current_pos - 10
             impact = -dist_from_mean * 0.1 # 10% compression
             

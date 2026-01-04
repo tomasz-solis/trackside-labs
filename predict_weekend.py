@@ -90,7 +90,7 @@ def get_available_data(year, race_name, weekend_type):
     else: logger.info("   ℹ️  No session data (Pre-Weekend)")
     return data
 
-def run_weekend_predictions(year, race_name):
+def run_weekend_predictions(year, race_name, weather='dry'):
     # 1. Initialize & Auto-Learn
     factory = PriorsFactory()
     priors = apply_2026_regulations(factory.create_priors())
@@ -162,8 +162,12 @@ def run_weekend_predictions(year, race_name):
 
     # 3. Predict
     r_result = race_predictor.predict(
-        year=year, race_name=race_name, 
-        qualifying_grid=grid, fp2_pace=fp2_pace, verbose=False
+        year=year, 
+        race_name=race_name, 
+        qualifying_grid=grid, 
+        fp2_pace=fp2_pace, 
+        weather_forecast=weather,
+        verbose=False
     )
 
     r_df = pd.DataFrame(r_result['finish_order'])
@@ -190,6 +194,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("race_name", help="e.g. 'Bahrain Grand Prix'")
     parser.add_argument("--year", type=int, default=datetime.now().year)
+    
+    parser.add_argument("--weather", type=str, default="dry", 
+                        choices=['dry', 'rain', 'mixed'],
+                        help="Weather forecast: 'dry', 'rain', or 'mixed'")
+    
     args = parser.parse_args()
     
-    run_weekend_predictions(args.year, args.race_name)
+    run_weekend_predictions(args.year, args.race_name, weather=args.weather)

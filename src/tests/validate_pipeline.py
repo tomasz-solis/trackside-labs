@@ -13,7 +13,7 @@ sys.path.append('/home/claude')
 
 from src.archive.normalization import extract_all_teams_performance
 from src.predictors.team import rank_teams_for_track
-from src.helpers.session_selector import get_prediction_context
+from src.utils.session_selector import get_prediction_context
 
 
 def validate_data_structure(car_data, track_data):

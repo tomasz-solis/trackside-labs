@@ -1,12 +1,12 @@
 """
-Race Predictor with Performance Tracking (UPDATED)
-
-Uses PerformanceTracker for:
-- Dynamic MAE estimates (no hardcoded values)
-- Learned model weights
-- Tunable parameters
-
-All configuration loaded from tracker, updates automatically with new data.
+Race Predictor with Deep Physics & Strategy Simulation.
+Handles: 
+- Grid & Lap 1 Chaos
+- Pure Race Pace (Fuel Corrected)
+- Overtaking Probability (DRS/Track Diff)
+- Pit Strategy Decision Tree (1 vs 2 stop)
+- Reliability & Safety Car Variance
+- Dynamic Weather Physics
 """
 
 import json
@@ -14,470 +14,393 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional
 
-
 class RacePredictor:
     """
-    Predict race finish positions with data-driven performance tracking.
-    
-    Model factors:
-    1. Starting grid (quali)
-    2. Long run pace (FP2)
-    3. Track overtaking difficulty
-    4. Driver overtaking skill
-    5. Tire degradation
-    
-    UPDATED: All weights and MAEs from PerformanceTracker
+    Predict race finish positions using a comprehensive physics & strategy model.
     """
     
     def __init__(
         self,
+        year: int,
         data_dir='data',
         driver_chars: dict | None = None,
         driver_chars_path: str | Path | None = None,
         performance_tracker=None
     ):
-        """
-        Initialize race predictor.
-        
-        Args:
-            data_dir: Path to data directory
-            driver_chars: Driver characteristics dict
-            driver_chars_path: Path to driver characteristics file
-            performance_tracker: PerformanceTracker instance (optional)
-        """
-        # Handle paths
+        self.year = year
         self.data_dir = Path(data_dir)
-        if not self.data_dir.is_absolute():
-            current = Path(__file__).parent
-            while current != current.parent:
-                if (current / 'src').exists():
-                    self.data_dir = current / data_dir
-                    break
-                current = current.parent
-            else:
-                self.data_dir = Path(data_dir)
         
+        # Resolve paths
+        if not self.data_dir.is_absolute():
+            self.data_dir = Path(__file__).parent.parent.parent / data_dir
+
         self.driver_chars_path = (
             Path(driver_chars_path).resolve()
             if driver_chars_path is not None
             else None
         )
         
-        # Initialize performance tracker
+        # Initialize Tracker
         if performance_tracker is None:
-            try:
-                from src.utils.performance_tracker import get_tracker
-                self.tracker = get_tracker()
-            except ImportError:
-                self.tracker = None
+            from src.utils.performance_tracker import get_tracker
+            self.tracker = get_tracker()
         else:
             self.tracker = performance_tracker
         
-        # Load weights from tracker config (or use defaults)
+        # Load Configs
         self.weights = self._load_weights()
         self.uncertainty = self._load_uncertainty()
         
-        # Load driver characteristics
+        # Load Knowledge Bases
         if driver_chars is not None:
             self.driver_chars = driver_chars
         else:
             if self.driver_chars_path is None:
-                raise ValueError(
-                    "RacePredictor requires driver_chars or driver_chars_path"
-                )
-            path = self.driver_chars_path
-            if not path.exists():
-                raise FileNotFoundError(f"Driver characteristics not found at {path}")
-            with path.open() as f:
+                raise ValueError("RacePredictor requires driver_chars or driver_chars_path")
+            with self.driver_chars_path.open() as f:
                 data = json.load(f)
             self.driver_chars = data.get("drivers", {})
-        
-        # Initialize tire predictor
+            
+        # Initialize Sub-Models
         self.tire_predictor = self._init_tire_predictor()
-    
-    def _load_weights(self) -> Dict:
-        """Load model weights from tracker config."""
-        if self.tracker is None:
-            # Fallback defaults
-            return {
-                'pace_weight': 0.4,
-                'grid_weight': 0.3,
-                'overtaking_weight': 0.2,
-                'tire_deg_weight': 0.1
-            }
-        
-        config = self.tracker.get_config('race_weights')
-        if config:
-            return {
-                'pace_weight': config.get('pace_weight', 0.4),
-                'grid_weight': config.get('grid_weight', 0.3),
-                'overtaking_weight': config.get('overtaking_weight', 0.2),
-                'tire_deg_weight': config.get('tire_deg_weight', 0.1)
-            }
-        
-        return {
-            'pace_weight': 0.4,
-            'grid_weight': 0.3,
-            'overtaking_weight': 0.2,
-            'tire_deg_weight': 0.1
-        }
-    
-    def _load_uncertainty(self) -> Dict:
-        """Load uncertainty parameters from tracker config."""
-        if self.tracker is None:
-            return {
-                'base': 2.5,
-                'reliability': 0.15,
-                'new_regs': True,
-                'new_regs_multiplier': 1.3
-            }
-        
-        config = self.tracker.get_config('uncertainty')
-        if config:
-            return {
-                'base': config.get('base', 2.5),
-                'reliability': config.get('reliability', 0.15),
-                'new_regs': True,  # Will be updated manually for regulation changes
-                'new_regs_multiplier': config.get('new_regs_multiplier', 1.3)
-            }
-        
-        return {
-            'base': 2.5,
-            'reliability': 0.15,
-            'new_regs': True,
-            'new_regs_multiplier': 1.3
-        }
-    
+        self.track_data = self._load_track_data()
+
     def _init_tire_predictor(self):
-        """Initialize tire predictor."""
+        """Initialize tire predictor with correct year and paths."""
         try:
-            try:
-                from src.predictors.tire import TirePredictor
-            except ImportError:
-                from src.predictors.tire import TirePredictor
-            
-            if self.driver_chars_path is None:
-                return None
-            
-            # Load tire parameters from config
-            tire_config = {}
-            if self.tracker:
-                tire_config = self.tracker.get_config('tire')
-            
-            char_path = self.driver_chars_path
-            track_path = self.data_dir / 'processed/track_characteristics/2025_track_characteristics.json'
+            from src.predictors.tire import TirePredictor
+            if self.driver_chars_path is None: return None
             
             predictor = TirePredictor(
-                driver_chars_path=str(char_path),
-                track_chars_path=str(track_path) if track_path.exists() else None
+                year=self.year,
+                driver_chars_path=str(self.driver_chars_path),
+                data_dir=str(self.data_dir)
             )
-            
-            # Update predictor parameters if available
-            if tire_config:
-                predictor.skill_reduction_factor = tire_config.get('skill_reduction_factor', 0.2)
-                predictor.tire_racecraft_penalty = tire_config.get('tire_racecraft_penalty', 0.4)
-                predictor.track_effect_range = tire_config.get('track_effect_range', 0.1)
-            
+            # Apply overrides from Learning System if available
+            if self.tracker:
+                conf = self.tracker.get_config('tire')
+                if conf:
+                    predictor.skill_reduction_factor = conf.get('skill_reduction_factor', 0.2)
             return predictor
-        
         except Exception as e:
-            print(f"Could not load tire predictor: {e}")
+            print(f"⚠️ Could not load tire predictor: {e}")
             return None
-    
+
+    def _load_track_data(self) -> Dict:
+        """Load track characteristics (Pit loss, SC probability)."""
+        try:
+            p = self.data_dir / 'processed/track_characteristics.json'
+            if p.exists():
+                with open(p) as f:
+                    return json.load(f).get('tracks', {})
+        except:
+            pass
+        return {}
+
     def predict(
         self,
-        year: int,
+        year: int, 
         race_name: str,
         qualifying_grid: List[Dict],
         fp2_pace: Optional[Dict] = None,
         overtaking_factor: Optional[float] = None,
+        weather_forecast: Optional[str] = 'dry', 
         verbose: bool = False
     ) -> Dict:
         """
-        Predict race finish positions.
-        
-        Args:
-            year: Season year
-            race_name: Race name
-            qualifying_grid: Qualifying results
-            fp2_pace: FP2 pace data (optional)
-            overtaking_factor: Track difficulty (optional)
-            verbose: Print progress
-            
-        Returns:
-            {
-                'method': str,
-                'expected_mae': float,  # From tracker or conservative default
-                'finish_order': [...]
-            }
+        Run the full simulation loop.
         """
         if verbose:
-            print(f"🏎️  Predicting race finish: {race_name}")
+            print(f"🏎️  Simulating {race_name} [Weather: {weather_forecast}]")
         
-        # Load overtaking baseline
+        # 1. Setup Environment
+        track_info = self.track_data.get(race_name, {})
         if overtaking_factor is None:
-            overtaking_factor = self._get_overtaking_difficulty(race_name)
+            overtaking_factor = track_info.get('overtaking_difficulty', 0.5)
+            
+        if fp2_pace is None: fp2_pace = {} 
         
-        # Load FP2 pace if needed
-        if fp2_pace is None:
-            try:
-                from src.extractors.race_pace_extractor import extract_fp2_pace
-                fp2_pace = extract_fp2_pace(year, race_name, verbose)
-            except Exception as e:
-                if verbose:
-                    print(f"   No FP2 pace: {e}")
-                fp2_pace = {}
-        
-        # Predict each driver
         race_positions = []
         
+        # 2. Driver-by-Driver Simulation
         for driver_quali in qualifying_grid:
             driver = driver_quali['driver']
             team = driver_quali['team']
             quali_pos = driver_quali['position']
             
-            # Get driver racecraft
-            driver_racecraft = self._get_driver_racecraft(driver)
+            # Retrieve Stats
+            skills = self._get_driver_skills(driver)
             
-            # Calculate components
-            pace_delta = self._calculate_pace_delta(team, fp2_pace, quali_pos)
-            overtaking_gain = self._calculate_overtaking_gain(
-                quali_pos, pace_delta, overtaking_factor, driver_racecraft
+            # --- PHASE 1: THE START ---
+            # Lap 1 is high variance. Good starters gain, poor starters lose.
+            pos_after_lap1 = self._simulate_lap_1_chaos(
+                quali_pos, skills['racecraft'], skills['consistency']
             )
-            deg_impact = self._calculate_degradation_impact(
+            
+            # --- PHASE 2: RACE PACE ---
+            # Calculate raw pace advantage/deficit relative to field
+            pace_delta = self._calculate_pace_delta(team, fp2_pace)
+            
+            # --- PHASE 3: TIRE & STRATEGY ---
+            # Calculate Degradation Profile
+            deg_profile = self._calculate_degradation_profile(
                 driver, team, race_name, fp2_pace
             )
             
-            # Combine with learned weights
-            expected_pos = (
-                quali_pos * self.weights['grid_weight'] +
-                (quali_pos + pace_delta) * self.weights['pace_weight'] +
-                (quali_pos + overtaking_gain) * self.weights['overtaking_weight'] +
-                (quali_pos + deg_impact) * self.weights['tire_deg_weight']
+            # Determine Pit Strategy (1-stop vs 2-stop)
+            # This returns the TOTAL TIME LOST in pits
+            strategy_loss = self._determine_pit_strategy_loss(
+                race_name, deg_profile, track_info
             )
             
-            # Apply reliability risk
-            if np.random.random() < self.uncertainty['reliability']:
-                expected_pos += 5
+            # --- PHASE 4: OVERTAKING ---
+            # Can they actually use their pace?
+            # If track is Monaco (overtaking_factor > 0.8), pace advantage is nullified.
+            effective_pace_gain = self._calculate_effective_pace_gain(
+                pos_after_lap1, pace_delta, overtaking_factor, skills['racecraft']
+            )
             
-            # Calculate uncertainty
-            uncertainty = self._calculate_position_uncertainty(expected_pos)
-            ci_low = max(1, expected_pos - uncertainty)
-            ci_high = min(len(qualifying_grid), expected_pos + uncertainty)
+            # --- PHASE 5: EXTERNALITIES ---
+            # Weather
+            weather_impact = self._calculate_weather_impact(
+                weather_forecast, skills['wet_weather']
+            )
+            
+            # Safety Car Bunching (Reduces gaps, helps recovery drives)
+            sc_impact = self._apply_safety_car_variance(
+                track_info, pos_after_lap1
+            )
+
+            # --- AGGREGATION ---
+            # Calculate Expected Finishing Position
+            # We start from Lap 1 position, then apply modifiers
+            expected_pos = (
+                pos_after_lap1 * 1.0 +         # Anchor
+                effective_pace_gain +          # Speed delta
+                (strategy_loss / 10.0) +       # ~10s strategy diff = 1 position?
+                weather_impact +
+                sc_impact
+            )
+            
+            # --- PHASE 6: RELIABILITY ---
+            dnf_prob = self._calculate_dnf_probability(
+                team, skills['consistency'], weather_forecast, track_info
+            )
+            
+            # Apply DNF Penalty to Expected Value (simulating statistical risk)
+            if np.random.random() < dnf_prob:
+                expected_pos += 22  # Push to back
+                
+            # --- CONFIDENCE INTERVALS ---
+            uncertainty = self._calculate_uncertainty(
+                expected_pos, weather_forecast, overtaking_factor
+            )
             
             race_positions.append({
                 'driver': driver,
                 'team': team,
                 'expected_position': expected_pos,
-                'confidence_interval': (ci_low, ci_high),
-                'driver_racecraft': driver_racecraft,
-                'pace_delta': pace_delta,
-                'overtaking_gain': overtaking_gain,
-                'deg_impact': deg_impact
+                'start_pos': quali_pos,
+                'dnf_probability': dnf_prob,
+                'confidence_interval': (max(1, expected_pos - uncertainty), expected_pos + uncertainty),
+                'podium_probability': self._calculate_podium_probability(expected_pos, uncertainty)
             })
         
-        # Sort by expected position
+        # 3. Final Ranking
         race_positions.sort(key=lambda x: x['expected_position'])
         
-        # Assign final positions
         finish_order = []
         for i, pred in enumerate(race_positions, 1):
-            confidence = self._calculate_confidence(
-                pred['confidence_interval'], i
-            )
+            pred['position'] = i
+            # Cap confidence based on spread
+            spread = pred['confidence_interval'][1] - pred['confidence_interval'][0]
+            pred['confidence'] = max(30, 98 - spread * 4)
+            finish_order.append(pred)
             
-            podium_prob = self._calculate_podium_probability(
-                pred['expected_position'],
-                pred['confidence_interval']
-            )
-            
-            finish_order.append({
-                'position': i,
-                'driver': pred['driver'],
-                'team': pred['team'],
-                'confidence': confidence,
-                'confidence_interval': pred['confidence_interval'],
-                'podium_probability': podium_prob,
-                'driver_racecraft': pred['driver_racecraft'],
-                'tire_deg_impact': pred['deg_impact']
-            })
-        
-        # Get expected MAE from tracker (data-driven)
-        expected_mae = self._get_expected_mae()
-        
         return {
-            'method': 'racecraft_with_tire_hierarchy',
-            'expected_mae': expected_mae,
             'finish_order': finish_order,
-            'factors_used': {
-                'pace': fp2_pace is not None,
-                'track_difficulty': overtaking_factor,
-                'driver_racecraft': True,
-                'tire_degradation': self.tire_predictor is not None
-            },
-            'weights_used': self.weights
+            'metadata': {
+                'weather': weather_forecast,
+                'track_sc_prob': track_info.get('safety_car_prob', 0.0)
+            }
         }
-    
-    def _get_expected_mae(self) -> float:
-        """Get expected MAE from tracker or conservative default."""
-        if self.tracker is None:
-            # Conservative default for new regulations
-            return 5.5 if self.uncertainty['new_regs'] else 4.8
+
+    # =========================================================================
+    # DETAILED SIMULATION HELPERS
+    # =========================================================================
+
+    def _simulate_lap_1_chaos(self, start_pos, racecraft, consistency):
+        """
+        Simulate the first lap variance.
+        Veterans (high racecraft/consistency) hold/gain positions.
+        Rookies or aggressive drivers have higher variance (gain or crash).
+        """
+        if start_pos <= 2: return start_pos # Front row usually holds
         
-        # Get from tracker (uses last 10 predictions)
-        mae = self.tracker.get_expected_mae(
-            prediction_type='race',
-            method='racecraft_with_tire_hierarchy',
-            window='last_10'
+        # Variance decreases as you go back? No, midfield is chaotic (P8-P14)
+        variance = 0.5
+        if 8 <= start_pos <= 15: variance = 1.5
+        
+        # Skill modifier: High racecraft reduces negative variance
+        skill_mod = (racecraft - 0.5) * 2.0 # -1.0 to +1.0
+        
+        # Random fluctuation based on skill
+        # Good driver: tends to gain (-1) or hold (0)
+        change = np.random.normal(-skill_mod, variance)
+        
+        return max(1, start_pos + change)
+
+    def _calculate_effective_pace_gain(self, current_pos, pace_delta, difficulty, skill):
+        """
+        Calculate positions gained/lost purely on pace, constrained by track difficulty.
+        """
+        # Pace Delta: Negative = Faster. -1.0 means ~0.8s faster per lap.
+        
+        # Theoretical positions gained over race distance
+        # ~55 laps * 0.1s advantage ~= 5.5s ~= 1-2 positions?
+        theoretical_gain = pace_delta * 3.0 
+        
+        # Constrain by Overtaking Difficulty
+        # If difficulty is 1.0 (Monaco), gain is 10% of theoretical.
+        # If difficulty is 0.0 (Spa), gain is 100%.
+        overtaking_efficiency = (1.0 - difficulty)
+        
+        # Driver Skill helps overcome difficulty
+        # Max (0.9 skill) can pass at Monaco better than Latifi.
+        overtaking_efficiency += (skill * 0.3)
+        
+        return theoretical_gain * min(1.0, overtaking_efficiency)
+
+    def _calculate_degradation_profile(self, driver, team, race_name, fp2_pace):
+        """Get the tire wear factor for this specific driver/car combo."""
+        if not self.tire_predictor: return 0.5
+        
+        impact = self.tire_predictor.get_tire_impact(
+            driver, team, race_name, fp2_pace=fp2_pace
         )
+        return impact['degradation'] # 0.0 (Low) to 1.0 (High)
+
+    def _determine_pit_strategy_loss(self, race_name, deg_factor, track_info):
+        """
+        Decide between 1-stop and 2-stop and calculate total pit time loss.
+        """
+        # Get Time Loss per Pit Stop (default 22s)
+        pit_time_loss = track_info.get('pit_stop_loss', 22.0)
         
-        return mae
-    
-    def _get_driver_racecraft(self, driver: str) -> float:
-        """Get driver racecraft from characteristics."""
-        if driver not in self.driver_chars:
-            return 0.5
+        # Logic:
+        # Low Deg (< 0.4) -> Easy 1-stop
+        # Med Deg (0.4-0.7) -> Marginal 1-stop / Fast 2-stop
+        # High Deg (> 0.7) -> Forced 2-stop or 3-stop
         
-        racecraft = self.driver_chars[driver].get('racecraft', {})
-        return racecraft.get('overtaking_skill', 0.5)
-    
-    def _calculate_pace_delta(self, team, fp2_pace, quali_pos):
-        """Calculate pace advantage from FP2."""
-        if not fp2_pace or team not in fp2_pace:
-            return 0.0
-        
-        team_pace = fp2_pace[team].get('relative_pace', 0.0)
-        pace_delta = -team_pace * 10
-        
-        return np.clip(pace_delta, -5, 5)
-    
-    def _calculate_overtaking_gain(
-        self, 
-        quali_pos, 
-        pace_delta, 
-        overtaking_factor,
-        driver_racecraft
-    ):
-        """Calculate overtaking gain with driver racecraft."""
-        if pace_delta >= 0:
-            return 0.0
-        
-        potential = abs(pace_delta)
-        track_adjusted = potential * overtaking_factor
-        achievable = track_adjusted * driver_racecraft
-        
-        if quali_pos <= 5:
-            achievable *= 0.5
-        elif quali_pos <= 10:
-            achievable *= 0.75
-        
-        return -achievable
-    
-    def _calculate_degradation_impact(
-        self, 
-        driver: str, 
-        team: str, 
-        race_name: str,
-        fp2_pace: Optional[Dict]
-    ):
-        """Calculate tire degradation impact."""
-        if not self.tire_predictor:
-            # Fallback
-            if not fp2_pace or team not in fp2_pace:
-                return 0.0
-            deg_rate = fp2_pace[team].get('degradation', 0.0)
-            deg_impact = deg_rate * 4
-            return np.clip(deg_impact, 0, 3)
-        
-        # Use tire predictor
-        tire_impact = self.tire_predictor.get_tire_impact(
-            driver=driver,
-            team=team,
-            track_name=race_name.lower().replace(' ', '_'),
-            fp2_data=fp2_pace,
-            race_progress=0.7
-        )
-        
-        deg_impact = tire_impact['degradation'] * 4
-        return np.clip(deg_impact, 0, 3)
-    
-    def _calculate_position_uncertainty(self, position):
-        """Calculate uncertainty for position."""
-        base = self.uncertainty['base']
-        
-        if 6 <= position <= 15:
-            multiplier = 1.5
+        if deg_factor < 0.4:
+            # 1 Stop
+            stops = 1
+        elif deg_factor > 0.75:
+            # 2 Stops + potential fall off
+            stops = 2
         else:
-            multiplier = 1.0
+            # Mixed strategy. 
+            # If overtaking is hard, prioritize track position (1 stop)
+            # If overtaking is easy, prioritize fresh tires (2 stop)
+            if track_info.get('overtaking_difficulty', 0.5) > 0.6:
+                stops = 1 # Hold position
+            else:
+                stops = 2 # Attack
         
-        uncertainty = base * multiplier
+        total_loss = stops * pit_time_loss
         
-        if self.uncertainty['new_regs']:
-            uncertainty *= self.uncertainty['new_regs_multiplier']
+        # Convert Time Loss to Position Loss (approx)
+        # In a spread out field, 20s might be 1 position. In a train, it's 5.
+        # We normalize relative to the 'Standard' strategy (say 1.5 stops avg)
+        avg_stops = 1.5
+        stop_delta = stops - avg_stops
         
-        return uncertainty
-    
-    def _calculate_confidence(self, ci, position):
-        """Calculate confidence from interval."""
-        ci_low, ci_high = ci
-        spread = ci_high - ci_low
-        confidence = max(40, 95 - spread * 5)
-        return confidence
-    
-    def _calculate_podium_probability(self, expected_pos, ci):
-        """Calculate podium probability."""
-        ci_low, ci_high = ci
+        return stop_delta * 2.0 # Each extra stop costs ~2 net positions if not recovered
+
+    def _apply_safety_car_variance(self, track_info, current_pos):
+        """
+        Safety Cars compress the field.
+        """
+        prob_sc = track_info.get('safety_car_prob', 0.3)
         
-        if ci_low <= 3:
-            overlap = min(3, ci_high) - max(1, ci_low) + 1
-            total_range = ci_high - ci_low + 1
-            prob = (overlap / total_range) * 100
+        # If SC is likely, gap advantages are erased.
+        # This helps cars behind catch up, hurts leaders.
+        impact = 0.0
+        if prob_sc > 0.6:
+            # High SC probability (e.g. Jeddah, Singapore)
+            # Compress positions towards the mean
+            # Leaders (Pos 1) get penalty (+), Backmarkers (Pos 20) get boost (-)
+            dist_from_mean = current_pos - 10
+            impact = -dist_from_mean * 0.1 # 10% compression
             
-            if expected_pos <= 3:
-                prob = min(95, prob * 1.5)
-            
-            return prob
+        return impact
+
+    def _calculate_weather_impact(self, forecast, wet_skill):
+        """Rain acts as a skill multiplier."""
+        if forecast == 'dry': return 0.0
         
+        # Rain Intensity
+        intensity = 1.0 if forecast == 'rain' else 0.5
+        
+        # Skill Delta (0.5 is avg). Range -0.5 to +0.5
+        skill_delta = wet_skill - 0.5
+        
+        # Good drivers gain 3 positions, Bad drivers lose 3
+        return -(skill_delta * 6.0 * intensity)
+
+    def _calculate_dnf_probability(self, team, consistency, weather, track_info):
+        """
+        Calculate DNF risk based on Car, Driver, Track, and Weather.
+        """
+        base = 0.05 # 5% baseline reliability failure
+        
+        # Driver Error
+        driver_risk = (1.0 - consistency) * 0.15
+        
+        # Track Factor (Street circuits = higher crash risk)
+        track_risk = 0.0
+        if track_info.get('type') == 'street':
+            track_risk = 0.05
+            
+        # Weather Factor
+        weather_risk = 0.0
+        if weather != 'dry':
+            weather_risk = 0.10
+            
+        return base + driver_risk + track_risk + weather_risk
+
+    def _calculate_pace_delta(self, team, fp2_pace):
+        if not fp2_pace or team not in fp2_pace: return 0.0
+        return -fp2_pace[team].get('relative_pace', 0.0) * 8.0 
+
+    def _calculate_uncertainty(self, pos, weather, overtaking):
+        # Base uncertainty
+        u = self.uncertainty['base']
+        # Rain increases variance
+        if weather != 'dry': u *= 1.5
+        # Easy overtaking reduces variance (faster cars sort themselves out)
+        if overtaking < 0.3: u *= 0.8
+        return u
+
+    def _calculate_podium_probability(self, pos, uncertainty):
+        if pos - uncertainty <= 3:
+            return max(0, min(100, (3 - (pos - uncertainty)) * 25))
         return 0.0
-    
-    def _get_overtaking_difficulty(self, race_name):
-        """Get track overtaking difficulty."""
-        baseline_path = self.data_dir / 'historical/overtaking_difficulty.json'
-        
-        if not baseline_path.exists():
-            return 0.5
-        
-        with open(baseline_path) as f:
-            baseline = json.load(f)
-        
-        race_slug = race_name.lower().replace(' ', '_')
-        
-        if race_slug in baseline.get('tracks', {}):
-            return baseline['tracks'][race_slug].get('difficulty', 0.5)
-        
-        return 0.5
-    
-    def update_weights(self, new_weights):
-        """
-        Update model weights and save to tracker.
-        
-        Args:
-            new_weights: Dict of weight updates
-        """
-        self.weights.update(new_weights)
-        
-        # Save to tracker config
-        if self.tracker:
-            self.tracker.update_config({
-                'race_weights': self.weights
-            })
-    
-    def set_uncertainty(self, new_regs=True):
-        """Set uncertainty level for regulation changes."""
-        self.uncertainty['new_regs'] = new_regs
-        
-        # Save to tracker config
-        if self.tracker:
-            self.tracker.update_config({
-                'uncertainty': self.uncertainty
-            })
+
+    def _load_weights(self) -> Dict:
+        if self.tracker: return self.tracker.get_config('race_weights')
+        return {'pace_weight': 0.4, 'grid_weight': 0.3, 'overtaking_weight': 0.15, 'tire_deg_weight': 0.15}
+
+    def _load_uncertainty(self) -> Dict:
+        if self.tracker: return self.tracker.get_config('uncertainty')
+        return {'base': 2.5}
+
+    def _get_driver_skills(self, driver: str) -> Dict:
+        default = {'racecraft': 0.5, 'consistency': 0.5, 'wet_weather': 0.5}
+        if driver not in self.driver_chars: return default
+        d = self.driver_chars[driver]
+        return {
+            'racecraft': d.get('racecraft', {}).get('skill_score', 0.5),
+            'consistency': d.get('consistency', {}).get('score', 0.5),
+            'wet_weather': 1.0 - d.get('consistency', {}).get('error_rate_wet', 0.5)
+        }

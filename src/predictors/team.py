@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 import sys
 sys.path.append('/home/claude')
 from src.extractors.performance import extract_all_teams_performance
-from src.helpers.session_selector import get_prediction_context
+from src.utils.session_selector import get_prediction_context
 
 
 def calculate_suitability(team_perf: Dict, track_chars: Dict) -> float:

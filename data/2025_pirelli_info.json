@@ -1,0 +1,314 @@
+{
+  "australian_grand_prix": {
+    "name": "Albert Park Circuit",
+    "round": 1,
+    "tyre_stress": {
+      "traction": 2,
+      "braking": 2,
+      "lateral": 3,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 2,
+      "track_evolution": 3,
+      "downforce": 3
+    }
+  },
+  "chinese_grand_prix": {
+    "name": "Shanghai International Circuit",
+    "round": 2,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 4,
+      "lateral": 4,
+      "asphalt_abrasion": 3,
+      "asphalt_grip": 3,
+      "track_evolution": 5,
+      "downforce": 3
+    }
+  },
+  "japanese_grand_prix": {
+    "name": "Suzuka Circuit",
+    "round": 3,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 2,
+      "lateral": 5,
+      "asphalt_abrasion": 4,
+      "asphalt_grip": 4,
+      "track_evolution": 3,
+      "downforce": 4
+    }
+  },
+  "bahrain_grand_prix": {
+    "name": "Bahrain International Circuit",
+    "round": 4,
+    "tyre_stress": {
+      "traction": 4,
+      "braking": 4,
+      "lateral": 3,
+      "asphalt_abrasion": 5,
+      "asphalt_grip": 3,
+      "track_evolution": 4,
+      "downforce": 3
+    }
+  },
+  "saudi_arabian_grand_prix": {
+    "name": "Jeddah Corniche Circuit",
+    "round": 5,
+    "tyre_stress": {
+      "traction": 2,
+      "braking": 3,
+      "lateral": 4,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 4,
+      "track_evolution": 4,
+      "downforce": 2
+    }
+  },
+  "miami_grand_prix": {
+    "name": "Miami International Autodrome",
+    "round": 6,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 3,
+      "lateral": 3,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 4,
+      "track_evolution": 5,
+      "downforce": 3
+    }
+  },
+  "emilia_romagna_grand_prix": {
+    "name": "Autodromo Enzo e Dino Ferrari",
+    "round": 7,
+    "tyre_stress": {
+      "traction": 2,
+      "braking": 3,
+      "lateral": 3,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 2,
+      "track_evolution": 2,
+      "downforce": 3
+    }
+  },
+  "monaco_grand_prix": {
+    "name": "Circuit de Monaco",
+    "round": 8,
+    "tyre_stress": {
+      "traction": 5,
+      "braking": 2,
+      "lateral": 1,
+      "asphalt_abrasion": 1,
+      "asphalt_grip": 2,
+      "track_evolution": 5,
+      "downforce": 5
+    }
+  },
+  "spanish_grand_prix": {
+    "name": "Circuit de Barcelona-Catalunya",
+    "round": 9,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 3,
+      "lateral": 5,
+      "asphalt_abrasion": 4,
+      "asphalt_grip": 3,
+      "track_evolution": 3,
+      "downforce": 4
+    }
+  },
+  "canadian_grand_prix": {
+    "name": "Circuit Gilles Villeneuve",
+    "round": 10,
+    "tyre_stress": {
+      "traction": 2,
+      "braking": 3,
+      "lateral": 3,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 2,
+      "track_evolution": 2,
+      "downforce": 3
+    }
+  },
+  "austrian_grand_prix": {
+    "name": "Red Bull Ring",
+    "round": 11,
+    "tyre_stress": {
+      "traction": 2,
+      "braking": 3,
+      "lateral": 3,
+      "asphalt_abrasion": 3,
+      "asphalt_grip": 3,
+      "track_evolution": 3,
+      "downforce": 3
+    }
+  },
+  "british_grand_prix": {
+    "name": "Silverstone Circuit",
+    "round": 12,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 2,
+      "lateral": 5,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 4,
+      "track_evolution": 2,
+      "downforce": 4
+    }
+  },
+  "belgian_grand_prix": {
+    "name": "Circuit de Spa-Francorchamps",
+    "round": 13,
+    "tyre_stress": {
+      "traction": 4,
+      "braking": 4,
+      "lateral": 5,
+      "asphalt_abrasion": 3,
+      "asphalt_grip": 3,
+      "track_evolution": 3,
+      "downforce": 2
+    }
+  },
+  "hungarian_grand_prix": {
+    "name": "Hungaroring",
+    "round": 14,
+    "tyre_stress": {
+      "traction": 4,
+      "braking": 3,
+      "lateral": 3,
+      "asphalt_abrasion": 3,
+      "asphalt_grip": 3,
+      "track_evolution": 4,
+      "downforce": 5
+    }
+  },
+  "dutch_grand_prix": {
+    "name": "Circuit Zandvoort",
+    "round": 15,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 3,
+      "lateral": 4,
+      "asphalt_abrasion": 3,
+      "asphalt_grip": 3,
+      "track_evolution": 4,
+      "downforce": 4
+    }
+  },
+  "italian_grand_prix": {
+    "name": "Autodromo Nazionale di Monza",
+    "round": 16,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 4,
+      "lateral": 2,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 3,
+      "track_evolution": 4,
+      "downforce": 1
+    }
+  },
+  "azerbaijan_grand_prix": {
+    "name": "Baku City Circuit",
+    "round": 17,
+    "tyre_stress": {
+      "traction": 5,
+      "braking": 4,
+      "lateral": 1,
+      "asphalt_abrasion": 1,
+      "asphalt_grip": 2,
+      "track_evolution": 5,
+      "downforce": 2
+    }
+  },
+  "singapore_grand_prix": {
+    "name": "Marina Bay Street Circuit",
+    "round": 18,
+    "tyre_stress": {
+      "traction": 4,
+      "braking": 5,
+      "lateral": 2,
+      "asphalt_abrasion": 3,
+      "asphalt_grip": 3,
+      "track_evolution": 5,
+      "downforce": 5
+    }
+  },
+  "united_states_grand_prix": {
+    "name": "Circuit of the Americas",
+    "round": 19,
+    "tyre_stress": {
+      "traction": 4,
+      "braking": 3,
+      "lateral": 4,
+      "asphalt_abrasion": 3,
+      "asphalt_grip": 2,
+      "track_evolution": 4,
+      "downforce": 4
+    }
+  },
+  "mexico_city_grand_prix": {
+    "name": "Autodromo Hermanos Rodriguez",
+    "round": 20,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 3,
+      "lateral": 2,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 2,
+      "track_evolution": 5,
+      "downforce": 5
+    }
+  },
+  "brazilian_grand_prix": {
+    "name": "Autodromo Jose Carlos Pace",
+    "round": 21,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 3,
+      "lateral": 3,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 3,
+      "track_evolution": 5,
+      "downforce": 4
+    }
+  },
+  "las_vegas_grand_prix": {
+    "name": "Las Vegas Street Circuit",
+    "round": 22,
+    "tyre_stress": {
+      "traction": 2,
+      "braking": 3,
+      "lateral": 2,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 1,
+      "track_evolution": 5,
+      "downforce": 1
+    }
+  },
+  "qatar_grand_prix": {
+    "name": "Lusail International Circuit",
+    "round": 23,
+    "tyre_stress": {
+      "traction": 3,
+      "braking": 3,
+      "lateral": 5,
+      "asphalt_abrasion": 2,
+      "asphalt_grip": 4,
+      "track_evolution": 4,
+      "downforce": 4
+    }
+  },
+  "abu_dhabi_grand_prix": {
+    "name": "Yas Marina Circuit",
+    "round": 24,
+    "tyre_stress": {
+      "traction": 4,
+      "braking": 4,
+      "lateral": 3,
+      "asphalt_abrasion": 3,
+      "asphalt_grip": 3,
+      "track_evolution": 4,
+      "downforce": 3
+    }
+  }
+}

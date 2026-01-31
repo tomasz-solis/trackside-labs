@@ -1,16 +1,51 @@
-.DS_Store
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
 venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
 data/raw/
 data/processed/
 data/validation/
 *.parquet
+
+# FastF1 Cache
 .fastf1_cache/
-notebooks/dirty_exploration/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Archive & Backups
+archive/
 src_backup/
+*.backup
+
+# Notebooks (exploration)
+notebooks/dirty_exploration/
+
+# Temporary
+*.tmp
+*.log
 changes.txt
-*.py.backupvenv/
-__pycache__/
-.DS_Store
-*.pyc
-src/archive/*

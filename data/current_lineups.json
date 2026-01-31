@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-01-03",
-  "notes": "Update this file when drivers change. No date tracking needed - just update the current state.",
+  "last_updated": "2026-01-28",
+  "notes": "2026 season: 11 teams (22 drivers) with Cadillac joining the grid",
   "current_lineups": {
     "Red Bull Racing": ["VER", "HAD"],
     "McLaren": ["NOR", "PIA"],
@@ -12,7 +12,7 @@
     "RB": ["LAW", "LIN"],
     "Williams": ["SAI", "ALB"],
     "Audi": ["HUL", "BOR"],
-    "Cadillac": ["PER", "BOT"]
+    "Cadillac F1 Team": ["PER", "BOT"]
   },
   "update_instructions": {
     "when_driver_changes": "Just edit the driver abbreviations above",

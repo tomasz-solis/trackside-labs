@@ -186,7 +186,7 @@ class PriorsFactory:
             }
 
         print(
-            f"   📊 Derived Baselines: {', '.join([f'{t}: {d['base_rating']:.1f}' for t,d in sorted(derived_cars.items(), key=lambda x: x[1]['base_rating'], reverse=True)[:5]])}..."
+            f"   📊 Derived Baselines: {', '.join([f\"{t}: {d['base_rating']:.1f}\" for t,d in sorted(derived_cars.items(), key=lambda x: x[1]['base_rating'], reverse=True)[:5]])}..."
         )
 
         return derived_cars

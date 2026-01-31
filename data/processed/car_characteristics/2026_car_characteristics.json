@@ -1,0 +1,62 @@
+{
+  "year": 2026,
+  "note": "2026 REGULATION RESET - Starting from actual 2025 team standings with increased uncertainty. Driver skill carries over, car performance is highly uncertain until testing.",
+  "teams": {
+    "McLaren": {
+      "overall_performance": 0.85,
+      "uncertainty": 0.30,
+      "note": "2025 WCC champions (833 pts) - dominant but new PU regs"
+    },
+    "Mercedes": {
+      "overall_performance": 0.75,
+      "uncertainty": 0.30,
+      "note": "2025 P2 (469 pts) - works team, Hamilton departed"
+    },
+    "Red Bull Racing": {
+      "overall_performance": 0.74,
+      "uncertainty": 0.30,
+      "note": "2025 P3 (451 pts) - close fight with Mercedes"
+    },
+    "Ferrari": {
+      "overall_performance": 0.70,
+      "uncertainty": 0.30,
+      "note": "2025 P4 (398 pts) - works Ferrari PU unknown"
+    },
+    "Williams": {
+      "overall_performance": 0.55,
+      "uncertainty": 0.35,
+      "note": "2025 P5 (137 pts) - best of rest, Mercedes customer"
+    },
+    "RB": {
+      "overall_performance": 0.48,
+      "uncertainty": 0.35,
+      "note": "2025 P6 (92 pts) - Red Bull junior team"
+    },
+    "Aston Martin": {
+      "overall_performance": 0.47,
+      "uncertainty": 0.35,
+      "note": "2025 P7 (89 pts) - Honda works team wildcard"
+    },
+    "Haas F1 Team": {
+      "overall_performance": 0.45,
+      "uncertainty": 0.35,
+      "note": "2025 P8 (79 pts) - Ferrari customer"
+    },
+    "Audi": {
+      "overall_performance": 0.42,
+      "uncertainty": 0.40,
+      "note": "2025 P9 as Kick Sauber (70 pts) - now works team"
+    },
+    "Alpine": {
+      "overall_performance": 0.35,
+      "uncertainty": 0.35,
+      "note": "2025 P10 (22 pts!) - disastrous season, Renault works"
+    },
+    "Cadillac F1 Team": {
+      "overall_performance": 0.30,
+      "uncertainty": 0.45,
+      "note": "EXPANSION TEAM - brand new to F1, Ferrari customer PU"
+    }
+  },
+  "learning_note": "Based on actual 2025 standings: McLaren dominant (833 pts), Mercedes/Red Bull close P2-P3 (469/451), Williams best midfield (P5). Driver skill preserved. 3x normal uncertainty due to regulation reset. Model learns from testing (Feb 2026)."
+}

@@ -1,0 +1,174 @@
+{
+  "year": 2026,
+  "note": "Track characteristics for 2026 season. Values estimated from historical data (2024-2025). Sprint weekends: 6 total (China, Miami, Canada, Britain, Netherlands, Singapore)",
+  "tracks": {
+    "Australian Grand Prix": {
+      "pit_stop_loss": 23.0,
+      "safety_car_prob": 0.6,
+      "overtaking_difficulty": 0.5,
+      "type": "street"
+    },
+    "Chinese Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.3,
+      "type": "permanent",
+      "has_sprint": true
+    },
+    "Japanese Grand Prix": {
+      "pit_stop_loss": 21.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.5,
+      "type": "permanent"
+    },
+    "Bahrain Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.4,
+      "type": "permanent"
+    },
+    "Saudi Arabian Grand Prix": {
+      "pit_stop_loss": 24.0,
+      "safety_car_prob": 0.5,
+      "overtaking_difficulty": 0.6,
+      "type": "street"
+    },
+    "Miami Grand Prix": {
+      "pit_stop_loss": 24.0,
+      "safety_car_prob": 0.7,
+      "overtaking_difficulty": 0.7,
+      "type": "street",
+      "has_sprint": true
+    },
+    "Canadian Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.5,
+      "overtaking_difficulty": 0.4,
+      "type": "street",
+      "has_sprint": true
+    },
+    "Monaco Grand Prix": {
+      "pit_stop_loss": 20.0,
+      "safety_car_prob": 0.8,
+      "overtaking_difficulty": 0.9,
+      "type": "street"
+    },
+    "Barcelona Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.2,
+      "overtaking_difficulty": 0.6,
+      "type": "permanent"
+    },
+    "Austrian Grand Prix": {
+      "pit_stop_loss": 20.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.4,
+      "type": "permanent"
+    },
+    "British Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.5,
+      "type": "permanent",
+      "has_sprint": true
+    },
+    "Belgian Grand Prix": {
+      "pit_stop_loss": 23.0,
+      "safety_car_prob": 0.4,
+      "overtaking_difficulty": 0.3,
+      "type": "permanent"
+    },
+    "Hungarian Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.7,
+      "type": "permanent"
+    },
+    "Dutch Grand Prix": {
+      "pit_stop_loss": 21.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.6,
+      "type": "permanent",
+      "has_sprint": true
+    },
+    "Italian Grand Prix": {
+      "pit_stop_loss": 23.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.4,
+      "type": "permanent"
+    },
+    "Spanish Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.2,
+      "overtaking_difficulty": 0.5,
+      "type": "permanent"
+    },
+    "Azerbaijan Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.6,
+      "overtaking_difficulty": 0.5,
+      "type": "street"
+    },
+    "Singapore Grand Prix": {
+      "pit_stop_loss": 24.0,
+      "safety_car_prob": 0.7,
+      "overtaking_difficulty": 0.7,
+      "type": "street",
+      "has_sprint": true
+    },
+    "United States Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.4,
+      "overtaking_difficulty": 0.4,
+      "type": "permanent"
+    },
+    "Mexico City Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.4,
+      "overtaking_difficulty": 0.5,
+      "type": "permanent"
+    },
+    "São Paulo Grand Prix": {
+      "pit_stop_loss": 20.0,
+      "safety_car_prob": 0.5,
+      "overtaking_difficulty": 0.4,
+      "type": "permanent"
+    },
+    "Las Vegas Grand Prix": {
+      "pit_stop_loss": 23.0,
+      "safety_car_prob": 0.6,
+      "overtaking_difficulty": 0.5,
+      "type": "street"
+    },
+    "Qatar Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.4,
+      "type": "permanent"
+    },
+    "Abu Dhabi Grand Prix": {
+      "pit_stop_loss": 22.0,
+      "safety_car_prob": 0.3,
+      "overtaking_difficulty": 0.5,
+      "type": "permanent"
+    }
+  },
+  "sprint_weekends": [
+    "Chinese Grand Prix",
+    "Miami Grand Prix",
+    "Canadian Grand Prix",
+    "British Grand Prix",
+    "Dutch Grand Prix",
+    "Singapore Grand Prix"
+  ],
+  "track_types": {
+    "permanent": "Purpose-built racing circuits with run-off areas",
+    "street": "Temporary circuits on public roads, higher crash risk"
+  },
+  "data_sources": {
+    "pit_stop_loss": "Estimated from 2024-2025 season data (seconds lost per pit stop)",
+    "safety_car_prob": "Historical SC/VSC probability from 2022-2025",
+    "overtaking_difficulty": "Subjective 0-1 scale based on track layout",
+    "type": "Circuit classification"
+  }
+}

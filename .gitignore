@@ -25,7 +25,7 @@ Thumbs.db
 
 # Data
 data/raw/
-data/processed/
+data/processed/driver_characteristics.json  # Generated file, ignore
 data/validation/
 *.parquet
 

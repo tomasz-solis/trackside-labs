@@ -11,6 +11,7 @@ import numpy as np
 import logging
 
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
+logger = logging.getLogger(__name__)
 
 
 def extract_fp_order_from_laps(year, race_name, session_type):

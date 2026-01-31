@@ -185,8 +185,10 @@ class PriorsFactory:
                 "stability": 0.8,  # Assume mature cars are stable by default
             }
 
-        print(
-            f"   📊 Derived Baselines: {', '.join([f\"{t}: {d['base_rating']:.1f}\" for t,d in sorted(derived_cars.items(), key=lambda x: x[1]['base_rating'], reverse=True)[:5]])}..."
-        )
+        top_teams = sorted(derived_cars.items(), key=lambda x: x[1]["base_rating"], reverse=True)[
+            :5
+        ]
+        team_strings = [f"{t}: {d['base_rating']:.1f}" for t, d in top_teams]
+        print(f"   📊 Derived Baselines: {', '.join(team_strings)}...")
 
         return derived_cars

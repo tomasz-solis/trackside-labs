@@ -1,6 +1,7 @@
 """
 Shared test fixtures and configuration.
 """
+
 import pytest
 import numpy as np
 from pathlib import Path
@@ -11,38 +12,38 @@ from src.models.bayesian import DriverPrior
 def sample_priors():
     """Standard set of driver priors for testing."""
     return {
-        '1': DriverPrior(
-            driver_number='1',
-            driver_code='VER',
-            team='Red Bull Racing',
-            team_tier='top',
+        "1": DriverPrior(
+            driver_number="1",
+            driver_code="VER",
+            team="Red Bull Racing",
+            team_tier="top",
             mu=18.0,
-            sigma=2.0
+            sigma=2.0,
         ),
-        '4': DriverPrior(
-            driver_number='4',
-            driver_code='NOR',
-            team='McLaren',
-            team_tier='top',
+        "4": DriverPrior(
+            driver_number="4",
+            driver_code="NOR",
+            team="McLaren",
+            team_tier="top",
             mu=17.0,
-            sigma=2.5
+            sigma=2.5,
         ),
-        '44': DriverPrior(
-            driver_number='44',
-            driver_code='HAM',
-            team='Ferrari',
-            team_tier='top',
+        "44": DriverPrior(
+            driver_number="44",
+            driver_code="HAM",
+            team="Ferrari",
+            team_tier="top",
             mu=17.5,
-            sigma=2.2
+            sigma=2.2,
         ),
-        '77': DriverPrior(
-            driver_number='77',
-            driver_code='BOT',
-            team='Cadillac',
-            team_tier='backmarker',
+        "77": DriverPrior(
+            driver_number="77",
+            driver_code="BOT",
+            team="Cadillac",
+            team_tier="backmarker",
             mu=10.0,
-            sigma=3.0
-        )
+            sigma=3.0,
+        ),
     }
 
 
@@ -50,26 +51,26 @@ def sample_priors():
 def mock_driver_chars():
     """Mock driver characteristics data."""
     return {
-        'VER': {
-            'racecraft': {'skill_score': 0.95},
-            'consistency': {'score': 0.90, 'error_rate_wet': 0.05},
-            'tire_management': {'degradation_factor': 0.3}
+        "VER": {
+            "racecraft": {"skill_score": 0.95},
+            "consistency": {"score": 0.90, "error_rate_wet": 0.05},
+            "tire_management": {"degradation_factor": 0.3},
         },
-        'NOR': {
-            'racecraft': {'skill_score': 0.85},
-            'consistency': {'score': 0.80, 'error_rate_wet': 0.15},
-            'tire_management': {'degradation_factor': 0.5}
+        "NOR": {
+            "racecraft": {"skill_score": 0.85},
+            "consistency": {"score": 0.80, "error_rate_wet": 0.15},
+            "tire_management": {"degradation_factor": 0.5},
         },
-        'HAM': {
-            'racecraft': {'skill_score': 0.90},
-            'consistency': {'score': 0.85, 'error_rate_wet': 0.10},
-            'tire_management': {'degradation_factor': 0.4}
+        "HAM": {
+            "racecraft": {"skill_score": 0.90},
+            "consistency": {"score": 0.85, "error_rate_wet": 0.10},
+            "tire_management": {"degradation_factor": 0.4},
         },
-        'BOT': {
-            'racecraft': {'skill_score': 0.70},
-            'consistency': {'score': 0.75, 'error_rate_wet': 0.25},
-            'tire_management': {'degradation_factor': 0.6}
-        }
+        "BOT": {
+            "racecraft": {"skill_score": 0.70},
+            "consistency": {"score": 0.75, "error_rate_wet": 0.25},
+            "tire_management": {"degradation_factor": 0.6},
+        },
     }
 
 
@@ -77,10 +78,10 @@ def mock_driver_chars():
 def mock_qualifying_grid():
     """Mock qualifying grid."""
     return [
-        {'driver': 'VER', 'team': 'Red Bull Racing', 'position': 1},
-        {'driver': 'NOR', 'team': 'McLaren', 'position': 2},
-        {'driver': 'HAM', 'team': 'Ferrari', 'position': 3},
-        {'driver': 'BOT', 'team': 'Cadillac', 'position': 10}
+        {"driver": "VER", "team": "Red Bull Racing", "position": 1},
+        {"driver": "NOR", "team": "McLaren", "position": 2},
+        {"driver": "HAM", "team": "Ferrari", "position": 3},
+        {"driver": "BOT", "team": "Cadillac", "position": 10},
     ]
 
 
@@ -88,18 +89,18 @@ def mock_qualifying_grid():
 def mock_track_data():
     """Mock track characteristics."""
     return {
-        'Bahrain Grand Prix': {
-            'pit_stop_loss': 22.0,
-            'safety_car_prob': 0.3,
-            'overtaking_difficulty': 0.4,
-            'type': 'permanent'
+        "Bahrain Grand Prix": {
+            "pit_stop_loss": 22.0,
+            "safety_car_prob": 0.3,
+            "overtaking_difficulty": 0.4,
+            "type": "permanent",
         },
-        'Monaco Grand Prix': {
-            'pit_stop_loss': 25.0,
-            'safety_car_prob': 0.7,
-            'overtaking_difficulty': 0.9,
-            'type': 'street'
-        }
+        "Monaco Grand Prix": {
+            "pit_stop_loss": 25.0,
+            "safety_car_prob": 0.7,
+            "overtaking_difficulty": 0.9,
+            "type": "street",
+        },
     }
 
 

@@ -40,67 +40,57 @@ logger = logging.getLogger(__name__)
 TEAM_NAME_MAP = {
     # Sauber lineage (Sauber → Alfa Romeo → Kick Sauber → Audi)
     # Audi (2026+ - continuation of Sauber)
-    'Audi': 'AUDI',
-    'Audi F1 Team': 'AUDI',
-    'Audi F1': 'AUDI',
-    'Sauber': 'AUDI',
-    'Alfa Romeo': 'AUDI',
-    'Kick Sauber': 'AUDI',
-    'Stake F1 Team Kick Sauber': 'AUDI',
-    'Kick Sauber F1 Team': 'AUDI',
-    
+    "Audi": "AUDI",
+    "Audi F1 Team": "AUDI",
+    "Audi F1": "AUDI",
+    "Sauber": "AUDI",
+    "Alfa Romeo": "AUDI",
+    "Kick Sauber": "AUDI",
+    "Stake F1 Team Kick Sauber": "AUDI",
+    "Kick Sauber F1 Team": "AUDI",
     # AlphaTauri lineage (Toro Rosso → AlphaTauri → RB)
-    'AlphaTauri': 'RB',
-    'Scuderia AlphaTauri': 'RB',
-    'Visa Cash App RB': 'RB',
-    'VCARB': 'RB',
-    'Racing Bulls': 'RB',
-    'RB F1 Team': 'RB',
-    'RB': 'RB',
-
+    "AlphaTauri": "RB",
+    "Scuderia AlphaTauri": "RB",
+    "Visa Cash App RB": "RB",
+    "VCARB": "RB",
+    "Racing Bulls": "RB",
+    "RB F1 Team": "RB",
+    "RB": "RB",
     # Red Bull Racing (stable identity)
-    'Red Bull Racing': 'RED BULL',
-    'Oracle Red Bull Racing': 'RED BULL',
-    'Red Bull': 'RED BULL',
-
+    "Red Bull Racing": "RED BULL",
+    "Oracle Red Bull Racing": "RED BULL",
+    "Red Bull": "RED BULL",
     # Mercedes (stable identity)
-    'Mercedes': 'MERCEDES',
-    'Mercedes-AMG Petronas F1 Team': 'MERCEDES',
-
+    "Mercedes": "MERCEDES",
+    "Mercedes-AMG Petronas F1 Team": "MERCEDES",
     # Ferrari (stable identity)
-    'Ferrari': 'FERRARI',
-    'Scuderia Ferrari': 'FERRARI',
-
+    "Ferrari": "FERRARI",
+    "Scuderia Ferrari": "FERRARI",
     # Aston Martin lineage (Racing Point → Aston Martin)
-    'Racing Point': 'ASTON MARTIN',
-    'SportPesa Racing Point': 'ASTON MARTIN',
-    'BWT Racing Point': 'ASTON MARTIN',
-    'Aston Martin': 'ASTON MARTIN',
-    'Aston Martin Aramco': 'ASTON MARTIN',
-
+    "Racing Point": "ASTON MARTIN",
+    "SportPesa Racing Point": "ASTON MARTIN",
+    "BWT Racing Point": "ASTON MARTIN",
+    "Aston Martin": "ASTON MARTIN",
+    "Aston Martin Aramco": "ASTON MARTIN",
     # Alpine lineage (Renault → Alpine)
-    'Renault': 'ALPINE',
-    'Renault F1 Team': 'ALPINE',
-    'Alpine': 'ALPINE',
-    'BWT Alpine F1 Team': 'ALPINE',
-
+    "Renault": "ALPINE",
+    "Renault F1 Team": "ALPINE",
+    "Alpine": "ALPINE",
+    "BWT Alpine F1 Team": "ALPINE",
     # McLaren (stable identity)
-    'McLaren': 'MCLAREN',
-    'McLaren F1 Team': 'MCLAREN',
-
+    "McLaren": "MCLAREN",
+    "McLaren F1 Team": "MCLAREN",
     # Haas (stable identity)
-    'Haas': 'HAAS',
-    'Haas F1 Team': 'HAAS',
-    'MoneyGram Haas F1 Team': 'HAAS',
-
+    "Haas": "HAAS",
+    "Haas F1 Team": "HAAS",
+    "MoneyGram Haas F1 Team": "HAAS",
     # Williams (stable identity)
-    'Williams': 'WILLIAMS',
-    'Williams Racing': 'WILLIAMS',
-
+    "Williams": "WILLIAMS",
+    "Williams Racing": "WILLIAMS",
     # Cadillac (new team 2026)
-    'Cadillac': 'CADILLAC',
-    'Cadillac F1': 'CADILLAC',
-    'Cadillac Racing': 'CADILLAC',
+    "Cadillac": "CADILLAC",
+    "Cadillac F1": "CADILLAC",
+    "Cadillac Racing": "CADILLAC",
 }
 
 
@@ -108,19 +98,20 @@ TEAM_NAME_MAP = {
 # CANONICALIZATION FUNCTIONS
 # =============================================================================
 
+
 def canonicalize_team(name: str) -> str:
     """
     Map raw team name to canonical identifier.
-    
+
     Handles team name variations from FastF1 API, historical data,
     and sponsor changes. Falls back to uppercase original if unknown.
-    
+
     Args:
         name: Raw team name string (e.g., "Visa Cash App RB")
-        
+
     Returns:
         Canonical team identifier (e.g., "RB")
-        
+
     Example:
         >>> canonicalize_team('Oracle Red Bull Racing')
         'RED BULL'
@@ -129,35 +120,32 @@ def canonicalize_team(name: str) -> str:
     """
     if name is None:
         return None
-    
+
     return TEAM_NAME_MAP.get(name, str(name).upper())
 
 
-def normalize_team_column(
-    df: Union[pd.DataFrame, pd.Series],
-    col: str = "team"
-) -> pd.DataFrame:
+def normalize_team_column(df: Union[pd.DataFrame, pd.Series], col: str = "team") -> pd.DataFrame:
     """
     Normalize team names in DataFrame using canonical mapping.
-    
+
     Applies canonicalize_team() to specified column, logging any
     unknown team names for manual review. Handles edge cases safely.
-    
+
     Safety Features:
     - Auto-converts Series to DataFrame if needed
     - Returns unchanged if column doesn't exist
     - Logs unknown teams for monitoring
-    
+
     Args:
         df: DataFrame or Series containing team names
         col: Name of team column (default: "team")
-        
+
     Returns:
         DataFrame with normalized team names
-        
+
     Raises:
         None - handles all errors gracefully
-        
+
     Example:
         >>> df = normalize_team_column(df, col='team')
         >>> df['team'].unique()
@@ -170,28 +158,26 @@ def normalize_team_column(
             "Auto-converting to DataFrame."
         )
         df = df.to_frame(name=col)
-    
+
     # Handle missing column (return unchanged)
     if col not in df.columns:
         return df
-    
+
     # Apply canonicalization
     raw_names = df[col].astype(str)
     canonical_names = raw_names.apply(canonicalize_team)
-    
+
     # Detect and log unknown teams (those using fallback uppercase)
-    unknown_mask = (
-        ~raw_names.isin(TEAM_NAME_MAP.keys()) & 
-        (canonical_names == raw_names.str.upper())
+    unknown_mask = ~raw_names.isin(TEAM_NAME_MAP.keys()) & (
+        canonical_names == raw_names.str.upper()
     )
-    
+
     if unknown_mask.any():
         unknown_teams = sorted(raw_names[unknown_mask].unique())
         logger.warning(
-            "Unknown team names encountered (using uppercase fallback): %s",
-            unknown_teams
+            "Unknown team names encountered (using uppercase fallback): %s", unknown_teams
         )
-    
+
     df[col] = canonical_names
-    
+
     return df

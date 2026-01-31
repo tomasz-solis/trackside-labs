@@ -38,17 +38,14 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                     "properties": {
                         "name": {"type": "string"},
                         "number": {"type": "integer"},
-                        "teams": {
-                            "type": "array",
-                            "items": {"type": "string"}
-                        },
+                        "teams": {"type": "array", "items": {"type": "string"}},
                         "experience": {
                             "type": "object",
                             "properties": {
                                 "total_seasons": {"type": "integer", "minimum": 0},
                                 "total_races": {"type": "integer", "minimum": 0},
-                                "tier": {"type": "string"}
-                            }
+                                "tier": {"type": "string"},
+                            },
                         },
                         "pace": {
                             "type": "object",
@@ -58,8 +55,8 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                                 "quali_std": {"type": "number", "minimum": 0},
                                 "race_pace": {"type": "number", "minimum": 0, "maximum": 1},
                                 "race_std": {"type": "number", "minimum": 0},
-                                "confidence": {"type": "string"}
-                            }
+                                "confidence": {"type": "string"},
+                            },
                         },
                         "racecraft": {
                             "type": "object",
@@ -70,8 +67,8 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                                 "driver_type": {"type": "string"},
                                 "interpretation": {"type": "string"},
                                 "races_analyzed": {"type": "integer", "minimum": 0},
-                                "total_dnfs": {"type": "integer", "minimum": 0}
-                            }
+                                "total_dnfs": {"type": "integer", "minimum": 0},
+                            },
                         },
                         "dnf_risk": {
                             "type": "object",
@@ -81,8 +78,8 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                                 "risk_level": {"type": "string"},
                                 "total_races": {"type": "integer", "minimum": 0},
                                 "total_dnfs": {"type": "integer", "minimum": 0},
-                                "dnf_types": {"type": "object"}
-                            }
+                                "dnf_types": {"type": "object"},
+                            },
                         },
                         "tire_management": {
                             "type": "object",
@@ -90,14 +87,14 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                                 "skill": {"type": "number", "minimum": 0, "maximum": 1},
                                 "skill_score": {"type": "number", "minimum": 0, "maximum": 1},
                                 "baseline": {"type": "string"},
-                                "notes": {"type": "string"}
-                            }
-                        }
-                    }
+                                "notes": {"type": "string"},
+                            },
+                        },
+                    },
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 
@@ -120,12 +117,12 @@ TEAM_CHARACTERISTICS_SCHEMA = {
                     "properties": {
                         "overall_performance": {"type": "number", "minimum": 0, "maximum": 1},
                         "uncertainty": {"type": "number", "minimum": 0, "maximum": 1},
-                        "note": {"type": "string"}
-                    }
+                        "note": {"type": "string"},
+                    },
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 
@@ -149,12 +146,12 @@ TRACK_CHARACTERISTICS_SCHEMA = {
                         "safety_car_prob": {"type": "number", "minimum": 0, "maximum": 1},
                         "overtaking_difficulty": {"type": "number", "minimum": 0, "maximum": 1},
                         "type": {"type": "string"},
-                        "has_sprint": {"type": "boolean"}
-                    }
+                        "has_sprint": {"type": "boolean"},
+                    },
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 
@@ -162,11 +159,8 @@ TRACK_CHARACTERISTICS_SCHEMA = {
 # VALIDATION FUNCTIONS
 # ============================================================================
 
-def validate_json(
-    data: Dict[str, Any],
-    schema: Dict[str, Any],
-    filename: str
-) -> None:
+
+def validate_json(data: Dict[str, Any], schema: Dict[str, Any], filename: str) -> None:
     """
     Validate JSON data against schema using jsonschema library.
 

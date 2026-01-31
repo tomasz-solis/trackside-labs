@@ -3,6 +3,7 @@ Smoke tests for Streamlit dashboard
 
 Basic tests to ensure the dashboard can load without crashing.
 """
+
 import pytest
 from unittest.mock import patch, MagicMock
 import sys
@@ -16,27 +17,32 @@ class TestDashboardSmoke:
         """Test that dashboard file can be imported"""
         # This ensures all imports in app.py are valid
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("app", "app.py")
         assert spec is not None
 
     def test_baseline_predictor_can_be_imported(self):
         """Test critical imports for dashboard"""
         from src.predictors.baseline_2026 import Baseline2026Predictor
+
         assert Baseline2026Predictor is not None
 
     def test_fastf1_available(self):
         """Test FastF1 is installed and importable"""
         import fastf1
+
         assert fastf1 is not None
 
     def test_streamlit_available(self):
         """Test Streamlit is installed"""
         import streamlit
+
         assert streamlit is not None
 
     def test_plotly_available(self):
         """Test Plotly is installed for visualizations"""
         import plotly.graph_objects as go
+
         assert go is not None
 
     def test_data_files_exist(self):
@@ -62,28 +68,34 @@ class TestDashboardSmoke:
 class TestDashboardComponents:
     """Test individual dashboard components"""
 
-    @patch('fastf1.get_event_schedule')
+    @patch("fastf1.get_event_schedule")
     def test_calendar_loading_logic(self, mock_schedule):
         """Test 2026 calendar loading logic"""
         import pandas as pd
 
         # Mock FastF1 schedule
-        mock_data = pd.DataFrame({
-            'EventName': ['Bahrain Grand Prix', 'Pre-Season Testing', 'Saudi Arabian Grand Prix'],
-            'EventFormat': ['conventional', None, 'conventional']
-        })
+        mock_data = pd.DataFrame(
+            {
+                "EventName": [
+                    "Bahrain Grand Prix",
+                    "Pre-Season Testing",
+                    "Saudi Arabian Grand Prix",
+                ],
+                "EventFormat": ["conventional", None, "conventional"],
+            }
+        )
         mock_schedule.return_value = mock_data
 
         # Simulate dashboard logic
         schedule = mock_schedule(2026)
         race_events = schedule[
-            (schedule['EventFormat'].notna()) &
-            (~schedule['EventName'].str.contains('Testing', case=False, na=False))
+            (schedule["EventFormat"].notna())
+            & (~schedule["EventName"].str.contains("Testing", case=False, na=False))
         ].copy()
 
         # Should filter out testing
         assert len(race_events) == 2
-        assert 'Pre-Season Testing' not in race_events['EventName'].values
+        assert "Pre-Season Testing" not in race_events["EventName"].values
 
     def test_prediction_pipeline(self):
         """Test full prediction pipeline works"""
@@ -93,13 +105,13 @@ class TestDashboardComponents:
 
         # Test qualifying prediction
         quali_result = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=5)
-        assert 'grid' in quali_result
-        assert len(quali_result['grid']) == 22
+        assert "grid" in quali_result
+        assert len(quali_result["grid"]) == 22
 
         # Test race prediction
-        race_result = predictor.predict_race(quali_result['grid'], weather='dry', n_simulations=5)
-        assert 'finish_order' in race_result
-        assert len(race_result['finish_order']) == 22
+        race_result = predictor.predict_race(quali_result["grid"], weather="dry", n_simulations=5)
+        assert "finish_order" in race_result
+        assert len(race_result["finish_order"]) == 22
 
 
 class TestDashboardDataFlow:
@@ -128,16 +140,17 @@ class TestDashboardDataFlow:
 
     def test_dnf_risk_color_logic(self):
         """Test DNF risk color coding logic"""
+
         def get_dnf_status(dnf_pct):
             if dnf_pct > 20:
-                return '⚠️ High'
+                return "⚠️ High"
             elif dnf_pct > 10:
-                return '⚡ Medium'
-            return '✓ Low'
+                return "⚡ Medium"
+            return "✓ Low"
 
-        assert get_dnf_status(5) == '✓ Low'
-        assert get_dnf_status(15) == '⚡ Medium'
-        assert get_dnf_status(25) == '⚠️ High'
+        assert get_dnf_status(5) == "✓ Low"
+        assert get_dnf_status(15) == "⚡ Medium"
+        assert get_dnf_status(25) == "⚠️ High"
 
 
 class TestDashboardEdgeCases:
@@ -163,4 +176,4 @@ class TestDashboardEdgeCases:
 
         # Should still produce results
         result = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=1)
-        assert len(result['grid']) > 0
+        assert len(result["grid"]) > 0

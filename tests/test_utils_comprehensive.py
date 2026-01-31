@@ -3,6 +3,7 @@ Comprehensive tests for utils modules
 
 Increases test coverage for lineups, weekend, and config utilities.
 """
+
 import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
@@ -37,7 +38,7 @@ class TestLineupsModule:
                 assert len(driver) == 3, f"Invalid driver code: {driver}"
                 assert driver.isupper(), f"Driver code not uppercase: {driver}"
 
-    @patch('src.utils.lineups.ff1.get_session')
+    @patch("src.utils.lineups.ff1.get_session")
     def test_get_lineups_from_session_handles_missing_data(self, mock_session):
         """Test handling when session data is unavailable"""
         from src.utils.lineups import get_lineups_from_session
@@ -47,7 +48,7 @@ class TestLineupsModule:
         mock_session_obj.results = None
         mock_session.return_value = mock_session_obj
 
-        result = get_lineups_from_session(2025, "Bahrain Grand Prix", 'Q')
+        result = get_lineups_from_session(2025, "Bahrain Grand Prix", "Q")
 
         # Should return None when no data available
         assert result is None
@@ -66,7 +67,7 @@ class TestWeekendModule:
             "Canadian Grand Prix",
             "British Grand Prix",
             "Dutch Grand Prix",
-            "Singapore Grand Prix"
+            "Singapore Grand Prix",
         ]
 
         for race in sprint_races:
@@ -80,7 +81,7 @@ class TestWeekendModule:
             "Bahrain Grand Prix",
             "Saudi Arabian Grand Prix",
             "Monaco Grand Prix",
-            "Italian Grand Prix"
+            "Italian Grand Prix",
         ]
 
         for race in normal_races:
@@ -125,13 +126,13 @@ class TestConfigModule:
         import json
         from pathlib import Path
 
-        config_path = Path('config/production_config.json')
+        config_path = Path("config/production_config.json")
         assert config_path.exists()
 
         with open(config_path) as f:
             config = json.load(f)
 
-        assert 'qualifying_methods' in config
+        assert "qualifying_methods" in config
 
 
 class TestDataValidation:
@@ -142,57 +143,57 @@ class TestDataValidation:
         import json
         from pathlib import Path
 
-        with open('data/processed/car_characteristics/2026_car_characteristics.json') as f:
+        with open("data/processed/car_characteristics/2026_car_characteristics.json") as f:
             data = json.load(f)
 
-        teams = data['teams']
+        teams = data["teams"]
 
         # Should have all 11 teams
         assert len(teams) == 11
 
         # Check required fields
-        required_fields = ['overall_performance', 'uncertainty', 'note']
+        required_fields = ["overall_performance", "uncertainty", "note"]
         for team, values in teams.items():
             for field in required_fields:
                 assert field in values, f"{team} missing {field}"
 
             # Performance should be 0-1
-            assert 0 <= values['overall_performance'] <= 1
-            assert 0 <= values['uncertainty'] <= 1
+            assert 0 <= values["overall_performance"] <= 1
+            assert 0 <= values["uncertainty"] <= 1
 
     def test_2026_track_characteristics_complete(self):
         """Test all 24 tracks have characteristics"""
         import json
 
-        with open('data/processed/track_characteristics/2026_track_characteristics.json') as f:
+        with open("data/processed/track_characteristics/2026_track_characteristics.json") as f:
             data = json.load(f)
 
-        tracks = data['tracks']
+        tracks = data["tracks"]
 
         # Should have 24 races
         assert len(tracks) >= 23  # At least 23 (allow for calendar changes)
 
         # Check required fields
         for track, values in tracks.items():
-            assert 'pit_stop_loss' in values
-            assert 'safety_car_prob' in values
-            assert 'overtaking_difficulty' in values
-            assert 'type' in values
+            assert "pit_stop_loss" in values
+            assert "safety_car_prob" in values
+            assert "overtaking_difficulty" in values
+            assert "type" in values
 
             # Validate ranges
-            assert 19 <= values['pit_stop_loss'] <= 26  # Realistic pit stop loss
-            assert 0 <= values['safety_car_prob'] <= 1
-            assert 0 <= values['overtaking_difficulty'] <= 1
-            assert values['type'] in ['permanent', 'street']
+            assert 19 <= values["pit_stop_loss"] <= 26  # Realistic pit stop loss
+            assert 0 <= values["safety_car_prob"] <= 1
+            assert 0 <= values["overtaking_difficulty"] <= 1
+            assert values["type"] in ["permanent", "street"]
 
     def test_current_lineups_valid(self):
         """Test current lineups file is valid"""
         import json
 
-        with open('data/current_lineups.json') as f:
+        with open("data/current_lineups.json") as f:
             data = json.load(f)
 
-        lineups = data['current_lineups']
+        lineups = data["current_lineups"]
 
         # 11 teams for 2026
         assert len(lineups) == 11

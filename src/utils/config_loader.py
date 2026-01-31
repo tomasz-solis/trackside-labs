@@ -3,6 +3,7 @@ Configuration loader for F1 prediction system.
 
 Loads settings from YAML config files with environment variable overrides.
 """
+
 import os
 import yaml
 import logging
@@ -30,7 +31,7 @@ class Config:
     def _load(self):
         """Load config from YAML file."""
         # Find config file
-        config_file = os.getenv('F1_CONFIG', 'config/default.yaml')
+        config_file = os.getenv("F1_CONFIG", "config/default.yaml")
         config_path = Path(config_file)
 
         if not config_path.is_absolute():
@@ -50,13 +51,7 @@ class Config:
 
     def _validate_config(self):
         """Validate that required config sections exist."""
-        required_sections = [
-            'paths',
-            'bayesian',
-            'race',
-            'qualifying',
-            'baseline_predictor'
-        ]
+        required_sections = ["paths", "bayesian", "race", "qualifying", "baseline_predictor"]
 
         missing = []
         for section in required_sections:
@@ -70,9 +65,9 @@ class Config:
             )
 
         # Validate baseline_predictor subsections
-        if 'qualifying' not in self._config['baseline_predictor']:
+        if "qualifying" not in self._config["baseline_predictor"]:
             raise ValueError("Config missing baseline_predictor.qualifying section")
-        if 'race' not in self._config['baseline_predictor']:
+        if "race" not in self._config["baseline_predictor"]:
             raise ValueError("Config missing baseline_predictor.race section")
 
         logger.debug("Config validation passed")
@@ -92,7 +87,7 @@ class Config:
             config = Config()
             volatility = config.get('bayesian.base_volatility', 0.1)
         """
-        keys = key.split('.')
+        keys = key.split(".")
         value = self._config
 
         for k in keys:

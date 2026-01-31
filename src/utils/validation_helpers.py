@@ -20,9 +20,7 @@ def validate_range(value: float, name: str, min_val: float, max_val: float) -> N
         ValueError: If value is outside the range
     """
     if not (min_val <= value <= max_val):
-        raise ValueError(
-            f"{name} must be between {min_val} and {max_val}, got {value}"
-        )
+        raise ValueError(f"{name} must be between {min_val} and {max_val}, got {value}")
     logger.debug(f"Validated {name}={value} is in range [{min_val}, {max_val}]")
 
 
@@ -39,9 +37,7 @@ def validate_positive_int(value: int, name: str, min_val: int = 1) -> None:
         ValueError: If value is not an integer or is less than min_val
     """
     if not isinstance(value, int) or value < min_val:
-        raise ValueError(
-            f"{name} must be an integer >= {min_val}, got {value}"
-        )
+        raise ValueError(f"{name} must be an integer >= {min_val}, got {value}")
     logger.debug(f"Validated {name}={value} is positive integer >= {min_val}")
 
 
@@ -58,13 +54,13 @@ def validate_enum(value: str, name: str, valid_values: List[str]) -> None:
         ValueError: If value is not in valid_values
     """
     if value not in valid_values:
-        raise ValueError(
-            f"{name} must be one of {valid_values}, got '{value}'"
-        )
+        raise ValueError(f"{name} must be one of {valid_values}, got '{value}'")
     logger.debug(f"Validated {name}='{value}' is in {valid_values}")
 
 
-def validate_position(value: Union[int, float], name: str, min_pos: int = 1, max_pos: int = 20) -> None:
+def validate_position(
+    value: Union[int, float], name: str, min_pos: int = 1, max_pos: int = 20
+) -> None:
     """
     Validate grid or race position.
 
@@ -82,13 +78,13 @@ def validate_position(value: Union[int, float], name: str, min_pos: int = 1, max
         value = int(value)
 
     if not isinstance(value, int) or not (min_pos <= value <= max_pos):
-        raise ValueError(
-            f"{name} must be between {min_pos} and {max_pos}, got {value}"
-        )
+        raise ValueError(f"{name} must be between {min_pos} and {max_pos}, got {value}")
     logger.debug(f"Validated {name}={value} is valid position")
 
 
-def validate_year(value: int, name: str = "year", min_year: int = 2020, max_year: int = 2030) -> None:
+def validate_year(
+    value: int, name: str = "year", min_year: int = 2020, max_year: int = 2030
+) -> None:
     """
     Validate year is within valid range.
 
@@ -102,7 +98,5 @@ def validate_year(value: int, name: str = "year", min_year: int = 2020, max_year
         ValueError: If year is outside valid range
     """
     if not isinstance(value, int) or not (min_year <= value <= max_year):
-        raise ValueError(
-            f"{name} must be between {min_year} and {max_year}, got {value}"
-        )
+        raise ValueError(f"{name} must be between {min_year} and {max_year}, got {value}")
     logger.debug(f"Validated {name}={value} is in range [{min_year}, {max_year}]")

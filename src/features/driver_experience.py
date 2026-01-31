@@ -17,75 +17,75 @@ import csv
 def load_driver_debuts_from_csv(csv_path: Path) -> Dict[str, int]:
     """
     Load driver debuts from CSV file and update DRIVER_DEBUTS.
-    
+
     CSV format: Driver,First F1 season,Notes
-    
+
     Args:
         csv_path: Path to CSV file
-        
+
     Returns:
         Updated debuts dictionary
     """
     name_to_abbr = {
-        'Fernando Alonso': 'ALO',
-        'Lewis Hamilton': 'HAM',
-        'Nico Hülkenberg': 'HUL',
-        'Sergio Pérez': 'PER',
-        'Daniel Ricciardo': 'RIC',
-        'Valtteri Bottas': 'BOT',
-        'Kevin Magnussen': 'MAG',
-        'Max Verstappen': 'VER',
-        'Carlos Sainz': 'SAI',
-        'Esteban Ocon': 'OCO',
-        'Pierre Gasly': 'GAS',
-        'Lance Stroll': 'STR',
-        'Charles Leclerc': 'LEC',
-        'Alexander Albon': 'ALB',
-        'Lando Norris': 'NOR',
-        'George Russell': 'RUS',
-        'Yuki Tsunoda': 'TSU',
-        'Zhou Guanyu': 'ZHO',
-        'Oscar Piastri': 'PIA',
-        'Logan Sargeant': 'SAR',
-        'Franco Colapinto': 'COL',
-        'Oliver Bearman': 'BEA',
-        'Isack Hadjar': 'HAD',
-        'Andrea Kimi Antonelli': 'ANT',
-        'Gabriel Bortoleto': 'BOR',
-        'Jack Doohan': 'DOO',
-        'Arvid Lindblad': 'LIN',
-        'Liam Lawson': 'LAW',
+        "Fernando Alonso": "ALO",
+        "Lewis Hamilton": "HAM",
+        "Nico Hülkenberg": "HUL",
+        "Sergio Pérez": "PER",
+        "Daniel Ricciardo": "RIC",
+        "Valtteri Bottas": "BOT",
+        "Kevin Magnussen": "MAG",
+        "Max Verstappen": "VER",
+        "Carlos Sainz": "SAI",
+        "Esteban Ocon": "OCO",
+        "Pierre Gasly": "GAS",
+        "Lance Stroll": "STR",
+        "Charles Leclerc": "LEC",
+        "Alexander Albon": "ALB",
+        "Lando Norris": "NOR",
+        "George Russell": "RUS",
+        "Yuki Tsunoda": "TSU",
+        "Zhou Guanyu": "ZHO",
+        "Oscar Piastri": "PIA",
+        "Logan Sargeant": "SAR",
+        "Franco Colapinto": "COL",
+        "Oliver Bearman": "BEA",
+        "Isack Hadjar": "HAD",
+        "Andrea Kimi Antonelli": "ANT",
+        "Gabriel Bortoleto": "BOR",
+        "Jack Doohan": "DOO",
+        "Arvid Lindblad": "LIN",
+        "Liam Lawson": "LAW",
     }
-    
+
     debuts = {}
-    
-    with open(csv_path, 'r') as f:
+
+    with open(csv_path, "r") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            driver_name = row['Driver']
-            debut_year = int(row['First F1 season'])
-            
+            driver_name = row["Driver"]
+            debut_year = int(row["First F1 season"])
+
             if driver_name in name_to_abbr:
                 abbr = name_to_abbr[driver_name]
                 debuts[abbr] = debut_year
-    
+
     return debuts
 
 
 def detect_first_season(driver_data: Dict) -> int:
     """
     Detect driver's first F1 season from their by_year data.
-    
+
     Args:
         driver_data: Driver characteristics dict with 'by_year' field
-        
+
     Returns:
         First season year (e.g., 2025)
     """
-    if 'by_year' not in driver_data:
+    if "by_year" not in driver_data:
         return None
-    
-    years = [int(year) for year in driver_data['by_year'].keys()]
+
+    years = [int(year) for year in driver_data["by_year"].keys()]
     return min(years) if years else None
 
 
@@ -93,36 +93,36 @@ def calculate_experience(
     driver_abbr: str,
     driver_data: Dict,
     current_year: int = 2025,
-    driver_debuts: Dict[str, int] = None
+    driver_debuts: Dict[str, int] = None,
 ) -> int:
     """
     Calculate years of F1 experience using debut year.
-    
+
     Priority:
     1. Use driver_debuts dict if provided
     2. Auto-detect from driver_data (first year in data)
-    
+
     Args:
         driver_abbr: Driver abbreviation (e.g., 'VER', 'HAM')
         driver_data: Driver characteristics dict (for auto-detection)
         current_year: Year to calculate experience relative to
         driver_debuts: Optional dict mapping driver abbr -> debut year
-        
+
     Returns:
         Years of complete experience (0 for rookies in their first season)
     """
     debut_year = None
-    
+
     # Try to get from debuts dict first
     if driver_debuts and driver_abbr in driver_debuts:
         debut_year = driver_debuts[driver_abbr]
     else:
         # Auto-detect from data
         debut_year = detect_first_season(driver_data)
-    
+
     if debut_year is None:
         return None
-    
+
     # Years of complete experience = current_year - debut_year
     return current_year - debut_year
 
@@ -130,38 +130,38 @@ def calculate_experience(
 def assign_experience_tier(years_experience: int) -> str:
     """
     Assign experience tier based on years in F1.
-    
+
     Args:
         years_experience: Years of F1 experience
-        
+
     Returns:
         One of: 'rookie', 'developing', 'established', 'veteran'
     """
     if years_experience is None:
-        return 'unknown'
-    
+        return "unknown"
+
     if years_experience == 0:
-        return 'rookie'
+        return "rookie"
     elif 1 <= years_experience <= 3:
-        return 'developing'
+        return "developing"
     elif 4 <= years_experience <= 6:
-        return 'established'
+        return "established"
     else:  # 7+
-        return 'veteran'
+        return "veteran"
 
 
 def calculate_pace_delta(quali_ratio: float, race_ratio: float) -> float:
     """
     Calculate pace delta: quali_ratio - race_ratio
-    
+
     Positive delta: Better at quali than race (typical rookie pattern)
     Zero delta: Equally strong
     Negative delta: Better at race than quali (unusual, often exceptional or data issue)
-    
+
     Args:
         quali_ratio: Average quali time ratio vs teammate
         race_ratio: Average race pace ratio vs teammate
-        
+
     Returns:
         Pace delta
     """
@@ -169,63 +169,55 @@ def calculate_pace_delta(quali_ratio: float, race_ratio: float) -> float:
 
 
 def determine_confidence_flag(
-    driver_data: Dict,
-    experience_tier: str,
-    pace_delta: float,
-    min_sessions: int = 10
+    driver_data: Dict, experience_tier: str, pace_delta: float, min_sessions: int = 10
 ) -> str:
     """
     Determine confidence flag for driver data.
-    
+
     Args:
         driver_data: Driver characteristics
         experience_tier: rookie/developing/established/veteran
         pace_delta: Difference between quali and race pace
         min_sessions: Minimum sessions for high confidence
-        
+
     Returns:
         One of: 'high', 'gathering_info', 'low'
     """
-    sessions = driver_data.get('sessions', 0)
-    
+    sessions = driver_data.get("sessions", 0)
+
     # Low confidence: insufficient data
     if sessions < min_sessions:
-        return 'low'
-    
+        return "low"
+
     # Gathering info: unusual patterns that need monitoring
     unusual_conditions = [
         # Rookie with negative pace delta (better at races than quali)
-        experience_tier == 'rookie' and pace_delta < -0.005,
-        
+        experience_tier == "rookie" and pace_delta < -0.005,
         # High variance (inconsistent performance)
-        driver_data.get('std_ratio', 0) > 0.025,
-        
+        driver_data.get("std_ratio", 0) > 0.025,
         # Multiple team changes (sample contamination)
-        len(driver_data.get('teams', [])) > 2,
+        len(driver_data.get("teams", [])) > 2,
     ]
-    
+
     if any(unusual_conditions):
-        return 'gathering_info'
-    
+        return "gathering_info"
+
     # High confidence: sufficient data, normal pattern
-    return 'high'
+    return "high"
 
 
 def enrich_driver_characteristics(
-    quali_data: Dict,
-    race_data: Dict,
-    current_year: int = 2025,
-    debuts_csv_path: str = None
+    quali_data: Dict, race_data: Dict, current_year: int = 2025, debuts_csv_path: str = None
 ) -> Dict:
     """
     Add experience and confidence metadata to driver characteristics.
-    
+
     Args:
         quali_data: Qualifying characteristics
         race_data: Race characteristics
         current_year: Year for experience calculation
         debuts_csv_path: Optional path to driver debuts CSV file
-        
+
     Returns:
         Enriched driver data with experience tiers and confidence flags
     """
@@ -236,148 +228,150 @@ def enrich_driver_characteristics(
         print(f"Loaded {len(driver_debuts)} driver debuts from CSV")
     else:
         print("No debuts CSV provided - will auto-detect from data")
-    
+
     enriched_drivers = {}
-    
-    for driver_abbr in quali_data['drivers'].keys():
-        quali = quali_data['drivers'][driver_abbr]
-        race = race_data['drivers'].get(driver_abbr, {})
-        
+
+    for driver_abbr in quali_data["drivers"].keys():
+        quali = quali_data["drivers"][driver_abbr]
+        race = race_data["drivers"].get(driver_abbr, {})
+
         # Calculate experience using CSV debuts or auto-detection
         first_season = None
         if driver_abbr in driver_debuts:
             first_season = driver_debuts[driver_abbr]
         else:
             first_season = detect_first_season(quali)
-        
+
         years_exp = calculate_experience(driver_abbr, quali, current_year, driver_debuts)
         tier = assign_experience_tier(years_exp)
-        
+
         # Calculate pace delta
-        quali_ratio = quali.get('avg_ratio', 1.0)
-        race_ratio = race.get('avg_ratio', 1.0) if race else None
+        quali_ratio = quali.get("avg_ratio", 1.0)
+        race_ratio = race.get("avg_ratio", 1.0) if race else None
         pace_delta = calculate_pace_delta(quali_ratio, race_ratio) if race_ratio else None
-        
+
         # Determine confidence
         confidence = determine_confidence_flag(quali, tier, pace_delta or 0)
-        
+
         # Build enriched profile
         enriched_drivers[driver_abbr] = {
-            'driver': driver_abbr,
-            'experience': {
-                'first_season': first_season,
-                'years_experience': years_exp,
-                'tier': tier
+            "driver": driver_abbr,
+            "experience": {
+                "first_season": first_season,
+                "years_experience": years_exp,
+                "tier": tier,
             },
-            'quali_pace': quali_ratio,
-            'race_pace': race_ratio,
-            'pace_delta': pace_delta,
-            'quali_sessions': quali.get('sessions', 0),
-            'race_sessions': race.get('sessions', 0) if race else 0,
-            'quali_std': quali.get('std_ratio', 0),
-            'race_std': race.get('std_ratio', 0) if race else 0,
-            'teammates': quali.get('teammates', []),
-            'teams': quali.get('teams', []),
-            'confidence': confidence,
-            'rookie_flag': tier == 'rookie'  # Keep for backwards compatibility
+            "quali_pace": quali_ratio,
+            "race_pace": race_ratio,
+            "pace_delta": pace_delta,
+            "quali_sessions": quali.get("sessions", 0),
+            "race_sessions": race.get("sessions", 0) if race else 0,
+            "quali_std": quali.get("std_ratio", 0),
+            "race_std": race.get("std_ratio", 0) if race else 0,
+            "teammates": quali.get("teammates", []),
+            "teams": quali.get("teams", []),
+            "confidence": confidence,
+            "rookie_flag": tier == "rookie",  # Keep for backwards compatibility
         }
-    
+
     return {
-        'extracted_at': quali_data['extracted_at'],
-        'seasons': quali_data['seasons'],
-        'current_year': current_year,
-        'total_drivers': len(enriched_drivers),
-        'drivers': enriched_drivers
+        "extracted_at": quali_data["extracted_at"],
+        "seasons": quali_data["seasons"],
+        "current_year": current_year,
+        "total_drivers": len(enriched_drivers),
+        "drivers": enriched_drivers,
     }
 
 
 def analyze_experience_distribution(enriched_data: Dict) -> Dict:
     """
     Analyze distribution of drivers across experience tiers.
-    
+
     Args:
         enriched_data: Output from enrich_driver_characteristics
-        
+
     Returns:
         Summary statistics by tier
     """
-    tiers = {'rookie': [], 'developing': [], 'established': [], 'veteran': []}
-    
-    for driver_abbr, driver in enriched_data['drivers'].items():
-        tier = driver['experience']['tier']
+    tiers = {"rookie": [], "developing": [], "established": [], "veteran": []}
+
+    for driver_abbr, driver in enriched_data["drivers"].items():
+        tier = driver["experience"]["tier"]
         if tier in tiers:
             tiers[tier].append(driver_abbr)
-    
+
     return {
-        'by_tier': {
-            tier: {
-                'count': len(drivers),
-                'drivers': sorted(drivers)
-            }
+        "by_tier": {
+            tier: {"count": len(drivers), "drivers": sorted(drivers)}
             for tier, drivers in tiers.items()
         },
-        'confidence_distribution': {
-            'high': sum(1 for d in enriched_data['drivers'].values() if d['confidence'] == 'high'),
-            'gathering_info': sum(1 for d in enriched_data['drivers'].values() if d['confidence'] == 'gathering_info'),
-            'low': sum(1 for d in enriched_data['drivers'].values() if d['confidence'] == 'low')
-        }
+        "confidence_distribution": {
+            "high": sum(1 for d in enriched_data["drivers"].values() if d["confidence"] == "high"),
+            "gathering_info": sum(
+                1 for d in enriched_data["drivers"].values() if d["confidence"] == "gathering_info"
+            ),
+            "low": sum(1 for d in enriched_data["drivers"].values() if d["confidence"] == "low"),
+        },
     }
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Test with the extracted data
     import sys
-    
-    quali_path = Path('../data/processed/driver_characteristics/driver_quali_characteristics.json')
-    race_path = Path('../data/processed/driver_characteristics/driver_race_characteristics.json')
-    debuts_csv = Path('../data/driver_debuts.csv')
-    
+
+    quali_path = Path("../data/processed/driver_characteristics/driver_quali_characteristics.json")
+    race_path = Path("../data/processed/driver_characteristics/driver_race_characteristics.json")
+    debuts_csv = Path("../data/driver_debuts.csv")
+
     if not quali_path.exists() or not race_path.exists():
         print("Error: Driver characteristics files not found")
         sys.exit(1)
-    
+
     with open(quali_path) as f:
         quali_data = json.load(f)
-    
+
     with open(race_path) as f:
         race_data = json.load(f)
-    
+
     # Enrich data (with CSV if available)
     debuts_csv_str = str(debuts_csv) if debuts_csv.exists() else None
     enriched = enrich_driver_characteristics(
-        quali_data, 
-        race_data, 
-        current_year=2025,
-        debuts_csv_path=debuts_csv_str
+        quali_data, race_data, current_year=2025, debuts_csv_path=debuts_csv_str
     )
-    
+
     # Analyze distribution
     analysis = analyze_experience_distribution(enriched)
-    
+
     print("=== EXPERIENCE TIER DISTRIBUTION ===\n")
-    for tier, data in analysis['by_tier'].items():
+    for tier, data in analysis["by_tier"].items():
         print(f"{tier.upper()}: {data['count']} drivers")
         print(f"  {', '.join(data['drivers'])}\n")
-    
+
     print("=== CONFIDENCE DISTRIBUTION ===\n")
-    for conf, count in analysis['confidence_distribution'].items():
+    for conf, count in analysis["confidence_distribution"].items():
         print(f"{conf}: {count} drivers")
-    
+
     print("\n=== GATHERING INFO FLAGS (Unusual Patterns) ===\n")
-    for driver_abbr, driver in enriched['drivers'].items():
-        if driver['confidence'] == 'gathering_info':
+    for driver_abbr, driver in enriched["drivers"].items():
+        if driver["confidence"] == "gathering_info":
             print(f"{driver_abbr}:")
             print(f"  Tier: {driver['experience']['tier']}")
-            print(f"  Pace delta: {driver['pace_delta']:.4f}" if driver['pace_delta'] else "  No race data")
+            print(
+                f"  Pace delta: {driver['pace_delta']:.4f}"
+                if driver["pace_delta"]
+                else "  No race data"
+            )
             print(f"  Teams: {', '.join(driver['teams'])}")
             print(f"  Quali std: {driver['quali_std']:.4f}")
             print()
-    
+
     # Save enriched data
-    output_path = Path('../data/processed/driver_characteristics/driver_characteristics_enriched.json')
+    output_path = Path(
+        "../data/processed/driver_characteristics/driver_characteristics_enriched.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(output_path, 'w') as f:
+
+    with open(output_path, "w") as f:
         json.dump(enriched, f, indent=2)
-    
+
     print(f"\n🟢 Saved enriched data to {output_path}")

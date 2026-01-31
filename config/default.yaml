@@ -1,0 +1,185 @@
+# Formula 1 2026 Prediction Engine - Configuration
+
+# Paths
+paths:
+  data_dir: "data"
+  processed: "data/processed"
+  raw: "data/raw"
+  driver_chars: "data/processed/driver_characteristics.json"
+  track_chars: "data/processed/track_characteristics.json"
+  lineups: "data/current_lineups.json"
+  cache: ".fastf1_cache"
+
+# Bayesian Model Parameters
+bayesian:
+  # Process noise injected between races to prevent overconfidence
+  base_volatility: 0.1
+
+  # Observation noise (higher = trust observations less)
+  base_observation_noise: 2.0
+
+  # Shock detection threshold (std devs)
+  shock_threshold: 2.0
+
+  # Shock multiplier for concept drift
+  shock_multiplier: 0.5
+
+# Race Simulation Parameters
+race:
+  # Component weights
+  weights:
+    pace_weight: 0.4
+    grid_weight: 0.3
+    overtaking_weight: 0.15
+    tire_deg_weight: 0.15
+
+  # Base uncertainty (positions)
+  base_uncertainty: 2.5
+
+  # Uncertainty multipliers
+  uncertainty_multipliers:
+    rain: 1.5
+    easy_overtaking: 0.8
+
+  # Reliability
+  dnf:
+    base_risk: 0.05
+    driver_error_factor: 0.15
+    street_circuit_risk: 0.05
+    rain_risk: 0.10
+
+  # Lap 1 chaos
+  lap1:
+    midfield_variance: 1.5  # Positions 8-15
+    front_row_variance: 0.0  # P1-P2 usually hold
+
+  # Tire degradation
+  tire:
+    # Converts deg_factor to position penalty
+    degradation_multiplier: 4.0
+    skill_reduction_factor: 0.2
+
+  # Weather impact
+  weather:
+    rain_position_swing: 6.0  # Good drivers gain 3, bad lose 3
+    mixed_intensity: 0.5
+
+  # Safety car
+  safety_car:
+    compression_factor: 0.1
+
+# Qualifying Prediction Parameters
+qualifying:
+  # Blend weights (practice vs model)
+  blend:
+    default: 0.7
+    fp3_only: 0.8
+    fp1_only: 0.4
+
+  # Session confidence weights
+  session_confidence:
+    fp1: 0.2
+    fp2: 0.5
+    fp3: 0.9
+    sprint_quali: 0.85
+
+  # Uncertainty
+  base_uncertainty: 1.5
+
+# Learning System Parameters
+learning:
+  # Rolling average window for method performance
+  performance_window: 5
+
+  # Min races before trusting a method
+  min_samples: 3
+
+# Track Characteristics
+track_defaults:
+  pit_stop_loss: 22.0  # seconds
+  safety_car_prob: 0.3
+  overtaking_difficulty: 0.5
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)s | %(message)s"
+
+# Baseline 2026 Predictor Parameters (used before real season data)
+baseline_predictor:
+  # Qualifying simulation parameters
+  qualifying:
+    # Qualifying noise standard deviation (random variation)
+    noise_std_sprint: 0.025    # Sprint weekends (less practice data)
+    noise_std_normal: 0.02     # Normal weekends
+
+    # Score composition weights
+    team_weight: 0.7           # 70% weight given to team strength
+    skill_weight: 0.3          # 30% weight given to driver skill
+
+  # Race simulation parameters
+  race:
+    # Weather-based base chaos (unpredictability)
+    base_chaos:
+      dry: 0.35                 # Dry conditions chaos level
+      wet: 0.45                 # Wet conditions chaos level (more unpredictable)
+
+    # Track chaos modifier
+    # Harder to overtake (higher overtaking_difficulty) = lower chaos
+    # Monaco (0.9) → 0.64x, Monza (0.2) → 0.92x
+    track_chaos_multiplier: 0.4 # Multiplier applied to track overtaking difficulty
+
+    # Safety car probabilities
+    sc_base_probability:
+      dry: 0.45                # Base safety car probability in dry
+      wet: 0.70                # Base safety car probability in wet
+    sc_track_modifier: 0.25    # Additional probability per overtaking difficulty
+
+    # Grid position advantage
+    grid_weight_min: 0.15      # Minimum grid weight (even on overtaking tracks)
+    grid_weight_multiplier: 0.35  # Additional weight per track overtaking difficulty
+                                  # Range: 0.15 (Monza) to 0.50 (Monaco)
+
+    # Systematic race pace advantage
+    # Drivers better in races (Alonso, Hamilton) vs quali specialists
+    race_advantage_multiplier: 0.5  # Max ±0.5 swing from race_advantage
+
+    # Overtaking skill boost
+    # Only applies to drivers starting >5th on easy overtaking tracks (<0.5 difficulty)
+    overtaking_skill_multiplier: 0.25  # Multiplier for (overtaking_skill - 0.5)
+    overtaking_grid_threshold: 5       # Grid position threshold (>= this)
+    overtaking_track_threshold: 0.5    # Track overtaking difficulty threshold (<= this)
+
+    # Lap 1 chaos by grid position (random incidents/battles)
+    lap1_chaos:
+      front_row: 0.15          # P1-P3: safer, fewer battles
+      upper_midfield: 0.32     # P4-P10: competitive battles
+      midfield: 0.38           # P11-P15: most chaotic
+      back_field: 0.28         # P16+: fewer competitors
+
+    # Strategy variance
+    # Less variance on Monaco (follow leader strategy), more on Bahrain
+    strategy_variance_base: 0.30       # Base standard deviation
+    strategy_track_modifier: 0.5       # Multiplier based on track overtaking
+                                       # Monaco: 0.17, Bahrain: 0.24
+
+    # Safety car luck (position swing when safety car deployed)
+    safety_car_luck_range: 0.25  # Uniform range: ±0.25
+
+    # Pace weight in race scoring
+    pace_weight_base: 0.40      # Base pace weight
+    pace_weight_track_modifier: 0.10  # Reduced weight per track overtaking difficulty
+                                      # Range: 0.30 (Monza) to 0.40 (Monaco)
+
+    # Intra-team variance
+    # Setup/tire choices vary between teammates
+    teammate_variance_std: 0.15 # Standard deviation of teammate variance
+
+    # DNF rate caps
+    dnf_rate_historical_cap: 0.20  # Cap on historical DNF rate before team uncertainty adjustment
+    dnf_rate_final_cap: 0.35       # Final maximum DNF probability per driver
+
+# Testing
+testing:
+  seed: 42
+  monte_carlo_runs: 100

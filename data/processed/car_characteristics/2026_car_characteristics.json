@@ -1,62 +1,86 @@
 {
   "year": 2026,
-  "note": "2026 REGULATION RESET - Starting from actual 2025 team standings with increased uncertainty. Driver skill carries over, car performance is highly uncertain until testing.",
+  "note": "AUTO-GENERATED: Based on 2025 standings with HIGH uncertainty (new regulations). Teams will be re-ranked as 2026 races complete.",
+  "generated_at": "2026-01-31T20:26:17.863497",
+  "data_freshness": "BASELINE_PRESEASON",
+  "races_completed": 0,
   "teams": {
     "McLaren": {
       "overall_performance": 0.85,
-      "uncertainty": 0.30,
-      "note": "2025 WCC champions (833 pts) - dominant but new PU regs"
+      "uncertainty": 0.3,
+      "note": "2025 P1 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
     "Mercedes": {
       "overall_performance": 0.75,
-      "uncertainty": 0.30,
-      "note": "2025 P2 (469 pts) - works team, Hamilton departed"
+      "uncertainty": 0.3,
+      "note": "2025 P2 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
     "Red Bull Racing": {
       "overall_performance": 0.74,
-      "uncertainty": 0.30,
-      "note": "2025 P3 (451 pts) - close fight with Mercedes"
+      "uncertainty": 0.3,
+      "note": "2025 P3 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
     "Ferrari": {
-      "overall_performance": 0.70,
-      "uncertainty": 0.30,
-      "note": "2025 P4 (398 pts) - works Ferrari PU unknown"
+      "overall_performance": 0.7,
+      "uncertainty": 0.3,
+      "note": "2025 P4 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
     "Williams": {
       "overall_performance": 0.55,
-      "uncertainty": 0.35,
-      "note": "2025 P5 (137 pts) - best of rest, Mercedes customer"
+      "uncertainty": 0.3,
+      "note": "2025 P5 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
     "RB": {
       "overall_performance": 0.48,
-      "uncertainty": 0.35,
-      "note": "2025 P6 (92 pts) - Red Bull junior team"
+      "uncertainty": 0.3,
+      "note": "2025 P6 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
     "Aston Martin": {
       "overall_performance": 0.47,
-      "uncertainty": 0.35,
-      "note": "2025 P7 (89 pts) - Honda works team wildcard"
+      "uncertainty": 0.3,
+      "note": "2025 P7 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
     "Haas F1 Team": {
-      "overall_performance": 0.45,
-      "uncertainty": 0.35,
-      "note": "2025 P8 (79 pts) - Ferrari customer"
-    },
-    "Audi": {
-      "overall_performance": 0.42,
-      "uncertainty": 0.40,
-      "note": "2025 P9 as Kick Sauber (70 pts) - now works team"
+      "overall_performance": 0.43,
+      "uncertainty": 0.3,
+      "note": "2025 P8 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
     "Alpine": {
-      "overall_performance": 0.35,
-      "uncertainty": 0.35,
-      "note": "2025 P10 (22 pts!) - disastrous season, Renault works"
+      "overall_performance": 0.4,
+      "uncertainty": 0.3,
+      "note": "2025 P9 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     },
-    "Cadillac F1 Team": {
-      "overall_performance": 0.30,
-      "uncertainty": 0.45,
-      "note": "EXPANSION TEAM - brand new to F1, Ferrari customer PU"
+    "Sauber": {
+      "overall_performance": 0.38,
+      "uncertainty": 0.3,
+      "note": "2025 P10 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
+    },
+    "Cadillac F1": {
+      "overall_performance": 0.35,
+      "uncertainty": 0.3,
+      "note": "2025 P11 - starting estimate with high uncertainty",
+      "last_updated": null,
+      "races_completed": 0
     }
-  },
-  "learning_note": "Based on actual 2025 standings: McLaren dominant (833 pts), Mercedes/Red Bull close P2-P3 (469/451), Williams best midfield (P5). Driver skill preserved. 3x normal uncertainty due to regulation reset. Model learns from testing (Feb 2026)."
+  }
 }

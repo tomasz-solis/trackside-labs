@@ -12,7 +12,7 @@
     "RB": ["LAW", "LIN"],
     "Williams": ["SAI", "ALB"],
     "Audi": ["HUL", "BOR"],
-    "Cadillac F1 Team": ["PER", "BOT"]
+    "Cadillac F1": ["PER", "BOT"]
   },
   "update_instructions": {
     "when_driver_changes": "Just edit the driver abbreviations above",

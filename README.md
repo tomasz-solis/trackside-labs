@@ -62,10 +62,16 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Extract 2025 driver characteristics (baseline for 2026)
-python -m scripts.extract_driver_characteristics 2025
+# 2. Extract driver/team/track characteristics (FIXED methodology)
+# WARNING: Use the FIXED scripts, not the old broken ones!
+python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025
+python scripts/calculate_team_performance.py --year 2025
+python scripts/generate_2026_baseline.py --skip-tracks  # Uses 2025 standings
 
-# 3. Run the dashboard
+# 3. Validate the extracted data (catches obviously wrong values)
+python scripts/validate_characteristics.py
+
+# 4. Run the dashboard
 streamlit run app.py
 ```
 
@@ -108,44 +114,44 @@ This project uses different predictors depending on data availability:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     USER INTERFACES                          │
-│  ┌──────────────────┐         ┌─────────────────────────┐  │
-│  │  app.py          │         │  predict_weekend.py     │  │
-│  │  (Streamlit)     │         │  (CLI)                  │  │
-│  └────────┬─────────┘         └──────────┬──────────────┘  │
-└───────────┼────────────────────────────────┼─────────────────┘
+│                     USER INTERFACES                         │
+│  ┌──────────────────┐         ┌─────────────────────────┐   │
+│  │  app.py          │         │  predict_weekend.py     │   │
+│  │  (Streamlit)     │         │  (CLI)                  │   │
+│  └────────┬─────────┘         └────────────┬────────────┘   │
+└───────────┼────────────────────────────────┼────────────────┘
             │                                │
             ▼                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   PREDICTION LAYER                           │
-│  ┌──────────────────────┐    ┌──────────────────────────┐  │
-│  │ Baseline2026         │    │ Bayesian Predictors      │  │
-│  │ (Pre-season)         │    │ (Post-testing)           │  │
-│  │ • Team strength 70%  │    │ • Practice telemetry     │  │
-│  │ • Driver skill 30%   │    │ • Historical rankings    │  │
-│  │ • Monte Carlo (50x)  │    │ • Adaptive learning      │  │
-│  └──────────┬───────────┘    └──────────┬───────────────┘  │
-└─────────────┼────────────────────────────┼─────────────────┘
+│                   PREDICTION LAYER                          │
+│  ┌──────────────────────┐     ┌──────────────────────────┐  │
+│  │ Baseline2026         │     │ Bayesian Predictors      │  │
+│  │ (Pre-season)         │     │ (Post-testing)           │  │
+│  │ • Team strength 70%  │     │ • Practice telemetry     │  │
+│  │ • Driver skill 30%   │     │ • Historical rankings    │  │
+│  │ • Monte Carlo (50x)  │     │ • Adaptive learning      │  │
+│  └──────────┬───────────┘     └──────────┬───────────────┘  │
+└─────────────┼────────────────────────────┼──────────────────┘
               │                            │
               ▼                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    PHYSICS ENGINE                            │
-│  ┌────────────┐  ┌───────────┐  ┌────────────────────────┐ │
-│  │ Tire Model │  │ Weather   │  │ DNF Risk               │ │
-│  │ • Deg      │  │ • Skill   │  │ • Team reliability     │ │
-│  │   slopes   │  │   mult.   │  │ • Driver errors        │ │
-│  └────────────┘  └───────────┘  └────────────────────────┘ │
+│                    PHYSICS ENGINE                           │
+│  ┌────────────┐  ┌───────────┐  ┌────────────────────────┐  │
+│  │ Tire Model │  │ Weather   │  │ DNF Risk               │  │
+│  │ • Deg      │  │ • Skill   │  │ • Team reliability     │  │
+│  │   slopes   │  │   mult.   │  │ • Driver errors        │  │
+│  └────────────┘  └───────────┘  └────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
-              │
-              ▼
+                            │
+                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     DATA LAYER                               │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │ FastF1      │  │ Static Data  │  │ Learning System  │  │
-│  │ • Telemetry │  │ • Teams 2026 │  │ • Performance    │  │
-│  │ • Sessions  │  │ • Drivers    │  │   tracking       │  │
-│  │ • Results   │  │ • Tracks     │  │ • Weight tuning  │  │
-│  └─────────────┘  └──────────────┘  └──────────────────┘  │
+│                       DATA LAYER                            │
+│  ┌─────────────┐   ┌──────────────┐   ┌──────────────────┐  │
+│  │ FastF1      │   │ Static Data  │   │ Learning System  │  │
+│  │ • Telemetry │   │ • Teams 2026 │   │ • Performance    │  │
+│  │ • Sessions  │   │ • Drivers    │   │   tracking       │  │
+│  │ • Results   │   │ • Tracks     │   │ • Weight tuning  │  │
+│  └─────────────┘   └──────────────┘   └──────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -196,6 +202,29 @@ formula1-2026/
     ├── default.yaml         # Model hyperparameters
     └── production_config.json  # Session selection strategy
 ```
+
+## ⚠️ Data Quality Notice
+
+**IMPORTANT**: The original `scripts/extract_driver_characteristics.py` had fundamental flaws that produced inverted ratings (pay drivers rated as elite, champions rated as average).
+
+**Use the FIXED scripts**:
+- ✅ `scripts/extract_driver_characteristics_fixed.py` - Correct racecraft/pace methodology
+- ✅ `scripts/calculate_team_performance.py` - Data-driven team ratings from lap times
+- ✅ `scripts/validate_characteristics.py` - Catches obviously wrong values
+
+**What was wrong**:
+1. **Racecraft calculation rewarded position gains** without accounting for starting position difficulty or car performance
+2. **Single-season data** caused volatility (one bad/lucky season = permanent rating)
+3. **No validation** allowed nonsensical values (ALO 0.50, STR 0.90)
+
+**What's fixed**:
+1. Racecraft = finish position vs pace expectations (not vs grid)
+2. Multi-year averaging (2023-2025) for stability
+3. Validation with known driver/team ranges
+
+See [CHARACTERISTICS_REVIEW.md](CHARACTERISTICS_REVIEW.md) for full analysis.
+
+---
 
 ## License
 

@@ -68,6 +68,14 @@ race:
   safety_car:
     compression_factor: 0.1
 
+  # Pace calculation
+  pace:
+    # Converts FP2 pace delta to position gain potential
+    pace_delta_multiplier: 3.0
+
+  # DNF handling
+  dnf_position_penalty: 22  # Position penalty for DNF (grid size + 2)
+
 # Qualifying Prediction Parameters
 qualifying:
   # Blend weights (practice vs model)
@@ -142,7 +150,8 @@ baseline_predictor:
 
     # Systematic race pace advantage
     # Drivers better in races (Alonso, Hamilton) vs quali specialists
-    race_advantage_multiplier: 0.5  # Max ±0.5 swing from race_advantage
+    # Reduced from 0.5 → 0.15 to prevent unrealistic comebacks from midfield
+    race_advantage_multiplier: 0.15  # Max ±0.15 swing from race_advantage
 
     # Overtaking skill boost
     # Only applies to drivers starting >5th on easy overtaking tracks (<0.5 difficulty)

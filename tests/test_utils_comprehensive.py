@@ -21,7 +21,7 @@ class TestLineupsModule:
         # Should return 11 teams
         assert len(lineups) == 11
         assert "McLaren" in lineups
-        assert "Cadillac F1 Team" in lineups
+        assert "Cadillac F1" in lineups
 
         # Each team should have 2 drivers
         for team, drivers in lineups.items():

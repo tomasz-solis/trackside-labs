@@ -1,874 +1,570 @@
 {
-  "year": 2025,
-  "last_updated": "2026-01-03T13:30:39.258100",
-  "extraction_type": "unified",
-  "description": "Complete driver characteristics from single extraction",
+  "extraction_date": "2026-02-01T00:17:08.341852",
+  "years": [
+    2023,
+    2024,
+    2025
+  ],
+  "method": "global_teammate_network_ranking",
   "drivers": {
-    "NOR": {
-      "name": "Driver NOR",
-      "number": 0,
-      "teams": [
-        "McLaren"
-      ],
+    "LEC": {
+      "name": "Driver LEC",
+      "pace": {
+        "quali_pace": 0.707,
+        "race_pace": 0.852
+      },
+      "racecraft": {
+        "skill_score": 0.852,
+        "overtaking_skill": 0.852
+      },
       "experience": {
-        "total_seasons": 5,
-        "total_races": 100,
+        "years_of_experience": 7,
+        "debut_year": 2018,
+        "total_races": 70,
         "tier": "established"
       },
-      "pace": {
-        "quali_pace": 0.8969298245614036,
-        "quali_std": 0.1229440025474542,
-        "race_pace": 0.9348370927318296,
-        "race_std": 0.0742633202507722,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.8333333333333334,
-        "overtaking_skill": 0.8333333333333334,
-        "driver_type": "front_runner",
-        "interpretation": "Front-runner: 83% position held",
-        "races_analyzed": 21,
-        "total_dnfs": 3
-      },
       "dnf_risk": {
-        "dnf_rate": 0.125,
-        "risk_level": "moderate",
-        "total_races": 24,
-        "total_dnfs": 3,
-        "dnf_types": {
-          "unknown": 2,
-          "disqualified": 1
-        }
-      },
-      "tire_management": {
-        "skill": 0.75,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "VER": {
-      "name": "Driver VER",
-      "number": 0,
-      "teams": [
-        "Red Bull Racing"
-      ],
-      "experience": {
-        "total_seasons": 5,
-        "total_races": 100,
-        "tier": "established"
-      },
-      "pace": {
-        "quali_pace": 0.8684210526315791,
-        "quali_std": 0.17521916101261562,
-        "race_pace": 0.8924485125858124,
-        "race_std": 0.12936653569887932,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.8200000000000001,
-        "overtaking_skill": 0.8200000000000001,
-        "driver_type": "front_runner",
-        "interpretation": "Front-runner: 80% position held",
-        "races_analyzed": 23,
-        "total_dnfs": 1
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.041666666666666664,
-        "risk_level": "very_low",
-        "total_races": 24,
-        "total_dnfs": 1,
-        "dnf_types": {
-          "unknown": 1
-        }
-      },
-      "tire_management": {
-        "skill": 0.85,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "RUS": {
-      "name": "Driver RUS",
-      "number": 0,
-      "teams": [
-        "Mercedes"
-      ],
-      "experience": {
-        "total_seasons": 2,
-        "total_races": 40,
-        "tier": "developing"
-      },
-      "pace": {
-        "quali_pace": 0.8223684210526315,
-        "quali_std": 0.12785294602761763,
-        "race_pace": 0.8283752860411898,
-        "race_std": 0.10998274453728069,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.74,
-        "overtaking_skill": 0.74,
-        "driver_type": "front_runner",
-        "interpretation": "Front-runner: 60% position held",
-        "races_analyzed": 23,
-        "total_dnfs": 1
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.041666666666666664,
-        "risk_level": "very_low",
-        "total_races": 24,
-        "total_dnfs": 1,
-        "dnf_types": {
-          "unknown": 1
-        }
-      },
-      "tire_management": {
-        "skill": 0.8,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "ANT": {
-      "name": "Driver ANT",
-      "number": 0,
-      "teams": [
-        "Mercedes"
-      ],
-      "experience": {
-        "total_seasons": 1,
-        "total_races": 20,
-        "tier": "rookie"
-      },
-      "pace": {
-        "quali_pace": 0.6008771929824561,
-        "quali_std": 0.2551033441967696,
-        "race_pace": 0.6549707602339181,
-        "race_std": 0.2368240553370361,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.3333333333333333,
-        "overtaking_skill": 0.3333333333333333,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: -1.0 median gain",
-        "races_analyzed": 18,
-        "total_dnfs": 6
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.25,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 6,
-        "dnf_types": {
-          "unknown": 6
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "ALB": {
-      "name": "Driver ALB",
-      "number": 0,
-      "teams": [
-        "Williams"
-      ],
-      "experience": {
-        "total_seasons": 2,
-        "total_races": 40,
-        "tier": "developing"
-      },
-      "pace": {
-        "quali_pace": 0.37280701754385975,
-        "quali_std": 0.2278592141729919,
-        "race_pace": 0.5822368421052632,
-        "race_std": 0.18086123413014835,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.9,
-        "overtaking_skill": 0.9,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +2.5 median gain",
-        "races_analyzed": 16,
-        "total_dnfs": 8
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.3333333333333333,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 8,
-        "dnf_types": {
-          "unknown": 8
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "STR": {
-      "name": "Driver STR",
-      "number": 0,
-      "teams": [
-        "Aston Martin"
-      ],
-      "experience": {
-        "total_seasons": 5,
-        "total_races": 100,
-        "tier": "established"
-      },
-      "pace": {
-        "quali_pace": 0.20823798627002285,
-        "quali_std": 0.1928995278325638,
-        "race_pace": 0.45175438596491224,
-        "race_std": 0.21428479825098434,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.9,
-        "overtaking_skill": 0.9,
-        "driver_type": "back_marker",
-        "interpretation": "Overall: +5.0 median gain",
-        "races_analyzed": 12,
-        "total_dnfs": 11
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.4782608695652174,
-        "risk_level": "very_high",
-        "total_races": 23,
-        "total_dnfs": 11,
-        "dnf_types": {
-          "unknown": 11
-        }
-      },
-      "tire_management": {
-        "skill": 0.54,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
+        "dnf_rate": 0.0
       }
     },
     "HUL": {
       "name": "Driver HUL",
-      "number": 0,
-      "teams": [
-        "Kick Sauber"
-      ],
+      "pace": {
+        "quali_pace": 0.671,
+        "race_pace": 0.702
+      },
+      "racecraft": {
+        "skill_score": 0.702,
+        "overtaking_skill": 0.702
+      },
       "experience": {
-        "total_seasons": 10,
-        "total_races": 200,
+        "years_of_experience": 15,
+        "debut_year": 2010,
+        "total_races": 70,
         "tier": "veteran"
       },
-      "pace": {
-        "quali_pace": 0.2697368421052632,
-        "quali_std": 0.15739137601752734,
-        "race_pace": 0.5425101214574899,
-        "race_std": 0.20476386423322737,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.9,
-        "overtaking_skill": 0.9,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +3.0 median gain",
-        "races_analyzed": 13,
-        "total_dnfs": 11
-      },
       "dnf_risk": {
-        "dnf_rate": 0.4583333333333333,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 11,
-        "dnf_types": {
-          "unknown": 10,
-          "disqualified": 1
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
+        "dnf_rate": 0.0
       }
     },
-    "LEC": {
-      "name": "Driver LEC",
-      "number": 0,
-      "teams": [
-        "Ferrari"
-      ],
-      "experience": {
-        "total_seasons": 5,
-        "total_races": 100,
-        "tier": "established"
-      },
+    "RIC": {
+      "name": "Driver RIC",
       "pace": {
-        "quali_pace": 0.7653508771929826,
-        "quali_std": 0.14884843179520454,
-        "race_pace": 0.786967418546366,
-        "race_std": 0.1475081600958613,
-        "confidence": "high"
+        "quali_pace": 0.656,
+        "race_pace": 0.569
       },
       "racecraft": {
-        "skill_score": 0.75,
-        "overtaking_skill": 0.75,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +1.5 median gain",
-        "races_analyzed": 21,
-        "total_dnfs": 3
+        "skill_score": 0.569,
+        "overtaking_skill": 0.569
       },
-      "dnf_risk": {
-        "dnf_rate": 0.125,
-        "risk_level": "moderate",
-        "total_races": 24,
-        "total_dnfs": 3,
-        "dnf_types": {
-          "disqualified": 1,
-          "unknown": 2
-        }
-      },
-      "tire_management": {
-        "skill": 0.7,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "PIA": {
-      "name": "Driver PIA",
-      "number": 0,
-      "teams": [
-        "McLaren"
-      ],
       "experience": {
-        "total_seasons": 2,
-        "total_races": 40,
-        "tier": "developing"
-      },
-      "pace": {
-        "quali_pace": 0.8925438596491228,
-        "quali_std": 0.11006500080113689,
-        "race_pace": 0.9066985645933016,
-        "race_std": 0.10152677116709542,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.78,
-        "overtaking_skill": 0.78,
-        "driver_type": "front_runner",
-        "interpretation": "Front-runner: 70% position held",
-        "races_analyzed": 22,
-        "total_dnfs": 2
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.08333333333333333,
-        "risk_level": "low",
-        "total_races": 24,
-        "total_dnfs": 2,
-        "dnf_types": {
-          "unknown": 1,
-          "disqualified": 1
-        }
-      },
-      "tire_management": {
-        "skill": 0.6,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "HAM": {
-      "name": "Driver HAM",
-      "number": 0,
-      "teams": [
-        "Ferrari"
-      ],
-      "experience": {
-        "total_seasons": 10,
-        "total_races": 200,
+        "years_of_experience": 14,
+        "debut_year": 2011,
+        "total_races": 25,
         "tier": "veteran"
       },
-      "pace": {
-        "quali_pace": 0.5767543859649122,
-        "quali_std": 0.2526311982209607,
-        "race_pace": 0.6973684210526316,
-        "race_std": 0.10898041705709817,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.9,
-        "overtaking_skill": 0.9,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +2.5 median gain",
-        "races_analyzed": 20,
-        "total_dnfs": 4
-      },
       "dnf_risk": {
-        "dnf_rate": 0.16666666666666666,
-        "risk_level": "high",
-        "total_races": 24,
-        "total_dnfs": 4,
-        "dnf_types": {
-          "disqualified": 1,
-          "unknown": 3
-        }
-      },
-      "tire_management": {
-        "skill": 0.9,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "GAS": {
-      "name": "Driver GAS",
-      "number": 0,
-      "teams": [
-        "Alpine"
-      ],
-      "experience": {
-        "total_seasons": 5,
-        "total_races": 100,
-        "tier": "established"
-      },
-      "pace": {
-        "quali_pace": 0.34649122807017546,
-        "quali_std": 0.23087845944301502,
-        "race_pace": 0.4736842105263159,
-        "race_std": 0.16183286627069626,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.16666666666666666,
-        "overtaking_skill": 0.16666666666666666,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: -2.0 median gain",
-        "races_analyzed": 11,
-        "total_dnfs": 13
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.5416666666666666,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 13,
-        "dnf_types": {
-          "disqualified": 1,
-          "unknown": 12
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "TSU": {
-      "name": "Driver TSU",
-      "number": 0,
-      "teams": [
-        "Racing Bulls"
-      ],
-      "experience": {
-        "total_seasons": 5,
-        "total_races": 100,
-        "tier": "established"
-      },
-      "pace": {
-        "quali_pace": 0.39035087719298245,
-        "quali_std": 0.2278592141729919,
-        "race_pace": 0.46710526315789475,
-        "race_std": 0.13909456915701301,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.5,
-        "overtaking_skill": 0.5,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +0.0 median gain",
-        "races_analyzed": 16,
-        "total_dnfs": 8
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.3333333333333333,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 8,
-        "dnf_types": {
-          "unknown": 8
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "OCO": {
-      "name": "Driver OCO",
-      "number": 0,
-      "teams": [
-        "Haas F1 Team"
-      ],
-      "experience": {
-        "total_seasons": 5,
-        "total_races": 100,
-        "tier": "established"
-      },
-      "pace": {
-        "quali_pace": 0.2565789473684211,
-        "quali_std": 0.18503106724243726,
-        "race_pace": 0.4276315789473685,
-        "race_std": 0.18220240031745039,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.9,
-        "overtaking_skill": 0.9,
-        "driver_type": "back_marker",
-        "interpretation": "Overall: +3.5 median gain",
-        "races_analyzed": 16,
-        "total_dnfs": 8
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.3333333333333333,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 8,
-        "dnf_types": {
-          "unknown": 8
-        }
-      },
-      "tire_management": {
-        "skill": 0.54,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
+        "dnf_rate": 0.0
       }
     },
     "BEA": {
       "name": "Driver BEA",
-      "number": 0,
-      "teams": [
-        "Haas F1 Team"
-      ],
-      "experience": {
-        "total_seasons": 1,
-        "total_races": 20,
-        "tier": "rookie"
-      },
       "pace": {
-        "quali_pace": 0.3267543859649123,
-        "quali_std": 0.20831024802844408,
-        "race_pace": 0.4941520467836258,
-        "race_std": 0.17730488813795944,
-        "confidence": "high"
+        "quali_pace": 0.585,
+        "race_pace": 0.532
       },
       "racecraft": {
-        "skill_score": 0.5,
-        "overtaking_skill": 0.5,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +0.0 median gain",
-        "races_analyzed": 18,
-        "total_dnfs": 6
+        "skill_score": 0.532,
+        "overtaking_skill": 0.532
       },
-      "dnf_risk": {
-        "dnf_rate": 0.25,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 6,
-        "dnf_types": {
-          "unknown": 6
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "LAW": {
-      "name": "Driver LAW",
-      "number": 0,
-      "teams": [
-        "Red Bull Racing"
-      ],
       "experience": {
-        "total_seasons": 1,
-        "total_races": 20,
+        "years_of_experience": 1,
+        "debut_year": 2024,
+        "total_races": 27,
         "tier": "rookie"
       },
-      "pace": {
-        "quali_pace": 0.3925438596491228,
-        "quali_std": 0.2421334683545086,
-        "race_pace": 0.4842105263157895,
-        "race_std": 0.18252360426161338,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.5833333333333334,
-        "overtaking_skill": 0.5833333333333334,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +0.5 median gain",
-        "races_analyzed": 15,
-        "total_dnfs": 9
-      },
       "dnf_risk": {
-        "dnf_rate": 0.375,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 9,
-        "dnf_types": {
-          "unknown": 9
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
+        "dnf_rate": 0.0
       }
     },
-    "BOR": {
-      "name": "Driver BOR",
-      "number": 0,
-      "teams": [
-        "Kick Sauber"
-      ],
-      "experience": {
-        "total_seasons": 1,
-        "total_races": 20,
-        "tier": "rookie"
-      },
+    "MAG": {
+      "name": "Driver MAG",
       "pace": {
-        "quali_pace": 0.31807780320366136,
-        "quali_std": 0.1966099910664585,
-        "race_pace": 0.3947368421052632,
-        "race_std": 0.21216467758680396,
-        "confidence": "high"
+        "quali_pace": 0.605,
+        "race_pace": 0.516
       },
       "racecraft": {
-        "skill_score": 0.5,
-        "overtaking_skill": 0.5,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +0.0 median gain",
-        "races_analyzed": 12,
-        "total_dnfs": 12
+        "skill_score": 0.516,
+        "overtaking_skill": 0.516
       },
-      "dnf_risk": {
-        "dnf_rate": 0.5,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 12,
-        "dnf_types": {
-          "unknown": 12
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "ALO": {
-      "name": "Driver ALO",
-      "number": 0,
-      "teams": [
-        "Aston Martin"
-      ],
       "experience": {
-        "total_seasons": 10,
-        "total_races": 200,
+        "years_of_experience": 11,
+        "debut_year": 2014,
+        "total_races": 44,
         "tier": "veteran"
       },
-      "pace": {
-        "quali_pace": 0.5065789473684211,
-        "quali_std": 0.18346496994936834,
-        "race_pace": 0.5170278637770898,
-        "race_std": 0.1770941132640878,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.5,
-        "overtaking_skill": 0.5,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +0.0 median gain",
-        "races_analyzed": 17,
-        "total_dnfs": 7
-      },
       "dnf_risk": {
-        "dnf_rate": 0.2916666666666667,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 7,
-        "dnf_types": {
-          "unknown": 7
-        }
-      },
-      "tire_management": {
-        "skill": 0.95,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
+        "dnf_rate": 0.023
       }
     },
-    "SAI": {
-      "name": "Driver SAI",
-      "number": 0,
-      "teams": [
-        "Williams"
-      ],
+    "STR": {
+      "name": "Driver STR",
+      "pace": {
+        "quali_pace": 0.603,
+        "race_pace": 0.593
+      },
+      "racecraft": {
+        "skill_score": 0.593,
+        "overtaking_skill": 0.593
+      },
       "experience": {
-        "total_seasons": 5,
-        "total_races": 100,
+        "years_of_experience": 8,
+        "debut_year": 2017,
+        "total_races": 69,
         "tier": "established"
       },
-      "pace": {
-        "quali_pace": 0.47368421052631576,
-        "quali_std": 0.2537802831840251,
-        "race_pace": 0.5122807017543859,
-        "race_std": 0.21867279229309308,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.25,
-        "overtaking_skill": 0.25,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: -1.5 median gain",
-        "races_analyzed": 15,
-        "total_dnfs": 9
-      },
       "dnf_risk": {
-        "dnf_rate": 0.375,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 9,
-        "dnf_types": {
-          "unknown": 9
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "DOO": {
-      "name": "Driver DOO",
-      "number": 0,
-      "teams": [
-        "Alpine"
-      ],
-      "experience": {
-        "total_seasons": 1,
-        "total_races": 20,
-        "tier": "rookie"
-      },
-      "pace": {
-        "quali_pace": 0.23684210526315788,
-        "quali_std": 0.1449360670338448,
-        "race_pace": 0.31578947368421056,
-        "race_std": 0.042973504259354,
-        "confidence": "medium"
-      },
-      "racecraft": {
-        "skill_score": 0.9,
-        "overtaking_skill": 0.9,
-        "driver_type": "back_marker",
-        "interpretation": "Overall: +4.0 median gain",
-        "races_analyzed": 3,
-        "total_dnfs": 3
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.5,
-        "risk_level": "very_high",
-        "total_races": 6,
-        "total_dnfs": 3,
-        "dnf_types": {
-          "unknown": 3
-        }
-      },
-      "tire_management": {
-        "skill": 0.54,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
-      }
-    },
-    "HAD": {
-      "name": "Driver HAD",
-      "number": 0,
-      "teams": [
-        "Racing Bulls"
-      ],
-      "experience": {
-        "total_seasons": 1,
-        "total_races": 20,
-        "tier": "rookie"
-      },
-      "pace": {
-        "quali_pace": 0.543859649122807,
-        "quali_std": 0.18772749613186576,
-        "race_pace": 0.5587044534412956,
-        "race_std": 0.16325380691219396,
-        "confidence": "high"
-      },
-      "racecraft": {
-        "skill_score": 0.5,
-        "overtaking_skill": 0.5,
-        "driver_type": "midfield",
-        "interpretation": "Midfield: +0.0 median gain",
-        "races_analyzed": 13,
-        "total_dnfs": 11
-      },
-      "dnf_risk": {
-        "dnf_rate": 0.4583333333333333,
-        "risk_level": "very_high",
-        "total_races": 24,
-        "total_dnfs": 11,
-        "dnf_types": {
-          "unknown": 11
-        }
-      },
-      "tire_management": {
-        "skill": 0.63,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
+        "dnf_rate": 0.014
       }
     },
     "COL": {
       "name": "Driver COL",
-      "number": 0,
-      "teams": [
-        "Alpine"
-      ],
-      "experience": {
-        "total_seasons": 1,
-        "total_races": 20,
-        "tier": "rookie"
-      },
       "pace": {
-        "quali_pace": 0.16081871345029242,
-        "quali_std": 0.12948298143558204,
-        "race_pace": 0.25263157894736843,
-        "race_std": 0.13480261552490208,
-        "confidence": "high"
+        "quali_pace": 0.655,
+        "race_pace": 0.537
       },
       "racecraft": {
-        "skill_score": 0.9,
-        "overtaking_skill": 0.9,
-        "driver_type": "back_marker",
-        "interpretation": "Overall: +3.0 median gain",
-        "races_analyzed": 5,
-        "total_dnfs": 13
+        "skill_score": 0.537,
+        "overtaking_skill": 0.537
+      },
+      "experience": {
+        "years_of_experience": 1,
+        "debut_year": 2024,
+        "total_races": 27,
+        "tier": "rookie"
       },
       "dnf_risk": {
-        "dnf_rate": 0.7222222222222222,
-        "risk_level": "very_high",
-        "total_races": 18,
-        "total_dnfs": 13,
-        "dnf_types": {
-          "unknown": 13
-        }
+        "dnf_rate": 0.0
+      }
+    },
+    "DOO": {
+      "name": "Driver DOO",
+      "pace": {
+        "quali_pace": 0.465,
+        "race_pace": 0.415
       },
-      "tire_management": {
-        "skill": 0.54,
-        "baseline": "estimated",
-        "notes": "Based on driver type and DNF rate"
+      "racecraft": {
+        "skill_score": 0.415,
+        "overtaking_skill": 0.415
+      },
+      "experience": {
+        "years_of_experience": 0,
+        "debut_year": 2025,
+        "total_races": 7,
+        "tier": "rookie"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "OCO": {
+      "name": "Driver OCO",
+      "pace": {
+        "quali_pace": 0.647,
+        "race_pace": 0.687
+      },
+      "racecraft": {
+        "skill_score": 0.687,
+        "overtaking_skill": 0.687
+      },
+      "experience": {
+        "years_of_experience": 9,
+        "debut_year": 2016,
+        "total_races": 69,
+        "tier": "established"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "NOR": {
+      "name": "Driver NOR",
+      "pace": {
+        "quali_pace": 0.767,
+        "race_pace": 0.777
+      },
+      "racecraft": {
+        "skill_score": 0.777,
+        "overtaking_skill": 0.777
+      },
+      "experience": {
+        "years_of_experience": 6,
+        "debut_year": 2019,
+        "total_races": 70,
+        "tier": "established"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "HAD": {
+      "name": "Driver HAD",
+      "pace": {
+        "quali_pace": 0.705,
+        "race_pace": 0.67
+      },
+      "racecraft": {
+        "skill_score": 0.67,
+        "overtaking_skill": 0.67
+      },
+      "experience": {
+        "years_of_experience": 0,
+        "debut_year": 2025,
+        "total_races": 24,
+        "tier": "rookie"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "RUS": {
+      "name": "Driver RUS",
+      "pace": {
+        "quali_pace": 0.795,
+        "race_pace": 0.82
+      },
+      "racecraft": {
+        "skill_score": 0.82,
+        "overtaking_skill": 0.82
+      },
+      "experience": {
+        "years_of_experience": 6,
+        "debut_year": 2019,
+        "total_races": 70,
+        "tier": "established"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "DEV": {
+      "name": "Driver DEV",
+      "pace": {
+        "quali_pace": 0.416,
+        "race_pace": 0.466
+      },
+      "racecraft": {
+        "skill_score": 0.466,
+        "overtaking_skill": 0.466
+      },
+      "experience": {
+        "years_of_experience": 3,
+        "debut_year": 2022,
+        "total_races": 10,
+        "tier": "developing"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "PIA": {
+      "name": "Driver PIA",
+      "pace": {
+        "quali_pace": 0.584,
+        "race_pace": 0.589
+      },
+      "racecraft": {
+        "skill_score": 0.589,
+        "overtaking_skill": 0.589
+      },
+      "experience": {
+        "years_of_experience": 2,
+        "debut_year": 2023,
+        "total_races": 70,
+        "tier": "developing"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "VER": {
+      "name": "Driver VER",
+      "pace": {
+        "quali_pace": 0.95,
+        "race_pace": 0.99
+      },
+      "racecraft": {
+        "skill_score": 0.99,
+        "overtaking_skill": 0.99
+      },
+      "experience": {
+        "years_of_experience": 10,
+        "debut_year": 2015,
+        "total_races": 70,
+        "tier": "veteran"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "LAW": {
+      "name": "Driver LAW",
+      "pace": {
+        "quali_pace": 0.643,
+        "race_pace": 0.622
+      },
+      "racecraft": {
+        "skill_score": 0.622,
+        "overtaking_skill": 0.622
+      },
+      "experience": {
+        "years_of_experience": 3,
+        "debut_year": 2022,
+        "total_races": 35,
+        "tier": "developing"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "TSU": {
+      "name": "Driver TSU",
+      "pace": {
+        "quali_pace": 0.522,
+        "race_pace": 0.547
+      },
+      "racecraft": {
+        "skill_score": 0.547,
+        "overtaking_skill": 0.547
+      },
+      "experience": {
+        "years_of_experience": 4,
+        "debut_year": 2021,
+        "total_races": 70,
+        "tier": "developing"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "BOR": {
+      "name": "Driver BOR",
+      "pace": {
+        "quali_pace": 0.708,
+        "race_pace": 0.628
+      },
+      "racecraft": {
+        "skill_score": 0.628,
+        "overtaking_skill": 0.628
+      },
+      "experience": {
+        "years_of_experience": 0,
+        "debut_year": 2025,
+        "total_races": 24,
+        "tier": "rookie"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "ZHO": {
+      "name": "Driver ZHO",
+      "pace": {
+        "quali_pace": 0.714,
+        "race_pace": 0.717
+      },
+      "racecraft": {
+        "skill_score": 0.717,
+        "overtaking_skill": 0.717
+      },
+      "experience": {
+        "years_of_experience": 3,
+        "debut_year": 2022,
+        "total_races": 46,
+        "tier": "developing"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.022
+      }
+    },
+    "PER": {
+      "name": "Driver PER",
+      "pace": {
+        "quali_pace": 0.467,
+        "race_pace": 0.417
+      },
+      "racecraft": {
+        "skill_score": 0.417,
+        "overtaking_skill": 0.417
+      },
+      "experience": {
+        "years_of_experience": 14,
+        "debut_year": 2011,
+        "total_races": 46,
+        "tier": "veteran"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.022
+      }
+    },
+    "SAI": {
+      "name": "Driver SAI",
+      "pace": {
+        "quali_pace": 0.716,
+        "race_pace": 0.648
+      },
+      "racecraft": {
+        "skill_score": 0.648,
+        "overtaking_skill": 0.648
+      },
+      "experience": {
+        "years_of_experience": 10,
+        "debut_year": 2015,
+        "total_races": 69,
+        "tier": "veteran"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "SAR": {
+      "name": "Driver SAR",
+      "pace": {
+        "quali_pace": 0.45,
+        "race_pace": 0.47
+      },
+      "racecraft": {
+        "skill_score": 0.47,
+        "overtaking_skill": 0.47
+      },
+      "experience": {
+        "years_of_experience": 2,
+        "debut_year": 2023,
+        "total_races": 36,
+        "tier": "developing"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.028
+      }
+    },
+    "ANT": {
+      "name": "Driver ANT",
+      "pace": {
+        "quali_pace": 0.315,
+        "race_pace": 0.265
+      },
+      "racecraft": {
+        "skill_score": 0.265,
+        "overtaking_skill": 0.265
+      },
+      "experience": {
+        "years_of_experience": 0,
+        "debut_year": 2025,
+        "total_races": 24,
+        "tier": "rookie"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "ALO": {
+      "name": "Driver ALO",
+      "pace": {
+        "quali_pace": 0.748,
+        "race_pace": 0.758
+      },
+      "racecraft": {
+        "skill_score": 0.758,
+        "overtaking_skill": 0.758
+      },
+      "experience": {
+        "years_of_experience": 24,
+        "debut_year": 2001,
+        "total_races": 70,
+        "tier": "veteran"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "BOT": {
+      "name": "Driver BOT",
+      "pace": {
+        "quali_pace": 0.637,
+        "race_pace": 0.546
+      },
+      "racecraft": {
+        "skill_score": 0.546,
+        "overtaking_skill": 0.546
+      },
+      "experience": {
+        "years_of_experience": 12,
+        "debut_year": 2013,
+        "total_races": 46,
+        "tier": "veteran"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "HAM": {
+      "name": "Driver HAM",
+      "pace": {
+        "quali_pace": 0.63,
+        "race_pace": 0.635
+      },
+      "racecraft": {
+        "skill_score": 0.635,
+        "overtaking_skill": 0.635
+      },
+      "experience": {
+        "years_of_experience": 18,
+        "debut_year": 2007,
+        "total_races": 70,
+        "tier": "veteran"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "ALB": {
+      "name": "Driver ALB",
+      "pace": {
+        "quali_pace": 0.765,
+        "race_pace": 0.75
+      },
+      "racecraft": {
+        "skill_score": 0.75,
+        "overtaking_skill": 0.75
+      },
+      "experience": {
+        "years_of_experience": 6,
+        "debut_year": 2019,
+        "total_races": 70,
+        "tier": "established"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
+      }
+    },
+    "GAS": {
+      "name": "Driver GAS",
+      "pace": {
+        "quali_pace": 0.722,
+        "race_pace": 0.712
+      },
+      "racecraft": {
+        "skill_score": 0.712,
+        "overtaking_skill": 0.712
+      },
+      "experience": {
+        "years_of_experience": 8,
+        "debut_year": 2017,
+        "total_races": 70,
+        "tier": "established"
+      },
+      "dnf_risk": {
+        "dnf_rate": 0.0
       }
     }
   }

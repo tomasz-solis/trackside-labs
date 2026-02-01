@@ -12,6 +12,7 @@ build/
 venv/
 env/
 ENV/
+.venv/
 
 # IDEs
 .vscode/
@@ -36,6 +37,8 @@ data/validation/
 .pytest_cache/
 .coverage
 htmlcov/
+*.cover
+.hypothesis/
 
 # Archive & Backups
 archive/

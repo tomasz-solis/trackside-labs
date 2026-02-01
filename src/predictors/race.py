@@ -20,6 +20,7 @@ Results are probabilistic - run multiple simulations for uncertainty estimates.
 
 import json
 import logging
+import os
 import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -30,6 +31,9 @@ from src.utils.validation_helpers import (
     validate_enum,
     validate_position,
 )
+from src.utils.performance_tracker import get_tracker
+from src.predictors.tire import TirePredictor
+from src.utils import config_loader
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +83,19 @@ class RacePredictor:
             ValueError: If neither driver_chars nor driver_chars_path provided
         """
         self.year = year
-        self.data_dir = Path(data_dir)
 
-        # Resolve paths
-        if not self.data_dir.is_absolute():
-            self.data_dir = Path(__file__).parent.parent.parent / data_dir
+        # Resolve data directory using env var or relative to cwd
+        data_dir_path = Path(data_dir)
+        if not data_dir_path.is_absolute():
+            # Try environment variable first
+            env_data_dir = os.getenv("F1_DATA_DIR")
+            if env_data_dir:
+                self.data_dir = Path(env_data_dir)
+            else:
+                # Fall back to current working directory
+                self.data_dir = Path.cwd() / data_dir
+        else:
+            self.data_dir = data_dir_path
 
         self.driver_chars_path = (
             Path(driver_chars_path).resolve() if driver_chars_path is not None else None
@@ -91,13 +103,12 @@ class RacePredictor:
 
         # Initialize Tracker
         if performance_tracker is None:
-            from src.utils.performance_tracker import get_tracker
-
             self.tracker = get_tracker()
         else:
             self.tracker = performance_tracker
 
         # Load Configs
+        self.config = config_loader.get_section("race")
         self.weights = self._load_weights()
         self.uncertainty = self._load_uncertainty()
 
@@ -118,8 +129,6 @@ class RacePredictor:
     def _init_tire_predictor(self) -> Optional[object]:
         """Initialize tire predictor with correct year and paths."""
         try:
-            from src.predictors.tire import TirePredictor
-
             if self.driver_chars_path is None:
                 return None
 
@@ -192,6 +201,21 @@ class RacePredictor:
             >>> winner = result['finish_order'][0]
             >>> print(f"{winner['driver']} wins (confidence: {winner['confidence']:.0f}%)")
         """
+        # Input validation
+        if not qualifying_grid:
+            raise ValueError("qualifying_grid cannot be empty")
+
+        required_keys = {"driver", "team", "position"}
+        for i, entry in enumerate(qualifying_grid):
+            if not isinstance(entry, dict):
+                raise TypeError(f"qualifying_grid[{i}] must be a dict, got {type(entry)}")
+            missing = required_keys - entry.keys()
+            if missing:
+                raise ValueError(f"qualifying_grid[{i}] missing required keys: {missing}")
+            validate_position(entry["position"], f"qualifying_grid[{i}].position")
+
+        validate_enum(weather_forecast, "weather_forecast", ["dry", "rain", "mixed"])
+
         if verbose:
             logger.debug(f"Simulating {race_name} [Weather: {weather_forecast}]")
 
@@ -262,7 +286,8 @@ class RacePredictor:
 
             # Apply DNF Penalty to Expected Value (simulating statistical risk)
             if np.random.random() < dnf_prob:
-                expected_pos += 22  # Push to back
+                dnf_penalty = self.config.get("dnf_position_penalty", 22)
+                expected_pos += dnf_penalty  # Push to back
 
             # --- CONFIDENCE INTERVALS ---
             uncertainty = self._calculate_uncertainty(
@@ -370,7 +395,8 @@ class RacePredictor:
         validate_range(skill, "skill", 0.0, 1.0)
 
         # Pace Delta: Negative = Faster. -1.0 means ~0.8s faster per lap.
-        theoretical_gain = pace_delta * 3.0
+        pace_multiplier = self.config.get("pace", {}).get("pace_delta_multiplier", 3.0)
+        theoretical_gain = pace_delta * pace_multiplier
 
         # Constrain by Overtaking Difficulty
         overtaking_efficiency = 1.0 - difficulty

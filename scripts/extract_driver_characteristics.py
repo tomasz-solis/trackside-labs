@@ -1,287 +1,606 @@
 """
-Unified Driver Characteristics Extractor
+Driver Characteristics Extraction - Global Teammate Network Ranking
 
-Creates ONE comprehensive driver characteristics file containing:
-- Basic info (experience, teams)
-- Pace metrics (quali/race)
-- Racecraft (position-adjusted, DNF-filtered)
-- DNF risk (independent probability)
-- Tire management skill
+Uses iterative global solver to calculate absolute driver ratings from
+relative teammate comparisons. Like Elo/TrueSkill for F1.
 
-Output: driver_characteristics.json (single source of truth)
+Key improvements:
+- No capping/manual overrides
+- Solves teammate network globally (HAM vs RUS → both elite)
+- Handles mid-season swaps
+- Recency and confidence weighting
+- Rookie penalties
+
+USAGE:
+    python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025
 """
 
 import argparse
+import csv
 import json
 import logging
+from collections import defaultdict
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+import fastf1 as ff1
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from scipy.stats import linregress
-import fastf1 as ff1
 
-# Logging Setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M:%S')
-logger = logging.getLogger("DriverExtractor")
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
-# --- CORE CALCULATIONS ---
 
-def calculate_pace_deficit(driver_laps, teammate_laps, session_type='Q'):
+def load_driver_debuts(csv_path: str = "data/driver_debuts.csv") -> Dict[str, int]:
+    """Load driver F1 debut years from CSV."""
+    debuts = {}
+
+    # Name to abbreviation mapping
+    name_to_abbr = {
+        "Fernando Alonso": "ALO", "Lewis Hamilton": "HAM", "Nico Hülkenberg": "HUL",
+        "Sergio Pérez": "PER", "Daniel Ricciardo": "RIC", "Valtteri Bottas": "BOT",
+        "Kevin Magnussen": "MAG", "Max Verstappen": "VER", "Carlos Sainz": "SAI",
+        "Esteban Ocon": "OCO", "Pierre Gasly": "GAS", "Lance Stroll": "STR",
+        "Charles Leclerc": "LEC", "Alexander Albon": "ALB", "Lando Norris": "NOR",
+        "George Russell": "RUS", "Yuki Tsunoda": "TSU", "Zhou Guanyu": "ZHO",
+        "Nyck de Vries": "DEV", "Oscar Piastri": "PIA", "Logan Sargeant": "SAR",
+        "Franco Colapinto": "COL", "Oliver Bearman": "BEA", "Isack Hadjar": "HAD",
+        "Andrea Kimi Antonelli": "ANT", "Gabriel Bortoleto": "BOR", "Jack Doohan": "DOO",
+        "Arvid Lindblad": "LIN", "Liam Lawson": "LAW",
+    }
+
+    try:
+        with open(csv_path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                driver_name = row["Driver"]
+                debut_year = int(row["First F1 season"])
+
+                if driver_name in name_to_abbr:
+                    abbr = name_to_abbr[driver_name]
+                    debuts[abbr] = debut_year
+
+        logger.info(f"Loaded {len(debuts)} driver debuts from CSV")
+    except FileNotFoundError:
+        logger.warning(f"Driver debuts CSV not found at {csv_path}, using fallback")
+
+    return debuts
+
+
+def calculate_driver_pace_gap(
+    driver_laps, teammate_laps, session_type="R"
+) -> float:
     """
-    Calculate pure speed deficit (%) relative to teammate.
-    This isolates Driver Skill from Car Performance.
-    """
-    if driver_laps.empty or teammate_laps.empty:
-        return None
+    Calculate pace gap to teammate (%).
 
-    # Filter for valid, fast laps
+    Returns: % gap where negative = faster than teammate
+    """
     d_clean = driver_laps.pick_accurate().pick_quicklaps()
     t_clean = teammate_laps.pick_accurate().pick_quicklaps()
-    
-    if d_clean.empty or t_clean.empty:
+
+    if d_clean.empty or t_clean.empty or len(d_clean) < 3 or len(t_clean) < 3:
         return None
 
-    # Metric depends on session
-    if session_type == 'Q':
-        # Quali: Ultimate 1-lap pace (Min Time)
-        d_time = d_clean['LapTime'].min().total_seconds()
-        t_time = t_clean['LapTime'].min().total_seconds()
+    if session_type == "Q":
+        d_time = d_clean["LapTime"].min().total_seconds()
+        t_time = t_clean["LapTime"].min().total_seconds()
     else:
-        # Race: Consistent stint pace (Median of clean laps)
-        # (Exclude Safety Car / VSC laps already handled by pick_accurate)
-        d_time = d_clean['LapTime'].dt.total_seconds().median()
-        t_time = t_clean['LapTime'].dt.total_seconds().median()
+        d_time = d_clean["LapTime"].dt.total_seconds().median()
+        t_time = t_clean["LapTime"].dt.total_seconds().median()
 
-    if np.isnan(d_time) or np.isnan(t_time): return None
-    
-    # Calculate % Gap (Negative = Faster than teammate)
-    # e.g. -0.5% means 0.5% faster than teammate
+    if np.isnan(d_time) or np.isnan(t_time):
+        return None
+
     gap_pct = ((d_time - t_time) / t_time) * 100.0
     return gap_pct
 
-def estimate_tire_management(driver_laps, teammate_slope=None):
+
+def extract_teammate_comparisons(years: List[int]) -> List[Dict]:
     """
-    Calculate Tire Degradation Slope (seconds lost per lap).
-    Higher slope = Cooking the tires.
+    Extract all teammate pace comparisons across multiple seasons.
+
+    Returns list of comparisons with confidence and recency weighting.
     """
-    # Identify Stints (consecutive laps on same tire)
-    stints = driver_laps.groupby('Stint')
-    slopes = []
-    
-    for _, stint in stints:
-        # Need at least 5 clean laps to measure trend
-        clean = stint.pick_accurate().pick_wo_box()
-        if len(clean) < 5: continue
-        
-        # Linear Regression: LapTime ~ LapNumber
-        # Slope = seconds lost per lap due to wear
-        x = clean['LapNumber'].values
-        y = clean['LapTime'].dt.total_seconds().values
-        
+    logger.info(f"Extracting teammate comparisons from {years}...")
+
+    comparisons = []
+
+    for year in years:
+        # Recency weight: 2025=1.0, 2024=0.8, 2023=0.6
+        year_weight = 1.0 - (max(years) - year) * 0.2
+        year_weight = max(0.4, year_weight)  # Min weight 0.4
+
+        logger.info(f"Processing {year} season (weight={year_weight:.1f})...")
+
         try:
-            slope, _, _, _, _ = linregress(x, y)
-            # Filter out extreme outliers (e.g. rain onset)
-            if -0.5 < slope < 1.0: 
-                slopes.append(slope)
-        except:
-            continue
-            
-    if not slopes:
-        return None
-        
-    avg_slope = np.mean(slopes)
-    
-    # Normalize vs Teammate if provided (Isolate Driver style from Car characteristic)
-    if teammate_slope is not None:
-        return avg_slope - teammate_slope # Negative = Better than teammate (Less deg)
-    
-    return avg_slope
+            schedule = ff1.get_event_schedule(year)
+            races = schedule[schedule["EventFormat"] != "testing"]
 
-def analyze_racecraft(start_pos, finish_pos, pace_rank, grid_size):
-    """
-    Quantify Racecraft: Did they finish higher than their speed justifies?
-    
-    Metric: 'Efficiency'
-    +1.0: Finished ahead of faster cars (Good Defense / Overtaking)
-    -1.0: Finished behind slower cars (Poor Defense / Mistakes)
-    """
-    if pd.isna(start_pos) or pd.isna(finish_pos) or pd.isna(pace_rank):
-        return 0.0
-        
-    # Expected finish based on Raw Pace
-    # If you have the 5th fastest car, you should finish 5th.
-    expected_pos = pace_rank 
-    
-    # Actual performance vs Expectations
-    # Gained pos vs Pace (Not just vs Grid)
-    # e.g. Start P20, Pace P5, Finish P6 -> Gained 14 spots, but underperformed Pace by 1.
-    
-    efficiency = expected_pos - finish_pos
-    return efficiency
+            for _, event in races.iterrows():
+                race_name = event["EventName"]
+                if not race_name:
+                    continue
 
-# --- MAIN EXTRACTION LOOP ---
-
-def extract_complete_characteristics(year, output_path, verbose=True):
-    if verbose: logger.info(f"🏎️  Deep-Dive Extraction for {year}...")
-    
-    schedule = ff1.get_event_schedule(year)
-    completed = schedule[schedule['EventFormat'] != 'testing']
-    
-    driver_stats = {} # {driver: {metrics...}}
-    
-    # Loop Races
-    for _, event in completed.iterrows():
-        race_name = event['EventName']
-        if not race_name: continue
-        
-        # Check if race happened
-        try:
-            session = ff1.get_session(year, race_name, 'R')
-            if session.date > pd.Timestamp.now(tz='UTC'): continue
-            
-            if verbose: logger.info(f"   Analyzing {race_name}...")
-            session.load(laps=True, telemetry=False, weather=True, messages=False)
-        except:
-            continue
-            
-        laps = session.laps
-        results = session.results
-        weather = session.weather_data
-        
-        # 1. Detect Conditions (Wet/Dry)
-        is_wet = weather['Rainfall'].max() > 0
-        
-        # 2. Group by Team for Comparisons
-        for team in laps['Team'].unique():
-            if pd.isna(team): continue
-            
-            team_drivers = laps[laps['Team'] == team]['Driver'].unique()
-            if len(team_drivers) != 2: continue # Skip if partial data
-            
-            # Extract basic data
-            d1, d2 = team_drivers[0], team_drivers[1]
-            laps_d1 = laps.pick_driver(d1)
-            laps_d2 = laps.pick_driver(d2)
-            
-            # --- TIRE MANAGEMENT (Slope) ---
-            deg_d1 = estimate_tire_management(laps_d1)
-            deg_d2 = estimate_tire_management(laps_d2)
-            
-            # --- PACE GAPS (%) ---
-            # Calculate raw pace
-            pace_d1 = calculate_pace_deficit(laps_d1, laps_d2, 'R') # d1 vs d2
-            pace_d2 = calculate_pace_deficit(laps_d2, laps_d1, 'R') # d2 vs d1 (should be inverse)
-            
-            # Update Stats
-            for d, p_gap, my_deg, mate_deg in [(d1, pace_d1, deg_d1, deg_d2), (d2, pace_d2, deg_d2, deg_d1)]:
-                if d not in driver_stats:
-                    driver_stats[d] = {'pace_gaps': [], 'tire_deltas': [], 'racecraft_scores': [], 'errors_wet': 0, 'errors_dry': 0, 'races_wet': 0, 'races_dry': 0}
-                
-                # Log Pace
-                if p_gap is not None: driver_stats[d]['pace_gaps'].append(p_gap)
-                
-                # Log Tire Mgmt (Relative to Teammate)
-                if my_deg is not None and mate_deg is not None:
-                    driver_stats[d]['tire_deltas'].append(my_deg - mate_deg)
-                
-                # Log Conditions
-                if is_wet: driver_stats[d]['races_wet'] += 1
-                else: driver_stats[d]['races_dry'] += 1
-                
-                # --- RACECRAFT & ERRORS ---
                 try:
-                    # Did they crash? (DNF + Accident)
-                    res = results.loc[results['Abbreviation'] == d].iloc[0]
-                    status = str(res['Status']).lower()
-                    if 'accident' in status or 'collision' in status:
-                        if is_wet: driver_stats[d]['errors_wet'] += 1
-                        else: driver_stats[d]['errors_dry'] += 1
-                    
-                    # Racecraft Efficiency
-                    # Simple proxy: Pos Gain vs Grid
-                    gain = res['GridPosition'] - res['Position']
-                    # Normalize: Gaining positions is harder at the front
-                    if res['GridPosition'] <= 5: gain *= 1.5 
-                    
-                    driver_stats[d]['racecraft_scores'].append(gain)
-                    
-                except:
-                    pass
+                    session = ff1.get_session(year, race_name, "R")
 
-    # 3. Aggregation & Scoring
-    output = {'year': year, 'drivers': {}}
-    
-    for d, stats in driver_stats.items():
-        # A. Raw Pace Score (0.0 - 1.0)
-        # Avg gap to teammate. 0% = 0.5. -0.5% (faster) = 0.8.
-        avg_gap = np.mean(stats['pace_gaps']) if stats['pace_gaps'] else 0.0
-        # Invert: Negative gap (faster) -> Higher Score
-        pace_score = np.clip(0.5 - (avg_gap / 2.0), 0.1, 0.99)
-        
-        # B. Tire Management Score
-        # Negative delta (less deg than mate) -> Good
-        avg_deg_delta = np.mean(stats['tire_deltas']) if stats['tire_deltas'] else 0.0
-        tire_score = np.clip(0.5 - (avg_deg_delta * 5.0), 0.1, 0.99)
-        
-        # C. Racecraft Score (Avg positions gained weighted)
-        avg_gain = np.mean(stats['racecraft_scores']) if stats['racecraft_scores'] else 0.0
-        racecraft_score = np.clip(0.5 + (avg_gain / 10.0), 0.1, 0.99)
-        
-        # D. Consistency / Stability
-        # Fewer errors = Higher score
-        total_races = stats['races_dry'] + stats['races_wet']
-        total_errors = stats['errors_dry'] + stats['errors_wet']
-        error_rate = total_errors / total_races if total_races > 0 else 0
-        consistency_score = np.clip(1.0 - (error_rate * 2.0), 0.1, 0.99)
-        
-        # E. Wet Weather Skill Modifier
-        # Did they crash more in wet than dry?
-        wet_rate = stats['errors_wet'] / stats['races_wet'] if stats['races_wet'] > 0 else 0
-        dry_rate = stats['errors_dry'] / stats['races_dry'] if stats['races_dry'] > 0 else 0
-        wet_skill = 0.5
-        if wet_rate > dry_rate: wet_skill = 0.3 # Struggles in rain
-        elif wet_rate < dry_rate: wet_skill = 0.7 # Excel in rain (or cautious)
+                    # Check if race has happened
+                    race_date = session.date
+                    if pd.isna(race_date):
+                        continue
+                    if not hasattr(race_date, 'tz') or race_date.tz is None:
+                        race_date = race_date.tz_localize("UTC")
+                    if race_date > pd.Timestamp.now(tz="UTC"):
+                        continue
 
-        output['drivers'][d] = {
-            'pace': {
-                'quali_pace': float(round(pace_score, 3)),
-                'race_pace': float(round(pace_score * 0.9 + tire_score * 0.1, 3)), # Blend
-                'confidence': 'high' if len(stats['pace_gaps']) > 5 else 'low'
-            },
-            'racecraft': {
-                'skill_score': float(round(racecraft_score, 3)),
-                'defense_rating': float(round(racecraft_score, 3)), # Placeholder for now
-                'overtaking_rating': float(round(racecraft_score, 3))
-            },
-            'tire_management': {
-                'skill_score': float(round(tire_score, 3)),
-                'deg_slope_delta': float(round(avg_deg_delta, 4))
-            },
-            'consistency': {
-                'score': float(round(consistency_score, 3)),
-                'error_rate_dry': float(round(dry_rate, 3)),
-                'error_rate_wet': float(round(wet_rate, 3))
-            },
-            'experience': {
-                'tier': 'veteran' if total_races > 50 else 'rookie' # Placeholder, updated by debuts CSV
-            }
+                    logger.info(f"  {race_name}...")
+                    session.load(laps=True, telemetry=False)
+
+                    laps = session.laps
+                    results = session.results
+
+                    # For each team, compare teammates
+                    for team in laps["Team"].unique():
+                        if pd.isna(team):
+                            continue
+
+                        team_drivers = laps[laps["Team"] == team]["Driver"].unique()
+                        if len(team_drivers) != 2:
+                            continue
+
+                        d1, d2 = team_drivers[0], team_drivers[1]
+                        laps_d1 = laps.pick_drivers(d1)
+                        laps_d2 = laps.pick_drivers(d2)
+
+                        # Calculate pace gap
+                        gap = calculate_driver_pace_gap(laps_d1, laps_d2, "R")
+                        if gap is None:
+                            continue
+
+                        # Get driver abbreviations
+                        try:
+                            d1_code = results.loc[results["Abbreviation"] == d1].iloc[0]["Abbreviation"]
+                            d2_code = results.loc[results["Abbreviation"] == d2].iloc[0]["Abbreviation"]
+                        except:
+                            continue
+
+                        # Sample size confidence (more laps = higher confidence)
+                        sample_size = min(len(laps_d1), len(laps_d2))
+                        confidence = min(1.0, sample_size / 30.0)  # 30+ laps = full confidence
+
+                        # Store comparison (A vs B)
+                        comparisons.append({
+                            "driver_a": d1_code,
+                            "driver_b": d2_code,
+                            "gap_pct": gap,  # Positive = A slower than B
+                            "year": year,
+                            "race": race_name,
+                            "confidence": confidence,
+                            "recency_weight": year_weight,
+                            "weight": confidence * year_weight,
+                        })
+
+                except Exception as e:
+                    logger.debug(f"  Failed: {e}")
+                    continue
+
+        except Exception as e:
+            logger.error(f"Failed to load {year} schedule: {e}")
+            continue
+
+    logger.info(f"Extracted {len(comparisons)} teammate comparisons")
+    return comparisons
+
+
+def solve_global_ratings(comparisons: List[Dict], iterations=15) -> Dict[str, float]:
+    """
+    Solve for absolute driver ratings using iterative global optimization.
+
+    Similar to Elo/TrueSkill - all comparisons constrain the solution space.
+    """
+    logger.info("Solving global driver ratings...")
+
+    # Get all unique drivers
+    drivers = set()
+    for comp in comparisons:
+        drivers.add(comp["driver_a"])
+        drivers.add(comp["driver_b"])
+
+    # Initialize all drivers at 0.70 (average F1 driver)
+    ratings = {driver: 0.70 for driver in drivers}
+
+    # Iterative solver
+    learning_rate = 0.15  # How fast to adjust ratings
+
+    for iteration in range(iterations):
+        adjustments = {driver: 0.0 for driver in drivers}
+        total_weight = {driver: 0.0 for driver in drivers}
+
+        for comp in comparisons:
+            a, b = comp["driver_a"], comp["driver_b"]
+            gap = comp["gap_pct"]  # % gap
+            weight = comp["weight"]
+
+            # Current expected gap based on ratings
+            # If A=0.80 and B=0.70, we expect A to be faster (negative gap)
+            # Rating difference of 0.10 should correspond to ~1% pace advantage
+            expected_gap_pct = (ratings[b] - ratings[a]) * 10.0  # 0.1 rating = 1% pace
+
+            # Actual vs expected
+            error = gap - expected_gap_pct
+
+            # Adjust ratings to reduce error
+            # If A is slower than expected, reduce A's rating
+            # If A is faster than expected, increase A's rating
+            adjustment = error * 0.01  # Convert % to rating adjustment
+
+            adjustments[a] -= adjustment * weight
+            adjustments[b] += adjustment * weight
+
+            total_weight[a] += weight
+            total_weight[b] += weight
+
+        # Apply weighted adjustments
+        for driver in drivers:
+            if total_weight[driver] > 0:
+                avg_adjustment = adjustments[driver] / total_weight[driver]
+                ratings[driver] += avg_adjustment * learning_rate
+
+        # Log progress
+        if iteration % 5 == 0:
+            avg_rating = np.mean(list(ratings.values()))
+            std_rating = np.std(list(ratings.values()))
+            logger.info(f"  Iteration {iteration}: avg={avg_rating:.3f}, std={std_rating:.3f}")
+
+    # Normalize ratings to 0.35-0.95 range (WIDER SPREAD!)
+    # Best driver → 0.95, Average → 0.65, Worst → 0.35
+    min_rating = min(ratings.values())
+    max_rating = max(ratings.values())
+
+    for driver in ratings:
+        # Scale to 0-1, then to 0.35-0.95
+        normalized = (ratings[driver] - min_rating) / (max_rating - min_rating)
+        ratings[driver] = 0.35 + (normalized * 0.60)
+
+    logger.info(f"Solved ratings for {len(drivers)} drivers")
+    return ratings
+
+
+def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> Dict[str, float]:
+    """
+    Calculate racecraft adjustment: finish position vs expected based on pace.
+    """
+    logger.info("Calculating racecraft adjustments...")
+
+    racecraft_scores = defaultdict(list)
+
+    for year in years:
+        try:
+            schedule = ff1.get_event_schedule(year)
+            races = schedule[schedule["EventFormat"] != "testing"]
+
+            for _, event in races.iterrows():
+                race_name = event["EventName"]
+                if not race_name:
+                    continue
+
+                try:
+                    session = ff1.get_session(year, race_name, "R")
+
+                    race_date = session.date
+                    if pd.isna(race_date):
+                        continue
+                    if not hasattr(race_date, 'tz') or race_date.tz is None:
+                        race_date = race_date.tz_localize("UTC")
+                    if race_date > pd.Timestamp.now(tz="UTC"):
+                        continue
+
+                    session.load(laps=False, telemetry=False)
+                    results = session.results
+
+                    # Sort by driver rating (pace-based expected position)
+                    expected_order = []
+                    for _, row in results.iterrows():
+                        driver = row["Abbreviation"]
+                        if driver in ratings:
+                            expected_order.append((driver, ratings[driver], row["Position"]))
+
+                    expected_order.sort(key=lambda x: x[1], reverse=True)
+
+                    # Compare expected vs actual
+                    for expected_pos, (driver, rating, actual_pos) in enumerate(expected_order, 1):
+                        if pd.notna(actual_pos) and actual_pos <= 20:
+                            # Positive = beat expectations (good racecraft)
+                            racecraft_gain = expected_pos - actual_pos
+                            racecraft_scores[driver].append(racecraft_gain)
+
+                except Exception as e:
+                    continue
+
+        except Exception as e:
+            continue
+
+    # Average racecraft scores
+    racecraft_ratings = {}
+    for driver, scores in racecraft_scores.items():
+        avg_gain = np.mean(scores) if scores else 0.0
+        # +1 position = +0.02 rating (max ±0.05)
+        racecraft_ratings[driver] = np.clip(avg_gain * 0.02, -0.05, 0.05)
+
+    logger.info(f"Calculated racecraft for {len(racecraft_ratings)} drivers")
+    return racecraft_ratings
+
+
+def calculate_experience_and_consistency(years: List[int], driver_debuts: Dict[str, int]) -> Dict:
+    """
+    Calculate experience tiers, total races, and DNF rates.
+    """
+    logger.info("Calculating experience and consistency...")
+
+    driver_stats = defaultdict(lambda: {
+        "seasons": set(),
+        "total_races": 0,
+        "dnf_count": 0,
+        "crash_count": 0,
+    })
+
+    for year in years:
+        try:
+            schedule = ff1.get_event_schedule(year)
+            races = schedule[schedule["EventFormat"] != "testing"]
+
+            for _, event in races.iterrows():
+                race_name = event["EventName"]
+                if not race_name:
+                    continue
+
+                try:
+                    session = ff1.get_session(year, race_name, "R")
+
+                    race_date = session.date
+                    if pd.isna(race_date):
+                        continue
+                    if not hasattr(race_date, 'tz') or race_date.tz is None:
+                        race_date = race_date.tz_localize("UTC")
+                    if race_date > pd.Timestamp.now(tz="UTC"):
+                        continue
+
+                    session.load(laps=False, telemetry=False)
+                    results = session.results
+
+                    for _, row in results.iterrows():
+                        driver = row["Abbreviation"]
+                        status = str(row["Status"]).lower()
+
+                        driver_stats[driver]["seasons"].add(year)
+                        driver_stats[driver]["total_races"] += 1
+
+                        # Only count CRASH-related DNFs (driver error), not mechanical failures
+                        if any(word in status for word in ["accident", "collision", "crash", "damage", "spun"]):
+                            driver_stats[driver]["dnf_count"] += 1
+                            driver_stats[driver]["crash_count"] += 1
+
+                except Exception as e:
+                    continue
+
+        except Exception as e:
+            continue
+
+    # Process into output format
+    output = {}
+    current_year = max(years)
+
+    for driver, stats in driver_stats.items():
+        total_races = stats["total_races"]
+
+        if total_races < 5:
+            continue
+
+        # Calculate REAL F1 experience from debut year
+        if driver in driver_debuts:
+            debut_year = driver_debuts[driver]
+            years_of_experience = current_year - debut_year
+        else:
+            # Fallback: count seasons in our data
+            years_of_experience = len(stats["seasons"])
+            logger.warning(f"{driver}: No debut year found, using {years_of_experience} seasons")
+
+        # Experience tier (based on ACTUAL F1 career, not just our data window)
+        if years_of_experience >= 10:
+            tier = "veteran"
+        elif years_of_experience >= 5:
+            tier = "established"
+        elif years_of_experience >= 2:
+            tier = "developing"
+        else:
+            tier = "rookie"
+
+        # DNF rate (crash-based only)
+        dnf_rate = stats["dnf_count"] / total_races
+
+        output[driver] = {
+            "years_of_experience": years_of_experience,
+            "debut_year": driver_debuts.get(driver, current_year - years_of_experience),
+            "total_races": total_races,
+            "tier": tier,
+            "dnf_rate": dnf_rate,
         }
 
-    # 4. Save
-    out_file = Path(output_path)
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_file, 'w') as f:
+    logger.info(f"Processed experience for {len(output)} drivers")
+    return output
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Extract driver characteristics (fixed)")
+    parser.add_argument("--years", type=str, default="2024,2025", help="Comma-separated years")
+    parser.add_argument("--output", type=str, default="data/processed/driver_characteristics.json")
+
+    args = parser.parse_args()
+
+    years = [int(y) for y in args.years.split(",")]
+
+    # Setup cache
+    cache_dir = Path("data/raw/.fastf1_cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    ff1.Cache.enable_cache(str(cache_dir))
+
+    logger.info("=" * 60)
+    logger.info("Fixed Driver Characteristics Extraction")
+    logger.info("=" * 60)
+    logger.info("")
+
+    # Step 0: Load driver debuts
+    driver_debuts = load_driver_debuts()
+
+    # Step 1: Extract teammate comparisons
+    comparisons = extract_teammate_comparisons(years)
+
+    # Step 2: Solve global ratings
+    pace_ratings = solve_global_ratings(comparisons, iterations=15)
+
+    # Step 3: Calculate racecraft adjustments
+    racecraft_adjustments = calculate_racecraft_scores(years, pace_ratings)
+
+    # Step 4: Calculate experience and consistency
+    experience_data = calculate_experience_and_consistency(years, driver_debuts)
+
+    # Step 5: Calculate championship overperformance (car vs driver finish)
+    # This rewards drivers who overdeliver in bad cars (ALO, HAM in 2024)
+    logger.info("Calculating championship overperformance bonuses...")
+
+    championship_adjustments = {}
+    for year in years:
+        try:
+            # Get championship standings
+            schedule = ff1.get_event_schedule(year)
+            last_race = schedule[schedule["EventFormat"] != "testing"].iloc[-1]
+            session = ff1.get_session(year, last_race["EventName"], "R")
+
+            race_date = session.date
+            if pd.isna(race_date):
+                continue
+            if not hasattr(race_date, 'tz') or race_date.tz is None:
+                race_date = race_date.tz_localize("UTC")
+            if race_date > pd.Timestamp.now(tz="UTC"):
+                continue
+
+            session.load(laps=False, telemetry=False)
+            results = session.results
+
+            # Get team championship order (average of drivers)
+            team_points = defaultdict(list)
+            driver_positions = {}
+
+            for idx, row in results.iterrows():
+                driver = row["Abbreviation"]
+                team = row["TeamName"]
+                position = row["Position"]
+
+                if pd.notna(position) and driver in pace_ratings:
+                    driver_positions[driver] = position
+                    team_points[team].append(position)
+
+            # Calculate team expected position (avg of both drivers)
+            team_expected = {}
+            for team, positions in team_points.items():
+                team_expected[team] = np.mean(positions)
+
+            # For each driver, compare their finish vs team expected
+            for idx, row in results.iterrows():
+                driver = row["Abbreviation"]
+                team = row["TeamName"]
+                position = row["Position"]
+
+                if driver not in pace_ratings or team not in team_expected:
+                    continue
+
+                expected_pos = team_expected[team]
+                overperformance = expected_pos - position  # Positive = beat expectations
+
+                if driver not in championship_adjustments:
+                    championship_adjustments[driver] = []
+                championship_adjustments[driver].append(overperformance)
+
+        except Exception as e:
+            logger.debug(f"Failed to calculate championship for {year}: {e}")
+            continue
+
+    # Average championship bonuses
+    championship_bonuses = {}
+    for driver, overperfs in championship_adjustments.items():
+        avg_overperf = np.mean(overperfs)
+        # +1 position vs team = +0.03 rating (max ±0.10)
+        championship_bonuses[driver] = np.clip(avg_overperf * 0.03, -0.10, 0.10)
+        if abs(championship_bonuses[driver]) > 0.05:
+            logger.info(f"  {driver}: {championship_bonuses[driver]:+.3f} (overperformed car)")
+
+    # Step 6: Combine into final ratings
+    final_ratings = {}
+
+    for driver in pace_ratings:
+        if driver not in experience_data:
+            continue
+
+        base_rating = pace_ratings[driver]
+        racecraft_bonus = racecraft_adjustments.get(driver, 0.0)
+        championship_bonus = championship_bonuses.get(driver, 0.0)
+        exp_data = experience_data[driver]
+
+        # Apply rookie penalty (10% reduction for first 2 seasons)
+        if exp_data["tier"] == "rookie":
+            base_rating *= 0.90
+
+        # Final skill score (base + racecraft + championship overdelivery)
+        skill_score = np.clip(base_rating + racecraft_bonus + championship_bonus, 0.10, 0.99)
+
+        final_ratings[driver] = {
+            "name": f"Driver {driver}",
+            "pace": {
+                "quali_pace": round(base_rating, 3),
+                "race_pace": round(skill_score, 3),
+            },
+            "racecraft": {
+                "skill_score": round(skill_score, 3),
+                "overtaking_skill": round(skill_score, 3),
+            },
+            "experience": {
+                "years_of_experience": exp_data["years_of_experience"],
+                "debut_year": exp_data["debut_year"],
+                "total_races": exp_data["total_races"],
+                "tier": exp_data["tier"],
+            },
+            "dnf_risk": {
+                "dnf_rate": round(exp_data["dnf_rate"], 3),
+            },
+        }
+
+    # Save
+    output = {
+        "extraction_date": pd.Timestamp.now().isoformat(),
+        "years": years,
+        "method": "global_teammate_network_ranking",
+        "drivers": final_ratings,
+    }
+
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w") as f:
         json.dump(output, f, indent=2)
-        
-    if verbose: logger.info(f"✅ Driver Intelligence Saved: {output_path}")
+
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info(f"✅ Extracted {len(final_ratings)} drivers")
+    logger.info(f"📁 Saved to: {output_path}")
+    logger.info("=" * 60)
+    logger.info("")
+    logger.info("Sample ratings:")
+
+    # Show top drivers
+    sorted_drivers = sorted(final_ratings.items(), key=lambda x: x[1]["racecraft"]["skill_score"], reverse=True)
+    for driver, data in sorted_drivers[:10]:
+        logger.info(f"  {driver}: {data['racecraft']['skill_score']:.3f}")
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('year', nargs='?', type=int, default=2025)
-    args = parser.parse_args()
-    
-    # Ensure cache
-    Path('data/raw/.fastf1_cache').mkdir(parents=True, exist_ok=True)
-    ff1.Cache.enable_cache('data/raw/.fastf1_cache')
-    
-    extract_complete_characteristics(args.year, 'data/processed/driver_characteristics.json')
+    main()

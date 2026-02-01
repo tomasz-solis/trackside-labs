@@ -7,6 +7,7 @@ based on team strength + driver skill, acknowledging regulation reset uncertaint
 
 import json
 import logging
+import os
 import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -22,6 +23,9 @@ from src.utils.schema_validation import (
     validate_team_characteristics,
     validate_track_characteristics,
 )
+from src.utils.lineups import get_lineups
+from src.utils.weekend import is_sprint_weekend
+from src.utils.data_generator import ensure_baseline_exists
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +51,27 @@ class Baseline2026Predictor:
         Raises:
             FileNotFoundError: If required data files not found
         """
-        self.data_dir = Path(data_dir)
+        # Resolve data directory using env var or relative to cwd
+        data_dir_path = Path(data_dir)
+        if not data_dir_path.is_absolute():
+            # Try environment variable first
+            env_data_dir = os.getenv("F1_DATA_DIR")
+            if env_data_dir:
+                self.data_dir = (
+                    Path(env_data_dir) / data_dir
+                    if data_dir != "data/processed"
+                    else Path(env_data_dir)
+                )
+            else:
+                # Fall back to current working directory
+                self.data_dir = Path.cwd() / data_dir
+        else:
+            self.data_dir = data_dir_path
+
+        # Ensure baseline data exists (auto-generate if missing/outdated)
+        logger.info("Ensuring baseline data is ready...")
+        ensure_baseline_exists(self.data_dir)
+
         # Load configuration
         self.config = config_loader.get_section("baseline_predictor")
         self.load_data()
@@ -73,6 +97,24 @@ class Baseline2026Predictor:
                 raise
             self.teams = data["teams"]
 
+            # Check data freshness and warn if stale
+            data_freshness = data.get("data_freshness", "UNKNOWN")
+            races_completed = data.get("races_completed", 0)
+            last_updated = data.get("last_updated")
+
+            if data_freshness == "BASELINE_PRESEASON":
+                logger.warning(
+                    "⚠️  Using PRE-SEASON BASELINE data - team performance highly uncertain until races complete!"
+                )
+            elif data_freshness == "LIVE_UPDATED":
+                logger.info(
+                    f"✓ Using LIVE data updated from {races_completed} race(s) - confidence increasing"
+                )
+            else:
+                logger.warning(
+                    f"⚠️  Data freshness unknown ({data_freshness}) - predictions may be outdated"
+                )
+
         # Load and validate driver characteristics
         driver_file = self.data_dir / "driver_characteristics.json"
         with open(driver_file) as f:
@@ -83,6 +125,17 @@ class Baseline2026Predictor:
             except ValueError as e:
                 logger.error(f"Failed to load driver characteristics: {e}")
                 raise
+
+            # ERROR DETECTION: Check for extraction bugs (does NOT correct)
+            from src.utils.driver_validation import validate_driver_data
+
+            errors = validate_driver_data(data["drivers"])
+            if errors:
+                logger.warning(
+                    f"⚠️  Driver data has {len(errors)} validation errors. "
+                    "Consider re-running extraction: python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025"
+                )
+
             self.drivers = data["drivers"]
 
     def predict_qualifying(
@@ -115,8 +168,6 @@ class Baseline2026Predictor:
         # Validate inputs
         validate_year(year, "year", min_year=2020, max_year=2030)
         validate_positive_int(n_simulations, "n_simulations", min_val=1)
-        from src.utils.lineups import get_lineups
-        from src.utils.weekend import is_sprint_weekend
 
         # Check if sprint weekend
         try:
@@ -157,12 +208,18 @@ class Baseline2026Predictor:
         noise_std_sprint = config_loader.get(
             "baseline_predictor.qualifying.noise_std_sprint", 0.025
         )
-        noise_std_normal = config_loader.get("baseline_predictor.qualifying.noise_std_normal", 0.02)
+        noise_std_normal = config_loader.get(
+            "baseline_predictor.qualifying.noise_std_normal", 0.02
+        )
         noise_std = noise_std_sprint if is_sprint else noise_std_normal
 
         # Load score composition weights from config
-        team_weight = config_loader.get("baseline_predictor.qualifying.team_weight", 0.7)
-        skill_weight = config_loader.get("baseline_predictor.qualifying.skill_weight", 0.3)
+        team_weight = config_loader.get(
+            "baseline_predictor.qualifying.team_weight", 0.7
+        )
+        skill_weight = config_loader.get(
+            "baseline_predictor.qualifying.skill_weight", 0.3
+        )
 
         for _ in range(n_simulations):
             # Calculate scores with random noise
@@ -176,7 +233,11 @@ class Baseline2026Predictor:
                 score += np.random.normal(0, noise_std)
 
                 driver_scores.append(
-                    {"driver": driver_info["driver"], "team": driver_info["team"], "score": score}
+                    {
+                        "driver": driver_info["driver"],
+                        "team": driver_info["team"],
+                        "score": score,
+                    }
                 )
 
             # Sort and record positions
@@ -253,9 +314,6 @@ class Baseline2026Predictor:
         track_overtaking = 0.5  # Default: medium difficulty
         if race_name:
             try:
-                from pathlib import Path
-                import json
-
                 track_file = Path(
                     "data/processed/track_characteristics/2026_track_characteristics.json"
                 )
@@ -264,7 +322,9 @@ class Baseline2026Predictor:
                     # Validate track characteristics before using
                     validate_track_characteristics(track_data)
                     tracks = track_data["tracks"]
-                    track_overtaking = tracks.get(race_name, {}).get("overtaking_difficulty", 0.5)
+                    track_overtaking = tracks.get(race_name, {}).get(
+                        "overtaking_difficulty", 0.5
+                    )
             except (FileNotFoundError, KeyError, json.JSONDecodeError, ValueError) as e:
                 logger.warning(
                     f"Could not load track characteristics for {race_name}: {e}. "
@@ -303,12 +363,28 @@ class Baseline2026Predictor:
                 dnf_rate, dnf_rate_historical_cap
             )  # Cap at historical maximum before team adjustment
 
-            # Only penalize new teams (uncertainty >= 0.40: Audi, Cadillac)
+            # Experience-based DNF risk modifier (rookies crash more often)
+            experience_tier = driver_data.get("experience", {}).get(
+                "tier", "established"
+            )
+            experience_modifiers = {
+                "rookie": 0.05,  # +5% crash risk for rookies
+                "developing": 0.02,  # +2% for young drivers
+                "established": 0.00,  # Baseline
+                "veteran": -0.01,  # -1% for experienced drivers
+            }
+            experience_dnf_modifier = experience_modifiers.get(experience_tier, 0.0)
+
+            # Team uncertainty penalty (new teams = higher reliability risk)
             team_uncertainty = self.teams.get(team, {}).get("uncertainty", 0.30)
             if team_uncertainty >= 0.40:
-                adjusted_dnf = dnf_rate + (team_uncertainty * 0.20)
+                # New teams (e.g., Cadillac)
+                adjusted_dnf = (
+                    dnf_rate + experience_dnf_modifier + (team_uncertainty * 0.20)
+                )
             else:
-                adjusted_dnf = dnf_rate
+                # Established teams
+                adjusted_dnf = dnf_rate + experience_dnf_modifier
 
             # Load final DNF cap from config
             dnf_rate_final_cap = config_loader.get(
@@ -323,15 +399,19 @@ class Baseline2026Predictor:
                 "skill": skill,
                 "race_advantage": race_advantage,  # Systematic race pace boost
                 "overtaking_skill": overtaking_skill,
-                "dnf_probability": min(adjusted_dnf, dnf_rate_final_cap),
+                "dnf_probability": max(0.0, min(adjusted_dnf, dnf_rate_final_cap)),
             }
 
         # Run multiple simulations
         position_records = {d: [] for d in driver_info_map.keys()}
 
         # Load ALL race parameters from config ONCE (not in loops!)
-        base_chaos_dry = config_loader.get("baseline_predictor.race.base_chaos.dry", 0.35)
-        base_chaos_wet = config_loader.get("baseline_predictor.race.base_chaos.wet", 0.45)
+        base_chaos_dry = config_loader.get(
+            "baseline_predictor.race.base_chaos.dry", 0.35
+        )
+        base_chaos_wet = config_loader.get(
+            "baseline_predictor.race.base_chaos.wet", 0.45
+        )
         track_chaos_multiplier = config_loader.get(
             "baseline_predictor.race.track_chaos_multiplier", 0.4
         )
@@ -341,8 +421,12 @@ class Baseline2026Predictor:
         sc_base_prob_wet = config_loader.get(
             "baseline_predictor.race.sc_base_probability.wet", 0.70
         )
-        sc_track_modifier = config_loader.get("baseline_predictor.race.sc_track_modifier", 0.25)
-        grid_weight_min = config_loader.get("baseline_predictor.race.grid_weight_min", 0.15)
+        sc_track_modifier = config_loader.get(
+            "baseline_predictor.race.sc_track_modifier", 0.25
+        )
+        grid_weight_min = config_loader.get(
+            "baseline_predictor.race.grid_weight_min", 0.15
+        )
         grid_weight_multiplier = config_loader.get(
             "baseline_predictor.race.grid_weight_multiplier", 0.35
         )
@@ -364,7 +448,9 @@ class Baseline2026Predictor:
         lap1_upper_midfield_chaos = config_loader.get(
             "baseline_predictor.race.lap1_chaos.upper_midfield", 0.32
         )
-        lap1_midfield_chaos = config_loader.get("baseline_predictor.race.lap1_chaos.midfield", 0.38)
+        lap1_midfield_chaos = config_loader.get(
+            "baseline_predictor.race.lap1_chaos.midfield", 0.38
+        )
         lap1_back_field_chaos = config_loader.get(
             "baseline_predictor.race.lap1_chaos.back_field", 0.28
         )
@@ -377,7 +463,9 @@ class Baseline2026Predictor:
         safety_car_luck_range = config_loader.get(
             "baseline_predictor.race.safety_car_luck_range", 0.25
         )
-        pace_weight_base = config_loader.get("baseline_predictor.race.pace_weight_base", 0.40)
+        pace_weight_base = config_loader.get(
+            "baseline_predictor.race.pace_weight_base", 0.40
+        )
         pace_weight_track_modifier = config_loader.get(
             "baseline_predictor.race.pace_weight_track_modifier", 0.10
         )
@@ -388,7 +476,9 @@ class Baseline2026Predictor:
         # Chaos varies by track - harder to overtake = less variance
         # Monaco (0.9 difficulty) = low chaos, Monza (0.2) = high chaos
         track_chaos_modifier = 1.0 - (track_overtaking * track_chaos_multiplier)
-        base_chaos = (base_chaos_dry if weather == "dry" else base_chaos_wet) * track_chaos_modifier
+        base_chaos = (
+            base_chaos_dry if weather == "dry" else base_chaos_wet
+        ) * track_chaos_modifier
 
         for _ in range(n_simulations):
             race_scores = []
@@ -412,37 +502,61 @@ class Baseline2026Predictor:
                 )  # 0.15-0.50 range
                 grid_advantage = 1.0 - ((info["grid_pos"] - 1) / 21.0)
 
+                # Position-dependent scaling: harder to overtake as you move up grid
+                # P1-P3: 0.1x (front row - almost impossible to gain)
+                # P4-P7: 0.3x (upper midfield - small gains)
+                # P8-P12: 0.6x (midfield - moderate gains)
+                # P13+: 1.0x (back - easy to pass slower cars)
+                if info["grid_pos"] <= 3:
+                    position_scaling = 0.1  # Front row: minimal gains
+                elif info["grid_pos"] <= 7:
+                    position_scaling = 0.3  # Upper midfield: small gains
+                elif info["grid_pos"] <= 12:
+                    position_scaling = 0.6  # Midfield: moderate gains
+                else:
+                    position_scaling = 1.0  # Back of grid: full gains
+
                 # SYSTEMATIC: Driver race pace advantage (using pre-loaded config)
-                # Drivers good in races (Alonso, Hamilton) get boost
-                # Drivers poor in races (Perez quali mode) get penalty
+                # Scaled by position: easier to gain from back than from front
+                # P15 Verstappen can climb to P5, but P8 Norris unlikely to reach P1
                 race_pace_boost = (
-                    info["race_advantage"] * race_advantage_multiplier
-                )  # Max swing controlled by config
+                    info["race_advantage"]
+                    * race_advantage_multiplier
+                    * position_scaling
+                )
 
                 # SYSTEMATIC: Overtaking on easy tracks (using pre-loaded config)
-                # Good overtakers (Alonso, Norris) gain more on overtaking tracks
-                # Only matters if they're BEHIND slower cars (starting lower)
+                # Also scaled by position: only matters when starting lower
+                # P20 → P12 easier than P8 → P1
                 if (
                     info["grid_pos"] > overtaking_grid_threshold
                     and track_overtaking < overtaking_track_threshold
                 ):
                     overtaking_boost = (
-                        info["overtaking_skill"] - 0.5
-                    ) * overtaking_skill_multiplier
+                        (info["overtaking_skill"] - 0.5)
+                        * overtaking_skill_multiplier
+                        * position_scaling
+                    )
                 else:
                     overtaking_boost = 0
 
                 # Lap 1 chaos: varies by grid position and track (using pre-loaded config)
                 if info["grid_pos"] <= 3:
-                    lap1_chaos = np.random.normal(0, lap1_front_row_chaos)  # Front: safer
+                    lap1_chaos = np.random.normal(
+                        0, lap1_front_row_chaos
+                    )  # Front: safer
                 elif info["grid_pos"] <= 10:
                     lap1_chaos = np.random.normal(
                         0, lap1_upper_midfield_chaos
                     )  # Upper mid: battles
                 elif info["grid_pos"] <= 15:
-                    lap1_chaos = np.random.normal(0, lap1_midfield_chaos)  # Midfield: chaos
+                    lap1_chaos = np.random.normal(
+                        0, lap1_midfield_chaos
+                    )  # Midfield: chaos
                 else:
-                    lap1_chaos = np.random.normal(0, lap1_back_field_chaos)  # Back: fewer battles
+                    lap1_chaos = np.random.normal(
+                        0, lap1_back_field_chaos
+                    )  # Back: fewer battles
 
                 # Strategy variance: less on Monaco (follow leader), more on Bahrain (using pre-loaded config)
                 # Monaco = 0.17, Bahrain = 0.24
@@ -453,37 +567,61 @@ class Baseline2026Predictor:
 
                 # Safety car luck (position swing when safety car deployed, using pre-loaded config)
                 if safety_car:
-                    sc_luck = np.random.uniform(-safety_car_luck_range, safety_car_luck_range)
+                    sc_luck = np.random.uniform(
+                        -safety_car_luck_range, safety_car_luck_range
+                    )
                 else:
                     sc_luck = 0
 
                 # Base race score (using pre-loaded config)
+                # Team pace is MOST important (50-60% of performance)
+                # Grid position matters (15-30% depending on track)
+                # Driver skill is important but LIMITED by car (15-25%)
                 pace_weight = pace_weight_base - (
                     track_overtaking * pace_weight_track_modifier
-                )  # More pace on overtaking tracks
-                driver_weight = 0.40 - pace_weight + grid_weight  # Remaining weight
+                )  # Team pace: 0.30-0.40 range
+
+                # Driver skill: FIXED at 0.20 (20%) - can't overcome bad car
+                # Great driver in slow car (OCO/Haas) can't beat average driver in fast car (NOR/McLaren)
+                driver_weight = 0.20
+
+                # Normalize so weights sum to 1.0
+                total_weight = grid_weight + pace_weight + driver_weight
+                normalized_grid = grid_weight / total_weight
+                normalized_pace = pace_weight / total_weight
+                normalized_skill = driver_weight / total_weight
+
                 base_score = (
-                    (grid_advantage * grid_weight)
-                    + (info["team_strength"] * pace_weight)
-                    + (info["skill"] * driver_weight)
+                    (grid_advantage * normalized_grid)
+                    + (info["team_strength"] * normalized_pace)
+                    + (info["skill"] * normalized_skill)
                 )
 
                 # Intra-team variance (setup/tire choices vary, using pre-loaded config)
                 teammate_variance = np.random.normal(0, teammate_variance_std)
 
-                # Total score: base + systematic factors + random chaos
-                score = (
-                    base_score
-                    + race_pace_boost
-                    + overtaking_boost
-                    + np.random.normal(0, base_chaos)
-                    + lap1_chaos
-                    + strategy_factor
-                    + sc_luck
-                    + teammate_variance
-                )
+                # Check for DNF (simulate driver not finishing)
+                dnf_occurred = np.random.random() < info["dnf_probability"]
 
-                race_scores.append({"driver": driver_code, "score": score})
+                if dnf_occurred:
+                    # DNF = very low score (ensures driver finishes last among DNFs)
+                    score = -10.0 + np.random.uniform(-1, 0)  # Random to vary DNF order
+                else:
+                    # Total score: base + systematic factors + random chaos
+                    score = (
+                        base_score
+                        + race_pace_boost
+                        + overtaking_boost
+                        + np.random.normal(0, base_chaos)
+                        + lap1_chaos
+                        + strategy_factor
+                        + sc_luck
+                        + teammate_variance
+                    )
+
+                race_scores.append(
+                    {"driver": driver_code, "score": score, "dnf": dnf_occurred}
+                )
 
             # Sort and record positions
             race_scores.sort(key=lambda x: x["score"], reverse=True)

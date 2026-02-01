@@ -1,5 +1,5 @@
 """
-Session Order Extractor - ACTUALLY FIXED VERSION
+Session Order Extractor
 
 The issue: FP sessions have LAP TIMES, not positions!
 The fix: Extract fastest laps for FP, use positions for Quali/Race.
@@ -316,29 +316,29 @@ def test_session_as_predictor_fixed(
 
 if __name__ == "__main__":
     # Quick test
-    print("Testing ACTUALLY FIXED session extraction...")
+    print("Testing session extraction...")
     print("=" * 70)
 
     # Test FP3 (should use lap times)
     print("\nTesting FP3 (uses lap times):")
     fp3_order = extract_session_order_robust(2025, "Bahrain Grand Prix", "FP3")
     if fp3_order:
-        print(f"🟢 FP3 extracted: {len(fp3_order)} teams")
+        print(f"✓ FP3 extracted: {len(fp3_order)} teams")
         sorted_teams = sorted(fp3_order.items(), key=lambda x: x[1])
         for team, rank in sorted_teams[:3]:
             print(f"  {rank}. {team}")
     else:
-        print("🔴 FP3 failed")
+        print("✗ FP3 failed")
 
     # Test Qualifying (should use positions)
     print("\nTesting Qualifying (uses positions):")
     quali_order = extract_session_order_robust(2025, "Bahrain Grand Prix", "Q")
     if quali_order:
-        print(f"🟢 Qualifying extracted: {len(quali_order)} teams")
+        print(f"✓ Qualifying extracted: {len(quali_order)} teams")
         sorted_teams = sorted(quali_order.items(), key=lambda x: x[1])
         for team, rank in sorted_teams[:3]:
             print(f"  {rank}. {team}")
     else:
-        print("🔴 Qualifying failed")
+        print("✗ Qualifying failed")
 
-    print("\n🟢 Test complete!")
+    print("\n✓ Test complete!")

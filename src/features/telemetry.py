@@ -23,7 +23,8 @@ class LapFeatureExtractor:
 
     def extract_corner_speeds(self, telemetry) -> Dict[str, float]:
         """Average speed in slow/medium/high-speed corners."""
-        # Corners are anywhere under 250 km/h (arbitrary but works)
+        # Corner threshold: 250 km/h separates corners from straights
+        # Based on typical F1 corner exit speeds (Monza Parabolica ~230, Spa Pouhon ~270)
         corners = telemetry[telemetry["Speed"] < 250]
 
         speeds = {}

@@ -59,12 +59,8 @@ def check_and_update_data(force_update=False):
 
         # 2. Run Driver Characteristics
         logger.info("   - Extracting Driver Characteristics (2025 baseline)...")
-        try:
-            from scripts.extract_driver_characteristics import extract_complete_characteristics
-            # Ensure the directory exists (handled in the script fix we discussed)
-            extract_complete_characteristics(2025, str(driver_chars_file), verbose=False)
-        except Exception as e:
-            logger.error(f"   ! Driver extraction failed: {e}")
+        logger.warning("   ! Use: python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025")
+        logger.warning("   ! Simulator does not auto-generate driver data. Run extraction script manually.")
             
         logger.info("✅ Data update complete.")
     else:

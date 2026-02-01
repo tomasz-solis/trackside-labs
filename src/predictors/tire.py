@@ -62,18 +62,18 @@ class TirePredictor:
         current_file = self.data_dir / f"{year}_pirelli_info.json"
 
         if current_file.exists():
-            print(f"   🛞  Loaded Pirelli Data: {year}")
+            logger.info(f"Loaded Pirelli data for {year}")
             with open(current_file) as f:
                 return json.load(f)
 
         # Fallback to previous year
         prev_file = self.data_dir / f"{year-1}_pirelli_info.json"
         if prev_file.exists():
-            print(f"   ⚠️  No {year} Pirelli data. Using {year-1} fallback.")
+            logger.warning(f"No {year} Pirelli data found, using {year-1} fallback")
             with open(prev_file) as f:
                 return json.load(f)
 
-        print("   ❌ No Pirelli data found. Using defaults.")
+        logger.warning("No Pirelli data found, using default degradation values")
         return {}
 
     def get_tire_impact(

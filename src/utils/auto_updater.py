@@ -48,7 +48,13 @@ def get_completed_races(year: int = 2026) -> List[str]:
                         session = fastf1.get_session(year, race_name, "R")
                         if session is not None:
                             completed.append(race_name)
-                    except (ValueError, KeyError, AttributeError, TypeError, FileNotFoundError) as e:
+                    except (
+                        ValueError,
+                        KeyError,
+                        AttributeError,
+                        TypeError,
+                        FileNotFoundError,
+                    ) as e:
                         logger.debug(f"Race {race_name} not available yet: {e}")
                         continue  # Race not available yet
 

@@ -52,9 +52,7 @@ def validate_driver_data(drivers: Dict) -> List[str]:
                 )
 
         if dnf_rate < 0.0 or dnf_rate > 0.50:
-            errors.append(
-                f"{driver_code}: DNF rate {dnf_rate:.3f} unrealistic (should be 0-50%)"
-            )
+            errors.append(f"{driver_code}: DNF rate {dnf_rate:.3f} unrealistic (should be 0-50%)")
 
     if errors:
         logger.warning(f"⚠️  Found {len(errors)} validation errors:")

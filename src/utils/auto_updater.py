@@ -18,12 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_completed_races(year: int = 2026) -> List[str]:
-    """
-    Get list of completed races for the given year.
-
-    Returns:
-        List of race names that have been completed
-    """
+    """Get list of completed races for the given year."""
     try:
         # Ensure cache directory exists
         import os
@@ -66,12 +61,7 @@ def get_completed_races(year: int = 2026) -> List[str]:
 
 
 def get_learned_races() -> List[str]:
-    """
-    Get list of races we've already learned from.
-
-    Returns:
-        List of race names in learning_state.json history
-    """
+    """Get list of races we've already learned from."""
     learning_file = Path("data/learning_state.json")
 
     if not learning_file.exists():
@@ -89,12 +79,7 @@ def get_learned_races() -> List[str]:
 
 
 def needs_update() -> Tuple[bool, List[str]]:
-    """
-    Check if there are new races to learn from.
-
-    Returns:
-        (needs_update, list_of_new_races)
-    """
+    """Check if there are new races to learn from."""
     completed = get_completed_races()
     learned = get_learned_races()
 
@@ -104,15 +89,7 @@ def needs_update() -> Tuple[bool, List[str]]:
 
 
 def auto_update_from_races(progress_callback=None) -> int:
-    """
-    Automatically update characteristics from any new completed races.
-
-    Args:
-        progress_callback: Optional function(current, total, message) for progress updates
-
-    Returns:
-        Number of races learned from
-    """
+    """Automatically update characteristics from any new completed races."""
     needs_update_flag, new_races = needs_update()
 
     if not needs_update_flag:

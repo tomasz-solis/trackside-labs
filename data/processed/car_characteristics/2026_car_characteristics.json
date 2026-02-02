@@ -1,7 +1,7 @@
 {
   "year": 2026,
-  "note": "AUTO-GENERATED: Based on 2025 standings with HIGH uncertainty (new regulations). Teams will be re-ranked as 2026 races complete.",
-  "generated_at": "2026-01-31T20:26:17.863497",
+  "note": "2026 car characteristics: baseline from 2025 standings. Directionality will be added after 2026 pre-season testing.",
+  "generated_at": "2026-02-01T12:35:54.578589",
   "data_freshness": "BASELINE_PRESEASON",
   "races_completed": 0,
   "teams": {
@@ -10,77 +10,144 @@
       "uncertainty": 0.3,
       "note": "2025 P1 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "Mercedes": {
       "overall_performance": 0.75,
       "uncertainty": 0.3,
       "note": "2025 P2 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "Red Bull Racing": {
       "overall_performance": 0.74,
       "uncertainty": 0.3,
       "note": "2025 P3 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "Ferrari": {
       "overall_performance": 0.7,
       "uncertainty": 0.3,
       "note": "2025 P4 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "Williams": {
       "overall_performance": 0.55,
       "uncertainty": 0.3,
       "note": "2025 P5 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "RB": {
       "overall_performance": 0.48,
       "uncertainty": 0.3,
       "note": "2025 P6 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "Aston Martin": {
       "overall_performance": 0.47,
       "uncertainty": 0.3,
       "note": "2025 P7 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "Haas F1 Team": {
       "overall_performance": 0.43,
       "uncertainty": 0.3,
       "note": "2025 P8 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "Alpine": {
       "overall_performance": 0.4,
       "uncertainty": 0.3,
       "note": "2025 P9 - starting estimate with high uncertainty",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
-    "Sauber": {
+    "Audi": {
       "overall_performance": 0.38,
       "uncertainty": 0.3,
-      "note": "2025 P10 - starting estimate with high uncertainty",
+      "note": "2025 P10 (as Kick Sauber) - Audi takeover for 2026",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     },
     "Cadillac F1": {
       "overall_performance": 0.35,
-      "uncertainty": 0.3,
-      "note": "2025 P11 - starting estimate with high uncertainty",
+      "uncertainty": 0.4,
+      "note": "NEW TEAM 2026 - No historical data. Estimated P11 with very high uncertainty. Ferrari PU.",
       "last_updated": null,
-      "races_completed": 0
+      "races_completed": 0,
+      "directionality": {
+        "max_speed": 0.0,
+        "slow_corner_speed": 0.0,
+        "medium_corner_speed": 0.0,
+        "high_corner_speed": 0.0
+      }
     }
-  }
+  },
+  "directionality_source": "NONE - awaiting 2026 pre-season testing"
 }

@@ -20,9 +20,6 @@ def ensure_baseline_exists(data_dir: Path) -> None:
 
     This is called automatically when Baseline2026Predictor is initialized.
     No manual script running required!
-
-    Args:
-        data_dir: Path to data/processed directory
     """
     logger.info("Checking baseline data status...")
 
@@ -115,10 +112,12 @@ def generate_neutral_team_characteristics(data_dir: Path) -> None:
 
     team_characteristics = {
         "year": 2026,
+        "version": 1,
         "note": "AUTO-GENERATED: Based on 2025 standings with HIGH uncertainty (new regulations). Teams will be re-ranked as 2026 races complete.",
         "generated_at": datetime.now().isoformat(),
         "data_freshness": "BASELINE_PRESEASON",
         "races_completed": 0,
+        "last_updated": datetime.now().isoformat(),
         "teams": {},
     }
 
@@ -280,9 +279,11 @@ def generate_default_track_characteristics(data_dir: Path) -> None:
 
     track_characteristics = {
         "year": 2026,
+        "version": 1,
         "note": "AUTO-GENERATED: Reasonable F1 defaults. Run scripts/generate_2026_baseline.py for historical averages.",
         "generated_at": datetime.now().isoformat(),
         "data_freshness": "BASELINE_PRESEASON",
+        "last_updated": datetime.now().isoformat(),
         "tracks": tracks,
     }
 

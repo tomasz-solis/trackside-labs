@@ -33,25 +33,37 @@ from scipy.signal import find_peaks
 from sklearn.preprocessing import StandardScaler
 from typing import Dict, Optional
 
-# Import from other helpers
-from ..utils.circuit import extract_track_metrics
+# NOTE: circuit.py moved to archive/ - contains legacy clustering/PCA analysis
+# We only use extract_track_metrics from it, which is now inlined below
 
 logger = logging.getLogger(__name__)
 
 
+def extract_track_metrics(session) -> Optional[Dict[str, float]]:
+    """Extract speed and braking metrics from fastest lap telemetry. Returns low/medium/high speed percentages and braking event count."""
+    try:
+        if session.laps.empty:
+            return None
+        lap = session.laps.pick_fastest()
+        tel = lap.get_car_data().add_distance()
+        # Compute speed deltas to identify heavy braking
+        tel["delta_speed"] = tel["Speed"].diff()
+        heavy_brakes = tel["delta_speed"] < -30
+        return {
+            "avg_speed": tel["Speed"].mean(),
+            "top_speed": tel["Speed"].max(),
+            "braking_events": int(heavy_brakes.sum()),
+            "low_pct": float((tel["Speed"] < 120).mean()),
+            "med_pct": float(((tel["Speed"] >= 120) & (tel["Speed"] < 200)).mean()),
+            "high_pct": float((tel["Speed"] >= 200).mean()),
+        }
+    except (AttributeError, KeyError, ValueError, TypeError) as e:
+        logger.warning(f"⚠️ Failed to extract track metrics: {e}")
+        return None
+
+
 def identify_corners(telemetry: pd.DataFrame, min_speed_drop: int = 15) -> pd.DataFrame:
-    """
-    Identify corners by finding local speed minima.
-
-    Returns corner entry/apex/exit speeds for each detected corner.
-
-    Args:
-        telemetry: Telemetry dataframe with Speed column
-        min_speed_drop: Minimum speed drop in km/h to count as a corner
-
-    Returns:
-        DataFrame with columns: entry_speed, apex_speed, exit_speed, speed_lost
-    """
+    """Identify corners by finding local speed minima. Returns entry/apex/exit speeds for each corner."""
     speed = telemetry["Speed"].values
 
     # Find local minima (corners)
@@ -88,21 +100,7 @@ def identify_corners(telemetry: pd.DataFrame, min_speed_drop: int = 15) -> pd.Da
 
 
 def extract_corner_characteristics(session) -> Optional[Dict[str, float]]:
-    """
-    Extract corner entry/exit characteristics from session.
-
-    Calculates:
-    - Average speed loss per corner
-    - Corner severity distribution (heavy/medium/light braking)
-    - Corner density (corners per km)
-    - Minimum corner speed (tightest corner)
-
-    Args:
-        session: Loaded FastF1 session with telemetry
-
-    Returns:
-        Dictionary with corner metrics, or None if extraction fails
-    """
+    """Extract corner severity, density, and speed loss metrics from session telemetry."""
     try:
         lap = session.laps.pick_fastest()
         tel = lap.get_car_data().add_distance()
@@ -137,18 +135,7 @@ def extract_corner_characteristics(session) -> Optional[Dict[str, float]]:
 
 
 def extract_full_throttle_pct(session) -> Optional[float]:
-    """
-    Extract percentage of lap at full throttle (≥98%).
-
-    Different from straights - can be full throttle through fast corners.
-    Monaco: ~40-50%, Monza: ~75-85%
-
-    Args:
-        session: Loaded FastF1 session with telemetry
-
-    Returns:
-        Full throttle percentage (0-1), or None if unavailable
-    """
+    """Extract percentage of lap at full throttle (≥98%). Returns float 0-1 or None."""
     try:
         lap = session.laps.pick_fastest()
         tel = lap.get_car_data()
@@ -163,21 +150,7 @@ def extract_full_throttle_pct(session) -> Optional[float]:
 
 
 def extract_tire_stress_proxy(session) -> Optional[float]:
-    """
-    Extract tire stress proxy based on speed and variance.
-
-    Energy score = (avg_speed / 100) * (1 + speed_variance / 100)
-    Higher speed + higher variance = more tire stress
-
-    High-energy: Silverstone, Suzuka (lots of lateral forces)
-    Low-energy: Monaco, Hungary (slower, less variance)
-
-    Args:
-        session: Loaded FastF1 session with telemetry
-
-    Returns:
-        Energy score, or None if unavailable
-    """
+    """Extract tire stress energy score from speed and variance. Returns float or None."""
     try:
         lap = session.laps.pick_fastest()
         tel = lap.get_car_data()
@@ -193,22 +166,7 @@ def extract_tire_stress_proxy(session) -> Optional[float]:
 
 
 def extract_track_profile(season: int, session) -> Optional[Dict]:
-    """
-    Extract complete track profile from session.
-
-    Includes:
-    - Corner speed distribution (slow/med/fast %)
-    - Corner severity (entry/exit delta)
-    - Power characteristics (throttle, straights)
-    - Tire stress proxy
-
-    Args:
-        season: Year of the season (e.g. 2025)
-        session: Loaded FastF1 session with telemetry
-
-    Returns:
-        Dictionary with all track characteristics, or None if extraction fails
-    """
+    """Extract complete track profile including corner distribution, severity, power, and tire stress."""
     metrics = extract_track_metrics(session)
     if metrics is None:
         return None
@@ -251,21 +209,7 @@ def extract_track_profile(season: int, session) -> Optional[Dict]:
 
 
 def identify_street_circuits(track_name: str) -> int:
-    """
-    Identify if track is a street circuit.
-
-    Street circuits have unique characteristics:
-    - Tight, unforgiving (no run-off)
-    - Low grip early in weekend (dusty surface)
-    - Often bumpy
-    - Historically more incidents
-
-    Args:
-        track_name: Name of the track/event
-
-    Returns:
-        1 if street circuit, 0 otherwise
-    """
+    """Identify if track is a street circuit. Returns 1 if yes, 0 otherwise."""
     STREET_CIRCUITS = {
         "Monaco",
         "Singapore",
@@ -279,18 +223,7 @@ def identify_street_circuits(track_name: str) -> int:
 
 
 def calculate_track_z_scores(df_tracks: pd.DataFrame, features: list) -> tuple[pd.DataFrame, Dict]:
-    """
-    Calculate z-scores for track characteristics.
-
-    Standardizes features to mean=0, std=1 for car-track matching.
-
-    Args:
-        df_tracks: DataFrame with track characteristics
-        features: List of feature names to standardize
-
-    Returns:
-        Tuple of (dataframe with z-scores added, scaler parameters dict)
-    """
+    """Calculate z-scores for track features. Returns dataframe with z-score columns and scaler parameters."""
     # Remove tracks with missing data
     df_complete = df_tracks.dropna(subset=features)
 
@@ -312,15 +245,7 @@ def calculate_track_z_scores(df_tracks: pd.DataFrame, features: list) -> tuple[p
 
 
 def describe_track_profile(row: pd.Series) -> str:
-    """
-    Generate human-readable description of track characteristics.
-
-    Args:
-        row: DataFrame row with track characteristics and z-scores
-
-    Returns:
-        Comma-separated string of track characteristics
-    """
+    """Generate human-readable description of track characteristics from z-scores."""
     tags = []
 
     # Corner speed characteristics

@@ -16,18 +16,7 @@ logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 
 
 def extract_overtakes_from_race(year, race_name):
-    """
-    Extract overtaking data from a race.
-    
-    Counts position changes from lap to lap (excluding pit stops, DNFs, SC periods).
-    
-    Args:
-        year: Season year
-        race_name: Race name
-        
-    Returns:
-        Dict with overtaking stats or None if failed
-    """
+    """Extract overtaking data from a race by counting position changes."""
     try:
         session = ff1.get_session(year, race_name, 'R')
         session.load(laps=True, telemetry=False, weather=False)
@@ -98,12 +87,7 @@ def extract_overtakes_from_race(year, race_name):
 
 
 def calculate_overtaking_likelihood(years=[2024, 2025]):
-    """
-    Calculate overtaking likelihood for all tracks from last 2 years.
-    
-    Returns:
-        Dict mapping track_name -> overtaking stats
-    """
+    """Calculate overtaking likelihood for all tracks from specified years."""
     overtaking_data = {}
     
     print("Extracting overtaking data from races...")
@@ -159,15 +143,7 @@ def calculate_overtaking_likelihood(years=[2024, 2025]):
 
 
 def classify_overtaking_difficulty(avg_changes_per_lap):
-    """
-    Classify track overtaking difficulty.
-    
-    Based on empirical data:
-    - Monaco: ~1-2 changes/lap (very hard)
-    - Barcelona: ~3-4 changes/lap (hard)
-    - Bahrain: ~5-6 changes/lap (moderate)
-    - Monza: ~7+ changes/lap (easy)
-    """
+    """Classify track overtaking difficulty based on position changes per lap."""
     if avg_changes_per_lap < 2.5:
         return 'very_hard', 0.2
     elif avg_changes_per_lap < 4.0:
@@ -181,14 +157,7 @@ def classify_overtaking_difficulty(avg_changes_per_lap):
 
 
 def add_overtaking_to_tracks(track_characteristics_path, overtaking_data, output_path=None):
-    """
-    Add overtaking likelihood to existing track characteristics.
-    
-    Args:
-        track_characteristics_path: Path to track characteristics JSON
-        overtaking_data: Overtaking data from calculate_overtaking_likelihood()
-        output_path: Where to save updated file (None = overwrite)
-    """
+    """Add overtaking likelihood to existing track characteristics JSON."""
     # Load existing tracks
     with open(track_characteristics_path) as f:
         data = json.load(f)

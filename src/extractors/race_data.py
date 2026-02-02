@@ -18,24 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def extract_race_data(year, race_name):
-    """
-    Extract race data with unified logic.
-
-    Used by both racecraft.py and dnf_risk.py to ensure consistency.
-
-    Returns:
-        dict: {
-            driver: {
-                'quali': int or None,
-                'race': int,
-                'gain': int or None,
-                'dnf': bool,
-                'has_quali': bool,
-                'team': str,
-                'status': str
-            }
-        }
-    """
+    """Extract race data from FastF1. Returns dict with quali/race/gain/DNF/team/status per driver."""
     try:
         quali = ff1.get_session(year, race_name, "Q")
         quali.load(laps=False)
@@ -94,16 +77,7 @@ def extract_race_data(year, race_name):
 
 
 def extract_season(year, verbose=True):
-    """
-    Extract all races from a season.
-
-    Args:
-        year: Season year
-        verbose: Print progress
-
-    Returns:
-        dict: {driver: [race_data, race_data, ...]}
-    """
+    """Extract all races from a season. Returns {driver: [race_data, ...]}."""
     from collections import defaultdict
 
     schedule = ff1.get_event_schedule(year)
@@ -140,58 +114,22 @@ def extract_season(year, verbose=True):
 
 
 def count_total_dnfs(driver_races):
-    """
-    Count total DNFs for a driver across all races.
-
-    Uses all races, even those without qualifying data.
-
-    Args:
-        driver_races: List of race data dicts
-
-    Returns:
-        int: Total DNF count
-    """
+    """Count total DNF races for a driver. Returns int."""
     return sum(1 for race in driver_races if race.get("dnf", False))
 
 
 def get_valid_races(driver_races):
-    """
-    Filter to races with valid qualifying data.
-
-    Used for skill calculation (need both quali and race).
-
-    Args:
-        driver_races: List of race data dicts
-
-    Returns:
-        list: Races with has_quali=True
-    """
+    """Filter to races with valid qualifying data. Returns races with has_quali=True."""
     return [race for race in driver_races if race.get("has_quali", True)]
 
 
 def get_dnf_races(driver_races):
-    """
-    Get all DNF races.
-
-    Args:
-        driver_races: List of race data dicts
-
-    Returns:
-        list: Races where dnf=True
-    """
+    """Get all DNF races. Returns races where dnf=True."""
     return [race for race in driver_races if race.get("dnf", False)]
 
 
 def get_clean_races(driver_races):
-    """
-    Get races that finished (not DNF).
-
-    Args:
-        driver_races: List of race data dicts
-
-    Returns:
-        list: Races where dnf=False
-    """
+    """Get finished races (not DNF). Returns races where dnf=False."""
     return [race for race in driver_races if not race.get("dnf", False)]
 
 

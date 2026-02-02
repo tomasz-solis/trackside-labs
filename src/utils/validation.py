@@ -16,14 +16,7 @@ except ImportError:
 
 def compare_rankings(predicted: List[str], actual: List[str]) -> Dict[str, float]:
     """
-    Compare predicted team ranking vs actual results
-
-    Args:
-        predicted: ['Mercedes', 'Red Bull', 'McLaren', ...]
-        actual: ['Red Bull', 'Mercedes', 'Ferrari', ...]
-
-    Returns:
-        Dict with all metrics
+    Compare predicted team ranking vs actual results. Returns dict with all metrics.
     """
     # Normalize team names
     predicted = [canonicalize_team(t) for t in predicted]
@@ -87,13 +80,7 @@ def aggregate_metrics(all_metrics: List[Dict[str, float]]) -> Dict[str, float]:
 
 def confidence_calibration(predictions: List[Tuple[float, bool]]) -> Dict[str, float]:
     """
-    Check if confidence scores are well-calibrated
-
-    Args:
-        predictions: [(confidence, was_correct), ...]
-
-    Returns:
-        Calibration metrics
+    Check if confidence scores are well-calibrated. Returns calibration metrics.
     """
     if not predictions:
         return {}
@@ -123,14 +110,7 @@ def confidence_calibration(predictions: List[Tuple[float, bool]]) -> Dict[str, f
 
 def analyze_by_track_type(results: Dict[str, Dict], track_types: Dict[str, str]) -> Dict[str, Dict]:
     """
-    Group results by track type
-
-    Args:
-        results: {race_name: {metrics}}
-        track_types: {race_name: 'street'/'high-speed'/'technical'/'mixed'}
-
-    Returns:
-        {track_type: aggregated_metrics}
+    Group results by track type. Returns aggregated metrics per type.
     """
     by_type = {}
 
@@ -153,13 +133,7 @@ def analyze_by_track_type(results: Dict[str, Dict], track_types: Dict[str, str])
 
 def analyze_by_stage(results: Dict[str, Dict[str, Dict]]) -> Dict[str, Dict]:
     """
-    Compare prediction quality by stage
-
-    Args:
-        results: {race: {'post_fp1': metrics, 'post_fp2': metrics, ...}}
-
-    Returns:
-        {stage: aggregated_metrics}
+    Compare prediction quality by stage. Returns aggregated metrics per stage.
     """
     by_stage = {}
 

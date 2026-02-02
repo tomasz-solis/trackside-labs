@@ -25,21 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_weekend_type(year: int, race_name: str) -> Literal["sprint", "conventional"]:
-    """
-    Get weekend type from FastF1 EventFormat.
-
-    NEVER uses hardcoded sprint race lists!
-
-    Args:
-        year: Season year
-        race_name: Race name (e.g., 'Chinese Grand Prix')
-
-    Returns:
-        'sprint' if sprint weekend, 'conventional' otherwise
-
-    Raises:
-        ValueError: If race not found in schedule
-    """
+    """Get weekend type from FastF1 EventFormat. Raises ValueError if race not found."""
     schedule = fastf1.get_event_schedule(year)
 
     # Try exact match first
@@ -67,16 +53,7 @@ def get_weekend_type(year: int, race_name: str) -> Literal["sprint", "convention
 
 
 def is_sprint_weekend(year: int, race_name: str) -> bool:
-    """
-    Check if weekend has sprint format.
-
-    Args:
-        year: Season year
-        race_name: Race name
-
-    Returns:
-        True if sprint weekend, False otherwise
-    """
+    """Check if weekend has sprint format. Returns bool."""
     try:
         return get_weekend_type(year, race_name) == "sprint"
     except ValueError as e:
@@ -87,16 +64,7 @@ def is_sprint_weekend(year: int, race_name: str) -> bool:
 
 
 def get_event_format(year: int, race_name: str) -> str:
-    """
-    Get exact EventFormat from FastF1.
-
-    Args:
-        year: Season year
-        race_name: Race name
-
-    Returns:
-        EventFormat string (e.g., 'sprint', 'sprint_qualifying', 'conventional')
-    """
+    """Get exact EventFormat string from FastF1 schedule."""
     schedule = fastf1.get_event_schedule(year)
     event = schedule[schedule["EventName"] == race_name]
 
@@ -110,17 +78,7 @@ def get_event_format(year: int, race_name: str) -> str:
 
 
 def get_all_sprint_races(year: int) -> list[str]:
-    """
-    Get all sprint race names for a season.
-
-    Dynamically from schedule - NO HARDCODING!
-
-    Args:
-        year: Season year
-
-    Returns:
-        List of sprint race names
-    """
+    """Get all sprint race names for a season from FastF1 schedule."""
     schedule = fastf1.get_event_schedule(year)
 
     sprint_races = []
@@ -134,15 +92,7 @@ def get_all_sprint_races(year: int) -> list[str]:
 
 
 def get_all_conventional_races(year: int) -> list[str]:
-    """
-    Get all conventional race names for a season.
-
-    Args:
-        year: Season year
-
-    Returns:
-        List of conventional race names
-    """
+    """Get all conventional (non-sprint) race names for a season."""
     schedule = fastf1.get_event_schedule(year)
 
     conventional_races = []
@@ -155,19 +105,7 @@ def get_all_conventional_races(year: int) -> list[str]:
 
 
 def get_best_qualifying_session(year: int, race_name: str) -> str:
-    """
-    Get best session for qualifying prediction.
-
-    Sprint weekends: 'Sprint Qualifying'
-    Normal weekends: 'FP3'
-
-    Args:
-        year: Season year
-        race_name: Race name
-
-    Returns:
-        Session name
-    """
+    """Get best session for qualifying (Sprint Qualifying for sprint weekends, FP3 otherwise)."""
     weekend_type = get_weekend_type(year, race_name)
 
     if weekend_type == "sprint":

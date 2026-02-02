@@ -16,29 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> Optional[Dict]:
-    """
-    Extract long run pace from FP2.
-
-    Detects race simulation runs (10+ laps on same compound).
-    Calculates average pace and degradation rate per team.
-
-    Args:
-        year: Season year
-        race_name: Race name
-        verbose: Print progress
-
-    Returns:
-        {
-            'team_name': {
-                'avg_pace': float (seconds),
-                'relative_pace': float (vs median),
-                'degradation': float (s/lap),
-                'laps': int,
-                'compound': str
-            },
-            ...
-        }
-    """
+    """Extract long run pace from FP2, detecting race simulations and calculating degradation."""
     try:
         # Load FP2
         session = ff1.get_session(year, race_name, "FP2")
@@ -102,11 +80,7 @@ def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> Option
 
 
 def _detect_long_runs(team_laps: pd.DataFrame, verbose: bool = False) -> list:
-    """
-    Detect long run stints (10+ laps on same compound).
-
-    Returns list of stints with pace metrics.
-    """
+    """Detect long run stints (10+ laps on same compound) with pace metrics."""
     # Filter valid laps
     valid_laps = team_laps[(team_laps["LapTime"].notna()) & (team_laps["Compound"].notna())].copy()
 

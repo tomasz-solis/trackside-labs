@@ -18,18 +18,7 @@ def get_lineups_from_session(year, race_name, session_type="Q"):
     """
     Extract actual lineups from a specific race session.
 
-    Handles all corner cases automatically:
-    - Reserve drivers (BEA at Ferrari/Haas in 2024)
-    - Mid-season swaps (LAW/TSU)
-    - Injuries/replacements
-
-    Args:
-        year: Season year
-        race_name: Race name (e.g. 'Bahrain Grand Prix')
-        session_type: 'Q' for qualifying (default), 'R' for race
-
-    Returns:
-        Dict mapping team -> [driver1, driver2]
+    Handles reserve drivers, mid-season swaps, and injuries automatically.
     """
     try:
         session = ff1.get_session(year, race_name, session_type)
@@ -62,15 +51,7 @@ def get_lineups_from_session(year, race_name, session_type="Q"):
 
 def load_current_lineups(config_path="data/current_lineups.json"):
     """
-    Load current team lineups from config file.
-
-    Used for future predictions (2026+) or as fallback.
-
-    Args:
-        config_path: Path to current_lineups.json
-
-    Returns:
-        Dict mapping team -> [driver1, driver2]
+    Load current team lineups from config file for future predictions or fallback.
     """
     config_file = Path(config_path)
 
@@ -87,35 +68,8 @@ def get_lineups(year, race_name=None, config_path="data/current_lineups.json"):
     """
     Get team lineups for a race.
 
-    Strategy:
-    - For 2024-2025 with race_name: Extract from actual session data
-    - For 2026+ or no race_name: Use current_lineups.json
-
-    This handles ALL corner cases automatically:
-    - BEA racing for Haas and Ferrari in 2024
-    - LAW/TSU swap in 2025
-    - Any other mid-season changes
-
-    Args:
-        year: Season year
-        race_name: Specific race name (optional for future predictions)
-        config_path: Path to current_lineups.json
-
-    Returns:
-        Dict mapping team -> [driver1, driver2]
-
-    Examples:
-        # Historical race (extracts actual participants)
-        lineups = get_lineups(2024, 'Austrian Grand Prix')
-        # Returns whoever actually raced (handles BEA reserve correctly)
-
-        # Future prediction (uses config)
-        lineups = get_lineups(2026)
-        # Returns current_lineups.json
-
-        # Future race prediction
-        lineups = get_lineups(2026, 'Monaco Grand Prix')
-        # Returns current_lineups.json (same as above)
+    Extracts from session data for 2024-2025, uses config for 2026+.
+    Handles reserve drivers and mid-season changes automatically.
     """
     # For historical seasons with specific race, extract from data
     if year <= 2025 and race_name:
@@ -141,21 +95,7 @@ def get_lineups(year, race_name=None, config_path="data/current_lineups.json"):
 
 def save_current_lineups(lineups, config_path="../data/current_lineups.json"):
     """
-    Save current lineups to config file.
-
-    Use this to update lineups when drivers change.
-
-    Args:
-        lineups: Dict mapping team -> [driver1, driver2]
-        config_path: Path to save config
-
-    Example:
-        lineups = {
-            'Red Bull Racing': ['VER', 'LAW'],
-            'McLaren': ['NOR', 'PIA'],
-            ...
-        }
-        save_current_lineups(lineups)
+    Save current lineups to config file when drivers change.
     """
     from datetime import datetime
 
@@ -172,16 +112,7 @@ def save_current_lineups(lineups, config_path="../data/current_lineups.json"):
 
 def extract_lineups_for_season(year, output_path=None):
     """
-    Extract lineups for all races in a season.
-
-    Useful for debugging or creating reference data.
-
-    Args:
-        year: Season year
-        output_path: Optional path to save results
-
-    Returns:
-        Dict mapping race_name -> lineups
+    Extract lineups for all races in a season for reference or debugging.
     """
     import fastf1 as ff1
 

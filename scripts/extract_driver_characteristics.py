@@ -267,9 +267,7 @@ def solve_global_ratings(comparisons: List[Dict], iterations=15) -> Dict[str, fl
 
 
 def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> Dict[str, float]:
-    """
-    Calculate racecraft adjustment: finish position vs expected based on pace.
-    """
+    """Calculate racecraft adjustment based on finish position versus pace-expected position."""
     logger.info("Calculating racecraft adjustments...")
 
     racecraft_scores = defaultdict(list)

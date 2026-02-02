@@ -11,18 +11,7 @@ from typing import Dict, Optional
 def extract_all_teams_performance(
     all_team_data: Dict[str, Dict], session_name: str = "fp1"
 ) -> Dict[str, Dict]:
-    """
-    Extract performance for all teams, normalized relative to each other.
-
-    This is the ONLY function you should call. It handles everything.
-
-    Args:
-        all_team_data: {team: {session_key: session_data, ...}}
-        session_name: Which session to use ('fp1', 'fp2', 'fp3')
-
-    Returns:
-        {team: {performance_metric: 0-1 score}}
-    """
+    """Extract and normalize team performance relative to each other from specified session."""
     # Step 1: Extract raw metrics from all teams
     raw_metrics = {}
 
@@ -105,11 +94,7 @@ def _extract_raw_metrics(session_data: Dict) -> Dict:
 
 
 def _normalize_relative(raw_metrics: Dict[str, Dict]) -> Dict[str, Dict]:
-    """
-    Normalize all teams relative to each other using z-scores.
-
-    Returns 0-1 scores where teams are compared against each other.
-    """
+    """Normalize team metrics relative to each other using z-scores into 0-1 range."""
     # Collect all values per metric
     all_values = {}
     for team, metrics in raw_metrics.items():

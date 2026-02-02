@@ -100,24 +100,7 @@ TEAM_NAME_MAP = {
 
 
 def canonicalize_team(name: str) -> str:
-    """
-    Map raw team name to canonical identifier.
-
-    Handles team name variations from FastF1 API, historical data,
-    and sponsor changes. Falls back to uppercase original if unknown.
-
-    Args:
-        name: Raw team name string (e.g., "Visa Cash App RB")
-
-    Returns:
-        Canonical team identifier (e.g., "RB")
-
-    Example:
-        >>> canonicalize_team('Oracle Red Bull Racing')
-        'RED BULL'
-        >>> canonicalize_team('Unknown Team')
-        'UNKNOWN TEAM'
-    """
+    """Map raw team name to canonical identifier, handling variations and sponsor changes."""
     if name is None:
         return None
 
@@ -125,32 +108,7 @@ def canonicalize_team(name: str) -> str:
 
 
 def normalize_team_column(df: Union[pd.DataFrame, pd.Series], col: str = "team") -> pd.DataFrame:
-    """
-    Normalize team names in DataFrame using canonical mapping.
-
-    Applies canonicalize_team() to specified column, logging any
-    unknown team names for manual review. Handles edge cases safely.
-
-    Safety Features:
-    - Auto-converts Series to DataFrame if needed
-    - Returns unchanged if column doesn't exist
-    - Logs unknown teams for monitoring
-
-    Args:
-        df: DataFrame or Series containing team names
-        col: Name of team column (default: "team")
-
-    Returns:
-        DataFrame with normalized team names
-
-    Raises:
-        None - handles all errors gracefully
-
-    Example:
-        >>> df = normalize_team_column(df, col='team')
-        >>> df['team'].unique()
-        array(['RED BULL', 'FERRARI', 'MERCEDES', ...])
-    """
+    """Normalize team names in DataFrame using canonical mapping, handling edge cases gracefully."""
     # Handle Series input (convert to DataFrame)
     if isinstance(df, pd.Series):
         logger.warning(

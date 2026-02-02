@@ -8,6 +8,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import fastf1
+import time
 
 
 # Get file modification times for cache invalidation
@@ -38,12 +39,7 @@ def get_data_file_timestamps():
 # Cache predictor instance but check for file changes
 @st.cache_resource(show_spinner=False)
 def get_predictor(_timestamps):
-    """
-    Load and cache the baseline predictor instance.
-
-    Args:
-        _timestamps: File modification times (used for cache invalidation)
-    """
+    """Load and cache the baseline predictor instance (invalidates when data files change)."""
     from src.predictors.baseline_2026 import Baseline2026Predictor
     import logging
 
@@ -99,34 +95,35 @@ def auto_update_if_needed():
 # Cache prediction results
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def run_prediction(race_name: str, weather: str, _timestamps):
-    """
-    Run prediction with caching.
-
-    Args:
-        race_name: Name of the race
-        weather: Weather condition (must be 'dry', 'rain', or 'mixed')
-        _timestamps: File modification times (used for cache invalidation)
-
-    Returns:
-        Tuple of (quali_result, race_result)
-
-    Raises:
-        ValueError: If weather is not one of the valid options
-    """
+    """Run prediction with caching (1 hour TTL). Weather must be 'dry', 'rain', or 'mixed'."""
     # Validate weather input
     valid_weather = ['dry', 'rain', 'mixed']
     if weather not in valid_weather:
         raise ValueError(f"Weather must be one of {valid_weather}, got '{weather}'")
 
+    # Start timing
+    timing = {}
+    overall_start = time.time()
+
     predictor = get_predictor(_timestamps)
 
-    # STEP 1: Predict Qualifying
+    # STEP 1: Predict Qualifying (includes FP auto-fetch)
+    quali_start = time.time()
     quali_result = predictor.predict_qualifying(year=2026, race_name=race_name)
+    timing['qualifying'] = time.time() - quali_start
 
     # STEP 2: Predict Race using quali results
+    race_start = time.time()
     race_result = predictor.predict_race(
         qualifying_grid=quali_result["grid"], weather=weather, race_name=race_name, n_simulations=50
     )
+    timing['race'] = time.time() - race_start
+
+    timing['total'] = time.time() - overall_start
+
+    # Add timing to results
+    quali_result['timing'] = timing
+    race_result['timing'] = timing
 
     return quali_result, race_result
 
@@ -243,7 +240,8 @@ if page == "Live Prediction":
                 # Check if sprint weekend
                 try:
                     is_sprint = is_sprint_weekend(2026, race_name)
-                except:
+                except (ValueError, KeyError, FileNotFoundError) as e:
+                    logger.warning(f"Could not determine sprint weekend status: {e}")
                     is_sprint = False
 
                 # Show warnings based on data freshness
@@ -251,7 +249,8 @@ if page == "Live Prediction":
 
                 if is_sprint:
                     st.info(
-                        "🏃 **Sprint Weekend** - Currently predicting Qualifying → Sunday Race only. Sprint race predictions not yet implemented."
+                        "🏃 **Sprint Weekend** - System predicts Sprint Qualifying (Friday) → Sprint Race (Saturday) → Sunday Qualifying → Sunday Race. "
+                        "Sprint predictions use adjusted chaos modeling (30% less variance, grid position +10% importance)."
                     )
 
                 # Get current file timestamps for cache invalidation
@@ -261,12 +260,28 @@ if page == "Live Prediction":
                 st.info("Running simulation (cached results will load instantly)...")
                 quali_result, race_result = run_prediction(race_name, weather, timestamps)
 
-                # Display results
-                st.success("Predictions complete!")
+                # Display results with performance timing
+                timing = quali_result.get('timing', {})
+                if timing:
+                    st.success(
+                        f"✅ Predictions complete in {timing['total']:.2f}s "
+                        f"(Qualifying: {timing['qualifying']:.2f}s, Race: {timing['race']:.2f}s)"
+                    )
+                else:
+                    st.success("✅ Predictions complete!")
 
                 # ========== QUALIFYING PREDICTION ==========
                 st.markdown("---")
                 st.header("🏁 Qualifying Prediction")
+
+                # Show data source used for prediction
+                data_source = quali_result.get("data_source", "Unknown")
+                blend_used = quali_result.get("blend_used", False)
+
+                if blend_used:
+                    st.success(f"✅ Using {data_source} (70% practice data + 30% model)")
+                else:
+                    st.info(f"ℹ️ {data_source}")
 
                 df_quali = pd.DataFrame(quali_result["grid"])
                 df_quali["position"] = df_quali["position"].astype(int)

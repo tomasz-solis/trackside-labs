@@ -16,17 +16,7 @@ logger = logging.getLogger(__name__)
 
 def extract_fp_order_from_laps(year, race_name, session_type):
     """
-    Extract team order from FP session using lap times.
-
-    FP sessions don't have Position data - we need fastest laps!
-
-    Args:
-        year: Season year
-        race_name: Race name
-        session_type: 'FP1', 'FP2', 'FP3'
-
-    Returns:
-        Dict mapping team -> rank (1 = fastest)
+    Extract team order from FP session using lap times (FP sessions lack position data).
     """
     # Try multiple session name variations
     variations = {
@@ -102,17 +92,7 @@ def extract_fp_order_from_laps(year, race_name, session_type):
 
 def extract_quali_order_from_positions(year, race_name, session_type):
     """
-    Extract team order from Qualifying/Sprint Quali using positions.
-
-    Quali sessions HAVE position data in results.
-
-    Args:
-        year: Season year
-        race_name: Race name
-        session_type: 'Q', 'Sprint Qualifying', etc.
-
-    Returns:
-        Dict mapping team -> rank (1 = best)
+    Extract team order from Qualifying/Sprint Quali using position data.
     """
     # Try multiple session name variations
     variations = {
@@ -177,19 +157,7 @@ def extract_quali_order_from_positions(year, race_name, session_type):
 
 def extract_session_order_robust(year, race_name, session_type):
     """
-    Extract team finishing order from any session.
-
-    Automatically detects session type and uses appropriate method:
-    - FP sessions: Use lap times
-    - Quali/Race sessions: Use positions
-
-    Args:
-        year: Season year
-        race_name: Race name
-        session_type: 'FP1', 'FP2', 'FP3', 'Sprint Qualifying', 'Q'
-
-    Returns:
-        Dict mapping team -> rank (1-10), or None if failed
+    Extract team order from any session, auto-detecting FP (lap times) vs Quali (positions).
     """
     # Determine extraction method based on session type
     fp_sessions = ["FP1", "FP2", "FP3"]
@@ -233,19 +201,7 @@ def test_session_as_predictor_fixed(
     actual_driver_results=None,
 ):
     """
-    Test how well a session predicts qualifying.
-
-    Args:
-        year: Season year
-        race_name: Race name
-        predictor_session: Session to use ('FP1', 'FP2', 'FP3', 'Sprint Qualifying')
-        target_session: Session to predict (default 'Q')
-        driver_ranker: DriverRanker instance
-        lineups: Team lineups
-        actual_driver_results: Actual driver results from quali
-
-    Returns:
-        Dict with results
+    Test prediction accuracy of a session against qualifying/race results.
     """
     # Get predictor session order
     predictor_order = extract_session_order_robust(year, race_name, predictor_session)

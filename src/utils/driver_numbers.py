@@ -83,20 +83,7 @@ DRIVER_ABBREVIATIONS = {
 
 def get_driver_number(driver_name: str, use_champion_number: bool = False) -> Optional[int]:
     """
-    Get driver's permanent race number.
-
-    Args:
-        driver_name: Full driver name (e.g., 'Lando Norris')
-        use_champion_number: If True and driver is defending champion, return 1
-
-    Returns:
-        Driver number, or None if unknown
-
-    Example:
-        >>> get_driver_number('Lando Norris')
-        4
-        >>> get_driver_number('Lando Norris', use_champion_number=True)
-        1  # If Norris won 2025 championship
+    Get driver's permanent race number. Defending champion can use #1.
     """
     number = DRIVER_NUMBERS.get(driver_name)
 
@@ -110,17 +97,7 @@ def get_driver_number(driver_name: str, use_champion_number: bool = False) -> Op
 
 def get_driver_from_abbreviation(abbr: str) -> Optional[str]:
     """
-    Convert 3-letter abbreviation to full name.
-
-    Args:
-        abbr: 3-letter driver code (e.g., 'NOR')
-
-    Returns:
-        Full driver name, or None if unknown
-
-    Example:
-        >>> get_driver_from_abbreviation('NOR')
-        'Lando Norris'
+    Convert 3-letter abbreviation to full driver name.
     """
     return DRIVER_ABBREVIATIONS.get(abbr.upper())
 
@@ -128,26 +105,13 @@ def get_driver_from_abbreviation(abbr: str) -> Optional[str]:
 def get_all_drivers_2026() -> list[str]:
     """
     Get list of all 2026 drivers.
-
-    Returns:
-        List of driver names
     """
     return list(DRIVER_NUMBERS.keys())
 
 
 def get_team_drivers_2026(team: str) -> list[str]:
     """
-    Get driver lineup for a team.
-
-    Args:
-        team: Team name (canonical format, e.g., 'MCLAREN')
-
-    Returns:
-        List of driver names for that team
-
-    Example:
-        >>> get_team_drivers_2026('MCLAREN')
-        ['Lando Norris', 'Oscar Piastri']
+    Get driver lineup for a 2026 team.
     """
     lineups = {
         "MCLAREN": ["Lando Norris", "Oscar Piastri"],

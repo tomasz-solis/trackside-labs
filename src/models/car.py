@@ -36,12 +36,7 @@ class Car:
         self.development_rate = 0.01  # Base improvement per race
 
     def update_from_testing(self, testing_data: Dict[str, float]):
-        """
-        Update car characteristics from extracted testing metrics.
-
-        Args:
-            testing_data: Dict with keys like 'slow_corner_pct', 'top_speed', etc.
-        """
+        """Update car characteristics from extracted testing metrics."""
         if not testing_data:
             return
 

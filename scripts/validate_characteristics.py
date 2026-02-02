@@ -58,11 +58,7 @@ TEAM_VALIDATION_RULES = {
 
 
 def validate_driver_characteristics(driver_file: Path) -> Tuple[bool, List[str]]:
-    """
-    Validate driver characteristics file.
-
-    Returns: (is_valid, list_of_errors)
-    """
+    """Validate driver characteristics file, returning validation status and errors."""
     errors = []
 
     try:
@@ -133,11 +129,7 @@ def validate_driver_characteristics(driver_file: Path) -> Tuple[bool, List[str]]
 
 
 def validate_team_characteristics(team_file: Path) -> Tuple[bool, List[str]]:
-    """
-    Validate team/car characteristics file.
-
-    Returns: (is_valid, list_of_errors)
-    """
+    """Validate team/car characteristics file, returning validation status and errors."""
     errors = []
 
     try:
@@ -184,11 +176,7 @@ def validate_team_characteristics(team_file: Path) -> Tuple[bool, List[str]]:
 
 
 def validate_track_characteristics(track_file: Path) -> Tuple[bool, List[str]]:
-    """
-    Validate track characteristics file.
-
-    Returns: (is_valid, list_of_errors)
-    """
+    """Validate track characteristics file, returning validation status and errors."""
     errors = []
 
     try:

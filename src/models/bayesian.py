@@ -87,14 +87,7 @@ class BayesianDriverRanking:
     def update(
         self, observations: Dict[str, int], session_name: str, confidence: float = 1.0
     ) -> None:
-        """
-        Update beliefs based on new race results.
-
-        Args:
-            observations: Dict mapping driver_number -> finished_position
-            session_name: Label for the event (e.g., 'R01_Bahrain_Race')
-            confidence: Trust level (0.0 to 1.0). Race=1.0, FP1=0.2.
-        """
+        """Update driver ratings based on observed race results with specified confidence."""
         # Load config for volatility and other parameters
         try:
             from src.utils.config_loader import get

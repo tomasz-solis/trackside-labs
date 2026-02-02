@@ -15,17 +15,7 @@ import csv
 
 
 def load_driver_debuts_from_csv(csv_path: Path) -> Dict[str, int]:
-    """
-    Load driver debuts from CSV file and update DRIVER_DEBUTS.
-
-    CSV format: Driver,First F1 season,Notes
-
-    Args:
-        csv_path: Path to CSV file
-
-    Returns:
-        Updated debuts dictionary
-    """
+    """Load driver debuts from CSV file, returning updated debuts dictionary."""
     name_to_abbr = {
         "Fernando Alonso": "ALO",
         "Lewis Hamilton": "HAM",
@@ -73,15 +63,7 @@ def load_driver_debuts_from_csv(csv_path: Path) -> Dict[str, int]:
 
 
 def detect_first_season(driver_data: Dict) -> int:
-    """
-    Detect driver's first F1 season from their by_year data.
-
-    Args:
-        driver_data: Driver characteristics dict with 'by_year' field
-
-    Returns:
-        First season year (e.g., 2025)
-    """
+    """Detect driver's first F1 season from their by_year data."""
     if "by_year" not in driver_data:
         return None
 
@@ -95,22 +77,7 @@ def calculate_experience(
     current_year: int = 2025,
     driver_debuts: Dict[str, int] = None,
 ) -> int:
-    """
-    Calculate years of F1 experience using debut year.
-
-    Priority:
-    1. Use driver_debuts dict if provided
-    2. Auto-detect from driver_data (first year in data)
-
-    Args:
-        driver_abbr: Driver abbreviation (e.g., 'VER', 'HAM')
-        driver_data: Driver characteristics dict (for auto-detection)
-        current_year: Year to calculate experience relative to
-        driver_debuts: Optional dict mapping driver abbr -> debut year
-
-    Returns:
-        Years of complete experience (0 for rookies in their first season)
-    """
+    """Calculate years of F1 experience using debut year from provided dict or auto-detection."""
     debut_year = None
 
     # Try to get from debuts dict first
@@ -128,15 +95,7 @@ def calculate_experience(
 
 
 def assign_experience_tier(years_experience: int) -> str:
-    """
-    Assign experience tier based on years in F1.
-
-    Args:
-        years_experience: Years of F1 experience
-
-    Returns:
-        One of: 'rookie', 'developing', 'established', 'veteran'
-    """
+    """Assign experience tier (rookie/developing/established/veteran) based on years in F1."""
     if years_experience is None:
         return "unknown"
 
@@ -151,38 +110,14 @@ def assign_experience_tier(years_experience: int) -> str:
 
 
 def calculate_pace_delta(quali_ratio: float, race_ratio: float) -> float:
-    """
-    Calculate pace delta: quali_ratio - race_ratio
-
-    Positive delta: Better at quali than race (typical rookie pattern)
-    Zero delta: Equally strong
-    Negative delta: Better at race than quali (unusual, often exceptional or data issue)
-
-    Args:
-        quali_ratio: Average quali time ratio vs teammate
-        race_ratio: Average race pace ratio vs teammate
-
-    Returns:
-        Pace delta
-    """
+    """Calculate pace delta between qualifying and race pace relative to teammates."""
     return quali_ratio - race_ratio
 
 
 def determine_confidence_flag(
     driver_data: Dict, experience_tier: str, pace_delta: float, min_sessions: int = 10
 ) -> str:
-    """
-    Determine confidence flag for driver data.
-
-    Args:
-        driver_data: Driver characteristics
-        experience_tier: rookie/developing/established/veteran
-        pace_delta: Difference between quali and race pace
-        min_sessions: Minimum sessions for high confidence
-
-    Returns:
-        One of: 'high', 'gathering_info', 'low'
-    """
+    """Determine confidence flag (high/gathering_info/low) based on data quality and patterns."""
     sessions = driver_data.get("sessions", 0)
 
     # Low confidence: insufficient data
@@ -209,18 +144,7 @@ def determine_confidence_flag(
 def enrich_driver_characteristics(
     quali_data: Dict, race_data: Dict, current_year: int = 2025, debuts_csv_path: str = None
 ) -> Dict:
-    """
-    Add experience and confidence metadata to driver characteristics.
-
-    Args:
-        quali_data: Qualifying characteristics
-        race_data: Race characteristics
-        current_year: Year for experience calculation
-        debuts_csv_path: Optional path to driver debuts CSV file
-
-    Returns:
-        Enriched driver data with experience tiers and confidence flags
-    """
+    """Add experience metadata and confidence flags to driver characteristics data."""
     # Load debuts from CSV if provided
     driver_debuts = {}
     if debuts_csv_path and Path(debuts_csv_path).exists():
@@ -284,15 +208,7 @@ def enrich_driver_characteristics(
 
 
 def analyze_experience_distribution(enriched_data: Dict) -> Dict:
-    """
-    Analyze distribution of drivers across experience tiers.
-
-    Args:
-        enriched_data: Output from enrich_driver_characteristics
-
-    Returns:
-        Summary statistics by tier
-    """
+    """Analyze distribution of drivers across experience tiers with summary statistics."""
     tiers = {"rookie": [], "developing": [], "established": [], "veteran": []}
 
     for driver_abbr, driver in enriched_data["drivers"].items():

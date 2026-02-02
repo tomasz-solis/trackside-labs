@@ -16,11 +16,7 @@ from typing import Dict, Tuple, Optional, List
 
 def calculate_overtaking_difficulty(track_chars: Dict) -> float:
     """
-    Calculate how hard it is to overtake at this track.
-
-    Returns:
-        0.0 = Very easy (Monza)
-        1.0 = Nearly impossible (Monaco)
+    Calculate overtaking difficulty (0 = very easy, 1 = nearly impossible).
     """
     # Street circuits are hardest
     street_factor = track_chars.get("is_street_circuit_z", 0) * 0.4
@@ -38,15 +34,7 @@ def calculate_overtaking_difficulty(track_chars: Dict) -> float:
 
 def get_prediction_context(current_session: str, weekend_type: str = "normal") -> Dict:
     """
-    What data is available and what are we predicting?
-
-    Args:
-        current_session: Session just completed ('fp1', 'fp2', 'fp3', 'sprint_qualifying',
-                        'sprint', 'quali', 'race')
-        weekend_type: 'normal' or 'sprint'
-
-    Returns:
-        Dict with prediction context
+    Get available data and next prediction target for current session.
     """
     contexts = {
         "normal": {
@@ -120,19 +108,7 @@ def get_prediction_context(current_session: str, weekend_type: str = "normal") -
 
 def map_session_name_to_key(session_name: str, team_sessions: Dict) -> Optional[str]:
     """
-    Map generic session name to actual key in team_sessions.
-
-    Args:
-        session_name: Generic name like 'fp1', 'fp2', 'sprint_qualifying'
-        team_sessions: Dict with actual session keys
-
-    Returns:
-        Actual key or None if not found
-
-    Example:
-        >>> team_sessions = {'bahrain_grand_prix_fp1': {...}}
-        >>> map_session_name_to_key('fp1', team_sessions)
-        'bahrain_grand_prix_fp1'
+    Map generic session name to actual key in team_sessions dict.
     """
     # Try exact match first
     if session_name in team_sessions:
@@ -155,17 +131,7 @@ def select_best_session(
     prediction_target: str = "qualifying",
 ) -> Tuple[Optional[Dict], float, str]:
     """
-    Select the best session data for prediction.
-
-    Args:
-        team_sessions: Dict of session_name → session data
-        track_chars: Track characteristics
-        current_session: Session just completed
-        weekend_type: 'normal' or 'sprint'
-        prediction_target: 'qualifying' or 'race'
-
-    Returns:
-        (session_data, confidence, reasoning)
+    Select best session data for prediction. Returns (session_data, confidence, reasoning).
     """
     # Get prediction context
     context = get_prediction_context(current_session, weekend_type)
@@ -239,9 +205,7 @@ def select_best_session(
 
 def get_prediction_workflow(weekend_type: str = "normal") -> List[Dict]:
     """
-    Get the complete prediction workflow for a weekend.
-
-    Returns list of prediction points with context.
+    Get complete prediction workflow for a weekend with context at each stage.
     """
     if weekend_type == "normal":
         return [

@@ -164,17 +164,7 @@ def validate_json(data: Dict[str, Any], schema: Dict[str, Any], filename: str) -
     """
     Validate JSON data against schema using jsonschema library.
 
-    Args:
-        data: Dictionary containing JSON data to validate
-        schema: JSON schema dictionary
-        filename: Name of file being validated (for logging)
-
-    Raises:
-        ValueError: If validation fails or jsonschema not available
-
-    Examples:
-        >>> data = {"drivers": {"VER": {"racecraft": {...}, ...}}}
-        >>> validate_json(data, DRIVER_CHARACTERISTICS_SCHEMA, "driver_characteristics.json")
+    Raises ValueError if validation fails.
     """
     if validate is None:
         logger.warning(
@@ -200,12 +190,6 @@ def validate_json(data: Dict[str, Any], schema: Dict[str, Any], filename: str) -
 def validate_driver_characteristics(data: Dict[str, Any]) -> None:
     """
     Validate driver characteristics JSON.
-
-    Args:
-        data: Driver characteristics dictionary
-
-    Raises:
-        ValueError: If validation fails
     """
     validate_json(data, DRIVER_CHARACTERISTICS_SCHEMA, "driver_characteristics.json")
 
@@ -213,12 +197,6 @@ def validate_driver_characteristics(data: Dict[str, Any]) -> None:
 def validate_team_characteristics(data: Dict[str, Any]) -> None:
     """
     Validate team characteristics JSON.
-
-    Args:
-        data: Team characteristics dictionary
-
-    Raises:
-        ValueError: If validation fails
     """
     validate_json(data, TEAM_CHARACTERISTICS_SCHEMA, "team_characteristics.json")
 
@@ -226,11 +204,5 @@ def validate_team_characteristics(data: Dict[str, Any]) -> None:
 def validate_track_characteristics(data: Dict[str, Any]) -> None:
     """
     Validate track characteristics JSON.
-
-    Args:
-        data: Track characteristics dictionary
-
-    Raises:
-        ValueError: If validation fails
     """
     validate_json(data, TRACK_CHARACTERISTICS_SCHEMA, "track_characteristics.json")

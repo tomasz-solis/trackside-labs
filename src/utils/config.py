@@ -34,20 +34,7 @@ class ProductionConfig:
             self.config = json.load(f)
 
     def get_qualifying_strategy(self, weekend_type: Literal["sprint", "conventional"]) -> Dict:
-        """
-        Get best qualifying prediction strategy.
-
-        Args:
-            weekend_type: 'sprint' or 'conventional'
-
-        Returns:
-            {
-                'method': str,
-                'session': str (optional),
-                'blend_weight': float (optional),
-                'expected_mae': float
-            }
-        """
+        """Get best qualifying prediction strategy for the given weekend type."""
         quali_config = self.config["qualifying_methods"]
 
         if weekend_type == "sprint":
@@ -61,17 +48,7 @@ class ProductionConfig:
         method: str = None,
         weekend_type: str = None,
     ) -> float:
-        """
-        Get expected MAE from config.
-
-        Args:
-            prediction_type: 'qualifying' or 'race'
-            method: Specific method (optional)
-            weekend_type: 'sprint' or 'conventional' (optional)
-
-        Returns:
-            Expected MAE
-        """
+        """Get expected MAE from config for the given prediction type."""
         if prediction_type == "qualifying":
             if weekend_type:
                 strategy = self.get_qualifying_strategy(weekend_type)
@@ -135,17 +112,7 @@ def load_production_config(config_path="config/production_config.json") -> Produ
 
 
 def get_best_method(weekend_type: Literal["sprint", "conventional"]) -> Dict:
-    """
-    Get best method for weekend type.
-
-    Quick helper that loads config and returns strategy.
-
-    Args:
-        weekend_type: 'sprint' or 'conventional'
-
-    Returns:
-        Strategy dict with method, expected_mae, etc.
-    """
+    """Get best method for the given weekend type."""
     config = load_production_config()
     return config.get_qualifying_strategy(weekend_type)
 

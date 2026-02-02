@@ -41,7 +41,10 @@ htmlcov/
 .hypothesis/
 
 # Archive & Backups
-archive/
+# NOTE: archive/ contains dead code moved for reference (circuit.py, legacy predictors)
+# Keep gitignore to prevent accidental commits, but files exist locally
+archive/utils/
+archive/predictors/
 src_backup/
 *.backup
 
@@ -52,3 +55,6 @@ notebooks/dirty_exploration/
 *.tmp
 *.log
 changes.txt
+htmlcov/
+*.ipynb_checkpoints/
+archive/

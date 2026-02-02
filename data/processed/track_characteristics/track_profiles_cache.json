@@ -1,0 +1,186 @@
+{
+  "Bahrain Grand Prix": {
+    "straights_pct": 32.211247570773146,
+    "slow_corners_pct": 8.91671508424659,
+    "medium_corners_pct": 32.47470598841985,
+    "high_corners_pct": 26.397331356560414,
+    "full_throttle_pct": 27.522088433874945,
+    "braking_zones": 8.0
+  },
+  "Saudi Arabian Grand Prix": {
+    "straights_pct": 49.86014067630445,
+    "slow_corners_pct": 2.440438212912964,
+    "medium_corners_pct": 22.524353807130296,
+    "high_corners_pct": 25.17506730365229,
+    "full_throttle_pct": 14.315642458100559,
+    "braking_zones": 8.5
+  },
+  "Australian Grand Prix": {
+    "straights_pct": 46.817574694305904,
+    "slow_corners_pct": 2.5395003948714416,
+    "medium_corners_pct": 25.356709369318757,
+    "high_corners_pct": 25.286215541503903,
+    "full_throttle_pct": 27.732960899776856,
+    "braking_zones": 8.5
+  },
+  "Japanese Grand Prix": {
+    "straights_pct": 41.84445354072861,
+    "slow_corners_pct": 6.865943512075318,
+    "medium_corners_pct": 24.68276708964388,
+    "high_corners_pct": 26.60683585755219,
+    "full_throttle_pct": 55.64961113385182,
+    "braking_zones": 9.5
+  },
+  "Chinese Grand Prix": {
+    "straights_pct": 33.86434535278466,
+    "slow_corners_pct": 13.27835887084442,
+    "medium_corners_pct": 36.54043184390005,
+    "high_corners_pct": 16.316863932470866,
+    "full_throttle_pct": 10.650441936569106,
+    "braking_zones": 8.0
+  },
+  "Miami Grand Prix": {
+    "straights_pct": 42.95107046598749,
+    "slow_corners_pct": 11.932347905683724,
+    "medium_corners_pct": 28.45274015561168,
+    "high_corners_pct": 16.663841472717102,
+    "full_throttle_pct": 25.512137033207328,
+    "braking_zones": 8.0
+  },
+  "Monaco Grand Prix": {
+    "straights_pct": 13.45565749235474,
+    "slow_corners_pct": 26.471418489767117,
+    "medium_corners_pct": 42.52881674900024,
+    "high_corners_pct": 17.544107268877912,
+    "full_throttle_pct": 18.147102642515485,
+    "braking_zones": 13.5
+  },
+  "Canadian Grand Prix": {
+    "straights_pct": 35.251537068296344,
+    "slow_corners_pct": 9.110286960485947,
+    "medium_corners_pct": 36.14420719310999,
+    "high_corners_pct": 19.49396877810771,
+    "full_throttle_pct": 56.1895491677037,
+    "braking_zones": 7.0
+  },
+  "Spanish Grand Prix": {
+    "straights_pct": 38.148150294376705,
+    "slow_corners_pct": 0.5067567567567568,
+    "medium_corners_pct": 37.35541931296648,
+    "high_corners_pct": 23.989673635900054,
+    "full_throttle_pct": 26.182432432432435,
+    "braking_zones": 6.0
+  },
+  "Austrian Grand Prix": {
+    "straights_pct": 42.40593534711182,
+    "slow_corners_pct": 5.057157998334469,
+    "medium_corners_pct": 24.230070406540996,
+    "high_corners_pct": 28.30683624801272,
+    "full_throttle_pct": 0.0,
+    "braking_zones": 7.0
+  },
+  "British Grand Prix": {
+    "straights_pct": 55.111111111111114,
+    "slow_corners_pct": 2.740740740740741,
+    "medium_corners_pct": 26.0,
+    "high_corners_pct": 16.14814814814815,
+    "full_throttle_pct": 30.740740740740744,
+    "braking_zones": 9.5
+  },
+  "Belgian Grand Prix": {
+    "straights_pct": 52.673184324560474,
+    "slow_corners_pct": 6.16638919391213,
+    "medium_corners_pct": 23.88627159269361,
+    "high_corners_pct": 17.274154888833788,
+    "full_throttle_pct": 64.8282620759685,
+    "braking_zones": 7.5
+  },
+  "Hungarian Grand Prix": {
+    "straights_pct": 22.06362738332048,
+    "slow_corners_pct": 3.112356053532524,
+    "medium_corners_pct": 48.41919376446231,
+    "high_corners_pct": 26.40482279868469,
+    "full_throttle_pct": 47.005101557531226,
+    "braking_zones": 11.0
+  },
+  "Dutch Grand Prix": {
+    "straights_pct": 33.52753138292354,
+    "slow_corners_pct": 1.973590362070754,
+    "medium_corners_pct": 39.67929764498392,
+    "high_corners_pct": 24.819580610021784,
+    "full_throttle_pct": 35.0837094096898,
+    "braking_zones": 10.0
+  },
+  "Italian Grand Prix": {
+    "straights_pct": 58.088851856962414,
+    "slow_corners_pct": 4.798435460074511,
+    "medium_corners_pct": 14.465625762898963,
+    "high_corners_pct": 22.647086920064112,
+    "full_throttle_pct": 10.42770106036322,
+    "braking_zones": 6.5
+  },
+  "Azerbaijan Grand Prix": {
+    "straights_pct": 33.74583156395973,
+    "slow_corners_pct": 8.944105487972422,
+    "medium_corners_pct": 40.882287737616466,
+    "high_corners_pct": 16.42777521045138,
+    "full_throttle_pct": 52.64602015836935,
+    "braking_zones": 12.0
+  },
+  "Singapore Grand Prix": {
+    "straights_pct": 21.341960464642348,
+    "slow_corners_pct": 8.866758441709678,
+    "medium_corners_pct": 46.647438270192936,
+    "high_corners_pct": 23.14384282345504,
+    "full_throttle_pct": 34.875313483861035,
+    "braking_zones": 12.0
+  },
+  "United States Grand Prix": {
+    "straights_pct": 30.619276301094484,
+    "slow_corners_pct": 10.71104162013253,
+    "medium_corners_pct": 34.38500483955029,
+    "high_corners_pct": 24.284677239222695,
+    "full_throttle_pct": 48.565445610900156,
+    "braking_zones": 12.5
+  },
+  "Mexico City Grand Prix": {
+    "straights_pct": 30.180070038166868,
+    "slow_corners_pct": 14.245122341950388,
+    "medium_corners_pct": 39.060471155629756,
+    "high_corners_pct": 16.51433646425299,
+    "full_throttle_pct": 39.39576623216022,
+    "braking_zones": 10.0
+  },
+  "S\u00e3o Paulo Grand Prix": {
+    "straights_pct": 32.60604453870626,
+    "slow_corners_pct": 9.655797101449275,
+    "medium_corners_pct": 39.95095440084835,
+    "high_corners_pct": 17.787203958996113,
+    "full_throttle_pct": 42.85613290915518,
+    "braking_zones": 7.5
+  },
+  "Las Vegas Grand Prix": {
+    "straights_pct": 53.035931221381176,
+    "slow_corners_pct": 4.785183627698346,
+    "medium_corners_pct": 28.93830015886366,
+    "high_corners_pct": 13.240584992056817,
+    "full_throttle_pct": 33.11781609195402,
+    "braking_zones": 7.5
+  },
+  "Qatar Grand Prix": {
+    "straights_pct": 45.09172122204038,
+    "slow_corners_pct": 1.297394980905619,
+    "medium_corners_pct": 23.961743044189852,
+    "high_corners_pct": 29.649140752864156,
+    "full_throttle_pct": 58.976063829787236,
+    "braking_zones": 8.0
+  },
+  "Abu Dhabi Grand Prix": {
+    "straights_pct": 43.93351685018352,
+    "slow_corners_pct": 5.005005005005005,
+    "medium_corners_pct": 32.35527193860527,
+    "high_corners_pct": 18.706206206206204,
+    "full_throttle_pct": 31.742158825492158,
+    "braking_zones": 7.0
+  }
+}

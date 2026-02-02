@@ -1,237 +1,146 @@
-# Formula 1 2026 Predictive Engine
+# Formula 1 2026 Prediction Engine
+
+Physics-based F1 prediction system optimized for regulation change years.
 
 ## Why 2026?
 
-Major regulation changes coming:
-- New power units (50/50 electric/ICE vs current 80/20)
-- Active aero (adjustable front/rear wings)
-- 30kg lighter (720kg → 690kg)
-- New team: Cadillac joins (11 teams, 22 drivers)
-- New Pirelli tire compounds
+Major regulation changes:
+- New power units (50/50 electric/ICE)
+- Active aero
+- 30kg lighter cars
+- New team: Cadillac (11 teams total)
 
-**Timeline:**
-- 2025 season: Complete (NOR wins WDC)
-- February 2026: Pre-season testing begins
-- March 2026: Season opener in Bahrain
+When regulations reset, historical performance matters less. This system adapts quickly using validated weight schedules.
 
-When regulations reset, historical performance matters less. Practice data and testing become critical. This model adapts to both scenarios.
-
----
-
-## Logic
-
-**A physics-first simulation engine for F1 strategy and results.**
-
-Most F1 models are just black-box machine learning that overreacts to recent results. This project is different. It is built on a specific belief: **Drivers are car-limited, not skill-limited.**
-
-This system simulates the physics of a race weekend—tire degradation, pit loss, weather chaos, and lap 1 variance—layered with a Bayesian model that separates the car's ceiling from the driver's ability to reach it.
-
-It also self-corrects. After every race, it looks back, calculates where it was wrong, and adjusts how much it trusts "Practice Data" vs. "Historical Baselines" for the next round.
-
----
-
-## How it Works
-
-The system is split into three logical parts:
-
-1. **Factory** (Extraction)
-   Pulls raw telemetry to understand the physics. It doesn't just look at finishing positions; it calculates tire deg slopes, cornering speeds, and % gap to teammates to isolate driver skill.
-
-2. **Engine** (Simulation)
-   A Python implementation of a race. It simulates:
-   * **Lap 1 Chaos:** Rookies are more likely to lose positions or crash.
-   * **Tire Physics:** Uses degradation slopes to calculate a cumulative pace penalty. The model simulates how high-wear characteristics destroy a driver's net race time, regardless of the specific pit strategy chosen.
-   * **Weather:** Rain acts as a "skill multiplier," punishing low-consistency drivers.
-
-3. **Brain** (Learning)
-   Tracks its own performance. If the model consistently underestimates a team, it re-weights the priors automatically.
-
----
-
-## Getting Started
-
-### Quick Start
-
-**For 2026 Pre-Season Predictions (No Race Data Yet):**
+## Quick Start
 
 ```bash
-# 1. Clone and setup
-git clone https://github.com/tomasz-solis/formula1-2026.git
-cd formula1-2026
-python -m venv venv
-source venv/bin/activate
+# Install dependencies
 pip install -r requirements.txt
 
-# 2. Extract driver/team/track characteristics (FIXED methodology)
-# WARNING: Use the FIXED scripts, not the old broken ones!
-python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025
-python scripts/calculate_team_performance.py --year 2025
-python scripts/generate_2026_baseline.py --skip-tracks  # Uses 2025 standings
-
-# 3. Validate the extracted data (catches obviously wrong values)
-python scripts/validate_characteristics.py
-
-# 4. Run the dashboard
+# Run dashboard
 streamlit run app.py
+
+# After each race
+python scripts/update_from_race.py "Bahrain Grand Prix" --year 2026
 ```
 
-The dashboard loads all 24 2026 races dynamically and provides Monte Carlo predictions based on 2025 team standings and driver skill.
+## How It Works
 
-### CLI Tool (For Live Race Weekends)
+**3 Signals, Dynamic Blending**:
+1. **Baseline**: 2025 constructor standings (decreases over season)
+2. **Testing**: Pre-season testing directionality (decreases over season)
+3. **Current**: Running average of 2026 races (increases over season)
 
-Once 2026 races start, use the CLI for session-by-session predictions:
+**Weight Schedule** (validated on 2021→2022 regulation change):
+- Race 1: 30% baseline | 20% testing | 50% current
+- Race 2: 15% baseline | 10% testing | 75% current
+- Race 3+: 5% baseline | 0% testing | 95% current
 
-```bash
-# Predict from latest available data (FP1, FP2, FP3, or Qualifying)
-python predict_weekend.py "Bahrain Grand Prix"
-```
+**Result**: 0.809 correlation on historical regulation change (vs 0.512 for conservative approach).
 
-### Post-Race Learning
+## Key Features
 
-After each race, update the model with actual results:
-
-```bash
-python -m scripts.post_race_analysis "Bahrain Grand Prix"
-```
-
-## Two Prediction Modes
-
-This project uses different predictors depending on data availability:
-
-**1. Baseline Predictor (2026 Pre-Season)**
-- Used when no 2026 race data exists
-- Based on 2025 team standings + driver skill ratings
-- Lower confidence (40-60%) acknowledging regulation uncertainty
-- Monte Carlo simulation (50 runs) for stability
-
-**2. Bayesian Predictor (After First Races)**
-- Activates after 2026 testing/races begin
-- Uses practice session telemetry + historical rankings
-- Higher confidence as more data accumulates
-- Adaptive learning from prediction errors
+- **Physics-based simulation**: Tire deg, lap 1 chaos, DNF probability, weather effects
+- **Track-car suitability**: Continuous parameters (straights %, corners %, braking zones)
+- **Monte Carlo uncertainty**: 50 simulations per prediction
+- **Self-correcting**: Updates after each race, trusts current data quickly
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     USER INTERFACES                         │
-│  ┌──────────────────┐         ┌─────────────────────────┐   │
-│  │  app.py          │         │  predict_weekend.py     │   │
-│  │  (Streamlit)     │         │  (CLI)                  │   │
-│  └────────┬─────────┘         └────────────┬────────────┘   │
-└───────────┼────────────────────────────────┼────────────────┘
-            │                                │
-            ▼                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   PREDICTION LAYER                          │
-│  ┌──────────────────────┐     ┌──────────────────────────┐  │
-│  │ Baseline2026         │     │ Bayesian Predictors      │  │
-│  │ (Pre-season)         │     │ (Post-testing)           │  │
-│  │ • Team strength 70%  │     │ • Practice telemetry     │  │
-│  │ • Driver skill 30%   │     │ • Historical rankings    │  │
-│  │ • Monte Carlo (50x)  │     │ • Adaptive learning      │  │
-│  └──────────┬───────────┘     └──────────┬───────────────┘  │
-└─────────────┼────────────────────────────┼──────────────────┘
-              │                            │
-              ▼                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    PHYSICS ENGINE                           │
-│  ┌────────────┐  ┌───────────┐  ┌────────────────────────┐  │
-│  │ Tire Model │  │ Weather   │  │ DNF Risk               │  │
-│  │ • Deg      │  │ • Skill   │  │ • Team reliability     │  │
-│  │   slopes   │  │   mult.   │  │ • Driver errors        │  │
-│  └────────────┘  └───────────┘  └────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       DATA LAYER                            │
-│  ┌─────────────┐   ┌──────────────┐   ┌──────────────────┐  │
-│  │ FastF1      │   │ Static Data  │   │ Learning System  │  │
-│  │ • Telemetry │   │ • Teams 2026 │   │ • Performance    │  │
-│  │ • Sessions  │   │ • Drivers    │   │   tracking       │  │
-│  │ • Results   │   │ • Tracks     │   │ • Weight tuning  │  │
-│  └─────────────┘   └──────────────┘   └──────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+Streamlit Dashboard (app.py)
+    ↓
+Baseline2026Predictor (src/predictors/baseline_2026.py)
+    ↓
+Weight Schedule System (src/systems/weight_schedule.py)
+    ↓
+Track-Car Suitability Calculation
+    ↓
+Monte Carlo Simulation (50 runs)
+    ↓
+Predictions (Qualifying + Race)
 ```
 
-**Data Flow:**
-1. **Input**: Race selection + weather + session data
-2. **Prediction**: Baseline (pre-season) or Bayesian (post-testing) predictor
-3. **Simulation**: Physics engine models tire deg, weather, DNF risk
-4. **Output**: Qualifying grid + race results with confidence scores
-5. **Learning**: Post-race analysis updates model weights
+## Data Files
 
----
+- **[data/processed/car_characteristics/2026_car_characteristics.json](data/processed/car_characteristics/2026_car_characteristics.json)**: Team performance (baseline + directionality + current season)
+- **[data/processed/track_characteristics/2026_track_characteristics.json](data/processed/track_characteristics/2026_track_characteristics.json)**: Track telemetry profiles
+- **[data/processed/driver_characteristics.json](data/processed/driver_characteristics.json)**: Driver skills (racecraft, consistency, wet weather)
 
-## Dashboard Features
+## Documentation
 
-- **24 Race Calendar**: Dynamically loaded from FastF1
-- **Sprint Detection**: 6 sprint weekends marked with 🏃
-- **Monte Carlo Simulation**: 50 simulations per prediction for stability
-- **DNF Risk Analysis**: Team reliability + driver error rates
-- **Track Characteristics**: Circuit-specific safety car probability and overtaking difficulty
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: System design and data flow
+- **[CONFIGURATION.md](CONFIGURATION.md)**: Configuration guide
+- **[docs/WEIGHT_SCHEDULE_GUIDE.md](docs/WEIGHT_SCHEDULE_GUIDE.md)**: Weight schedule system
+- **[docs/FP_BLENDING_SYSTEM.md](docs/FP_BLENDING_SYSTEM.md)**: Practice data blending
+- **[docs/DASHBOARD_AUTO_UPDATE.md](docs/DASHBOARD_AUTO_UPDATE.md)**: Auto-update behavior
+
+## Validation
+
+**Notebooks**:
+- [validate_testing_predictions.ipynb](notebooks/validate_testing_predictions.ipynb): Regulation change analysis
+- [test_weight_schedules.ipynb](notebooks/test_weight_schedules.ipynb): Schedule optimization
+
+**Key Finding**: During regulation changes, pre-season testing is LESS predictive than usual (0.137 vs 0.422 correlation). Solution: Trust it less, adapt to actual results faster.
+
+## Tests
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test
+python tests/test_weight_schedule_integration.py
+```
 
 ## Project Structure
 
 ```
 formula1-2026/
-├── app.py                    # Streamlit dashboard (main entry point)
-├── predict_weekend.py        # CLI tool for live predictions
+├── app.py                          # Streamlit dashboard
+├── predict_weekend.py              # CLI prediction tool
 ├── src/
-│   ├── extractors/          # FastF1 telemetry extraction
-│   ├── models/              # Physics models (tires, weather, DNF)
-│   ├── predictors/          # Prediction engines
-│   │   ├── baseline_2026.py # Pre-season predictor
-│   │   ├── qualifying.py    # Bayesian qualifying predictor
-│   │   └── race.py          # Race simulation engine
-│   ├── systems/             # Meta-learning and adaptation
-│   └── utils/               # Helper functions
-├── scripts/                 # Utility scripts
-│   └── simulator.py         # Full season simulation
-├── tests/                   # pytest test suite
-├── notebooks/               # Jupyter analysis notebooks
-│   └── validation_report.ipynb  # 2025 backtesting results
+│   ├── predictors/
+│   │   └── baseline_2026.py        # Main prediction engine
+│   ├── systems/
+│   │   └── weight_schedule.py      # Weight schedule system
+│   ├── models/                     # Bayesian models
+│   ├── features/                   # Telemetry feature extraction
+│   └── utils/                      # Helpers and validators
+├── scripts/
+│   ├── update_from_race.py         # Post-race data update
+│   └── extract_*.py                # Data extraction scripts
 ├── data/
-│   ├── current_lineups.json # 2026 driver lineups
-│   └── processed/
-│       ├── car_characteristics/2026_car_characteristics.json
-│       ├── track_characteristics/2026_track_characteristics.json
-│       └── driver_characteristics.json
-└── config/
-    ├── default.yaml         # Model hyperparameters
-    └── production_config.json  # Session selection strategy
+│   ├── processed/                  # Ready-to-use data
+│   └── raw/                        # FastF1 cache
+├── tests/                          # Test suite
+├── notebooks/                      # Validation studies
+└── config/                         # Configuration files
 ```
 
-## ⚠️ Data Quality Notice
+## Development Philosophy
 
-**IMPORTANT**: The original `scripts/extract_driver_characteristics.py` had fundamental flaws that produced inverted ratings (pay drivers rated as elite, champions rated as average).
+1. **Physics-first**: Simulate the actual race, don't just fit curves to data
+2. **Transparent**: Explainable predictions, not black-box ML
+3. **Self-correcting**: Learn from mistakes, adjust weights automatically
+4. **Domain-driven**: Built by someone who understands F1 deeply
 
-**Use the FIXED scripts**:
-- ✅ `scripts/extract_driver_characteristics_fixed.py` - Correct racecraft/pace methodology
-- ✅ `scripts/calculate_team_performance.py` - Data-driven team ratings from lap times
-- ✅ `scripts/validate_characteristics.py` - Catches obviously wrong values
+## Status
 
-**What was wrong**:
-1. **Racecraft calculation rewarded position gains** without accounting for starting position difficulty or car performance
-2. **Single-season data** caused volatility (one bad/lucky season = permanent rating)
-3. **No validation** allowed nonsensical values (ALO 0.50, STR 0.90)
-
-**What's fixed**:
-1. Racecraft = finish position vs pace expectations (not vs grid)
-2. Multi-year averaging (2023-2025) for stability
-3. Validation with known driver/team ranges
-
-See [CHARACTERISTICS_REVIEW.md](CHARACTERISTICS_REVIEW.md) for full analysis.
-
----
+- Core system: ✅ Complete
+- Weight schedule: ✅ Integrated and validated
+- Dashboard: ✅ Working
+- Data update flow: ✅ Implemented
+- Testing directionality: ⏳ Awaiting 2026 pre-season testing (Feb 2026)
+- Season validation: ⏳ Pending 2026 races
 
 ## License
 
-MIT
+Private project for F1 Fantasy predictions.
 
-## Contact
+## Credits
 
-Tomasz Solis
-- [LinkedIn](https://linkedin.com/in/tomaszsolis)
-- [GitHub](https://github.com/tomasz-solis)
+- **FastF1**: Telemetry data source
+- **Validation**: Historical analysis of 2021→2022 regulation change
+- **Weight Schedule**: Optimized on 2022 season data (7 schedules tested)

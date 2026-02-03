@@ -20,8 +20,44 @@ pip install -r requirements.txt
 
 # Run dashboard
 streamlit run app.py
+```
 
-# After each race
+**That's it!** The dashboard automatically:
+- Detects completed 2026 races when you generate predictions
+- Updates team/driver characteristics from real results
+- Blends practice data (70% FP + 30% model) for fresh predictions
+- Shows progress: "🔄 Found 1 new race(s)! Updating..."
+
+### How the App Works
+
+```mermaid
+graph TD
+    A[User Opens Dashboard] --> B[Select Race + Weather]
+    B --> C[Click 'Generate Prediction']
+    C --> D{Check for<br/>Completed Races}
+    D -->|New Races Found| E[🔄 Auto-Update<br/>Extract Results<br/>Update Characteristics]
+    D -->|All Up-to-Date| F[Load Predictor]
+    E --> F
+    F --> G[Check for FP Data]
+    G -->|FP Available| H[Blend: 70% FP + 30% Model]
+    G -->|No FP Data| I[Use Model Only]
+    H --> J[Apply Weight Schedule<br/>Baseline→Testing→Current]
+    I --> J
+    J --> K[Calculate Track Suitability]
+    K --> L[Predict Qualifying]
+    L --> M[Predict Race<br/>50 Monte Carlo Sims]
+    M --> N[Display Results]
+
+    style E fill:#90EE90
+    style H fill:#87CEEB
+    style J fill:#FFB6C1
+```
+
+### Manual Update (Optional)
+
+If you want to update characteristics without opening the dashboard:
+
+```bash
 python scripts/update_from_race.py "Bahrain Grand Prix" --year 2026
 ```
 

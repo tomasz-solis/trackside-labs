@@ -42,8 +42,7 @@ def load_race_session(year: int, race_name: str) -> tuple[pd.DataFrame, fastf1.c
 
 
 def extract_team_performance_from_telemetry(
-    session: fastf1.core.Session,
-    team_names: list[str]
+    session: fastf1.core.Session, team_names: list[str]
 ) -> Dict[str, float]:
     """
     Extract team performance from race telemetry using median lap times.
@@ -57,7 +56,7 @@ def extract_team_performance_from_telemetry(
     """
     race_pace = {}
 
-    if not hasattr(session, 'laps') or session.laps is None or session.laps.empty:
+    if not hasattr(session, "laps") or session.laps is None or session.laps.empty:
         logger.warning("No lap data available")
         return {}
 
@@ -72,11 +71,11 @@ def extract_team_performance_from_telemetry(
 
         # Filter valid racing laps
         valid_laps = team_laps[
-            (team_laps["LapTime"].notna()) &
-            (team_laps["PitOutTime"].isna()) &
-            (team_laps["PitInTime"].isna()) &
-            (team_laps["LapNumber"] > 1) &
-            (team_laps["LapNumber"] < team_laps["LapNumber"].max())
+            (team_laps["LapTime"].notna())
+            & (team_laps["PitOutTime"].isna())
+            & (team_laps["PitInTime"].isna())
+            & (team_laps["LapNumber"] > 1)
+            & (team_laps["LapNumber"] < team_laps["LapNumber"].max())
         ]
 
         if len(valid_laps) < 5:
@@ -90,8 +89,8 @@ def extract_team_performance_from_telemetry(
         mean_time = lap_times_seconds.mean()
         std_time = lap_times_seconds.std()
         clean_times = lap_times_seconds[
-            (lap_times_seconds > mean_time - 3 * std_time) &
-            (lap_times_seconds < mean_time + 3 * std_time)
+            (lap_times_seconds > mean_time - 3 * std_time)
+            & (lap_times_seconds < mean_time + 3 * std_time)
         ]
 
         if len(clean_times) == 0:
@@ -120,9 +119,7 @@ def extract_team_performance_from_telemetry(
 
 
 def update_team_characteristics(
-    race_results: pd.DataFrame,
-    session: fastf1.core.Session,
-    characteristics_file: Path
+    race_results: pd.DataFrame, session: fastf1.core.Session, characteristics_file: Path
 ) -> None:
     """Update team performance ratings from race telemetry."""
     logger.info("Updating team characteristics from race telemetry...")
@@ -178,14 +175,22 @@ def update_team_characteristics(
 
     # Save with atomic write
     atomic_json_write(characteristics_file, char_data, create_backup=True)
-    logger.info(f"✓ Updated team characteristics (v{char_data['version']}) in {characteristics_file}")
+    logger.info(
+        f"✓ Updated team characteristics (v{char_data['version']}) in {characteristics_file}"
+    )
 
 
 def update_bayesian_driver_ratings(race_results: pd.DataFrame) -> None:
     """Update Bayesian driver skill ratings from race results."""
     logger.info("Updating Bayesian driver ratings...")
 
-    bayesian = BayesianDriverRanking()
+    # Create priors for drivers
+    from src.models.priors_factory import PriorsFactory
+
+    factory = PriorsFactory()
+    priors = factory.create_priors()
+
+    bayesian = BayesianDriverRanking(priors)
     drivers = race_results["Abbreviation"].tolist()
     positions = race_results["Position"].tolist()
 

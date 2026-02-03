@@ -25,19 +25,17 @@ def atomic_json_write(file_path: Path, data: Dict[str, Any], create_backup: bool
 
     # Create temp file in same directory (ensures same filesystem for atomic move)
     temp_fd, temp_path = tempfile.mkstemp(
-        suffix='.tmp',
-        prefix=f'.{file_path.name}.',
-        dir=file_path.parent
+        suffix=".tmp", prefix=f".{file_path.name}.", dir=file_path.parent
     )
 
     try:
         # Write to temp file
-        with open(temp_fd, 'w') as f:
+        with open(temp_fd, "w") as f:
             json.dump(data, f, indent=2)
 
         # Create backup of original
         if create_backup and file_path.exists():
-            backup_path = file_path.with_suffix(file_path.suffix + '.backup')
+            backup_path = file_path.with_suffix(file_path.suffix + ".backup")
             shutil.copy2(file_path, backup_path)
             logger.debug(f"Created backup: {backup_path}")
 
@@ -57,7 +55,7 @@ def atomic_json_write(file_path: Path, data: Dict[str, Any], create_backup: bool
 def restore_from_backup(file_path: Path) -> bool:
     """Restore file from backup, returning success status."""
     file_path = Path(file_path)
-    backup_path = file_path.with_suffix(file_path.suffix + '.backup')
+    backup_path = file_path.with_suffix(file_path.suffix + ".backup")
 
     if not backup_path.exists():
         logger.warning(f"No backup found: {backup_path}")

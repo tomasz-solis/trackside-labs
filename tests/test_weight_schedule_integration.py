@@ -14,6 +14,7 @@ from src.predictors.baseline_2026 import Baseline2026Predictor
 from src.systems.weight_schedule import get_schedule_weights
 import json
 
+
 def test_weight_schedule_integration():
     """Test that weight schedule is working in predictions."""
 
@@ -24,11 +25,11 @@ def test_weight_schedule_integration():
 
     # 1. Test weight schedule module
     print("1. Testing weight_schedule module...")
-    weights = get_schedule_weights(race_number=1, schedule='extreme')
+    weights = get_schedule_weights(race_number=1, schedule="extreme")
     print(f"   Race 1 weights: {weights}")
-    assert weights['baseline'] == 0.30
-    assert weights['testing'] == 0.20
-    assert weights['current'] == 0.50
+    assert weights["baseline"] == 0.30
+    assert weights["testing"] == 0.20
+    assert weights["current"] == 0.50
     print("   ✓ Weight schedule module working")
     print()
 
@@ -69,6 +70,7 @@ def test_weight_schedule_integration():
     except Exception as e:
         print(f"   ✗ Failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -76,19 +78,20 @@ def test_weight_schedule_integration():
     print("5. Testing qualifying prediction with weight schedule...")
     try:
         result = predictor.predict_qualifying(
-            year=2026,
-            race_name="Bahrain Grand Prix",
-            n_simulations=10  # Fast test
+            year=2026, race_name="Bahrain Grand Prix", n_simulations=10  # Fast test
         )
 
         print(f"   ✓ Generated grid with {len(result['grid'])} drivers")
         print(f"   Top 3:")
-        for i, driver in enumerate(result['grid'][:3], 1):
-            print(f"      P{i}: {driver['driver']} ({driver['team']}) - confidence: {driver['confidence']:.0f}%")
+        for i, driver in enumerate(result["grid"][:3], 1):
+            print(
+                f"      P{i}: {driver['driver']} ({driver['team']}) - confidence: {driver['confidence']:.0f}%"
+            )
         print()
     except Exception as e:
         print(f"   ✗ Failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

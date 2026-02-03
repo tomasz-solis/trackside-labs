@@ -77,29 +77,24 @@ class Config:
             ("bayesian.base_volatility", float, 0.0, 1.0),
             ("bayesian.base_observation_noise", float, 0.0, 100.0),
             ("bayesian.shock_threshold", float, 0.0, 10.0),
-
             # Qualifying parameters
             ("baseline_predictor.qualifying.noise_std_sprint", float, 0.0, 0.5),
             ("baseline_predictor.qualifying.noise_std_normal", float, 0.0, 0.5),
             ("baseline_predictor.qualifying.team_weight", float, 0.0, 1.0),
             ("baseline_predictor.qualifying.skill_weight", float, 0.0, 1.0),
-
             # Race parameters - base chaos
             ("baseline_predictor.race.base_chaos.dry", float, 0.0, 1.0),
             ("baseline_predictor.race.base_chaos.wet", float, 0.0, 1.0),
             ("baseline_predictor.race.track_chaos_multiplier", float, 0.0, 1.0),
-
             # Race parameters - safety car
             ("baseline_predictor.race.sc_base_probability.dry", float, 0.0, 1.0),
             ("baseline_predictor.race.sc_base_probability.wet", float, 0.0, 1.0),
             ("baseline_predictor.race.sc_track_modifier", float, 0.0, 1.0),
-
             # Race parameters - grid and pace
             ("baseline_predictor.race.grid_weight_min", float, 0.0, 1.0),
             ("baseline_predictor.race.grid_weight_multiplier", float, 0.0, 1.0),
             ("baseline_predictor.race.pace_weight_base", float, 0.0, 1.0),
             ("baseline_predictor.race.pace_weight_track_modifier", float, 0.0, 1.0),
-
             # Race parameters - DNF caps
             ("baseline_predictor.race.dnf_rate_historical_cap", float, 0.0, 1.0),
             ("baseline_predictor.race.dnf_rate_final_cap", float, 0.0, 1.0),

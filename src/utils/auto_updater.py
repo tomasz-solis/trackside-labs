@@ -99,11 +99,7 @@ def auto_update_from_races(progress_callback=None) -> int:
     logger.info(f"Found {len(new_races)} new race(s) to learn from: {new_races}")
 
     # Import here to avoid circular dependency
-    from scripts.update_from_race import (
-        load_race_results,
-        update_team_performance,
-        update_bayesian_driver_ratings,
-    )
+    from src.systems.updater import update_from_race
 
     updated_count = 0
 
@@ -114,18 +110,8 @@ def auto_update_from_races(progress_callback=None) -> int:
 
             logger.info(f"Updating from {race_name} ({i+1}/{len(new_races)})...")
 
-            # Load race results
-            race_results = load_race_results(2026, race_name)
-
-            # Update team characteristics
-            char_file = (
-                Path("data/processed") / "car_characteristics" / "2026_car_characteristics.json"
-            )
-            if char_file.exists():
-                update_team_performance(race_results, char_file)
-
-            # Update driver ratings
-            update_bayesian_driver_ratings(race_results)
+            # Update from race (loads results, updates teams & drivers)
+            update_from_race(2026, race_name)
 
             # Mark as learned
             mark_race_as_learned(race_name)
@@ -166,7 +152,11 @@ def mark_race_as_learned(race_name: str) -> None:
     # Check if already marked
     if not any(r.get("race") == race_name for r in state["history"]):
         state["history"].append(
-            {"race": race_name, "date": datetime.now().isoformat(), "method": "auto_update"}
+            {
+                "race": race_name,
+                "date": datetime.now().isoformat(),
+                "method": "auto_update",
+            }
         )
         state["races_completed"] = state.get("races_completed", 0) + 1
 

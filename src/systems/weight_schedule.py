@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Weight Schedules from validation study (test_weight_schedules.ipynb)
 # Format: race_num -> (baseline_weight, testing_weight, current_weight)
 SCHEDULES = {
-    'conservative': {
+    "conservative": {
         1: (0.70, 0.25, 0.05),
         2: (0.65, 0.25, 0.10),
         3: (0.60, 0.20, 0.20),
@@ -34,7 +34,7 @@ SCHEDULES = {
         6: (0.30, 0.10, 0.60),
         10: (0.15, 0.05, 0.80),
     },
-    'moderate': {
+    "moderate": {
         1: (0.60, 0.25, 0.15),
         2: (0.50, 0.20, 0.30),
         3: (0.40, 0.15, 0.45),
@@ -43,7 +43,7 @@ SCHEDULES = {
         6: (0.10, 0.05, 0.85),
         10: (0.05, 0.00, 0.95),
     },
-    'aggressive': {
+    "aggressive": {
         1: (0.45, 0.20, 0.35),
         2: (0.30, 0.15, 0.55),
         3: (0.20, 0.10, 0.70),
@@ -51,7 +51,7 @@ SCHEDULES = {
         5: (0.05, 0.00, 0.95),
         6: (0.05, 0.00, 0.95),
     },
-    'very_aggressive': {
+    "very_aggressive": {
         1: (0.40, 0.20, 0.40),
         2: (0.25, 0.15, 0.60),
         3: (0.15, 0.10, 0.75),
@@ -59,20 +59,20 @@ SCHEDULES = {
         5: (0.05, 0.00, 0.95),
         6: (0.05, 0.00, 0.95),
     },
-    'ultra_aggressive': {
+    "ultra_aggressive": {
         1: (0.35, 0.20, 0.45),
         2: (0.20, 0.15, 0.65),
         3: (0.10, 0.05, 0.85),
         4: (0.05, 0.00, 0.95),
         5: (0.05, 0.00, 0.95),
     },
-    'extreme': {  # 0.809 correlation - best performer
+    "extreme": {  # 0.809 correlation - best performer
         1: (0.30, 0.20, 0.50),
         2: (0.15, 0.10, 0.75),
         3: (0.05, 0.00, 0.95),
         4: (0.05, 0.00, 0.95),
     },
-    'insane': {  # 0.807 correlation
+    "insane": {  # 0.807 correlation
         1: (0.25, 0.15, 0.60),
         2: (0.10, 0.05, 0.85),
         3: (0.05, 0.00, 0.95),
@@ -81,20 +81,21 @@ SCHEDULES = {
 }
 
 ScheduleType = Literal[
-    'conservative', 'moderate', 'aggressive', 'very_aggressive',
-    'ultra_aggressive', 'extreme', 'insane'
+    "conservative",
+    "moderate",
+    "aggressive",
+    "very_aggressive",
+    "ultra_aggressive",
+    "extreme",
+    "insane",
 ]
 
 
-def get_schedule_weights(
-    race_number: int,
-    schedule: ScheduleType = 'extreme'
-) -> Dict[str, float]:
+def get_schedule_weights(race_number: int, schedule: ScheduleType = "extreme") -> Dict[str, float]:
     """Get weight distribution for a specific race with smooth linear interpolation between checkpoints."""
     if schedule not in SCHEDULES:
         raise ValueError(
-            f"Unknown schedule '{schedule}'. "
-            f"Available: {', '.join(SCHEDULES.keys())}"
+            f"Unknown schedule '{schedule}'. " f"Available: {', '.join(SCHEDULES.keys())}"
         )
 
     if race_number < 1:
@@ -126,17 +127,17 @@ def get_schedule_weights(
         current_w = lower_weights[2] + t * (upper_weights[2] - lower_weights[2])
 
         return {
-            'baseline': baseline_w,
-            'testing': testing_w,
-            'current': current_w,
+            "baseline": baseline_w,
+            "testing": testing_w,
+            "current": current_w,
         }
 
     baseline_w, testing_w, current_w = weights_tuple
 
     return {
-        'baseline': baseline_w,
-        'testing': testing_w,
-        'current': current_w,
+        "baseline": baseline_w,
+        "testing": testing_w,
+        "current": current_w,
     }
 
 
@@ -145,15 +146,15 @@ def calculate_blended_performance(
     testing_modifier: float,
     current_score: float,
     race_number: int,
-    schedule: ScheduleType = 'extreme'
+    schedule: ScheduleType = "extreme",
 ) -> float:
     """Calculate blended performance score using weight schedule."""
     weights = get_schedule_weights(race_number, schedule)
 
     blended = (
-        weights['baseline'] * baseline_score +
-        weights['testing'] * testing_modifier +
-        weights['current'] * current_score
+        weights["baseline"] * baseline_score
+        + weights["testing"] * testing_modifier
+        + weights["current"] * current_score
     )
 
     return blended
@@ -161,7 +162,7 @@ def calculate_blended_performance(
 
 def get_recommended_schedule(is_regulation_change: bool = True) -> ScheduleType:
     """Get recommended weight schedule. Returns 'extreme' for regulation changes, 'moderate' for stable seasons."""
-    return 'extreme' if is_regulation_change else 'moderate'
+    return "extreme" if is_regulation_change else "moderate"
 
 
 def format_schedule_summary(schedule: ScheduleType) -> str:
@@ -185,7 +186,7 @@ def format_schedule_summary(schedule: ScheduleType) -> str:
     return "\n".join(lines)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Demo: Show progression of weights throughout season
     print("\nRECOMMENDED SCHEDULE FOR 2026 (Regulation Change)")
     print("=" * 70)
@@ -213,6 +214,8 @@ if __name__ == '__main__':
         weights = get_schedule_weights(race_num, recommended)
 
         print(f"Race {race_num}: Current={current:.2f} → Blended={blended:.3f}")
-        print(f"  Weights: {weights['baseline']*100:.0f}% baseline, "
-              f"{weights['testing']*100:.0f}% testing, "
-              f"{weights['current']*100:.0f}% current")
+        print(
+            f"  Weights: {weights['baseline']*100:.0f}% baseline, "
+            f"{weights['testing']*100:.0f}% testing, "
+            f"{weights['current']*100:.0f}% current"
+        )

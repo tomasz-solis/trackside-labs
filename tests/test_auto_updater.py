@@ -8,6 +8,7 @@ import pytest
 import json
 import tempfile
 import shutil
+import pandas as pd
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
@@ -31,10 +32,10 @@ def temp_data_dir():
         "races_completed": 0,
         "last_updated": "2026-01-01T00:00:00",
         "last_learned_race": None,
-        "teams": {}
+        "teams": {},
     }
 
-    with open(char_file, 'w') as f:
+    with open(char_file, "w") as f:
         json.dump(initial_data, f, indent=2)
 
     yield temp_dir
@@ -50,13 +51,13 @@ class TestAutoUpdaterDetection:
         """Test needs_update returns False when no races completed."""
         from src.utils.auto_updater import needs_update
 
-        with patch('src.utils.auto_updater.get_completed_races') as mock_completed:
+        with patch("src.utils.auto_updater.get_completed_races") as mock_completed:
             mock_completed.return_value = []
 
-            with patch('src.utils.auto_updater.get_learned_races') as mock_learned:
+            with patch("src.utils.auto_updater.get_learned_races") as mock_learned:
                 mock_learned.return_value = []
 
-                result, new_races = needs_update(data_dir=temp_data_dir)
+                result, new_races = needs_update()
 
         assert result is False
         assert new_races == []
@@ -65,13 +66,13 @@ class TestAutoUpdaterDetection:
         """Test needs_update returns True when new race completed."""
         from src.utils.auto_updater import needs_update
 
-        with patch('src.utils.auto_updater.get_completed_races') as mock_completed:
+        with patch("src.utils.auto_updater.get_completed_races") as mock_completed:
             mock_completed.return_value = ["Bahrain Grand Prix"]
 
-            with patch('src.utils.auto_updater.get_learned_races') as mock_learned:
+            with patch("src.utils.auto_updater.get_learned_races") as mock_learned:
                 mock_learned.return_value = []
 
-                result, new_races = needs_update(data_dir=temp_data_dir)
+                result, new_races = needs_update()
 
         assert result is True
         assert "Bahrain Grand Prix" in new_races
@@ -80,13 +81,19 @@ class TestAutoUpdaterDetection:
         """Test needs_update returns False when all races already learned."""
         from src.utils.auto_updater import needs_update
 
-        with patch('src.utils.auto_updater.get_completed_races') as mock_completed:
-            mock_completed.return_value = ["Bahrain Grand Prix", "Saudi Arabian Grand Prix"]
+        with patch("src.utils.auto_updater.get_completed_races") as mock_completed:
+            mock_completed.return_value = [
+                "Bahrain Grand Prix",
+                "Saudi Arabian Grand Prix",
+            ]
 
-            with patch('src.utils.auto_updater.get_learned_races') as mock_learned:
-                mock_learned.return_value = ["Bahrain Grand Prix", "Saudi Arabian Grand Prix"]
+            with patch("src.utils.auto_updater.get_learned_races") as mock_learned:
+                mock_learned.return_value = [
+                    "Bahrain Grand Prix",
+                    "Saudi Arabian Grand Prix",
+                ]
 
-                result, new_races = needs_update(data_dir=temp_data_dir)
+                result, new_races = needs_update()
 
         assert result is False
         assert new_races == []
@@ -99,40 +106,41 @@ class TestAutoUpdaterExecution:
         """Test successful auto-update from completed races."""
         from src.utils.auto_updater import auto_update_from_races
 
-        with patch('src.utils.auto_updater.needs_update') as mock_needs:
+        with patch("src.utils.auto_updater.needs_update") as mock_needs:
             mock_needs.return_value = (True, ["Bahrain Grand Prix"])
 
-            with patch('src.utils.auto_updater.update_from_race') as mock_update:
-                mock_update.return_value = None  # Success
+            with patch("src.systems.updater.update_from_race") as mock_update:
+                with patch("src.utils.auto_updater.mark_race_as_learned"):
 
-                def progress_callback(current, total, message):
-                    pass  # Mock progress callback
+                    def progress_callback(current, total, message):
+                        pass  # Mock progress callback
 
-                updated_count = auto_update_from_races(
-                    progress_callback=progress_callback,
-                    data_dir=temp_data_dir
-                )
+                    updated_count = auto_update_from_races(progress_callback=progress_callback)
 
         assert updated_count == 1
-        mock_update.assert_called_once()
+        mock_update.assert_called_once_with(2026, "Bahrain Grand Prix")
 
     def test_auto_update_multiple_races(self, temp_data_dir):
         """Test auto-update handles multiple races."""
         from src.utils.auto_updater import auto_update_from_races
 
-        with patch('src.utils.auto_updater.needs_update') as mock_needs:
-            mock_needs.return_value = (True, ["Bahrain Grand Prix", "Saudi Arabian Grand Prix", "Australian Grand Prix"])
+        with patch("src.utils.auto_updater.needs_update") as mock_needs:
+            mock_needs.return_value = (
+                True,
+                [
+                    "Bahrain Grand Prix",
+                    "Saudi Arabian Grand Prix",
+                    "Australian Grand Prix",
+                ],
+            )
 
-            with patch('src.utils.auto_updater.update_from_race') as mock_update:
-                mock_update.return_value = None  # Success
+            with patch("src.systems.updater.update_from_race") as mock_update:
+                with patch("src.utils.auto_updater.mark_race_as_learned"):
 
-                def progress_callback(current, total, message):
-                    assert total == 3
+                    def progress_callback(current, total, message):
+                        assert total == 3
 
-                updated_count = auto_update_from_races(
-                    progress_callback=progress_callback,
-                    data_dir=temp_data_dir
-                )
+                    updated_count = auto_update_from_races(progress_callback=progress_callback)
 
         assert updated_count == 3
         assert mock_update.call_count == 3
@@ -141,20 +149,21 @@ class TestAutoUpdaterExecution:
         """Test auto-update continues on single race failure."""
         from src.utils.auto_updater import auto_update_from_races
 
-        with patch('src.utils.auto_updater.needs_update') as mock_needs:
-            mock_needs.return_value = (True, ["Bahrain Grand Prix", "Saudi Arabian Grand Prix"])
+        with patch("src.utils.auto_updater.needs_update") as mock_needs:
+            mock_needs.return_value = (
+                True,
+                ["Bahrain Grand Prix", "Saudi Arabian Grand Prix"],
+            )
 
-            with patch('src.utils.auto_updater.update_from_race') as mock_update:
-                # First update succeeds, second fails
-                mock_update.side_effect = [None, Exception("Update failed")]
+            with patch("src.systems.updater.update_from_race") as mock_update:
+                with patch("src.utils.auto_updater.mark_race_as_learned"):
+                    # First update succeeds, second fails
+                    mock_update.side_effect = [None, Exception("Update failed")]
 
-                def progress_callback(current, total, message):
-                    pass
+                    def progress_callback(current, total, message):
+                        pass
 
-                updated_count = auto_update_from_races(
-                    progress_callback=progress_callback,
-                    data_dir=temp_data_dir
-                )
+                    updated_count = auto_update_from_races(progress_callback=progress_callback)
 
         # Should have updated 1 race (first one) before failure
         assert updated_count == 1
@@ -168,19 +177,27 @@ class TestCompletedRacesDetection:
         from src.utils.auto_updater import get_completed_races
 
         # Mock FastF1 schedule
-        mock_schedule = pd.DataFrame({
-            "EventName": ["Bahrain Grand Prix", "Saudi Arabian Grand Prix", "Australian Grand Prix"],
-            "Session5Date": [
-                datetime.now() - timedelta(days=10),  # Completed
-                datetime.now() - timedelta(days=5),   # Completed
-                datetime.now() + timedelta(days=5),   # Future
-            ]
-        })
+        mock_schedule = pd.DataFrame(
+            {
+                "EventName": [
+                    "Bahrain Grand Prix",
+                    "Saudi Arabian Grand Prix",
+                    "Australian Grand Prix",
+                ],
+                "EventDate": [
+                    datetime.now() - timedelta(days=10),  # Completed
+                    datetime.now() - timedelta(days=5),  # Completed
+                    datetime.now() + timedelta(days=5),  # Future
+                ],
+            }
+        )
 
-        with patch('fastf1.get_event_schedule') as mock_get_schedule:
-            mock_get_schedule.return_value = mock_schedule
+        with patch("fastf1.get_event_schedule") as mock_get_schedule:
+            with patch("fastf1.get_session") as mock_get_session:
+                mock_get_schedule.return_value = mock_schedule
+                mock_get_session.return_value = MagicMock()  # Session exists
 
-            completed = get_completed_races(year=2026, lookback_days=30)
+                completed = get_completed_races(year=2026)
 
         assert len(completed) == 2
         assert "Bahrain Grand Prix" in completed
@@ -192,30 +209,40 @@ class TestLearnedRacesTracking:
     """Test tracking of already-learned races."""
 
     def test_get_learned_races_from_file(self, temp_data_dir):
-        """Test get_learned_races reads from characteristics file."""
+        """Test get_learned_races reads from learning_state.json."""
         from src.utils.auto_updater import get_learned_races
 
-        # Update characteristics file with learned race
-        char_file = Path(temp_data_dir) / "processed" / "car_characteristics" / "2026_car_characteristics.json"
-        with open(char_file) as f:
-            data = json.load(f)
+        # Create learning_state.json with learned races
+        learning_file = Path("data/learning_state.json")
+        learning_file.parent.mkdir(parents=True, exist_ok=True)
 
-        data["last_learned_race"] = "Bahrain Grand Prix"
-        data["races_completed"] = 1
+        learning_data = {
+            "history": [
+                {"race": "Bahrain Grand Prix", "date": "2026-03-15"},
+                {"race": "Saudi Arabian Grand Prix", "date": "2026-03-22"},
+            ]
+        }
 
-        with open(char_file, 'w') as f:
-            json.dump(data, f, indent=2)
+        with open(learning_file, "w") as f:
+            json.dump(learning_data, f, indent=2)
 
-        learned = get_learned_races(data_dir=temp_data_dir)
+        try:
+            learned = get_learned_races()
 
-        # Should infer 1 race was learned
-        assert len(learned) >= 1
+            # Should have 2 learned races
+            assert len(learned) == 2
+            assert "Bahrain Grand Prix" in learned
+            assert "Saudi Arabian Grand Prix" in learned
+        finally:
+            # Cleanup
+            if learning_file.exists():
+                learning_file.unlink()
 
     def test_get_learned_races_empty(self, temp_data_dir):
         """Test get_learned_races returns empty when no races learned."""
         from src.utils.auto_updater import get_learned_races
 
-        learned = get_learned_races(data_dir=temp_data_dir)
+        learned = get_learned_races()
 
         assert learned == []
 

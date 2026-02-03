@@ -24,7 +24,9 @@ logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 
-def get_fp_team_performance(year: int, race_name: str, session_type: str) -> Optional[Dict[str, float]]:
+def get_fp_team_performance(
+    year: int, race_name: str, session_type: str
+) -> Optional[Dict[str, float]]:
     """Extract team performance from practice/qualifying session using median lap times (robust to outliers). Returns None if unavailable."""
     try:
         session = ff1.get_session(year, race_name, session_type)
@@ -130,7 +132,7 @@ def get_best_fp_performance(
 def blend_team_strength(
     model_strength: Dict[str, float],
     fp_performance: Optional[Dict[str, float]],
-    blend_weight: float = 0.7
+    blend_weight: float = 0.7,
 ) -> Dict[str, float]:
     """Blend model predictions with FP data (default: 70% practice + 30% model). Validates team name matches."""
     if fp_performance is None:
@@ -163,7 +165,9 @@ def blend_team_strength(
             blended[team] = model_score
         else:
             blended_score = blend_weight * fp_score + (1 - blend_weight) * model_score
-            logger.debug(f"  {team}: FP={fp_score:.3f}, Model={model_score:.3f} → Blended={blended_score:.3f}")
+            logger.debug(
+                f"  {team}: FP={fp_score:.3f}, Model={model_score:.3f} → Blended={blended_score:.3f}"
+            )
             blended[team] = blended_score
 
     return blended

@@ -47,10 +47,6 @@ graph TD
     K --> L[Predict Qualifying]
     L --> M[Predict Race<br/>50 Monte Carlo Sims]
     M --> N[Display Results]
-
-    style E fill:#90EE90
-    style H fill:#87CEEB
-    style J fill:#FFB6C1
 ```
 
 ### Manual Update (Optional)
@@ -164,19 +160,19 @@ formula1-2026/
 
 ## Status
 
-- Core system: ✅ Complete
-- Weight schedule: ✅ Integrated and validated
-- Dashboard: ✅ Working
-- Data update flow: ✅ Implemented
-- Testing directionality: ⏳ Awaiting 2026 pre-season testing (Feb 2026)
-- Season validation: ⏳ Pending 2026 races
+- ✅ Core system: Complete
+- ✅ Weight schedule: Integrated and validated
+- ✅ Dashboard: Working
+- ✅ Data update flow: Implemented
+- ⏳ Testing directionality: Awaiting 2026 pre-season testing (Feb 2026)
+- ⏳ Season validation: Pending 2026 races
 
 ## License
 
 Private project for F1 Fantasy predictions.
 
-## Credits
+## Contact
 
-- **FastF1**: Telemetry data source
-- **Validation**: Historical analysis of 2021→2022 regulation change
-- **Weight Schedule**: Optimized on 2022 season data (7 schedules tested)
+Tomasz Solis
+- [LinkedIn](https://linkedin.com/in/tomaszsolis)
+- [GitHub](https://github.com/tomasz-solis)

@@ -127,17 +127,3 @@ For high-level system design, see:
 | Sprint weekend flow | FP_BLENDING_SYSTEM.md | Sprint Weekend Handling |
 | 2022 validation | validate_testing_predictions.ipynb | Historical Analysis |
 | Parameter targets | validation_metrics.ipynb | Metrics & Targets |
-
----
-
-## Contributing to Docs
-
-When adding new technical guides:
-
-1. **Use concrete examples** - Code snippets, not just prose
-2. **Include validation** - Show numbers (correlations, MAE, etc.)
-3. **Link to code** - Reference actual implementation files
-4. **Link to notebooks** - Show analysis that proves it works
-5. **No AI fingerprints** - Keep language concise and professional
-
-See existing guides as templates.

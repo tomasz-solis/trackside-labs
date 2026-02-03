@@ -27,6 +27,7 @@ streamlit run app.py
 - Updates team/driver characteristics from real results
 - Blends practice data (70% FP + 30% model) for fresh predictions
 - Shows progress: "🔄 Found 1 new race(s)! Updating..."
+- Tracks prediction accuracy (enable in sidebar)
 
 ### How the App Works
 
@@ -47,6 +48,10 @@ graph TD
     K --> L[Predict Qualifying]
     L --> M[Predict Race<br/>50 Monte Carlo Sims]
     M --> N[Display Results]
+    N --> O{Tracking<br/>Enabled?}
+    O -->|Yes| P[💾 Save Prediction<br/>by Session FP1/FP2/FP3/SQ]
+    O -->|No| Q[End]
+    P --> Q
 ```
 
 ### Manual Update (Optional)
@@ -77,6 +82,7 @@ python scripts/update_from_race.py "Bahrain Grand Prix" --year 2026
 - **Track-car suitability**: Continuous parameters (straights %, corners %, braking zones)
 - **Monte Carlo uncertainty**: 50 simulations per prediction
 - **Self-correcting**: Updates after each race, trusts current data quickly
+- **Accuracy tracking**: Save predictions by session (FP1/FP2/FP3/SQ) and compare to actual results
 
 ## Architecture
 
@@ -107,6 +113,7 @@ Predictions (Qualifying + Race)
 - **[docs/WEIGHT_SCHEDULE_GUIDE.md](docs/WEIGHT_SCHEDULE_GUIDE.md)**: Weight schedule system
 - **[docs/FP_BLENDING_SYSTEM.md](docs/FP_BLENDING_SYSTEM.md)**: Practice data blending
 - **[docs/DASHBOARD_AUTO_UPDATE.md](docs/DASHBOARD_AUTO_UPDATE.md)**: Auto-update behavior
+- **[docs/PREDICTION_TRACKING.md](docs/PREDICTION_TRACKING.md)**: Prediction accuracy tracking
 
 ## Validation
 
@@ -160,12 +167,13 @@ formula1-2026/
 
 ## Status
 
-- ✅ Core system: Complete
-- ✅ Weight schedule: Integrated and validated
-- ✅ Dashboard: Working
-- ✅ Data update flow: Implemented
-- ⏳ Testing directionality: Awaiting 2026 pre-season testing (Feb 2026)
-- ⏳ Season validation: Pending 2026 races
+- Core system: ✅ Complete
+- Weight schedule: ✅ Integrated and validated
+- Dashboard: ✅ Working
+- Data update flow: ✅ Implemented
+- Prediction tracking: ✅ Implemented (driver name normalization, session detection, accuracy metrics)
+- Testing directionality: ⏳ Awaiting 2026 pre-season testing (Feb 2026)
+- Season validation: ⏳ Pending 2026 races
 
 ## License
 

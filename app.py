@@ -97,7 +97,7 @@ def auto_update_if_needed():
 def run_prediction(race_name: str, weather: str, _timestamps):
     """Run prediction with caching (1 hour TTL). Weather must be 'dry', 'rain', or 'mixed'."""
     # Validate weather input
-    valid_weather = ['dry', 'rain', 'mixed']
+    valid_weather = ["dry", "rain", "mixed"]
     if weather not in valid_weather:
         raise ValueError(f"Weather must be one of {valid_weather}, got '{weather}'")
 
@@ -110,20 +110,20 @@ def run_prediction(race_name: str, weather: str, _timestamps):
     # STEP 1: Predict Qualifying (includes FP auto-fetch)
     quali_start = time.time()
     quali_result = predictor.predict_qualifying(year=2026, race_name=race_name)
-    timing['qualifying'] = time.time() - quali_start
+    timing["qualifying"] = time.time() - quali_start
 
     # STEP 2: Predict Race using quali results
     race_start = time.time()
     race_result = predictor.predict_race(
         qualifying_grid=quali_result["grid"], weather=weather, race_name=race_name, n_simulations=50
     )
-    timing['race'] = time.time() - race_start
+    timing["race"] = time.time() - race_start
 
-    timing['total'] = time.time() - overall_start
+    timing["total"] = time.time() - overall_start
 
     # Add timing to results
-    quali_result['timing'] = timing
-    race_result['timing'] = timing
+    quali_result["timing"] = timing
+    race_result["timing"] = timing
 
     return quali_result, race_result
 
@@ -178,7 +178,19 @@ with st.sidebar:
     )
     st.markdown("---")
 
-    page = st.radio("Navigation", ["Live Prediction", "Model Insights", "About"])
+    page = st.radio(
+        "Navigation", ["Live Prediction", "Model Insights", "Prediction Accuracy", "About"]
+    )
+
+    st.markdown("---")
+
+    # Prediction logging toggle
+    st.markdown("**⚙️ Settings**")
+    enable_logging = st.checkbox(
+        "Save Predictions for Accuracy Tracking",
+        value=False,
+        help="When enabled, predictions are saved after each session (FP1/FP2/FP3/SQ) for later accuracy analysis. Max 1 prediction per session.",
+    )
 
     st.markdown("---")
     st.markdown("**Model Version:** v1.0")
@@ -260,8 +272,52 @@ if page == "Live Prediction":
                 st.info("Running simulation (cached results will load instantly)...")
                 quali_result, race_result = run_prediction(race_name, weather, timestamps)
 
+                # Save prediction if logging is enabled
+                if enable_logging:
+                    from src.utils.session_detector import SessionDetector
+                    from src.utils.prediction_logger import PredictionLogger
+
+                    detector = SessionDetector()
+                    logger_inst = PredictionLogger()
+
+                    # Get latest completed session
+                    latest_session = detector.get_latest_completed_session(
+                        2026, race_name, is_sprint
+                    )
+
+                    if latest_session:
+                        # Check if we already saved a prediction for this session
+                        if not logger_inst.has_prediction_for_session(
+                            2026, race_name, latest_session
+                        ):
+                            # Save the prediction
+                            try:
+                                fp_blend_info = quali_result.get("fp_blend_info", {})
+                                logger_inst.save_prediction(
+                                    year=2026,
+                                    race_name=race_name,
+                                    session_name=latest_session,
+                                    qualifying_prediction=quali_result["grid"],
+                                    race_prediction=race_result["finish_order"],
+                                    weather=weather,
+                                    fp_blend_info=fp_blend_info,
+                                )
+                                st.info(
+                                    f"📊 Prediction saved for accuracy tracking (after {latest_session})"
+                                )
+                            except Exception as e:
+                                st.warning(f"Could not save prediction: {e}")
+                        else:
+                            st.info(
+                                f"ℹ️ Prediction for {latest_session} already saved (max 1 per session)"
+                            )
+                    else:
+                        st.info(
+                            "ℹ️ No completed sessions yet - prediction not saved (will save after FP1/FP2/FP3/SQ)"
+                        )
+
                 # Display results with performance timing
-                timing = quali_result.get('timing', {})
+                timing = quali_result.get("timing", {})
                 if timing:
                     st.success(
                         f"✅ Predictions complete in {timing['total']:.2f}s "
@@ -536,6 +592,152 @@ elif page == "Model Insights":
         - Tire Deg Weight: 15%
         - Overtaking Weight: 15%
         """)
+
+
+# Page: Prediction Accuracy
+elif page == "Prediction Accuracy":
+    st.header("📊 Prediction Accuracy Tracker")
+
+    from src.utils.prediction_logger import PredictionLogger
+    from src.utils.prediction_metrics import PredictionMetrics
+
+    logger_inst = PredictionLogger()
+    metrics_calc = PredictionMetrics()
+
+    # Load all predictions
+    all_predictions = logger_inst.get_all_predictions(2026)
+
+    if not all_predictions:
+        st.info(
+            "No predictions saved yet. Enable 'Save Predictions for Accuracy Tracking' in the sidebar and generate predictions after practice sessions."
+        )
+    else:
+        st.success(f"Found {len(all_predictions)} saved prediction(s)")
+
+        # Calculate metrics for predictions with actuals
+        predictions_with_actuals = [
+            p
+            for p in all_predictions
+            if p.get("actuals") and (p["actuals"].get("qualifying") or p["actuals"].get("race"))
+        ]
+
+        if predictions_with_actuals:
+            st.markdown("---")
+            st.subheader("📈 Overall Accuracy")
+
+            # Aggregate metrics
+            agg_metrics = metrics_calc.aggregate_metrics(predictions_with_actuals)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("**Qualifying Metrics**")
+                if "qualifying" in agg_metrics:
+                    q_metrics = agg_metrics["qualifying"]
+                    st.metric(
+                        "Exact Position Accuracy",
+                        f"{q_metrics['exact_accuracy']['mean']:.1f}%",
+                        help="% of drivers predicted in exact correct position",
+                    )
+                    st.metric(
+                        "Mean Position Error (MAE)",
+                        f"{q_metrics['mae']['mean']:.2f} positions",
+                        help="Average position error",
+                    )
+                    st.metric(
+                        "Within ±3 Positions",
+                        f"{q_metrics['within_3']['mean']:.1f}%",
+                        help="% of predictions within 3 positions",
+                    )
+                    st.metric(
+                        "Correlation",
+                        f"{q_metrics['correlation']['mean']:.3f}",
+                        help="Spearman correlation (-1 to 1, higher is better)",
+                    )
+
+            with col2:
+                st.markdown("**Race Metrics**")
+                if "race" in agg_metrics:
+                    r_metrics = agg_metrics["race"]
+                    st.metric(
+                        "Exact Position Accuracy",
+                        f"{r_metrics['exact_accuracy']['mean']:.1f}%",
+                        help="% of drivers predicted in exact correct position",
+                    )
+                    st.metric(
+                        "Mean Position Error (MAE)",
+                        f"{r_metrics['mae']['mean']:.2f} positions",
+                        help="Average position error",
+                    )
+                    st.metric(
+                        "Within ±3 Positions",
+                        f"{r_metrics['within_3']['mean']:.1f}%",
+                        help="% of predictions within 3 positions",
+                    )
+                    st.metric(
+                        "Winner Prediction Accuracy",
+                        f"{r_metrics['winner_accuracy']['percentage']:.1f}%",
+                        help="% of races where winner was correctly predicted",
+                    )
+
+            st.markdown("---")
+            st.subheader("🎯 Per-Race Breakdown")
+
+            # Show metrics for each prediction
+            for pred in predictions_with_actuals:
+                metrics = metrics_calc.calculate_all_metrics(pred)
+                if metrics:
+                    race_name = metrics["metadata"]["race_name"]
+                    session_name = metrics["metadata"]["session_name"]
+
+                    with st.expander(f"{race_name} (Predicted after {session_name})"):
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            if "qualifying" in metrics:
+                                st.markdown("**Qualifying**")
+                                q = metrics["qualifying"]
+                                st.write(f"- Exact: {q['exact_accuracy']:.1f}%")
+                                st.write(f"- MAE: {q['mae']:.2f} positions")
+                                st.write(f"- Within ±1: {q['within_1']:.1f}%")
+                                st.write(f"- Correlation: {q['correlation']:.3f}")
+
+                        with col2:
+                            if "race" in metrics:
+                                st.markdown("**Race**")
+                                r = metrics["race"]
+                                st.write(f"- Exact: {r['exact_accuracy']:.1f}%")
+                                st.write(f"- MAE: {r['mae']:.2f} positions")
+                                st.write(f"- Within ±3: {r['within_3']:.1f}%")
+                                st.write(
+                                    f"- Winner: {'✅ Correct' if r['winner_correct'] else '❌ Wrong'}"
+                                )
+                                st.write(
+                                    f"- Podium: {r['podium']['correct_drivers']}/3 drivers correct"
+                                )
+        else:
+            st.info(
+                "Predictions saved, but no actual results added yet. After each race, you can update predictions with actual results to calculate accuracy."
+            )
+
+        st.markdown("---")
+        st.subheader("📋 All Saved Predictions")
+
+        # Show list of all predictions
+        for pred in all_predictions:
+            metadata = pred["metadata"]
+            race_name = metadata["race_name"]
+            session_name = metadata["session_name"]
+            predicted_at = metadata["predicted_at"]
+            has_actuals = bool(
+                pred.get("actuals")
+                and (pred["actuals"].get("qualifying") or pred["actuals"].get("race"))
+            )
+
+            status_icon = "✅" if has_actuals else "⏳"
+            status_text = "Results added" if has_actuals else "Awaiting results"
+
+            st.write(f"{status_icon} **{race_name}** (after {session_name}) - {status_text}")
 
 
 # Page: About

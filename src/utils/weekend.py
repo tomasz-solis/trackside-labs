@@ -58,7 +58,8 @@ def is_sprint_weekend(year: int, race_name: str) -> bool:
         return get_weekend_type(year, race_name) == "sprint"
     except ValueError as e:
         logger.warning(
-            f"Could not determine weekend type for {race_name} ({year}): {e}. Defaulting to conventional."
+            f"Could not determine weekend type for {race_name} ({year}): {e}. "
+            f"Defaulting to conventional."
         )
         return False
 
@@ -133,7 +134,7 @@ if __name__ == "__main__":
     logger.info(f"  Total: {len(conventional)} conventional weekends")
 
     # Test specific races
-    logger.info(f"Testing specific races:")
+    logger.info("Testing specific races:")
     test_races = [
         "Bahrain Grand Prix",
         "Chinese Grand Prix",

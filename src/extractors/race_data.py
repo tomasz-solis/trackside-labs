@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 def extract_race_data(year, race_name):
-    """Extract race data from FastF1. Returns dict with quali/race/gain/DNF/team/status per driver."""
+    """Extract race data from FastF1.
+
+    Returns dict with quali/race/gain/DNF/team/status per driver.
+    """
     try:
         quali = ff1.get_session(year, race_name, "Q")
         quali.load(laps=False)
@@ -32,7 +35,7 @@ def extract_race_data(year, race_name):
             driver = row["Abbreviation"]
 
             # Get DNF flag (FastF1's actual property)
-            is_dnf = row.dnf if hasattr(row, "dnf") else False
+            is_dnf = row.dnf if hasattr(row, "dn") else False
 
             # Get race position
             if pd.notna(row["Position"]):
@@ -60,7 +63,7 @@ def extract_race_data(year, race_name):
                 "quali": quali_pos,
                 "race": race_pos,
                 "gain": gain,
-                "dnf": is_dnf,
+                "dn": is_dnf,
                 "has_quali": has_quali,
                 "team": row["TeamName"],
                 "status": row.get("Status", "Unknown"),
@@ -115,7 +118,7 @@ def extract_season(year, verbose=True):
 
 def count_total_dnfs(driver_races):
     """Count total DNF races for a driver. Returns int."""
-    return sum(1 for race in driver_races if race.get("dnf", False))
+    return sum(1 for race in driver_races if race.get("dn", False))
 
 
 def get_valid_races(driver_races):
@@ -145,7 +148,7 @@ if __name__ == "__main__":
     driver_data = extract_season(year)
 
     # Show summary
-    print(f"\n📊 SUMMARY:")
+    print("\n📊 SUMMARY:")
     print("=" * 70)
 
     for driver in sorted(driver_data.keys())[:5]:

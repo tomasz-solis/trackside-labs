@@ -21,13 +21,13 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-
-
 def main():
     parser = argparse.ArgumentParser(description="Update characteristics after a race")
     parser.add_argument("race_name", help="Race name (e.g., 'Bahrain Grand Prix')")
     parser.add_argument("--year", type=int, default=2026, help="Season year")
-    parser.add_argument("--data-dir", type=str, default="data/processed", help="Data directory")
+    parser.add_argument(
+        "--data-dir", type=str, default="data/processed", help="Data directory"
+    )
 
     args = parser.parse_args()
 

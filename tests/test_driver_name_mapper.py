@@ -2,7 +2,6 @@
 Tests for Driver Name Mapper
 """
 
-import pytest
 from src.utils.driver_name_mapper import DriverNameMapper
 
 

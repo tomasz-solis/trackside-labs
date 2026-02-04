@@ -37,16 +37,35 @@ def load_driver_debuts(csv_path: str = "data/driver_debuts.csv") -> Dict[str, in
 
     # Name to abbreviation mapping
     name_to_abbr = {
-        "Fernando Alonso": "ALO", "Lewis Hamilton": "HAM", "Nico Hülkenberg": "HUL",
-        "Sergio Pérez": "PER", "Daniel Ricciardo": "RIC", "Valtteri Bottas": "BOT",
-        "Kevin Magnussen": "MAG", "Max Verstappen": "VER", "Carlos Sainz": "SAI",
-        "Esteban Ocon": "OCO", "Pierre Gasly": "GAS", "Lance Stroll": "STR",
-        "Charles Leclerc": "LEC", "Alexander Albon": "ALB", "Lando Norris": "NOR",
-        "George Russell": "RUS", "Yuki Tsunoda": "TSU", "Zhou Guanyu": "ZHO",
-        "Nyck de Vries": "DEV", "Oscar Piastri": "PIA", "Logan Sargeant": "SAR",
-        "Franco Colapinto": "COL", "Oliver Bearman": "BEA", "Isack Hadjar": "HAD",
-        "Andrea Kimi Antonelli": "ANT", "Gabriel Bortoleto": "BOR", "Jack Doohan": "DOO",
-        "Arvid Lindblad": "LIN", "Liam Lawson": "LAW",
+        "Fernando Alonso": "ALO",
+        "Lewis Hamilton": "HAM",
+        "Nico Hülkenberg": "HUL",
+        "Sergio Pérez": "PER",
+        "Daniel Ricciardo": "RIC",
+        "Valtteri Bottas": "BOT",
+        "Kevin Magnussen": "MAG",
+        "Max Verstappen": "VER",
+        "Carlos Sainz": "SAI",
+        "Esteban Ocon": "OCO",
+        "Pierre Gasly": "GAS",
+        "Lance Stroll": "STR",
+        "Charles Leclerc": "LEC",
+        "Alexander Albon": "ALB",
+        "Lando Norris": "NOR",
+        "George Russell": "RUS",
+        "Yuki Tsunoda": "TSU",
+        "Zhou Guanyu": "ZHO",
+        "Nyck de Vries": "DEV",
+        "Oscar Piastri": "PIA",
+        "Logan Sargeant": "SAR",
+        "Franco Colapinto": "COL",
+        "Oliver Bearman": "BEA",
+        "Isack Hadjar": "HAD",
+        "Andrea Kimi Antonelli": "ANT",
+        "Gabriel Bortoleto": "BOR",
+        "Jack Doohan": "DOO",
+        "Arvid Lindblad": "LIN",
+        "Liam Lawson": "LAW",
     }
 
     try:
@@ -67,9 +86,7 @@ def load_driver_debuts(csv_path: str = "data/driver_debuts.csv") -> Dict[str, in
     return debuts
 
 
-def calculate_driver_pace_gap(
-    driver_laps, teammate_laps, session_type="R"
-) -> float:
+def calculate_driver_pace_gap(driver_laps, teammate_laps, session_type="R") -> float:
     """
     Calculate pace gap to teammate (%).
 
@@ -128,7 +145,7 @@ def extract_teammate_comparisons(years: List[int]) -> List[Dict]:
                     race_date = session.date
                     if pd.isna(race_date):
                         continue
-                    if not hasattr(race_date, 'tz') or race_date.tz is None:
+                    if not hasattr(race_date, "tz") or race_date.tz is None:
                         race_date = race_date.tz_localize("UTC")
                     if race_date > pd.Timestamp.now(tz="UTC"):
                         continue
@@ -159,26 +176,34 @@ def extract_teammate_comparisons(years: List[int]) -> List[Dict]:
 
                         # Get driver abbreviations
                         try:
-                            d1_code = results.loc[results["Abbreviation"] == d1].iloc[0]["Abbreviation"]
-                            d2_code = results.loc[results["Abbreviation"] == d2].iloc[0]["Abbreviation"]
+                            d1_code = results.loc[results["Abbreviation"] == d1].iloc[
+                                0
+                            ]["Abbreviation"]
+                            d2_code = results.loc[results["Abbreviation"] == d2].iloc[
+                                0
+                            ]["Abbreviation"]
                         except:
                             continue
 
                         # Sample size confidence (more laps = higher confidence)
                         sample_size = min(len(laps_d1), len(laps_d2))
-                        confidence = min(1.0, sample_size / 30.0)  # 30+ laps = full confidence
+                        confidence = min(
+                            1.0, sample_size / 30.0
+                        )  # 30+ laps = full confidence
 
                         # Store comparison (A vs B)
-                        comparisons.append({
-                            "driver_a": d1_code,
-                            "driver_b": d2_code,
-                            "gap_pct": gap,  # Positive = A slower than B
-                            "year": year,
-                            "race": race_name,
-                            "confidence": confidence,
-                            "recency_weight": year_weight,
-                            "weight": confidence * year_weight,
-                        })
+                        comparisons.append(
+                            {
+                                "driver_a": d1_code,
+                                "driver_b": d2_code,
+                                "gap_pct": gap,  # Positive = A slower than B
+                                "year": year,
+                                "race": race_name,
+                                "confidence": confidence,
+                                "recency_weight": year_weight,
+                                "weight": confidence * year_weight,
+                            }
+                        )
 
                 except Exception as e:
                     logger.debug(f"  Failed: {e}")
@@ -250,7 +275,9 @@ def solve_global_ratings(comparisons: List[Dict], iterations=15) -> Dict[str, fl
         if iteration % 5 == 0:
             avg_rating = np.mean(list(ratings.values()))
             std_rating = np.std(list(ratings.values()))
-            logger.info(f"  Iteration {iteration}: avg={avg_rating:.3f}, std={std_rating:.3f}")
+            logger.info(
+                f"  Iteration {iteration}: avg={avg_rating:.3f}, std={std_rating:.3f}"
+            )
 
     # Normalize ratings to 0.35-0.95 range (WIDER SPREAD!)
     # Best driver → 0.95, Average → 0.65, Worst → 0.35
@@ -266,7 +293,9 @@ def solve_global_ratings(comparisons: List[Dict], iterations=15) -> Dict[str, fl
     return ratings
 
 
-def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> Dict[str, float]:
+def calculate_racecraft_scores(
+    years: List[int], ratings: Dict[str, float]
+) -> Dict[str, float]:
     """Calculate racecraft adjustment based on finish position versus pace-expected position."""
     logger.info("Calculating racecraft adjustments...")
 
@@ -288,7 +317,7 @@ def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> D
                     race_date = session.date
                     if pd.isna(race_date):
                         continue
-                    if not hasattr(race_date, 'tz') or race_date.tz is None:
+                    if not hasattr(race_date, "tz") or race_date.tz is None:
                         race_date = race_date.tz_localize("UTC")
                     if race_date > pd.Timestamp.now(tz="UTC"):
                         continue
@@ -301,12 +330,16 @@ def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> D
                     for _, row in results.iterrows():
                         driver = row["Abbreviation"]
                         if driver in ratings:
-                            expected_order.append((driver, ratings[driver], row["Position"]))
+                            expected_order.append(
+                                (driver, ratings[driver], row["Position"])
+                            )
 
                     expected_order.sort(key=lambda x: x[1], reverse=True)
 
                     # Compare expected vs actual
-                    for expected_pos, (driver, rating, actual_pos) in enumerate(expected_order, 1):
+                    for expected_pos, (driver, rating, actual_pos) in enumerate(
+                        expected_order, 1
+                    ):
                         if pd.notna(actual_pos) and actual_pos <= 20:
                             # Positive = beat expectations (good racecraft)
                             racecraft_gain = expected_pos - actual_pos
@@ -329,18 +362,22 @@ def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> D
     return racecraft_ratings
 
 
-def calculate_experience_and_consistency(years: List[int], driver_debuts: Dict[str, int]) -> Dict:
+def calculate_experience_and_consistency(
+    years: List[int], driver_debuts: Dict[str, int]
+) -> Dict:
     """
     Calculate experience tiers, total races, and DNF rates.
     """
     logger.info("Calculating experience and consistency...")
 
-    driver_stats = defaultdict(lambda: {
-        "seasons": set(),
-        "total_races": 0,
-        "dnf_count": 0,
-        "crash_count": 0,
-    })
+    driver_stats = defaultdict(
+        lambda: {
+            "seasons": set(),
+            "total_races": 0,
+            "dnf_count": 0,
+            "crash_count": 0,
+        }
+    )
 
     for year in years:
         try:
@@ -358,7 +395,7 @@ def calculate_experience_and_consistency(years: List[int], driver_debuts: Dict[s
                     race_date = session.date
                     if pd.isna(race_date):
                         continue
-                    if not hasattr(race_date, 'tz') or race_date.tz is None:
+                    if not hasattr(race_date, "tz") or race_date.tz is None:
                         race_date = race_date.tz_localize("UTC")
                     if race_date > pd.Timestamp.now(tz="UTC"):
                         continue
@@ -374,7 +411,16 @@ def calculate_experience_and_consistency(years: List[int], driver_debuts: Dict[s
                         driver_stats[driver]["total_races"] += 1
 
                         # Only count CRASH-related DNFs (driver error), not mechanical failures
-                        if any(word in status for word in ["accident", "collision", "crash", "damage", "spun"]):
+                        if any(
+                            word in status
+                            for word in [
+                                "accident",
+                                "collision",
+                                "crash",
+                                "damage",
+                                "spun",
+                            ]
+                        ):
                             driver_stats[driver]["dnf_count"] += 1
                             driver_stats[driver]["crash_count"] += 1
 
@@ -401,7 +447,9 @@ def calculate_experience_and_consistency(years: List[int], driver_debuts: Dict[s
         else:
             # Fallback: count seasons in our data
             years_of_experience = len(stats["seasons"])
-            logger.warning(f"{driver}: No debut year found, using {years_of_experience} seasons")
+            logger.warning(
+                f"{driver}: No debut year found, using {years_of_experience} seasons"
+            )
 
         # Experience tier (based on ACTUAL F1 career, not just our data window)
         if years_of_experience >= 10:
@@ -429,9 +477,15 @@ def calculate_experience_and_consistency(years: List[int], driver_debuts: Dict[s
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract driver characteristics (fixed)")
-    parser.add_argument("--years", type=str, default="2024,2025", help="Comma-separated years")
-    parser.add_argument("--output", type=str, default="data/processed/driver_characteristics.json")
+    parser = argparse.ArgumentParser(
+        description="Extract driver characteristics (fixed)"
+    )
+    parser.add_argument(
+        "--years", type=str, default="2024,2025", help="Comma-separated years"
+    )
+    parser.add_argument(
+        "--output", type=str, default="data/processed/driver_characteristics.json"
+    )
 
     args = parser.parse_args()
 
@@ -477,7 +531,7 @@ def main():
             race_date = session.date
             if pd.isna(race_date):
                 continue
-            if not hasattr(race_date, 'tz') or race_date.tz is None:
+            if not hasattr(race_date, "tz") or race_date.tz is None:
                 race_date = race_date.tz_localize("UTC")
             if race_date > pd.Timestamp.now(tz="UTC"):
                 continue
@@ -513,7 +567,9 @@ def main():
                     continue
 
                 expected_pos = team_expected[team]
-                overperformance = expected_pos - position  # Positive = beat expectations
+                overperformance = (
+                    expected_pos - position
+                )  # Positive = beat expectations
 
                 if driver not in championship_adjustments:
                     championship_adjustments[driver] = []
@@ -530,7 +586,9 @@ def main():
         # +1 position vs team = +0.03 rating (max ±0.10)
         championship_bonuses[driver] = np.clip(avg_overperf * 0.03, -0.10, 0.10)
         if abs(championship_bonuses[driver]) > 0.05:
-            logger.info(f"  {driver}: {championship_bonuses[driver]:+.3f} (overperformed car)")
+            logger.info(
+                f"  {driver}: {championship_bonuses[driver]:+.3f} (overperformed car)"
+            )
 
     # Step 6: Combine into final ratings
     final_ratings = {}
@@ -549,7 +607,9 @@ def main():
             base_rating *= 0.90
 
         # Final skill score (base + racecraft + championship overdelivery)
-        skill_score = np.clip(base_rating + racecraft_bonus + championship_bonus, 0.10, 0.99)
+        skill_score = np.clip(
+            base_rating + racecraft_bonus + championship_bonus, 0.10, 0.99
+        )
 
         final_ratings[driver] = {
             "name": f"Driver {driver}",
@@ -595,7 +655,11 @@ def main():
     logger.info("Sample ratings:")
 
     # Show top drivers
-    sorted_drivers = sorted(final_ratings.items(), key=lambda x: x[1]["racecraft"]["skill_score"], reverse=True)
+    sorted_drivers = sorted(
+        final_ratings.items(),
+        key=lambda x: x[1]["racecraft"]["skill_score"],
+        reverse=True,
+    )
     for driver, data in sorted_drivers[:10]:
         logger.info(f"  {driver}: {data['racecraft']['skill_score']:.3f}")
 

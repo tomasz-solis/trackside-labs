@@ -1,7 +1,7 @@
 """Calculates accuracy metrics by comparing predictions to actual results."""
 
 import logging
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 import numpy as np
 from scipy.stats import spearmanr
 from src.utils.driver_name_mapper import DriverNameMapper
@@ -31,7 +31,8 @@ class PredictionMetrics:
         ]
         if missing_from_actual:
             logger.warning(
-                f"Drivers in prediction but not in actuals (possible substitution): {missing_from_actual}"
+                f"Drivers in prediction but not in actuals "
+                f"(possible substitution): {missing_from_actual}"
             )
 
         # Count exact matches
@@ -64,7 +65,7 @@ class PredictionMetrics:
         ]
 
         if not errors:
-            return float("inf")
+            return float("in")
 
         return np.mean(errors)
 
@@ -162,7 +163,9 @@ class PredictionMetrics:
         return predicted_norm[0]["driver"] == actual_norm[0]["driver"]
 
     @staticmethod
-    def calculate_all_metrics(prediction_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def calculate_all_metrics(
+        prediction_data: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
         """Calculate all metrics for a prediction with actuals."""
         # Check if actuals are available
         if prediction_data.get("actuals") is None:

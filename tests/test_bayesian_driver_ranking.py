@@ -3,8 +3,7 @@ Tests for Bayesian driver ranking system.
 """
 
 import pytest
-import numpy as np
-from src.models.bayesian import BayesianDriverRanking, DriverPrior, UpdateRecord
+from src.models.bayesian import BayesianDriverRanking, DriverPrior
 
 
 @pytest.mark.unit

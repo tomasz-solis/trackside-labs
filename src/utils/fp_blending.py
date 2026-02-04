@@ -15,7 +15,6 @@ Usage:
 """
 
 import fastf1 as ff1
-import pandas as pd
 import numpy as np
 import logging
 from typing import Dict, Optional, Tuple
@@ -166,7 +165,8 @@ def blend_team_strength(
         else:
             blended_score = blend_weight * fp_score + (1 - blend_weight) * model_score
             logger.debug(
-                f"  {team}: FP={fp_score:.3f}, Model={model_score:.3f} → Blended={blended_score:.3f}"
+                f"  {team}: FP={fp_score:.3f}, Model={model_score:.3f} "
+                f"→ Blended={blended_score:.3f}"
             )
             blended[team] = blended_score
 

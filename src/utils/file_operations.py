@@ -47,7 +47,7 @@ def atomic_json_write(file_path: Path, data: Dict[str, Any], create_backup: bool
         # Clean up temp file if it still exists
         try:
             Path(temp_path).unlink()
-        except:
+        except BaseException:
             pass
         raise IOError(f"Failed to write {file_path}: {e}") from e
 

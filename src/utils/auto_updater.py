@@ -108,7 +108,7 @@ def auto_update_from_races(progress_callback=None) -> int:
             if progress_callback:
                 progress_callback(i + 1, len(new_races), f"Learning from {race_name}...")
 
-            logger.info(f"Updating from {race_name} ({i+1}/{len(new_races)})...")
+            logger.info(f"Updating from {race_name} ({i + 1}/{len(new_races)})...")
 
             # Update from race (loads results, updates teams & drivers)
             update_from_race(2026, race_name)

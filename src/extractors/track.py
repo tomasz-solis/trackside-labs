@@ -27,7 +27,6 @@ Date: December 2025
 """
 
 import pandas as pd
-import numpy as np
 import logging
 from scipy.signal import find_peaks
 from sklearn.preprocessing import StandardScaler
@@ -63,7 +62,10 @@ def extract_track_metrics(session) -> Optional[Dict[str, float]]:
 
 
 def identify_corners(telemetry: pd.DataFrame, min_speed_drop: int = 15) -> pd.DataFrame:
-    """Identify corners by finding local speed minima. Returns entry/apex/exit speeds for each corner."""
+    """Identify corners by finding local speed minima.
+
+    Returns entry/apex/exit speeds for each corner.
+    """
     speed = telemetry["Speed"].values
 
     # Find local minima (corners)
@@ -160,7 +162,8 @@ def extract_tire_stress_proxy(session) -> Optional[float]:
         return float(energy_score)
     except (AttributeError, KeyError, ValueError, TypeError) as e:
         logger.warning(
-            f"Could not extract tire stress proxy (energy score): {e}. This metric will be unavailable."
+            f"Could not extract tire stress proxy (energy score): {e}. "
+            f"This metric will be unavailable."
         )
         return None
 

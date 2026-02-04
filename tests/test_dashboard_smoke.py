@@ -4,9 +4,7 @@ Smoke tests for Streamlit dashboard
 Basic tests to ensure the dashboard can load without crashing.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-import sys
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -163,8 +161,8 @@ class TestDashboardEdgeCases:
         # Invalid race should return False, not crash
         try:
             result = is_sprint_weekend(2026, "Invalid Race Name")
-            assert result == False
-        except:
+            assert result is False
+        except BaseException:
             # If it raises, that's also acceptable
             pass
 

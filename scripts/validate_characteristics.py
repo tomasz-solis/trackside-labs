@@ -187,7 +187,11 @@ def validate_track_characteristics(track_file: Path) -> Tuple[bool, List[str]]:
 
         for track_name, track_data in tracks.items():
             # Check required fields
-            required_fields = ["pit_stop_loss", "safety_car_prob", "overtaking_difficulty"]
+            required_fields = [
+                "pit_stop_loss",
+                "safety_car_prob",
+                "overtaking_difficulty",
+            ]
 
             for field in required_fields:
                 if field not in track_data:

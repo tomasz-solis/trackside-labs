@@ -52,7 +52,13 @@ class Config:
     def _validate_config(self):
         """Validate that required config sections exist, with correct structure and value ranges."""
         # 1. Check required sections exist
-        required_sections = ["paths", "bayesian", "race", "qualifying", "baseline_predictor"]
+        required_sections = [
+            "paths",
+            "bayesian",
+            "race",
+            "qualifying",
+            "baseline_predictor",
+        ]
 
         missing = []
         for section in required_sections:
@@ -62,7 +68,7 @@ class Config:
         if missing:
             raise ValueError(
                 f"Config validation failed. Missing required sections: {missing}. "
-                f"Check your config file structure."
+                "Check your config file structure."
             )
 
         # 2. Validate baseline_predictor subsections

@@ -1,7 +1,7 @@
 """Maps driver names between FastF1 abbreviations and full names."""
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

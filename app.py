@@ -70,9 +70,7 @@ def auto_update_if_needed():
     needs_update_flag, new_races = needs_update()
 
     if needs_update_flag:
-        st.info(
-            f"🔄 Found {len(new_races)} new race(s) to learn from! Updating characteristics..."
-        )
+        st.info(f"🔄 Found {len(new_races)} new race(s) to learn from! Updating characteristics...")
 
         # Create progress bar
         progress_bar = st.progress(0)
@@ -89,9 +87,7 @@ def auto_update_if_needed():
         status_text.empty()
 
         if updated_count > 0:
-            st.success(
-                f"✅ Learned from {updated_count} race(s)! Predictions now use fresh data."
-            )
+            st.success(f"✅ Learned from {updated_count} race(s)! Predictions now use fresh data.")
             # Clear caches since data changed
             st.cache_resource.clear()
             st.cache_data.clear()
@@ -99,9 +95,7 @@ def auto_update_if_needed():
             st.warning("⚠️ Could not update from new races - using existing data")
 
 
-def display_prediction_result(
-    result: Dict, prediction_name: str, is_race: bool = False
-):
+def display_prediction_result(result: Dict, prediction_name: str, is_race: bool = False):
     """Display a single prediction result (qualifying or race)."""
     st.markdown("---")
     icon = "🏎️" if is_race else "🏁"
@@ -165,9 +159,7 @@ def display_prediction_result(
         def color_position(val):
             if val <= 3:
                 colors = {1: "#FFD700", 2: "#C0C0C0", 3: "#CD7F32"}
-                return (
-                    f"background-color: {colors[val]}; font-weight: bold; color: black"
-                )
+                return f"background-color: {colors[val]}; font-weight: bold; color: black"
             elif val <= 10:
                 return "background-color: #e3f2fd; font-weight: bold"
             return ""
@@ -182,9 +174,7 @@ def display_prediction_result(
         styled_df = (
             df_display.style.map(color_position, subset=["Pos"])
             .map(color_dnf_risk, subset=["DNF Risk %"])
-            .format(
-                {"Confidence %": "{:.1f}", "Podium %": "{:.1f}", "DNF Risk %": "{:.1f}"}
-            )
+            .format({"Confidence %": "{:.1f}", "Podium %": "{:.1f}", "DNF Risk %": "{:.1f}"})
         )
 
         st.dataframe(styled_df, width="stretch", height=500)
@@ -284,9 +274,7 @@ def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = 
 
         # 2. Sprint Race Prediction (use actual SQ grid if available)
         sprint_start = time.time()
-        sq_grid, grid_source = fetch_grid_if_available(
-            2026, race_name, "SQ", sq_result["grid"]
-        )
+        sq_grid, grid_source = fetch_grid_if_available(2026, race_name, "SQ", sq_result["grid"])
         results["sprint_quali"]["grid_source"] = grid_source
 
         sprint_result = predictor.predict_sprint_race(
@@ -306,9 +294,7 @@ def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = 
 
         # 4. Main Race Prediction (use actual main quali grid if available)
         mr_start = time.time()
-        quali_grid, grid_source = fetch_grid_if_available(
-            2026, race_name, "Q", mq_result["grid"]
-        )
+        quali_grid, grid_source = fetch_grid_if_available(2026, race_name, "Q", mq_result["grid"])
         results["main_quali"]["grid_source"] = grid_source
 
         main_race_result = predictor.predict_race(
@@ -491,9 +477,7 @@ if page == "Live Prediction":
                     is_sprint = False
 
                 # Show warnings based on data freshness
-                st.warning(
-                    "⚠️ 2026 regulation reset - predictions uncertain until races complete"
-                )
+                st.warning("⚠️ 2026 regulation reset - predictions uncertain until races complete")
 
                 if is_sprint:
                     st.info(
@@ -508,9 +492,7 @@ if page == "Live Prediction":
 
                 # Use cached prediction (invalidates if files changed)
                 st.info("Running simulation (cached results will load instantly)...")
-                prediction_results = run_prediction(
-                    race_name, weather, timestamps, is_sprint
-                )
+                prediction_results = run_prediction(race_name, weather, timestamps, is_sprint)
 
                 # Save prediction if logging is enabled
                 if enable_logging:
@@ -535,25 +517,17 @@ if page == "Live Prediction":
                                 # Get qualifying and race predictions based on weekend type
                                 if is_sprint:
                                     # For sprint, save main quali and main race
-                                    quali_grid = prediction_results["main_quali"][
-                                        "grid"
-                                    ]
-                                    race_finish = prediction_results["main_race"][
-                                        "finish_order"
-                                    ]
-                                    fp_blend_info = prediction_results.get(
-                                        "main_quali", {}
-                                    ).get("fp_blend_info", {})
+                                    quali_grid = prediction_results["main_quali"]["grid"]
+                                    race_finish = prediction_results["main_race"]["finish_order"]
+                                    fp_blend_info = prediction_results.get("main_quali", {}).get(
+                                        "fp_blend_info", {}
+                                    )
                                 else:
-                                    quali_grid = prediction_results["qualifying"][
-                                        "grid"
-                                    ]
-                                    race_finish = prediction_results["race"][
-                                        "finish_order"
-                                    ]
-                                    fp_blend_info = prediction_results.get(
-                                        "qualifying", {}
-                                    ).get("fp_blend_info", {})
+                                    quali_grid = prediction_results["qualifying"]["grid"]
+                                    race_finish = prediction_results["race"]["finish_order"]
+                                    fp_blend_info = prediction_results.get("qualifying", {}).get(
+                                        "fp_blend_info", {}
+                                    )
 
                                 logger_inst.save_prediction(
                                     year=2026,
@@ -726,8 +700,7 @@ elif page == "Prediction Accuracy":
         predictions_with_actuals = [
             p
             for p in all_predictions
-            if p.get("actuals")
-            and (p["actuals"].get("qualifying") or p["actuals"].get("race"))
+            if p.get("actuals") and (p["actuals"].get("qualifying") or p["actuals"].get("race"))
         ]
 
         if predictions_with_actuals:
@@ -847,9 +820,7 @@ elif page == "Prediction Accuracy":
             status_icon = "✅" if has_actuals else "⏳"
             status_text = "Results added" if has_actuals else "Awaiting results"
 
-            st.write(
-                f"{status_icon} **{race_name}** (after {session_name}) - {status_text}"
-            )
+            st.write(f"{status_icon} **{race_name}** (after {session_name}) - {status_text}")
 
 
 # Page: About

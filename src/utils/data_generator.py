@@ -9,7 +9,6 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ def ensure_baseline_exists(data_dir: Path) -> None:
     # Check all required files
     team_file = data_dir / "car_characteristics" / "2026_car_characteristics.json"
     track_file = data_dir / "track_characteristics" / "2026_track_characteristics.json"
-    driver_file = data_dir / "driver_characteristics.json"
+    data_dir / "driver_characteristics.json"
 
     needs_generation = False
 

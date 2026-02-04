@@ -110,9 +110,7 @@ class TestBaseline2026Integration:
                 if entry["driver"] == driver
             )
         ]
-        assert all(
-            pos >= 13 for pos in cadillac_positions
-        ), "Cadillac drivers should be bottom half"
+        assert all(pos >= 13 for pos in cadillac_positions), "Cadillac drivers should be bottom hal"
 
     def test_sprint_weekend_detection(self, predictor):
         """Test that sprint weekends have slightly higher variance"""
@@ -169,7 +167,10 @@ class TestBaseline2026Integration:
 
         # Run race (increase simulations for stability)
         race = predictor.predict_race(
-            quali["grid"], weather="dry", n_simulations=500, race_name="Bahrain Grand Prix"
+            quali["grid"],
+            weather="dry",
+            n_simulations=500,
+            race_name="Bahrain Grand Prix",
         )
 
         # Driver starting P1 should have high chance of finishing in top 5
@@ -177,7 +178,8 @@ class TestBaseline2026Integration:
         pole_finish = next(e for e in race["finish_order"] if e["driver"] == pole_driver)
 
         assert pole_finish["position"] <= 8, "Pole sitter should finish in top 8 most of the time"
-        # Adjust threshold to 20% based on actual Monte Carlo variance (high chaos on overtaking tracks)
+        # Adjust threshold to 20% based on actual Monte Carlo variance (high chaos
+        # on overtaking tracks)
         assert (
             pole_finish["podium_probability"] >= 20
         ), "Pole sitter should have >=20% podium chance"

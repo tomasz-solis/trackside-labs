@@ -3,7 +3,6 @@ Adaptive Learning System - Tracks performance and recommends strategy.
 """
 
 import json
-import numpy as np
 from pathlib import Path
 from datetime import datetime
 from typing import Dict
@@ -40,7 +39,7 @@ class LearningSystem:
 
     def get_optimal_blend_weight(self, default=0.7) -> float:
         """Returns the best blend weight (0.0-1.0) based on history."""
-        best_mae = float("inf")
+        best_mae = float("in")
         best_method = None
 
         for method, stats in self.state["method_performance"].items():
@@ -65,7 +64,11 @@ class LearningSystem:
         """Update stats after a race weekend."""
         # 1. Log the event
         self.state["history"].append(
-            {"race": race, "date": datetime.now().isoformat(), "comparisons": prediction_comparison}
+            {
+                "race": race,
+                "date": datetime.now().isoformat(),
+                "comparisons": prediction_comparison,
+            }
         )
 
         # 2. Update Method Stats

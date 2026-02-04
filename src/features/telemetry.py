@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 import logging
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,11 @@ class LapFeatureExtractor:
         Default: slow <100, medium 100-200, high 200-250 km/h
         """
         if corner_speed_thresholds is None:
-            self.corner_thresholds = {"slow": (0, 100), "medium": (100, 200), "high": (200, 250)}
+            self.corner_thresholds = {
+                "slow": (0, 100),
+                "medium": (100, 200),
+                "high": (200, 250),
+            }
         else:
             self.corner_thresholds = corner_speed_thresholds
 
@@ -124,9 +128,7 @@ class SessionFeatureAggregator:
         Keep laps where: in-lap, out-lap, yellow flags, accidents filtered out.
         """
         # Basic filters
-        clean = laps[
-            (laps["IsAccurate"] == True) & (laps["TrackStatus"] == "1")  # Green flag
-        ].copy()
+        clean = laps[(laps["IsAccurate"]) & (laps["TrackStatus"] == "1")].copy()  # Green flag
 
         # Remove statistical outliers (more than 3 std from median)
         if len(clean) > 5:

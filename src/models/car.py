@@ -4,8 +4,8 @@ Calculates aggregate performance scores based on testing/practice telemetry.
 """
 
 import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+from dataclasses import dataclass
+from typing import Dict
 
 
 @dataclass

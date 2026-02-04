@@ -8,7 +8,7 @@ Detects first F1 season, calculates experience, and assigns tiers:
 - Veteran: 7+ complete seasons
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict
 import json
 from pathlib import Path
 import csv
@@ -142,7 +142,10 @@ def determine_confidence_flag(
 
 
 def enrich_driver_characteristics(
-    quali_data: Dict, race_data: Dict, current_year: int = 2025, debuts_csv_path: str = None
+    quali_data: Dict,
+    race_data: Dict,
+    current_year: int = 2025,
+    debuts_csv_path: str = None,
 ) -> Dict:
     """Add experience metadata and confidence flags to driver characteristics data."""
     # Load debuts from CSV if provided

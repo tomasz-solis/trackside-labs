@@ -18,8 +18,6 @@ from src.utils.schema_validation import (
     validate_track_characteristics,
     validate_json,
     DRIVER_CHARACTERISTICS_SCHEMA,
-    TEAM_CHARACTERISTICS_SCHEMA,
-    TRACK_CHARACTERISTICS_SCHEMA,
 )
 
 
@@ -99,7 +97,10 @@ class TestDriverCharacteristicsSchema:
         data = {
             "drivers": {
                 "VER": {
-                    "racecraft": {"skill_score": 1.5, "overtaking_skill": 0.8},  # Invalid: > 1.0
+                    "racecraft": {
+                        "skill_score": 1.5,
+                        "overtaking_skill": 0.8,
+                    },  # Invalid: > 1.0
                     "pace": {"quali_pace": 0.9, "race_pace": 0.85},
                     "dnf_risk": {"dnf_rate": 0.05},
                 }
@@ -184,7 +185,10 @@ class TestTeamCharacteristicsSchema:
         """Test that uncertainty > 1.0 raises error."""
         data = {
             "teams": {
-                "McLaren": {"overall_performance": 0.85, "uncertainty": 1.5}  # Invalid: > 1.0
+                "McLaren": {
+                    "overall_performance": 0.85,
+                    "uncertainty": 1.5,
+                }  # Invalid: > 1.0
             }
         }
         with pytest.raises(ValueError):

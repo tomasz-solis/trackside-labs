@@ -3,8 +3,6 @@ Shared test fixtures and configuration.
 """
 
 import pytest
-import numpy as np
-from pathlib import Path
 from src.models.bayesian import DriverPrior
 
 

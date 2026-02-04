@@ -26,7 +26,10 @@ from src.utils.schema_validation import (
 from src.utils.lineups import get_lineups
 from src.utils.weekend import is_sprint_weekend
 from src.utils.data_generator import ensure_baseline_exists
-from src.systems.weight_schedule import calculate_blended_performance, get_recommended_schedule
+from src.systems.weight_schedule import (
+    calculate_blended_performance,
+    get_recommended_schedule,
+)
 from src.utils.fp_blending import get_best_fp_performance, blend_team_strength
 
 logger = logging.getLogger(__name__)
@@ -87,7 +90,7 @@ class Baseline2026Predictor:
             # Check data freshness and warn if stale
             data_freshness = data.get("data_freshness", "UNKNOWN")
             races_completed = data.get("races_completed", 0)
-            last_updated = data.get("last_updated")
+            data.get("last_updated")
 
             if data_freshness == "BASELINE_PRESEASON":
                 logger.warning(
@@ -448,7 +451,8 @@ class Baseline2026Predictor:
             overtaking_skill = racecraft.get("overtaking_skill", 0.5)
 
             dnf_rate = min(
-                driver_data.get("dnf_risk", {}).get("dnf_rate", 0.10), dnf_rate_historical_cap
+                driver_data.get("dnf_risk", {}).get("dnf_rate", 0.10),
+                dnf_rate_historical_cap,
             )
 
             experience_tier = driver_data.get("experience", {}).get("tier", "established")
@@ -480,7 +484,12 @@ class Baseline2026Predictor:
         return driver_info_map
 
     def _calculate_driver_race_score(
-        self, info: Dict, track_overtaking: float, weather: str, safety_car: bool, params: Dict
+        self,
+        info: Dict,
+        track_overtaking: float,
+        weather: str,
+        safety_car: bool,
+        params: Dict,
     ) -> tuple[float, bool]:
         """Calculate single driver's race score for one simulation."""
         # Grid advantage
@@ -682,7 +691,7 @@ class Baseline2026Predictor:
                 score, dnf_occurred = self._calculate_driver_race_score(
                     info, track_overtaking, weather, safety_car, params
                 )
-                race_scores.append({"driver": driver_code, "score": score, "dnf": dnf_occurred})
+                race_scores.append({"driver": driver_code, "score": score, "dn": dnf_occurred})
 
             race_scores.sort(key=lambda x: x["score"], reverse=True)
             for i, item in enumerate(race_scores):

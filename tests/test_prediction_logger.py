@@ -20,9 +20,24 @@ def temp_predictions_dir():
 def sample_quali_prediction():
     """Sample qualifying prediction."""
     return [
-        {"driver": "Verstappen", "team": "Red Bull", "expected_time": 78.5, "confidence": 0.8},
-        {"driver": "Norris", "team": "McLaren", "expected_time": 78.7, "confidence": 0.75},
-        {"driver": "Leclerc", "team": "Ferrari", "expected_time": 78.8, "confidence": 0.72},
+        {
+            "driver": "Verstappen",
+            "team": "Red Bull",
+            "expected_time": 78.5,
+            "confidence": 0.8,
+        },
+        {
+            "driver": "Norris",
+            "team": "McLaren",
+            "expected_time": 78.7,
+            "confidence": 0.75,
+        },
+        {
+            "driver": "Leclerc",
+            "team": "Ferrari",
+            "expected_time": 78.8,
+            "confidence": 0.72,
+        },
     ]
 
 
@@ -30,7 +45,12 @@ def sample_quali_prediction():
 def sample_race_prediction():
     """Sample race prediction."""
     return [
-        {"driver": "Verstappen", "team": "Red Bull", "confidence": 0.8, "dnf_risk": 0.05},
+        {
+            "driver": "Verstappen",
+            "team": "Red Bull",
+            "confidence": 0.8,
+            "dnf_risk": 0.05,
+        },
         {"driver": "Norris", "team": "McLaren", "confidence": 0.75, "dnf_risk": 0.07},
         {"driver": "Leclerc", "team": "Ferrari", "confidence": 0.72, "dnf_risk": 0.08},
     ]

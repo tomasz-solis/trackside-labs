@@ -51,9 +51,17 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                             "type": "object",
                             "required": ["quali_pace", "race_pace"],
                             "properties": {
-                                "quali_pace": {"type": "number", "minimum": 0, "maximum": 1},
+                                "quali_pace": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                },
                                 "quali_std": {"type": "number", "minimum": 0},
-                                "race_pace": {"type": "number", "minimum": 0, "maximum": 1},
+                                "race_pace": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                },
                                 "race_std": {"type": "number", "minimum": 0},
                                 "confidence": {"type": "string"},
                             },
@@ -62,8 +70,16 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                             "type": "object",
                             "required": ["skill_score", "overtaking_skill"],
                             "properties": {
-                                "skill_score": {"type": "number", "minimum": 0, "maximum": 1},
-                                "overtaking_skill": {"type": "number", "minimum": 0, "maximum": 1},
+                                "skill_score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                },
+                                "overtaking_skill": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                },
                                 "driver_type": {"type": "string"},
                                 "interpretation": {"type": "string"},
                                 "races_analyzed": {"type": "integer", "minimum": 0},
@@ -74,7 +90,11 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                             "type": "object",
                             "required": ["dnf_rate"],
                             "properties": {
-                                "dnf_rate": {"type": "number", "minimum": 0, "maximum": 1},
+                                "dnf_rate": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                },
                                 "risk_level": {"type": "string"},
                                 "total_races": {"type": "integer", "minimum": 0},
                                 "total_dnfs": {"type": "integer", "minimum": 0},
@@ -85,7 +105,11 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
                             "type": "object",
                             "properties": {
                                 "skill": {"type": "number", "minimum": 0, "maximum": 1},
-                                "skill_score": {"type": "number", "minimum": 0, "maximum": 1},
+                                "skill_score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                },
                                 "baseline": {"type": "string"},
                                 "notes": {"type": "string"},
                             },
@@ -115,7 +139,11 @@ TEAM_CHARACTERISTICS_SCHEMA = {
                     "type": "object",
                     "required": ["overall_performance"],
                     "properties": {
-                        "overall_performance": {"type": "number", "minimum": 0, "maximum": 1},
+                        "overall_performance": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                        },
                         "uncertainty": {"type": "number", "minimum": 0, "maximum": 1},
                         "note": {"type": "string"},
                     },
@@ -143,8 +171,16 @@ TRACK_CHARACTERISTICS_SCHEMA = {
                     "required": [],
                     "properties": {
                         "pit_stop_loss": {"type": "number", "minimum": 0},
-                        "safety_car_prob": {"type": "number", "minimum": 0, "maximum": 1},
-                        "overtaking_difficulty": {"type": "number", "minimum": 0, "maximum": 1},
+                        "safety_car_prob": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                        },
+                        "overtaking_difficulty": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                        },
                         "type": {"type": "string"},
                         "has_sprint": {"type": "boolean"},
                     },

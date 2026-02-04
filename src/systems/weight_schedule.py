@@ -92,7 +92,7 @@ ScheduleType = Literal[
 
 
 def get_schedule_weights(race_number: int, schedule: ScheduleType = "extreme") -> Dict[str, float]:
-    """Get weight distribution for a specific race with smooth linear interpolation between checkpoints."""
+    """Get weight distribution for a specific race with smooth linear interpolation between checkpoints."""  # noqa: E501
     if schedule not in SCHEDULES:
         raise ValueError(
             f"Unknown schedule '{schedule}'. " f"Available: {', '.join(SCHEDULES.keys())}"
@@ -161,7 +161,7 @@ def calculate_blended_performance(
 
 
 def get_recommended_schedule(is_regulation_change: bool = True) -> ScheduleType:
-    """Get recommended weight schedule. Returns 'extreme' for regulation changes, 'moderate' for stable seasons."""
+    """Get recommended weight schedule. Returns 'extreme' for regulation changes, 'moderate' for stable seasons."""  # noqa: E501
     return "extreme" if is_regulation_change else "moderate"
 
 
@@ -178,9 +178,9 @@ def format_schedule_summary(schedule: ScheduleType) -> str:
         baseline, testing, current = schedule_def[race_num]
         lines.append(
             f"Race {race_num:2d}+: "
-            f"{baseline*100:4.0f}% baseline | "
-            f"{testing*100:4.0f}% testing | "
-            f"{current*100:4.0f}% current"
+            f"{baseline * 100:4.0f}% baseline | "
+            f"{testing * 100:4.0f}% testing | "
+            f"{current * 100:4.0f}% current"
         )
 
     return "\n".join(lines)
@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
         print(f"Race {race_num}: Current={current:.2f} → Blended={blended:.3f}")
         print(
-            f"  Weights: {weights['baseline']*100:.0f}% baseline, "
-            f"{weights['testing']*100:.0f}% testing, "
-            f"{weights['current']*100:.0f}% current"
+            f"  Weights: {weights['baseline'] * 100:.0f}% baseline, "
+            f"{weights['testing'] * 100:.0f}% testing, "
+            f"{weights['current'] * 100:.0f}% current"
         )

@@ -3,8 +3,6 @@ Tests for adaptive learning system.
 """
 
 import pytest
-import json
-from pathlib import Path
 from src.systems.learning import LearningSystem
 
 

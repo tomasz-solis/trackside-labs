@@ -57,9 +57,7 @@ def fetch_actual_session_results(
         return None
 
 
-def is_competitive_session_completed(
-    year: int, race_name: str, session_name: str
-) -> bool:
+def is_competitive_session_completed(year: int, race_name: str, session_name: str) -> bool:
     """
     Check if a competitive session has completed and results are available.
 

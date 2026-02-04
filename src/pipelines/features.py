@@ -2,7 +2,6 @@
 
 import pandas as pd
 import numpy as np
-from typing import List
 from ..features.telemetry import LapFeatureExtractor, SessionFeatureAggregator
 
 
@@ -105,7 +104,7 @@ class F1FeaturePipeline:
         for i, session in enumerate(sessions):
             if verbose:
                 print(
-                    f"Processing {i+1}/{len(sessions)}: {session.event['EventName']} - {session.name}"
+                    f"Processing {i + 1}/{len(sessions)}: {session.event['EventName']} - {session.name}"
                 )
 
             features = self.process_session(session)

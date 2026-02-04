@@ -24,7 +24,7 @@ def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> Option
 
         if not hasattr(session, "laps") or session.laps is None:
             if verbose:
-                print(f"   ⚠️  No FP2 lap data available")
+                print("   ⚠️  No FP2 lap data available")
             return None
 
         laps = session.laps
@@ -55,7 +55,7 @@ def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> Option
 
         if not team_pace:
             if verbose:
-                print(f"   ⚠️  No long runs detected")
+                print("   ⚠️  No long runs detected")
             return None
 
         # Calculate relative pace (vs median)

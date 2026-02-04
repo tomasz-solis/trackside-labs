@@ -4,15 +4,13 @@ Test Weight Schedule Integration
 Quick test to ensure the weight schedule system is properly integrated.
 """
 
+from src.systems.weight_schedule import get_schedule_weights
+from src.predictors.baseline_2026 import Baseline2026Predictor
 import sys
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
-
-from src.predictors.baseline_2026 import Baseline2026Predictor
-from src.systems.weight_schedule import get_schedule_weights
-import json
 
 
 def test_weight_schedule_integration():
@@ -82,10 +80,11 @@ def test_weight_schedule_integration():
         )
 
         print(f"   ✓ Generated grid with {len(result['grid'])} drivers")
-        print(f"   Top 3:")
+        print("   Top 3:")
         for i, driver in enumerate(result["grid"][:3], 1):
             print(
-                f"      P{i}: {driver['driver']} ({driver['team']}) - confidence: {driver['confidence']:.0f}%"
+                f"      P{i}: {driver['driver']} ({driver['team']}) - "
+                f"confidence: {driver['confidence']:.0f}%"
             )
         print()
     except Exception as e:

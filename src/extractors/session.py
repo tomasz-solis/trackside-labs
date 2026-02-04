@@ -241,7 +241,9 @@ def test_session_as_predictor_fixed(
         try:
             # Predict drivers using predictor session order
             driver_preds = driver_ranker.predict_positions(
-                team_predictions=predictor_order, team_lineups=lineups, session_type="qualifying"
+                team_predictions=predictor_order,
+                team_lineups=lineups,
+                session_type="qualifying",
             )
 
             # Calculate driver MAE

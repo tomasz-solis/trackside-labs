@@ -133,7 +133,8 @@ def normalize_team_column(df: Union[pd.DataFrame, pd.Series], col: str = "team")
     if unknown_mask.any():
         unknown_teams = sorted(raw_names[unknown_mask].unique())
         logger.warning(
-            "Unknown team names encountered (using uppercase fallback): %s", unknown_teams
+            "Unknown team names encountered (using uppercase fallback): %s",
+            unknown_teams,
         )
 
     df[col] = canonical_names

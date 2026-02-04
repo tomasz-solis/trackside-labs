@@ -50,7 +50,7 @@ class SessionDetector:
             for session_name in sessions_to_check:
                 try:
                     # Get session info
-                    session_info = event.get_session_name(session_name)
+                    event.get_session_name(session_name)
                     session_date = event.get_session_date(session_name)
 
                     # Check if session has ended (use per-session duration)

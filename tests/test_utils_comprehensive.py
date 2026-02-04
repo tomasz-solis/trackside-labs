@@ -6,7 +6,6 @@ Increases test coverage for lineups, weekend, and config utilities.
 
 import pytest
 from unittest.mock import patch, MagicMock
-import pandas as pd
 
 
 class TestLineupsModule:
@@ -71,7 +70,7 @@ class TestWeekendModule:
         ]
 
         for race in sprint_races:
-            assert is_sprint_weekend(2026, race) == True, f"{race} should be sprint weekend"
+            assert is_sprint_weekend(2026, race), f"{race} should be sprint weekend"
 
     def test_normal_weekend_detection_2026(self):
         """Test known 2026 normal weekends"""
@@ -85,7 +84,7 @@ class TestWeekendModule:
         ]
 
         for race in normal_races:
-            assert is_sprint_weekend(2026, race) == False, f"{race} should be normal weekend"
+            assert is_sprint_weekend(2026, race) is False, f"{race} should be normal weekend"
 
     def test_get_all_sprint_races(self):
         """Test getting all sprint races for a season"""
@@ -141,7 +140,6 @@ class TestDataValidation:
     def test_2026_car_characteristics_complete(self):
         """Test all 11 teams have car characteristics"""
         import json
-        from pathlib import Path
 
         with open("data/processed/car_characteristics/2026_car_characteristics.json") as f:
             data = json.load(f)

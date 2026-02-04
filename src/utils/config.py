@@ -27,7 +27,7 @@ class ProductionConfig:
         if not config_file.exists():
             raise FileNotFoundError(
                 f"Production config not found at {config_path}\n"
-                f"Run comprehensive testing (Notebook 21B) to generate it."
+                "Run comprehensive testing (Notebook 21B) to generate it."
             )
 
         with open(config_file) as f:
@@ -84,14 +84,14 @@ class ProductionConfig:
         lines.append("QUALIFYING STRATEGY:")
 
         sprint = self.config["qualifying_methods"]["sprint_weekends"]
-        lines.append(f"  Sprint weekends:")
+        lines.append("  Sprint weekends:")
         lines.append(f"    Method: {sprint['method']}")
         lines.append(f"    Session: {sprint.get('session', 'N/A')}")
         lines.append(f"    Expected MAE: {sprint['expected_mae']:.2f}")
         lines.append(f"    Confidence: {sprint['confidence']}")
 
         conv = self.config["qualifying_methods"]["conventional_weekends"]
-        lines.append(f"  Conventional weekends:")
+        lines.append("  Conventional weekends:")
         lines.append(f"    Method: {conv['method']}")
         lines.append(f"    Blend weight: {conv.get('blend_weight', 'N/A')}")
         lines.append(f"    Expected MAE: {conv['expected_mae']:.2f}")
@@ -106,7 +106,9 @@ class ProductionConfig:
 
 
 # Quick helper functions
-def load_production_config(config_path="config/production_config.json") -> ProductionConfig:
+def load_production_config(
+    config_path="config/production_config.json",
+) -> ProductionConfig:
     """Load production config."""
     return ProductionConfig(config_path)
 
@@ -129,20 +131,20 @@ if __name__ == "__main__":
 
     # Sprint weekend
     sprint_strategy = config.get_qualifying_strategy("sprint")
-    logger.info(f"Sprint weekend strategy:")
+    logger.info("Sprint weekend strategy:")
     logger.info(f"  Method: {sprint_strategy['method']}")
     logger.info(f"  Session: {sprint_strategy['session']}")
     logger.info(f"  Expected MAE: {sprint_strategy['expected_mae']:.2f}")
 
     # Conventional weekend
     conv_strategy = config.get_qualifying_strategy("conventional")
-    logger.info(f"Conventional weekend strategy:")
+    logger.info("Conventional weekend strategy:")
     logger.info(f"  Method: {conv_strategy['method']}")
     logger.info(f"  Blend weight: {conv_strategy['blend_weight']}")
     logger.info(f"  Expected MAE: {conv_strategy['expected_mae']:.2f}")
 
     # Expected MAEs
-    logger.info(f"Expected MAEs:")
+    logger.info("Expected MAEs:")
     logger.info(
         f"  Sprint quali: {config.get_expected_mae('qualifying', weekend_type='sprint'):.2f}"
     )

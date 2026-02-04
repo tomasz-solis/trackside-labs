@@ -6,9 +6,12 @@ Live race predictions with historical accuracy tracking.
 
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 import fastf1
 import time
+import logging
+from typing import Dict
+
+logger = logging.getLogger(__name__)
 
 
 # Get file modification times for cache invalidation
@@ -67,7 +70,9 @@ def auto_update_if_needed():
     needs_update_flag, new_races = needs_update()
 
     if needs_update_flag:
-        st.info(f"🔄 Found {len(new_races)} new race(s) to learn from! Updating characteristics...")
+        st.info(
+            f"🔄 Found {len(new_races)} new race(s) to learn from! Updating characteristics..."
+        )
 
         # Create progress bar
         progress_bar = st.progress(0)
@@ -84,7 +89,9 @@ def auto_update_if_needed():
         status_text.empty()
 
         if updated_count > 0:
-            st.success(f"✅ Learned from {updated_count} race(s)! Predictions now use fresh data.")
+            st.success(
+                f"✅ Learned from {updated_count} race(s)! Predictions now use fresh data."
+            )
             # Clear caches since data changed
             st.cache_resource.clear()
             st.cache_data.clear()
@@ -92,10 +99,168 @@ def auto_update_if_needed():
             st.warning("⚠️ Could not update from new races - using existing data")
 
 
+def display_prediction_result(
+    result: Dict, prediction_name: str, is_race: bool = False
+):
+    """Display a single prediction result (qualifying or race)."""
+    st.markdown("---")
+    icon = "🏎️" if is_race else "🏁"
+    st.header(f"{icon} {prediction_name}")
+
+    # Show grid source if available
+    grid_source = result.get("grid_source")
+    if grid_source:
+        if grid_source == "ACTUAL":
+            st.success("✅ Using ACTUAL grid from completed session")
+        else:
+            st.info("ℹ️ Using PREDICTED grid")
+
+    # Show data source for qualifying predictions
+    if not is_race:
+        data_source = result.get("data_source", "Unknown")
+        blend_used = result.get("blend_used", False)
+
+        if blend_used:
+            st.success(f"✅ Using {data_source} (70% practice data + 30% model)")
+        else:
+            st.info(f"ℹ️ {data_source}")
+
+    # Determine which key to use for results
+    results_key = "finish_order" if is_race else "grid"
+    df = pd.DataFrame(result[results_key])
+    df["position"] = df["position"].astype(int)
+
+    if is_race:
+        # Race display with full details
+        df["confidence"] = df["confidence"].round(1)
+        df["podium_probability"] = df["podium_probability"].round(1)
+        df["dnf_probability"] = (df["dnf_probability"] * 100).round(1)
+
+        df["dnf_risk"] = df["dnf_probability"].apply(
+            lambda x: "⚠️ High" if x > 20 else "⚡ Medium" if x >= 10 else "✓ Low"
+        )
+
+        df_display = df[
+            [
+                "position",
+                "driver",
+                "team",
+                "confidence",
+                "podium_probability",
+                "dnf_probability",
+                "dnf_risk",
+            ]
+        ].copy()
+        df_display.columns = [
+            "Pos",
+            "Driver",
+            "Team",
+            "Confidence %",
+            "Podium %",
+            "DNF Risk %",
+            "Status",
+        ]
+
+        # Style the dataframe
+        def color_position(val):
+            if val <= 3:
+                colors = {1: "#FFD700", 2: "#C0C0C0", 3: "#CD7F32"}
+                return (
+                    f"background-color: {colors[val]}; font-weight: bold; color: black"
+                )
+            elif val <= 10:
+                return "background-color: #e3f2fd; font-weight: bold"
+            return ""
+
+        def color_dnf_risk(val):
+            if val > 20:
+                return "background-color: #ffcdd2; color: #c62828"
+            elif val >= 10:
+                return "background-color: #fff9c4; color: #f57f17"
+            return "background-color: #c8e6c9; color: #2e7d32"
+
+        styled_df = (
+            df_display.style.map(color_position, subset=["Pos"])
+            .map(color_dnf_risk, subset=["DNF Risk %"])
+            .format(
+                {"Confidence %": "{:.1f}", "Podium %": "{:.1f}", "DNF Risk %": "{:.1f}"}
+            )
+        )
+
+        st.dataframe(styled_df, width="stretch", height=500)
+
+        # DNF warnings
+        high_dnf = df[df["dnf_probability"] > 20]
+        if not high_dnf.empty:
+            st.warning(
+                f"⚠️ High DNF risk ({len(high_dnf)} drivers): {', '.join(high_dnf['driver'].values)}"
+            )
+
+        # Podium visualization
+        st.subheader("🏆 Predicted Podium")
+        podium = df[df["position"] <= 3].copy()
+
+        col1, col2, col3 = st.columns(3)
+        for i, (idx, row) in enumerate(podium.iterrows()):
+            col = [col2, col1, col3][i]
+            with col:
+                medal = ["🥇", "🥈", "🥉"][row["position"] - 1]
+                st.markdown(f"### {medal} P{row['position']}")
+                st.markdown(f"## **{row['driver']}**")
+                st.markdown(f"*{row['team']}*")
+                st.metric("Confidence", f"{row['confidence']:.1f}%")
+                st.progress(row["confidence"] / 100)
+    else:
+        # Qualifying/grid display (compact)
+        df_display = df[["position", "driver", "team"]].copy()
+        df_display.columns = ["Grid", "Driver", "Team"]
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.markdown("**P1-10**")
+            st.dataframe(df_display.head(10), width="stretch", hide_index=True)
+
+        with col2:
+            st.markdown("**P11-15**")
+            st.dataframe(df_display.iloc[10:15], width="stretch", hide_index=True)
+
+        with col3:
+            st.markdown("**P16-22**")
+            st.dataframe(df_display.iloc[15:], width="stretch", hide_index=True)
+
+
+def fetch_grid_if_available(
+    year: int, race_name: str, session_name: str, predicted_grid: list
+) -> tuple:
+    """
+    Fetch actual grid if session completed, otherwise use predicted grid.
+
+    Returns: (grid, grid_source) where grid_source is "ACTUAL" or "PREDICTED"
+    """
+    from src.utils.actual_results_fetcher import (
+        fetch_actual_session_results,
+        is_competitive_session_completed,
+    )
+
+    if is_competitive_session_completed(year, race_name, session_name):
+        actual_grid = fetch_actual_session_results(year, race_name, session_name)
+        if actual_grid:
+            return actual_grid, "ACTUAL"
+
+    return predicted_grid, "PREDICTED"
+
+
 # Cache prediction results
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def run_prediction(race_name: str, weather: str, _timestamps):
-    """Run prediction with caching (1 hour TTL). Weather must be 'dry', 'rain', or 'mixed'."""
+def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = False):
+    """
+    Run full weekend cascade prediction with caching.
+
+    Returns dict with:
+    - Normal weekend: {"qualifying": {...}, "race": {...}}
+    - Sprint weekend: {"sprint_quali": {...}, "sprint_race": {...}, "main_quali": {...}, "main_race": {...}}
+    """
     # Validate weather input
     valid_weather = ["dry", "rain", "mixed"]
     if weather not in valid_weather:
@@ -106,26 +271,87 @@ def run_prediction(race_name: str, weather: str, _timestamps):
     overall_start = time.time()
 
     predictor = get_predictor(_timestamps)
+    results = {}
 
-    # STEP 1: Predict Qualifying (includes FP auto-fetch)
-    quali_start = time.time()
-    quali_result = predictor.predict_qualifying(year=2026, race_name=race_name)
-    timing["qualifying"] = time.time() - quali_start
+    if is_sprint:
+        # SPRINT WEEKEND CASCADE: SQ → Sprint → Main Quali → Main Race
 
-    # STEP 2: Predict Race using quali results
-    race_start = time.time()
-    race_result = predictor.predict_race(
-        qualifying_grid=quali_result["grid"], weather=weather, race_name=race_name, n_simulations=50
-    )
-    timing["race"] = time.time() - race_start
+        # 1. Sprint Qualifying Prediction
+        sq_start = time.time()
+        sq_result = predictor.predict_qualifying(year=2026, race_name=race_name)
+        timing["sprint_quali"] = time.time() - sq_start
+        results["sprint_quali"] = sq_result
+
+        # 2. Sprint Race Prediction (use actual SQ grid if available)
+        sprint_start = time.time()
+        sq_grid, grid_source = fetch_grid_if_available(
+            2026, race_name, "SQ", sq_result["grid"]
+        )
+        results["sprint_quali"]["grid_source"] = grid_source
+
+        sprint_result = predictor.predict_sprint_race(
+            sprint_quali_grid=sq_grid,
+            weather=weather,
+            race_name=race_name,
+            n_simulations=50,
+        )
+        timing["sprint_race"] = time.time() - sprint_start
+        results["sprint_race"] = sprint_result
+
+        # 3. Main Qualifying Prediction
+        mq_start = time.time()
+        mq_result = predictor.predict_qualifying(year=2026, race_name=race_name)
+        timing["main_quali"] = time.time() - mq_start
+        results["main_quali"] = mq_result
+
+        # 4. Main Race Prediction (use actual main quali grid if available)
+        mr_start = time.time()
+        quali_grid, grid_source = fetch_grid_if_available(
+            2026, race_name, "Q", mq_result["grid"]
+        )
+        results["main_quali"]["grid_source"] = grid_source
+
+        main_race_result = predictor.predict_race(
+            qualifying_grid=quali_grid,
+            weather=weather,
+            race_name=race_name,
+            n_simulations=50,
+        )
+        timing["main_race"] = time.time() - mr_start
+        results["main_race"] = main_race_result
+
+    else:
+        # NORMAL WEEKEND CASCADE: Quali → Race
+
+        # 1. Qualifying Prediction
+        quali_start = time.time()
+        quali_result = predictor.predict_qualifying(year=2026, race_name=race_name)
+        timing["qualifying"] = time.time() - quali_start
+        results["qualifying"] = quali_result
+
+        # 2. Race Prediction (use actual quali grid if available)
+        race_start = time.time()
+        quali_grid, grid_source = fetch_grid_if_available(
+            2026, race_name, "Q", quali_result["grid"]
+        )
+        results["qualifying"]["grid_source"] = grid_source
+
+        race_result = predictor.predict_race(
+            qualifying_grid=quali_grid,
+            weather=weather,
+            race_name=race_name,
+            n_simulations=50,
+        )
+        timing["race"] = time.time() - race_start
+        results["race"] = race_result
 
     timing["total"] = time.time() - overall_start
 
-    # Add timing to results
-    quali_result["timing"] = timing
-    race_result["timing"] = timing
+    # Add timing to all results
+    for key in results:
+        results[key]["timing"] = timing
 
-    return quali_result, race_result
+    return results
 
 
 # Page config
@@ -165,9 +391,13 @@ st.markdown(
 )
 
 # Header
-st.markdown('<div class="main-header">🏎️ Formula 1 2026 Predictions</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="sub-header">Physics-Based Race Simulation Engine</div>', unsafe_allow_html=True
+    '<div class="main-header">🏎️ Formula 1 2026 Predictions</div>',
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<div class="sub-header">Physics-Based Race Simulation Engine</div>',
+    unsafe_allow_html=True,
 )
 
 # Sidebar
@@ -179,7 +409,8 @@ with st.sidebar:
     st.markdown("---")
 
     page = st.radio(
-        "Navigation", ["Live Prediction", "Model Insights", "Prediction Accuracy", "About"]
+        "Navigation",
+        ["Live Prediction", "Model Insights", "Prediction Accuracy", "About"],
     )
 
     st.markdown("---")
@@ -189,7 +420,10 @@ with st.sidebar:
     enable_logging = st.checkbox(
         "Save Predictions for Accuracy Tracking",
         value=False,
-        help="When enabled, predictions are saved after each session (FP1/FP2/FP3/SQ) for later accuracy analysis. Max 1 prediction per session.",
+        help=(
+            "When enabled, predictions are saved after each session (FP1/FP2/FP3/SQ) "
+            "for later accuracy analysis. Max 1 prediction per session."
+        ),
     )
 
     st.markdown("---")
@@ -211,13 +445,13 @@ if page == "Live Prediction":
         ].copy()
         race_names = race_events["EventName"].tolist()
 
-        # Add sprint indicator to race names
+        # Add sprint indicator to race names (text only, no emoji)
         race_options = []
         for _, event in race_events.iterrows():
             race_name = event["EventName"]
             event_format = str(event["EventFormat"]).lower()
             if "sprint" in event_format:
-                race_options.append(f"{race_name} 🏃 (Sprint)")
+                race_options.append(f"{race_name} (Sprint)")
             else:
                 race_options.append(race_name)
     except Exception as e:
@@ -236,7 +470,7 @@ if page == "Live Prediction":
     with col1:
         race_selection = st.selectbox("Select Grand Prix", race_options)
         # Remove sprint indicator for processing
-        race_name = race_selection.replace(" 🏃 (Sprint)", "")
+        race_name = race_selection.replace(" (Sprint)", "")
 
     with col2:
         weather = st.selectbox("Weather Forecast", ["dry", "rain", "mixed"])
@@ -257,12 +491,16 @@ if page == "Live Prediction":
                     is_sprint = False
 
                 # Show warnings based on data freshness
-                st.warning("⚠️ 2026 regulation reset - predictions uncertain until races complete")
+                st.warning(
+                    "⚠️ 2026 regulation reset - predictions uncertain until races complete"
+                )
 
                 if is_sprint:
                     st.info(
-                        "🏃 **Sprint Weekend** - System predicts Sprint Qualifying (Friday) → Sprint Race (Saturday) → Sunday Qualifying → Sunday Race. "
-                        "Sprint predictions use adjusted chaos modeling (30% less variance, grid position +10% importance)."
+                        "🏃 **Sprint Weekend** - System predicts Sprint Qualifying (Friday) → "
+                        "Sprint Race (Saturday) → Sunday Qualifying → Sunday Race. "
+                        "Sprint predictions use adjusted chaos modeling "
+                        "(30% less variance, grid position +10% importance)."
                     )
 
                 # Get current file timestamps for cache invalidation
@@ -270,7 +508,9 @@ if page == "Live Prediction":
 
                 # Use cached prediction (invalidates if files changed)
                 st.info("Running simulation (cached results will load instantly)...")
-                quali_result, race_result = run_prediction(race_name, weather, timestamps)
+                prediction_results = run_prediction(
+                    race_name, weather, timestamps, is_sprint
+                )
 
                 # Save prediction if logging is enabled
                 if enable_logging:
@@ -290,15 +530,37 @@ if page == "Live Prediction":
                         if not logger_inst.has_prediction_for_session(
                             2026, race_name, latest_session
                         ):
-                            # Save the prediction
+                            # Save the prediction (use appropriate keys from prediction_results)
                             try:
-                                fp_blend_info = quali_result.get("fp_blend_info", {})
+                                # Get qualifying and race predictions based on weekend type
+                                if is_sprint:
+                                    # For sprint, save main quali and main race
+                                    quali_grid = prediction_results["main_quali"][
+                                        "grid"
+                                    ]
+                                    race_finish = prediction_results["main_race"][
+                                        "finish_order"
+                                    ]
+                                    fp_blend_info = prediction_results.get(
+                                        "main_quali", {}
+                                    ).get("fp_blend_info", {})
+                                else:
+                                    quali_grid = prediction_results["qualifying"][
+                                        "grid"
+                                    ]
+                                    race_finish = prediction_results["race"][
+                                        "finish_order"
+                                    ]
+                                    fp_blend_info = prediction_results.get(
+                                        "qualifying", {}
+                                    ).get("fp_blend_info", {})
+
                                 logger_inst.save_prediction(
                                     year=2026,
                                     race_name=race_name,
                                     session_name=latest_session,
-                                    qualifying_prediction=quali_result["grid"],
-                                    race_prediction=race_result["finish_order"],
+                                    qualifying_prediction=quali_grid,
+                                    race_prediction=race_finish,
                                     weather=weather,
                                     fp_blend_info=fp_blend_info,
                                 )
@@ -317,227 +579,72 @@ if page == "Live Prediction":
                         )
 
                 # Display results with performance timing
-                timing = quali_result.get("timing", {})
+                first_result = list(prediction_results.values())[0]
+                timing = first_result.get("timing", {})
                 if timing:
-                    st.success(
-                        f"✅ Predictions complete in {timing['total']:.2f}s "
-                        f"(Qualifying: {timing['qualifying']:.2f}s, Race: {timing['race']:.2f}s)"
-                    )
+                    st.success(f"✅ Predictions complete in {timing['total']:.2f}s")
                 else:
                     st.success("✅ Predictions complete!")
 
-                # ========== QUALIFYING PREDICTION ==========
-                st.markdown("---")
-                st.header("🏁 Qualifying Prediction")
-
-                # Show data source used for prediction
-                data_source = quali_result.get("data_source", "Unknown")
-                blend_used = quali_result.get("blend_used", False)
-
-                if blend_used:
-                    st.success(f"✅ Using {data_source} (70% practice data + 30% model)")
-                else:
-                    st.info(f"ℹ️ {data_source}")
-
-                df_quali = pd.DataFrame(quali_result["grid"])
-                df_quali["position"] = df_quali["position"].astype(int)
-                df_quali["confidence"] = (
-                    df_quali.get("confidence", 70.0).round(1) if "confidence" in df_quali else 70.0
-                )
-
-                df_quali_display = df_quali[["position", "driver", "team"]].copy()
-                df_quali_display.columns = ["Grid", "Driver", "Team"]
-
-                # Show quali grid in 3 columns: 1-10, 11-15, 16-22
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    st.markdown("**P1-10**")
-                    st.dataframe(df_quali_display.head(10), width="stretch", hide_index=True)
-
-                with col2:
-                    st.markdown("**P11-15**")
-                    st.dataframe(df_quali_display.iloc[10:15], width="stretch", hide_index=True)
-
-                with col3:
-                    st.markdown("**P16-22**")
-                    st.dataframe(df_quali_display.iloc[15:], width="stretch", hide_index=True)
-
-                # ========== RACE PREDICTION ==========
-                st.markdown("---")
-                st.header("🏎️ Race Prediction")
-
-                df = pd.DataFrame(race_result["finish_order"])
-                df["position"] = df["position"].astype(int)
-                df["confidence"] = df["confidence"].round(1)
-                df["podium_probability"] = df["podium_probability"].round(1)
-                df["dnf_probability"] = (df["dnf_probability"] * 100).round(1)
-
-                # Add DNF risk indicator
-                df["dnf_risk"] = df["dnf_probability"].apply(
-                    lambda x: "⚠️ High" if x > 20 else "⚡ Medium" if x >= 10 else "✓ Low"
-                )
-
-                # Format for display
-                df_display = df[
-                    [
-                        "position",
-                        "driver",
-                        "team",
-                        "confidence",
-                        "podium_probability",
-                        "dnf_probability",
-                        "dnf_risk",
-                    ]
-                ].copy()
-                df_display.columns = [
-                    "Pos",
-                    "Driver",
-                    "Team",
-                    "Confidence %",
-                    "Podium %",
-                    "DNF Risk %",
-                    "Status",
-                ]
-
-                # Style the dataframe
-                def color_position(val):
-                    if val <= 3:
-                        colors = {1: "#FFD700", 2: "#C0C0C0", 3: "#CD7F32"}
-                        return f"background-color: {colors[val]}; font-weight: bold; color: black"
-                    elif val <= 10:
-                        return "background-color: #e3f2fd; font-weight: bold"
-                    return ""
-
-                def color_dnf_risk(val):
-                    if val > 20:
-                        return "background-color: #ffcdd2; color: #c62828"  # Red
-                    elif val >= 10:
-                        return "background-color: #fff9c4; color: #f57f17"  # Yellow
-                    return "background-color: #c8e6c9; color: #2e7d32"  # Green
-
-                styled_df = (
-                    df_display.style.map(color_position, subset=["Pos"])
-                    .map(color_dnf_risk, subset=["DNF Risk %"])
-                    .format(
-                        {"Confidence %": "{:.1f}", "Podium %": "{:.1f}", "DNF Risk %": "{:.1f}"}
-                    )
-                )
-
-                st.dataframe(styled_df, width="stretch", height=700)
-
-                # DNF warnings
-                high_dnf = df[df["dnf_probability"] > 20]
-                if not high_dnf.empty:
-                    st.warning(
-                        f"⚠️ High DNF risk ({len(high_dnf)} drivers): {', '.join(high_dnf['driver'].values)}"
-                    )
-
-                # Podium visualization - more prominent
-                st.subheader("🏆 Predicted Podium")
-                podium = df[df["position"] <= 3].copy()
-
-                col1, col2, col3 = st.columns(3)
-
-                for i, (idx, row) in enumerate(podium.iterrows()):
-                    col = [col2, col1, col3][i]  # P1 center, P2 left, P3 right
-                    with col:
-                        medal = ["🥇", "🥈", "🥉"][row["position"] - 1]
-                        st.markdown(f"### {medal} P{row['position']}")
-                        st.markdown(f"## **{row['driver']}**")
-                        st.markdown(f"*{row['team']}*")
-                        st.metric("Confidence", f"{row['confidence']:.1f}%")
-                        st.progress(row["confidence"] / 100)
-
-                # Split into two columns for better layout
-                col_left, col_right = st.columns(2)
-
-                with col_left:
-                    st.subheader("📊 Confidence Distribution")
-
-                    # Normalize confidence to 0-100 for better visual spread
-                    df_viz = df.copy()
-                    conf_min = df_viz["confidence"].min()
-                    conf_max = df_viz["confidence"].max()
-
-                    fig_conf = go.Figure()
-
-                    # Add bars with custom colors based on position
-                    colors = [
-                        "#2ecc71" if i < 3 else "#3498db" if i < 10 else "#95a5a6"
-                        for i in range(len(df_viz))
-                    ]
-
-                    fig_conf.add_trace(
-                        go.Bar(
-                            x=df_viz["driver"],
-                            y=df_viz["confidence"],
-                            marker_color=colors,
-                            text=df_viz["confidence"].round(1),
-                            textposition="outside",
-                            hovertemplate="<b>%{x}</b><br>Confidence: %{y:.1f}%<extra></extra>",
-                        )
-                    )
-
-                    fig_conf.update_layout(
-                        height=500,
-                        yaxis_title="Confidence (%)",
-                        xaxis_title="Driver",
-                        yaxis_range=[max(0, conf_min - 5), min(100, conf_max + 5)],
-                        showlegend=False,
-                        xaxis={"tickangle": -45},
-                    )
-
-                    st.plotly_chart(fig_conf, width="stretch")
-                    st.caption(
-                        f"Range: {conf_min:.1f}% - {conf_max:.1f}% | Avg: {df_viz['confidence'].mean():.1f}%"
-                    )
-
-                with col_right:
-                    st.subheader("🎯 Key Stats")
-
-                    st.info(
-                        "⚠️ **2026 Reg Reset**: High uncertainty. Model learns from testing (Feb 2026) and races."
-                    )
-
-                    # Winner prediction
-                    winner = df.iloc[0]
-                    st.metric(
-                        "Predicted Winner",
-                        winner["driver"],
-                        f"{winner['confidence']:.1f}% confidence",
-                    )
-
-                    # Podium certainty
-                    podium_avg = df[df["position"] <= 3]["confidence"].mean()
-                    st.metric("Podium Certainty", f"{podium_avg:.1f}%", "Average top 3")
-
-                    # Average confidence
-                    avg_confidence = df["confidence"].mean()
-                    st.metric("Avg Confidence", f"{avg_confidence:.1f}%", "Low until testing")
-
-                    # DNF predictions
-                    high_dnf_count = len(df[df["dnf_probability"] > 20])
-                    st.metric("High DNF Risk", f"{high_dnf_count}", "⚠️ >20% chance")
-
-                    # Highest uncertainty
-                    most_uncertain = df.loc[df["confidence"].idxmin()]
-                    st.metric(
-                        "Most Uncertain",
-                        most_uncertain["driver"],
-                        f"P{most_uncertain['position']} - {most_uncertain['confidence']:.1f}%",
-                    )
-
+                # ========== WEEKEND CASCADE DISPLAY ==========
+                if is_sprint:
+                    # SPRINT WEEKEND: Show all 4 predictions
                     st.markdown("---")
-                    st.markdown("**Color Legend:**")
-                    st.markdown("🟢 Podium | 🔵 Points | ⚪ No points")
-                    st.markdown("**DNF Risk:**")
-                    st.markdown("🟢 Low (<10%) | 🟡 Medium (10-20%) | 🔴 High (>20%)")
+                    st.header("🏃 Sprint Weekend Cascade")
+                    st.info(
+                        "Full weekend flow: Sprint Qualifying → Sprint Race → Main Qualifying → Main Race"
+                    )
+
+                    # 1. Sprint Qualifying Prediction
+                    display_prediction_result(
+                        prediction_results["sprint_quali"],
+                        "Sprint Qualifying Prediction",
+                        is_race=False,
+                    )
+
+                    # 2. Sprint Race Prediction
+                    display_prediction_result(
+                        prediction_results["sprint_race"],
+                        "Sprint Race Prediction",
+                        is_race=True,
+                    )
+
+                    # 3. Main Qualifying Prediction
+                    display_prediction_result(
+                        prediction_results["main_quali"],
+                        "Main Qualifying Prediction",
+                        is_race=False,
+                    )
+
+                    # 4. Main Race Prediction
+                    display_prediction_result(
+                        prediction_results["main_race"],
+                        "Main Race Prediction",
+                        is_race=True,
+                    )
+                else:
+                    # NORMAL WEEKEND: Show 2 predictions
+                    st.markdown("---")
+                    st.header("🏁 Normal Weekend Cascade")
+                    st.info("Weekend flow: Qualifying → Race")
+
+                    # 1. Qualifying Prediction
+                    display_prediction_result(
+                        prediction_results["qualifying"],
+                        "Qualifying Prediction",
+                        is_race=False,
+                    )
+
+                    # 2. Race Prediction
+                    display_prediction_result(
+                        prediction_results["race"], "Race Prediction", is_race=True
+                    )
 
             except Exception as e:
                 st.error(f"Prediction failed: {e}")
                 st.info(
-                    "Make sure data files are generated. Run: `python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025`"
+                    "Make sure data files are generated. Run: "
+                    "`python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025`"
                 )
 
 
@@ -609,7 +716,8 @@ elif page == "Prediction Accuracy":
 
     if not all_predictions:
         st.info(
-            "No predictions saved yet. Enable 'Save Predictions for Accuracy Tracking' in the sidebar and generate predictions after practice sessions."
+            "No predictions saved yet. Enable 'Save Predictions for Accuracy Tracking' "
+            "in the sidebar and generate predictions after practice sessions."
         )
     else:
         st.success(f"Found {len(all_predictions)} saved prediction(s)")
@@ -618,7 +726,8 @@ elif page == "Prediction Accuracy":
         predictions_with_actuals = [
             p
             for p in all_predictions
-            if p.get("actuals") and (p["actuals"].get("qualifying") or p["actuals"].get("race"))
+            if p.get("actuals")
+            and (p["actuals"].get("qualifying") or p["actuals"].get("race"))
         ]
 
         if predictions_with_actuals:
@@ -717,7 +826,8 @@ elif page == "Prediction Accuracy":
                                 )
         else:
             st.info(
-                "Predictions saved, but no actual results added yet. After each race, you can update predictions with actual results to calculate accuracy."
+                "Predictions saved, but no actual results added yet. After each race, "
+                "you can update predictions with actual results to calculate accuracy."
             )
 
         st.markdown("---")
@@ -737,7 +847,9 @@ elif page == "Prediction Accuracy":
             status_icon = "✅" if has_actuals else "⏳"
             status_text = "Results added" if has_actuals else "Awaiting results"
 
-            st.write(f"{status_icon} **{race_name}** (after {session_name}) - {status_text}")
+            st.write(
+                f"{status_icon} **{race_name}** (after {session_name}) - {status_text}"
+            )
 
 
 # Page: About
@@ -775,7 +887,7 @@ else:
 
     ---
 
-    **Author:** Tomasz Solis 
+    **Author:** Tomasz Solis
 
     **[GitHub](https://github.com/tomasz-solis)**
 

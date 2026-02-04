@@ -82,6 +82,7 @@ python scripts/update_from_race.py "Bahrain Grand Prix" --year 2026
 - **Track-car suitability**: Continuous parameters (straights %, corners %, braking zones)
 - **Monte Carlo uncertainty**: 50 simulations per prediction
 - **Self-correcting**: Updates after each race, trusts current data quickly
+- **Sprint weekend support**: Full cascade predictions (Sprint Quali → Sprint → Main Quali → Main Race)
 - **Accuracy tracking**: Save predictions by session (FP1/FP2/FP3/SQ) and compare to actual results
 
 ## Architecture
@@ -112,6 +113,7 @@ Predictions (Qualifying + Race)
 - **[CONFIGURATION.md](CONFIGURATION.md)**: Configuration guide
 - **[docs/WEIGHT_SCHEDULE_GUIDE.md](docs/WEIGHT_SCHEDULE_GUIDE.md)**: Weight schedule system
 - **[docs/FP_BLENDING_SYSTEM.md](docs/FP_BLENDING_SYSTEM.md)**: Practice data blending
+- **[docs/WEEKEND_PREDICTIONS.md](docs/WEEKEND_PREDICTIONS.md)**: Sprint and normal weekend cascade predictions
 - **[docs/DASHBOARD_AUTO_UPDATE.md](docs/DASHBOARD_AUTO_UPDATE.md)**: Auto-update behavior
 - **[docs/PREDICTION_TRACKING.md](docs/PREDICTION_TRACKING.md)**: Prediction accuracy tracking
 
@@ -171,6 +173,7 @@ formula1-2026/
 - Weight schedule: ✅ Integrated and validated
 - Dashboard: ✅ Working
 - Data update flow: ✅ Implemented
+- Weekend cascade: ✅ Sprint and normal weekend support
 - Prediction tracking: ✅ Implemented (driver name normalization, session detection, accuracy metrics)
 - Testing directionality: ⏳ Awaiting 2026 pre-season testing (Feb 2026)
 - Season validation: ⏳ Pending 2026 races

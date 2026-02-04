@@ -39,7 +39,7 @@ class LearningSystem:
 
     def get_optimal_blend_weight(self, default=0.7) -> float:
         """Returns the best blend weight (0.0-1.0) based on history."""
-        best_mae = float("in")
+        best_mae = float("inf")
         best_method = None
 
         for method, stats in self.state["method_performance"].items():

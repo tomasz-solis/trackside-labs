@@ -33,66 +33,44 @@ def test_weight_schedule_integration():
 
     # 2. Test predictor initialization
     print("2. Initializing Baseline2026Predictor...")
-    try:
-        predictor = Baseline2026Predictor()
-        print(f"   ✓ Predictor loaded with {len(predictor.teams)} teams")
-        print(f"   ✓ Loaded {len(predictor.tracks)} track profiles")
-        print(f"   ✓ Races completed: {predictor.races_completed}")
-        print()
-    except Exception as e:
-        print(f"   ✗ Failed to initialize predictor: {e}")
-        return False
+    predictor = Baseline2026Predictor()
+    print(f"   ✓ Predictor loaded with {len(predictor.teams)} teams")
+    print(f"   ✓ Loaded {len(predictor.tracks)} track profiles")
+    print(f"   ✓ Races completed: {predictor.races_completed}")
+    print()
 
     # 3. Test track suitability calculation
     print("3. Testing track suitability calculation...")
-    try:
-        suitability = predictor.calculate_track_suitability("McLaren", "Bahrain Grand Prix")
-        print(f"   McLaren at Bahrain: {suitability:+.4f}")
-        print("   ✓ Track suitability calculation working")
-        print()
-    except Exception as e:
-        print(f"   ✗ Failed: {e}")
-        return False
+    suitability = predictor.calculate_track_suitability("McLaren", "Bahrain Grand Prix")
+    print(f"   McLaren at Bahrain: {suitability:+.4f}")
+    print("   ✓ Track suitability calculation working")
+    print()
 
     # 4. Test blended team strength
     print("4. Testing blended team strength...")
-    try:
-        for team in list(predictor.teams.keys())[:3]:  # Test first 3 teams
-            baseline = predictor.teams[team].get("overall_performance", 0.5)
-            blended = predictor.get_blended_team_strength(team, "Bahrain Grand Prix")
+    for team in list(predictor.teams.keys())[:3]:  # Test first 3 teams
+        baseline = predictor.teams[team].get("overall_performance", 0.5)
+        blended = predictor.get_blended_team_strength(team, "Bahrain Grand Prix")
 
-            print(f"   {team:25s} Baseline: {baseline:.3f} → Blended: {blended:.3f}")
+        print(f"   {team:25s} Baseline: {baseline:.3f} → Blended: {blended:.3f}")
 
-        print("   ✓ Blended team strength calculation working")
-        print()
-    except Exception as e:
-        print(f"   ✗ Failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
+    print("   ✓ Blended team strength calculation working")
+    print()
 
     # 5. Test qualifying prediction (full integration test)
     print("5. Testing qualifying prediction with weight schedule...")
-    try:
-        result = predictor.predict_qualifying(
-            year=2026, race_name="Bahrain Grand Prix", n_simulations=10  # Fast test
+    result = predictor.predict_qualifying(
+        year=2026, race_name="Bahrain Grand Prix", n_simulations=10  # Fast test
+    )
+
+    print(f"   ✓ Generated grid with {len(result['grid'])} drivers")
+    print("   Top 3:")
+    for i, driver in enumerate(result["grid"][:3], 1):
+        print(
+            f"      P{i}: {driver['driver']} ({driver['team']}) - "
+            f"confidence: {driver['confidence']:.0f}%"
         )
-
-        print(f"   ✓ Generated grid with {len(result['grid'])} drivers")
-        print("   Top 3:")
-        for i, driver in enumerate(result["grid"][:3], 1):
-            print(
-                f"      P{i}: {driver['driver']} ({driver['team']}) - "
-                f"confidence: {driver['confidence']:.0f}%"
-            )
-        print()
-    except Exception as e:
-        print(f"   ✗ Failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
+    print()
 
     print("=" * 70)
     print("✅ ALL TESTS PASSED - WEIGHT SCHEDULE INTEGRATED SUCCESSFULLY!")
@@ -109,9 +87,11 @@ def test_weight_schedule_integration():
     print("2. After each race: python scripts/update_from_race.py 'Race Name' --year 2026")
     print("3. Predictions will automatically adapt using the weight schedule")
 
-    return True
-
 
 if __name__ == "__main__":
-    success = test_weight_schedule_integration()
-    sys.exit(0 if success else 1)
+    try:
+        test_weight_schedule_integration()
+        sys.exit(0)
+    except Exception as e:
+        print(f"Test failed: {e}")
+        sys.exit(1)

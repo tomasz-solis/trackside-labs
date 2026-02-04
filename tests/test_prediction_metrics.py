@@ -156,7 +156,7 @@ def test_empty_predictions():
     assert accuracy == 0.0
 
     mae = metrics.mean_absolute_error([], [])
-    assert mae == float("in")
+    assert mae == float("inf")
 
     within_1 = metrics.within_n_positions([], [], 1)
     assert within_1 == 0.0

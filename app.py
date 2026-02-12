@@ -9,9 +9,13 @@ import pandas as pd
 import fastf1
 import time
 import logging
+import json
 from typing import Dict
+from pathlib import Path
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+_PRACTICE_UPDATE_STATE_FILE = Path("data/systems/practice_characteristics_state.json")
 
 
 # Get file modification times for cache invalidation
@@ -95,6 +99,110 @@ def auto_update_if_needed():
             st.warning("⚠️ Could not update from new races - using existing data")
 
 
+def _load_practice_update_state() -> dict:
+    """Load persisted state for practice characteristic updates."""
+    if not _PRACTICE_UPDATE_STATE_FILE.exists():
+        return {"races": {}}
+
+    try:
+        with open(_PRACTICE_UPDATE_STATE_FILE) as f:
+            state = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"races": {}}
+
+    if not isinstance(state, dict):
+        return {"races": {}}
+
+    races = state.get("races")
+    if not isinstance(races, dict):
+        return {"races": {}}
+
+    return {"races": races}
+
+
+def _save_practice_update_state(state: dict) -> None:
+    """Persist state for practice characteristic updates."""
+    _PRACTICE_UPDATE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(_PRACTICE_UPDATE_STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def auto_update_practice_characteristics_if_needed(
+    year: int,
+    race_name: str,
+    is_sprint: bool,
+) -> dict:
+    """
+    Update car characteristics from completed free-practice sessions (FP1/FP2/FP3).
+
+    This is conservative and only runs when new FP sessions are completed for a race.
+    """
+    from src.systems.testing_updater import update_from_testing_sessions
+    from src.utils.session_detector import SessionDetector
+    from src.utils import config_loader
+
+    detector = SessionDetector()
+    completed = detector.get_completed_sessions(year, race_name, is_sprint)
+    completed_fp_sessions = [session for session in completed if session.startswith("FP")]
+
+    if not completed_fp_sessions:
+        return {"updated": False, "completed_fp_sessions": []}
+
+    session_order = {"FP1": 1, "FP2": 2, "FP3": 3}
+    completed_fp_sessions = sorted(
+        set(completed_fp_sessions), key=lambda s: session_order.get(s, 99)
+    )
+
+    race_key = f"{year}::{race_name}"
+    state = _load_practice_update_state()
+    processed_sessions = set(state["races"].get(race_key, {}).get("sessions", []))
+    latest_processed = set(completed_fp_sessions).issubset(processed_sessions)
+    if latest_processed:
+        return {"updated": False, "completed_fp_sessions": completed_fp_sessions}
+
+    practice_new_weight = config_loader.get(
+        "baseline_predictor.practice_capture.new_weight", 0.35
+    )
+    practice_directionality_scale = config_loader.get(
+        "baseline_predictor.practice_capture.directionality_scale", 0.08
+    )
+    practice_session_aggregation = config_loader.get(
+        "baseline_predictor.practice_capture.session_aggregation", "laps_weighted"
+    )
+    practice_run_profile = config_loader.get(
+        "baseline_predictor.practice_capture.run_profile", "balanced"
+    )
+
+    summary = update_from_testing_sessions(
+        year=year,
+        characteristics_year=year,
+        events=[race_name],
+        sessions=completed_fp_sessions,
+        testing_backend="auto",
+        cache_dir="data/raw/.fastf1_cache_testing",
+        force_renew_cache=False,
+        # Lower weight than pre-season testing to avoid abrupt directionality swings.
+        new_weight=practice_new_weight,
+        directionality_scale=practice_directionality_scale,
+        session_aggregation=practice_session_aggregation,
+        run_profile=practice_run_profile,
+        dry_run=False,
+    )
+
+    state["races"][race_key] = {
+        "sessions": completed_fp_sessions,
+        "updated_at": datetime.now().isoformat(),
+        "teams_updated": len(summary.get("updated_teams", [])),
+    }
+    _save_practice_update_state(state)
+
+    return {
+        "updated": True,
+        "completed_fp_sessions": completed_fp_sessions,
+        "teams_updated": len(summary.get("updated_teams", [])),
+    }
+
+
 def display_prediction_result(result: Dict, prediction_name: str, is_race: bool = False):
     """Display a single prediction result (qualifying or race)."""
     st.markdown("---")
@@ -118,6 +226,14 @@ def display_prediction_result(result: Dict, prediction_name: str, is_race: bool 
             st.success(f"✅ Using {data_source} (70% practice data + 30% model)")
         else:
             st.info(f"ℹ️ {data_source}")
+
+    characteristics_profile = result.get("characteristics_profile_used")
+    teams_with_profile = result.get("teams_with_characteristics_profile", 0)
+    if characteristics_profile and teams_with_profile:
+        st.info(
+            "📈 Car characteristics profile in use: "
+            f"`{characteristics_profile}` ({teams_with_profile} teams)"
+        )
 
     # Determine which key to use for results
     results_key = "finish_order" if is_race else "grid"
@@ -382,16 +498,17 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div class="sub-header">Physics-Based Race Simulation Engine</div>',
+    '<div class="sub-header">Race Weekend Prediction Engine</div>',
     unsafe_allow_html=True,
 )
 
 # Sidebar
 with st.sidebar:
-    st.image(
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/F1.svg/1200px-F1.svg.png",
-        width=150,
-    )
+    logo_path = Path("assets/motorsport_predictor_logo.svg")
+    if logo_path.exists():
+        st.image(str(logo_path), use_container_width=True)
+    else:
+        st.markdown("### Motorsport Predictor")
     st.markdown("---")
 
     page = st.radio(
@@ -485,6 +602,32 @@ if page == "Live Prediction":
                         "Sprint Race (Saturday) → Sunday Qualifying → Sunday Race. "
                         "Sprint predictions use adjusted chaos modeling "
                         "(30% less variance, grid position +10% importance)."
+                    )
+
+                # STEP 1: Learn from completed FP sessions for this weekend.
+                try:
+                    practice_update = auto_update_practice_characteristics_if_needed(
+                        year=2026,
+                        race_name=race_name,
+                        is_sprint=is_sprint,
+                    )
+                    if practice_update.get("updated"):
+                        st.success(
+                            "✅ Updated car characteristics from completed practice sessions: "
+                            f"{', '.join(practice_update['completed_fp_sessions'])} "
+                            f"({practice_update['teams_updated']} teams)"
+                        )
+                        st.cache_resource.clear()
+                        st.cache_data.clear()
+                    elif practice_update.get("completed_fp_sessions"):
+                        st.info(
+                            "ℹ️ Practice characteristics already up to date for sessions: "
+                            f"{', '.join(practice_update['completed_fp_sessions'])}"
+                        )
+                except Exception as practice_exc:
+                    st.warning(
+                        "⚠️ Could not update practice characteristics automatically; "
+                        f"continuing with current data ({practice_exc})"
                     )
 
                 # Get current file timestamps for cache invalidation
@@ -618,7 +761,7 @@ if page == "Live Prediction":
                 st.error(f"Prediction failed: {e}")
                 st.info(
                     "Make sure data files are generated. Run: "
-                    "`python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025`"
+                    "`python scripts/extract_driver_characteristics.py --years 2023,2024,2025`"
                 )
 
 
@@ -627,30 +770,34 @@ elif page == "Model Insights":
     st.header("How the Model Works")
 
     st.markdown("""
-    ### Physics-First Approach
+    ### Runtime path
 
-    Unlike typical ML models that treat F1 as a black box, this system simulates the actual physics:
+    The dashboard currently runs `Baseline2026Predictor` for both qualifying and race.
 
-    **1. Tire Degradation Model**
-    - Measures deg slope from practice laps (seconds lost per lap)
-    - Converts to cumulative race penalty (not discrete pit stops)
-    - Accounts for driver tire management skill
+    **1. Team strength**
+    - Uses baseline (pre-season), testing directionality, and current-season performance
+    - Applies a race-by-race weight schedule that quickly shifts toward current-season data
 
-    **2. Bayesian Driver Rankings**
-    - Tracks each driver's performance rating with uncertainty
-    - Updates beliefs after every race (Conjugate Normal-Normal)
-    - Detects concept drift (upgrades, regulation changes)
+    **2. Qualifying**
+    - Pulls the best available session data (normal weekend: FP3 > FP2 > FP1)
+    - Blends session pace with model strength (fixed 70/30 in the active predictor)
+    - Applies a small short-run characteristics modifier when profile data exists
+    - Runs Monte Carlo simulations and reports the median grid with confidence ranges
 
-    **3. Race Simulation**
-    - Lap 1 chaos (variance by grid position)
-    - Pace advantage limited by overtaking difficulty
-    - Weather acts as skill multiplier
-    - DNF probability from reliability + driver errors
+    **3. Race**
+    - Uses either predicted qualifying grid or actual qualifying results when available
+    - Scores drivers with grid position, team pace, driver skill, overtaking context, and stochastic effects
+    - Applies a small long-run characteristics modifier when profile data exists
+    - Includes lap-one chaos, strategy variance, safety car luck, and DNF probability
 
-    **4. Adaptive Learning**
-    - Tracks prediction accuracy per method
-    - Adjusts blend weights (practice vs model)
-    - Improves over the season
+    **4. What exists in the repo but is not a direct race score term here**
+    - Bayesian ranking components
+    - Testing updater outputs (including tire degradation slope estimates)
+
+    **5. Learning behavior**
+    - Auto-updater can ingest completed races into team characteristics
+    - Learning history tracks method MAE
+    - In this runtime path, qualifying blend weight is fixed inside the predictor
     """)
 
     st.subheader("Key Hyperparameters")
@@ -659,19 +806,19 @@ elif page == "Model Insights":
 
     with col1:
         st.markdown("""
-        **Bayesian Model:**
-        - Base Volatility: 0.1
-        - Observation Noise: 2.0
-        - Shock Threshold: 2σ
+        **Qualifying (active path):**
+        - Team/driver score: 70% team + 30% driver
+        - Practice blend: 70% session pace + 30% model strength
+        - Output: median grid from Monte Carlo runs
         """)
 
     with col2:
         st.markdown("""
-        **Race Simulation:**
-        - Pace Weight: 40%
-        - Grid Weight: 30%
-        - Tire Deg Weight: 15%
-        - Overtaking Weight: 15%
+        **Race (active path):**
+        - Base pace weight: 40% (track-adjusted)
+        - Grid influence: dynamic by overtaking difficulty
+        - Driver skill term: 20%
+        - DNF probability + chaos + strategy + safety car modifiers
         """)
 
 
@@ -828,33 +975,25 @@ else:
     st.header("About This Project")
 
     st.markdown("""
-    ### Formula 1 2026 Predictive Engine
+    ### Formula 1 2026 Prediction Engine
 
-    A physics-based simulation system for predicting F1 race outcomes under the 2026 regulation changes.
+    This project focuses on weekend predictions for the 2026 season.
 
-    **Why 2026?**
+    The core runtime in the app is:
+    - Weight-scheduled team strength blending (baseline/testing/current season)
+    - Practice-session blending for qualifying when data is available
+    - Monte Carlo race simulation using grid, pace, skill, and reliability signals
 
-    Major regulation reset:
-    - 50/50 electric/ICE power units (vs current 80/20)
-    - Active aerodynamics
-    - 30kg lighter cars
-    - New teams (Cadillac)
+    **Technology stack**
+    - Python
+    - FastF1 for session data
+    - NumPy and pandas for modeling/data handling
+    - Streamlit for the UI
 
-    When regulations change, historical performance matters less. This model focuses on:
-    - Car performance from practice telemetry
-    - Driver skill in racecraft, tire management, consistency
-    - Track-specific factors (overtaking, pit loss)
-
-    **Technology Stack:**
-    - Python 3.9+
-    - FastF1 for telemetry data
-    - NumPy/SciPy for Bayesian inference
-    - Streamlit for visualization
-
-    **Testing:**
-    - 41 unit tests with pytest
-    - Validated against 2025 season
-    - CI/CD with GitHub Actions
+    **Validation and testing**
+    - Pytest coverage for key modules
+    - Notebooks for schedule/blending validation
+    - Session-based prediction tracking in the dashboard
 
     ---
 
@@ -862,13 +1001,13 @@ else:
 
     **[GitHub](https://github.com/tomasz-solis)**
 
-    **[LinkedIn](linkedin.com/in/tomaszsolis)**
+    **[LinkedIn](https://linkedin.com/in/tomaszsolis)**
 
-    MIT License
+    Private repository
     """)
 
     st.info(
-        "This is a passion project showcasing data science and domain expertise. Not affiliated with FIA or Formula 1."
+        "Independent project for analysis and experimentation. Not affiliated with FIA or Formula 1."
     )
 
 

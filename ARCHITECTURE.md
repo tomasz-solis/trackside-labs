@@ -1,202 +1,147 @@
-# F1 2026 Prediction System - Architecture
+# F1 2026 Prediction System Architecture
 
-## System Overview
+## Runtime Overview
 
-Physics-based F1 prediction engine optimized for regulation change years (2026).
+Current runtime path in the dashboard:
 
+```text
+Streamlit UI (app.py)
+  -> auto_update_if_needed()
+  -> Baseline2026Predictor
+       -> weight_schedule.py
+       -> fp_blending.py (qualifying only)
+  -> qualifying + race outputs
 ```
-User (Streamlit) → Baseline2026Predictor → Weight Schedule → Predictions
-                          ↓
-                    update_from_race.py → JSON files → Next prediction
-```
+
+`src/predictors/qualifying.py` and `src/predictors/race.py` are compatibility wrappers; they call the baseline predictor internally.
 
 ## Core Components
 
-### 1. Prediction Engine
-**File**: [src/predictors/baseline_2026.py](src/predictors/baseline_2026.py)
+### 1. Baseline Predictor
 
-Main predictor. Uses:
-- **Weight schedule system** (baseline + testing + current season)
-- **Track-car suitability** (directionality × track profile)
-- **Monte Carlo simulation** (50 runs for uncertainty)
+File: `src/predictors/baseline_2026.py`
 
-Methods:
-- `predict_qualifying()` - Grid prediction
-- `predict_race()` - Race outcome from grid
-- `get_blended_team_strength()` - Applies weight schedule
+Responsibilities:
 
-### 2. Weight Schedule System
-**File**: [src/systems/weight_schedule.py](src/systems/weight_schedule.py)
+- Load team, driver, and track data.
+- Build blended team strength (baseline/testing/current).
+- Predict qualifying (Monte Carlo, median position output).
+- Predict race (Monte Carlo with stochastic race factors).
 
-Validated on 2021→2022 regulation change (0.809 correlation).
+### 2. Weight Schedule
 
-**Extreme schedule** (recommended for 2026):
-- Race 1: 30% baseline | 20% testing | 50% current
-- Race 2: 15% baseline | 10% testing | 75% current
-- Race 3+: 5% baseline | 0% testing | 95% current
+File: `src/systems/weight_schedule.py`
 
-### 3. Data Update Flow
-**File**: [scripts/update_from_race.py](scripts/update_from_race.py)
+Responsibilities:
 
-After each race:
-```bash
-python scripts/update_from_race.py "Race Name" --year 2026
+- Blend three signals:
+  - baseline capability,
+  - testing directionality modifier,
+  - current season performance.
+- Shift trust toward current season quickly in regulation-change mode.
+
+### 3. FP Blending
+
+File: `src/utils/fp_blending.py`
+
+Responsibilities:
+
+- Pull best available session performance by weekend type.
+- Convert lap times to relative team performance.
+- Blend session pace with model strength.
+
+Note: in the active baseline path, qualifying blend is fixed at 70/30.
+
+### 4. Auto Update From Completed Races
+
+Files:
+
+- `src/utils/auto_updater.py`
+- `src/systems/updater.py`
+- `scripts/update_from_race.py`
+
+Responsibilities:
+
+- Detect completed races.
+- Update `current_season_performance` and related metadata.
+- Keep baseline and testing directionality separate from in-season updates.
+
+### 5. Testing/Practice Directionality Updater
+
+Files:
+
+- `src/systems/testing_updater.py`
+- `scripts/update_from_testing.py`
+
+Responsibilities:
+
+- Explicit/manual extraction of directional car metrics.
+- Supports testing and practice sessions.
+- Writes updated directionality fields to car characteristics.
+
+This updater does not run automatically.
+
+## Data Model
+
+### Car characteristics
+
+File: `data/processed/car_characteristics/2026_car_characteristics.json`
+
+Per team:
+
+- `overall_performance` (baseline)
+- `directionality` (testing/practice-derived directional metrics)
+- `current_season_performance` (list of in-season values)
+- `uncertainty`
+
+### Track characteristics
+
+File: `data/processed/track_characteristics/2026_track_characteristics.json`
+
+Contains track profile and overtaking difficulty used by qualifying/race modeling.
+
+### Driver characteristics
+
+File: `data/processed/driver_characteristics.json`
+
+Contains racecraft, pace, experience, and DNF-related inputs.
+
+## Qualifying Flow
+
+```text
+load lineups
+  -> blended team strength (weight schedule)
+  -> optional session performance blend (FP or sprint session priority)
+  -> combine team + driver skill
+  -> Monte Carlo simulations
+  -> median grid + confidence
 ```
 
-Updates:
-- Appends result to `current_season_performance` list
-- Maintains running average
-- **Does NOT modify** baseline or directionality
+## Race Flow
 
-### 4. User Interface
-**File**: [app.py](app.py)
-
-Streamlit dashboard:
-1. User selects race + weather
-2. Clicks "Generate Prediction"
-3. Calls `Baseline2026Predictor`
-4. Displays quali grid + race predictions
-
-## Data Files
-
-### Car Characteristics
-**File**: [data/processed/car_characteristics/2026_car_characteristics.json](data/processed/car_characteristics/2026_car_characteristics.json)
-
-Structure:
-```json
-{
-  "teams": {
-    "McLaren": {
-      "overall_performance": 0.85,    // Baseline (2025 P1) - never changes
-      "directionality": {              // Testing - added after pre-season
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
-      },
-      "current_season_performance": [] // Grows with each race
-    }
-  }
-}
+```text
+input grid (predicted or actual)
+  -> prepare driver/team context
+  -> compute stochastic race scores per simulation
+  -> include DNF, lap1 chaos, strategy, safety car effects
+  -> aggregate positions across simulations
+  -> final finish order + confidence + podium probability
 ```
 
-### Track Characteristics
-**File**: [data/processed/track_characteristics/2026_track_characteristics.json](data/processed/track_characteristics/2026_track_characteristics.json)
+## Session/Weekend Handling
 
-Telemetry-based profiles (2020-2025 historical data):
-```json
-{
-  "tracks": {
-    "Bahrain Grand Prix": {
-      "straights_pct": 33.0,
-      "slow_corners_pct": 9.0,
-      "medium_corners_pct": 32.0,
-      "high_corners_pct": 26.1,
-      "overtaking_difficulty": 0.4
-    }
-  }
-}
-```
+File: `src/utils/weekend.py`
 
-## Prediction Flow
+- Uses FastF1 event format to determine sprint vs conventional weekend.
+- Falls back to local track characteristics when schedule cannot be fetched.
 
-**Race 1 (Pre-season)**:
-```python
-baseline = 0.85  # McLaren 2025 P1
-testing = 0.0    # No testing yet
-current = 0.85   # No races yet, use baseline
+## Caching
 
-# Apply Race 1 weights (30/20/50)
-blended = 0.30*0.85 + 0.20*0.0 + 0.50*0.85 = 0.68
-```
+- Primary FastF1 cache: `data/raw/.fastf1_cache`
+- Testing updater cache (default): `data/raw/.fastf1_cache_testing`
+- Streamlit cache is invalidated when relevant data file timestamps change.
 
-**After Race 1**:
-```python
-# McLaren finishes P3 → performance = 0.85
-current_season_performance = [0.85]
-```
+## Notes On Legacy Components
 
-**Race 2 Prediction**:
-```python
-baseline = 0.85  # Still 2025 standings
-testing = 0.0    # No testing yet
-current = 0.85   # Running avg of [0.85]
-
-# Apply Race 2 weights (15/10/75)
-blended = 0.15*0.85 + 0.10*0.0 + 0.75*0.85 = 0.76
-```
-
-**Race 3+ Prediction**:
-```python
-# Weights: 5% / 0% / 95%
-# Almost entirely data-driven from 2026 results
-```
-
-## Key Design Decisions
-
-### Why Weight Schedule?
-**Problem**: Regulation changes shuffle the grid. 2025 standings are weak predictors.
-
-**Solution**: Trust current season results heavily from Race 1 (50% weight), almost exclusively by Race 3 (95% weight).
-
-**Validation**: 2021→2022 regulation change showed 0.809 correlation with extreme schedule vs 0.512 with conservative.
-
-### Why Running Averages?
-**Before**: `new = 0.7 * old + 0.3 * race` (slow adaptation)
-
-**After**: Maintain list, calculate mean. Weight schedule blends it dynamically.
-
-**Benefit**: Separate baseline (capability) from current (performance).
-
-### Why Track-Car Suitability?
-**Problem**: Cars have strengths/weaknesses (straightline speed, cornering).
-
-**Solution**: Calculate `directionality × track_profile` to estimate track-specific performance.
-
-**Example**:
-- Car A: +5% straightline, -3% corners
-- Track X: 60% straights, 40% corners
-- Modifier: 0.05*0.6 + (-0.03)*0.4 = +0.018 (slight advantage)
-
-## Testing
-
-Run validation:
-```bash
-python tests/test_weight_schedule_integration.py
-```
-
-Expected output:
-- Weight schedule: ✓ Working
-- Track suitability: ✓ Working
-- Blended strength: ✓ Working
-- Predictions: ✓ Using weight schedule
-
-## Configuration
-
-**File**: [config/default.yaml](config/default.yaml)
-
-Key settings:
-- Qualification noise (sprint vs normal weekends)
-- Team/skill weights (70% team, 30% driver)
-- Uncertainty floors
-
-## Validation Framework
-
-**Notebooks**:
-- [notebooks/validate_testing_predictions.ipynb](notebooks/validate_testing_predictions.ipynb) - Regulation change analysis
-- [notebooks/test_weight_schedules.ipynb](notebooks/test_weight_schedules.ipynb) - Schedule optimization
-
-**Key Finding**: Testing is LESS predictive during regulation changes (0.137 vs 0.422 correlation).
-
-## Future Work
-
-1. **After 2026 Pre-Season Testing**: Update directionality from actual testing data
-2. **Throughout Season**: Track correlation to validate weight schedule performance
-3. **Post-Season**: Analyze if "extreme" schedule was optimal for 2026
-
-## Entry Points
-
-- **Dashboard**: `streamlit run app.py`
-- **CLI Prediction**: `python predict_weekend.py "Race Name"`
-- **Update After Race**: `python scripts/update_from_race.py "Race Name" --year 2026`
-- **Tests**: `pytest tests/`
+- Bayesian ranking and learning modules still exist and are testable.
+- They are not the direct scoring path used by the dashboard’s baseline predictor flow.

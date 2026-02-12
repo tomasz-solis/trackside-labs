@@ -1,194 +1,104 @@
 # Configuration Guide
 
-This project uses two configuration files for different purposes.
+This project uses two main config files for different purposes:
 
-## config/default.yaml
+- `config/default.yaml`: model and runtime parameters.
+- `config/production_config.json`: strategy metadata used by helper utilities and experiments.
 
-**Purpose:** Model hyperparameters and prediction weights
+## 1. `config/default.yaml`
 
-**When to use:** Tuning the prediction algorithms
+### What is actively used by the dashboard runtime path
 
-**Key sections:**
+`Baseline2026Predictor` reads values through `src/utils/config_loader.py`.
+The most relevant active section is:
 
-### Bayesian Model
-```yaml
-bayesian:
-  base_volatility: 0.1              # Driver performance variance
-  base_observation_noise: 2.0       # Position uncertainty
-  shock_threshold: 2.0              # Detect regulation changes
-  shock_multiplier: 0.5             # Concept drift adjustment
-```
+- `baseline_predictor.qualifying.*`
+- `baseline_predictor.race.*`
 
-### Race Simulation
-```yaml
-race:
-  weights:
-    pace_weight: 0.4                # Raw speed importance
-    grid_weight: 0.3                # Starting position importance
-    overtaking_weight: 0.15         # Track overtaking difficulty
-    tire_deg_weight: 0.15           # Tire management importance
+Examples:
 
-  dnf:
-    base_risk: 0.05                 # Base DNF probability
-    driver_error_factor: 0.15       # Driver mistakes
-    street_circuit_risk: 0.05       # Extra risk on street tracks
-    rain_risk: 0.10                 # Extra risk in wet conditions
+- `baseline_predictor.qualifying.noise_std_normal`
+- `baseline_predictor.qualifying.team_weight`
+- `baseline_predictor.qualifying.testing_short_run_modifier_scale`
+- `baseline_predictor.race.base_chaos.dry`
+- `baseline_predictor.race.grid_weight_min`
+- `baseline_predictor.race.pace_weight_base`
+- `baseline_predictor.race.dnf_rate_final_cap`
+- `baseline_predictor.race.testing_long_run_modifier_scale`
+- `baseline_predictor.practice_capture.*` (dashboard FP auto-capture behavior)
 
-  lap1:
-    midfield_variance: 1.5          # Chaos at positions 8-15
-    front_row_variance: 0.0         # P1-P2 usually stable
-```
+### Other sections in `default.yaml`
 
-### Qualifying Prediction
-```yaml
-qualifying:
-  blend:
-    default: 0.7                    # Default practice/model blend
-    fp3_only: 0.8                   # When FP3 available
-    fp1_only: 0.4                   # When only FP1 available
+Sections such as `bayesian`, `race`, `qualifying`, and `learning` are still useful for other modules/scripts, but they are not the primary scoring knobs for the baseline predictor race/qualifying simulation path.
 
-  session_confidence:
-    fp1: 0.2                        # Least reliable (Friday)
-    fp2: 0.5                        # Medium reliability
-    fp3: 0.9                        # Most reliable (Saturday AM)
-    sprint_quali: 0.85              # Sprint Qualifying confidence
-```
+## 2. `config/production_config.json`
 
----
+Used by `src/utils/config.py` (`ProductionConfig`) for strategy metadata and expected MAE references.
 
-## config/production_config.json
+It is not the main parameter source for `Baseline2026Predictor` scoring in the dashboard path.
 
-**Purpose:** FastF1 session selection strategy for live predictions
+## Common Changes
 
-**When to use:** Determining which practice session to use when multiple are available
+### Change qualifying team vs driver weighting
 
-**Location:** config/ directory
+Edit:
 
-**Structure:**
-```json
-{
-  "qualifying_methods": {
-    "sprint_weekends": {
-      "method": "session_order",
-      "session": "Sprint Qualifying"
-    },
-    "conventional_weekends": {
-      "method": "session_order",
-      "preferred_sessions": ["FP3", "FP2", "FP1"]
-    }
-  }
-}
-```
+- `config/default.yaml` -> `baseline_predictor.qualifying.team_weight`
+- `config/default.yaml` -> `baseline_predictor.qualifying.skill_weight`
 
-**Session Selection Logic:**
+These should sum to `1.0`.
 
-### Sprint Weekends
-- **Always use:** Sprint Qualifying (Friday evening)
-- **Why:** This is the last session before Sprint Race (when fantasy locks)
-- **Format:**
-  - Friday: FP1 + Sprint Qualifying
-  - Saturday: Sprint Race + Main Qualifying
-  - Sunday: Grand Prix
+### Change race volatility / chaos
 
-### Normal Weekends
-- **Preference order:** FP3 → FP2 → FP1
-- **Why:** FP3 is closest to qualifying (Saturday morning)
-- **Fallback logic:**
-  1. Try FP3 (most recent, best indicator)
-  2. If FP3 unavailable/cancelled, use FP2
-  3. If FP2 unavailable, use FP1 (Friday, least reliable)
+Edit:
 
-**When Sessions Get Cancelled:**
-- Rain washouts → FP3 cancelled → automatically falls back to FP2
-- Schedule changes → system adapts using available data
-- No manual intervention needed
+- `baseline_predictor.race.base_chaos.dry`
+- `baseline_predictor.race.base_chaos.wet`
+- `baseline_predictor.race.lap1_chaos.*`
+- `baseline_predictor.race.strategy_variance_base`
 
-**Method Types:**
-- `"session_order"`: Use sessions in priority order (current implementation)
-- `"best_lap"`: Use session with fastest lap times (future enhancement)
-- `"most_recent"`: Always use most recent session (experimental)
+### Change DNF behavior
 
----
+Edit:
 
-## Which Config to Modify?
+- `baseline_predictor.race.dnf_rate_historical_cap`
+- `baseline_predictor.race.dnf_rate_final_cap`
 
-| What you want to change | Which file |
-|-------------------------|------------|
-| Model trusts practice data too much | `config/default.yaml` → adjust `qualifying.blend` |
-| DNF rates seem wrong | `config/default.yaml` → adjust `race.dnf` rates |
-| Session selection order | `config/production_config.json` → adjust methods |
-| Grid position too influential | `config/default.yaml` → adjust `race.weights.grid_weight` |
-| Tire deg underweighted | `config/default.yaml` → adjust `race.weights.tire_deg_weight` |
+### Change FastF1/cache paths
 
----
+Edit:
 
-## For 2026 Baseline Predictor
+- `paths.*` in `config/default.yaml`
+- env vars (for example `F1_CONFIG`, `F1_DATA_DIR`, `F1_CACHE_DIR`) where supported by the relevant modules
 
-The baseline predictor (used before 2026 data exists) **does not use these configs**. It has hardcoded weights:
+## Validation Rules
 
-- Team strength: 70%
-- Driver skill: 30%
-- Confidence: 40-60% (based on consistency)
+`src/utils/config_loader.py` validates:
 
-These are in `src/predictors/baseline_2026.py` and should remain fixed until testing data is available.
+- required sections exist,
+- critical values are present and in range,
+- qualifying weights sum to ~1.0.
 
----
+If validation fails, startup will raise an explicit error.
 
-## Loading Configs in Code
+## Example: Read Config in Code
 
-### YAML Config
 ```python
-import yaml
+from src.utils import config_loader
 
-with open('config/default.yaml') as f:
-    config = yaml.safe_load(f)
-
-# Access nested config values
-grid_weight = config['race']['weights']['grid_weight']  # Returns: 0.3
-pace_weight = config['race']['weights']['pace_weight']  # Returns: 0.4
-base_volatility = config['bayesian']['base_volatility']  # Returns: 0.1
+team_weight = config_loader.get("baseline_predictor.qualifying.team_weight", 0.7)
+pace_weight = config_loader.get("baseline_predictor.race.pace_weight_base", 0.40)
 ```
 
-### Production Config (Session Selection)
-```python
-from src.utils.config import ProductionConfig
+## Safe Workflow For Config Changes
 
-config = ProductionConfig()
+1. Edit `config/default.yaml`.
+2. Run targeted tests:
+   - `pytest tests/test_baseline_2026_integration.py`
+   - `pytest tests/test_dashboard_smoke.py`
+3. Run a dry prediction in the app/CLI and confirm behavior.
 
-# Get qualifying strategy
-sprint_strategy = config.get_qualifying_strategy('sprint')
-# Returns: {'method': 'session_order', 'session': 'Sprint Qualifying', 'expected_mae': 3.22, ...}
+## Notes
 
-conv_strategy = config.get_qualifying_strategy('conventional')
-# Returns: {'method': 'blend', 'blend_weight': 0.9, 'expected_mae': 3.60, ...}
-
-# Get expected MAE
-quali_mae = config.get_expected_mae('qualifying', weekend_type='sprint')
-# Returns: 3.22
-```
-
-### Alternative: Direct JSON Loading
-```python
-import json
-from pathlib import Path
-
-with open('config/production_config.json') as f:
-    config = json.load(f)
-
-session = config['qualifying_methods']['sprint_weekends']['session']
-# Returns: "Sprint Qualifying"
-```
-
----
-
-## Validation
-
-After changing hyperparameters, validate with backtesting:
-
-```bash
-jupyter notebook notebooks/validation_report.ipynb
-```
-
-This runs the model against 2025 season results and shows MAE (Mean Absolute Error) per race.
-
-**Target MAE: < 2.5 positions**
+- The baseline predictor currently uses a fixed 70/30 practice blend inside predictor logic for qualifying.
+- `src/predictors/qualifying.py` and `src/predictors/race.py` preserve legacy method signatures and delegate to baseline logic.

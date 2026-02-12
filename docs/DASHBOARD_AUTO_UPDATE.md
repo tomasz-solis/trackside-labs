@@ -1,206 +1,73 @@
-# Dashboard Auto-Update Behavior
+# Dashboard Update Behavior
 
-## Overview
+This guide explains what the app updates automatically and what still requires an explicit script run.
 
-The dashboard **automatically fetches FP practice data** when generating predictions via [fp_blending.py](../src/utils/fp_blending.py). Team characteristics must be updated manually after each race.
+## Automatic During `Generate Prediction`
 
----
+When the user clicks **Generate Prediction** in `app.py`:
 
-## What Auto-Updates
+1. `auto_update_if_needed()` checks for completed races not yet marked as learned.
+2. If new races are found, it runs `auto_update_from_races()`.
+3. Characteristics are updated through `src/systems/updater.py`.
+4. Streamlit caches are cleared so the new data is used immediately.
 
-### ✅ Automatic (During Prediction)
-**FP Blending** ([src/utils/fp_blending.py](../src/utils/fp_blending.py))
-- When user clicks "Generate Predictions", system automatically:
-  1. Calls `get_best_fp_performance(year, race_name, is_sprint)`
-  2. Fetches latest FP1/FP2/FP3 or Sprint data via FastF1
-  3. Blends 70% practice data + 30% model
-- **No user action required**
+This block is race-result ingestion.
 
-### ❌ Manual (After Race Completion)
-**Team Characteristics Update** ([scripts/update_from_race.py](../scripts/update_from_race.py))
-- After each race completes, user must run:
-  ```bash
-  python scripts/update_from_race.py "Bahrain Grand Prix" --year 2026
-  ```
-- This updates:
-  - Team performance from race telemetry (median lap times)
-  - Bayesian driver ratings
-  - Data version (increments)
-  - Uncertainty reduction
+### Practice-characteristics auto capture
 
----
+During weekend predictions, the app also checks completed FP sessions and can update
+car characteristics from FP telemetry (FP1/FP2/FP3). It only runs when a new FP session
+is detected for that race, then stores an update state in:
 
-## Why Split Design?
+- `data/systems/practice_characteristics_state.json`
 
-### FP Data: Auto-Fetch
-- **Frequency**: Multiple times per weekend (FP1→FP2→FP3)
-- **Speed**: Fast (~2 seconds via FastF1 cache)
-- **Risk**: Low (read-only, no data corruption risk)
-- **User experience**: Seamless
+Behavior can be tuned in `config/default.yaml` under:
 
-### Team Characteristics: Manual Update
-- **Frequency**: Once per race (every 2 weeks)
-- **Speed**: Slower (~10-30 seconds with telemetry processing)
-- **Risk**: Medium (writes to team characteristics JSON)
-- **User control**: Explicit confirmation before updating baseline data
+- `baseline_predictor.practice_capture.*`
 
----
+## Automatic Session Data Retrieval
 
-## Typical Workflow
+Qualifying prediction also auto-fetches the best available session data through `src/utils/fp_blending.py`.
 
-### Weekend Flow
-**Friday:**
-```
-User clicks "Predict Bahrain Grand Prix"
- ↓
-Dashboard auto-fetches FP1 data (2 sec)
- ↓
-Blends 70% FP1 + 30% model
- ↓
-Shows Sprint Qualifying prediction
-```
+- Normal: `FP3 > FP2 > FP1`
+- Sprint: `Sprint > Sprint Qualifying > FP1`
 
-**Saturday (Sprint Weekend):**
-```
-User clicks "Predict Sprint Race"
- ↓
-Dashboard auto-fetches Sprint Qualifying results
- ↓
-Shows Sprint Race prediction
+## Manual / Explicit Workflows
 
-Later: User clicks "Predict Sunday Qualifying"
- ↓
-Dashboard auto-fetches Sprint Race lap times (best indicator!)
- ↓
-Blends 70% Sprint Race + 30% model
- ↓
-Shows Sunday Qualifying prediction
-```
+### 1. Force race update manually
 
-**Sunday:**
-```
-User clicks "Predict Sunday Race"
- ↓
-Dashboard auto-fetches Sunday Qualifying results
- ↓
-Shows Sunday Race prediction
-```
-
-### Post-Race (Monday)
 ```bash
-# User manually updates team characteristics
 python scripts/update_from_race.py "Bahrain Grand Prix" --year 2026
-
-# Output:
-# ✓ Loaded results for 20 drivers
-# ✓ Updated team characteristics (v15) in data/processed/car_characteristics/2026_car_characteristics.json
-#   McLaren: Race 0.85 → Avg 0.83 (3 races, uncertainty 0.30→0.27)
-#   Ferrari: Race 0.78 → Avg 0.80 (3 races, uncertainty 0.30→0.27)
-#   ...
 ```
 
-Next weekend's predictions will now use updated team data.
+### 2. Update testing/practice directionality
 
----
-
-## Technical Implementation
-
-### FP Auto-Fetch Flow
-```python
-# app.py
-def run_prediction(race_name, weather, _timestamps):
-    predictor = get_predictor(_timestamps)
-
-    # Automatic FP fetch happens here
-    quali_result = predictor.predict_qualifying(year=2026, race_name=race_name)
-
-    # Inside predict_qualifying:
-    # 1. get_best_fp_performance() calls FastF1
-    # 2. Returns FP3 (or FP2/FP1 if FP3 unavailable)
-    # 3. Blends with model
+```bash
+python scripts/update_from_testing.py "Testing 1" --year 2026 --sessions "Day 1"
 ```
 
-### Manual Team Update Flow
-```python
-# scripts/update_from_race.py → src/systems/updater.py
-def update_from_race(year, race_name, data_dir):
-    # 1. Load race session via FastF1
-    results, session = load_race_session(year, race_name)
+This updater is intentionally manual.
 
-    # 2. Extract telemetry (median lap times)
-    race_pace = extract_team_performance_from_telemetry(session, team_names)
+## Cache Locations
 
-    # 3. Update team characteristics
-    update_team_characteristics(results, session, char_file)
-    #    - Appends to current_season_performance[]
-    #    - Recalculates running average
-    #    - Reduces uncertainty
-    #    - Increments version
+- Main FastF1 cache: `data/raw/.fastf1_cache`
+- Testing updater cache (default): `data/raw/.fastf1_cache_testing`
 
-    # 4. Atomic write with backup
-    atomic_json_write(char_file, char_data, create_backup=True)
+If cache corruption is suspected for testing pulls, run with:
+
+```bash
+python scripts/update_from_testing.py "Testing 1" \
+  --year 2026 \
+  --sessions "Day 1" \
+  --force-renew-cache
 ```
 
----
+## What Is Not Automatic
 
-## Cache Behavior
+- Testing directionality extraction.
+- Historical notebook validation runs.
+- Manual backfill decisions for special analysis workflows.
 
-### FastF1 Cache
-- Location: `data/raw/.fastf1_cache/`
-- Auto-managed by FastF1
-- Prevents re-downloading same session multiple times
-- Cleared automatically after ~7 days
+## Operational Note
 
-### Streamlit Cache
-- `@st.cache_resource` on predictor instance
-- Invalidates when data file timestamps change
-- Ensures predictions use latest data
-
----
-
-## Future Enhancements (Not Implemented)
-
-1. **Automatic Team Updates**
-   - Could run `update_from_race.py` on schedule
-   - Risk: Requires monitoring for failures
-   - Benefit: Fully automated system
-
-2. **Real-Time FP Updates**
-   - Could poll FastF1 during practice sessions
-   - Update predictions as FP progresses
-   - Benefit: Live timing integration
-
-3. **Dashboard Button for Manual Update**
-   - "Update from last race" button in UI
-   - Benefit: No command line required
-   - Risk: Must handle errors gracefully
-
----
-
-## Verification
-
-Check if auto-update is working:
-
-```python
-# In dashboard, after clicking "Generate Predictions":
-# Look for this in logs:
-# INFO: Using FP3 times for blending
-# ✅ Using FP3 times (70% practice data + 30% model)
-
-# If you see:
-# ℹ️ Model-only (no practice data)
-# → FP data not available (pre-weekend or data fetch failed)
-```
-
----
-
-## Summary
-
-| Component | Update Mechanism | Trigger | User Action |
-|-----------|------------------|---------|-------------|
-| **FP Data** | Automatic | User clicks "Generate Predictions" | None |
-| **Team Characteristics** | Manual | After race completes | Run `python scripts/update_from_race.py ...` |
-| **Driver Ratings** | Manual | After race completes | Run `python scripts/update_from_race.py ...` |
-| **Track Characteristics** | Static | Never (pre-generated) | None |
-
-**Key Insight:** Dashboard auto-fetches **session data** (FP/Quali/Race results) but requires manual update of **learned characteristics** (team performance, driver ratings).
+The dashboard auto-update depends on FastF1 schedule/session availability. If session data is delayed, updates may appear later even when race date has passed.

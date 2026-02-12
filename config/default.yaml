@@ -125,6 +125,10 @@ baseline_predictor:
     team_weight: 0.7           # 70% weight given to team strength
     skill_weight: 0.3          # 30% weight given to driver skill
 
+    # Program-aware testing/practice modifier
+    # Uses short-run profile characteristics to make a small team-strength adjustment.
+    testing_short_run_modifier_scale: 0.04
+
   # Race simulation parameters
   race:
     # Weather-based base chaos (unpredictability)
@@ -187,6 +191,17 @@ baseline_predictor:
     # DNF rate caps
     dnf_rate_historical_cap: 0.20  # Cap on historical DNF rate before team uncertainty adjustment
     dnf_rate_final_cap: 0.35       # Final maximum DNF probability per driver
+
+    # Program-aware testing/practice modifier
+    # Uses long-run profile characteristics to make a small team-strength adjustment.
+    testing_long_run_modifier_scale: 0.05
+
+  # Dashboard auto-capture settings for completed FP sessions
+  practice_capture:
+    new_weight: 0.35
+    directionality_scale: 0.08
+    session_aggregation: "laps_weighted"
+    run_profile: "balanced"
 
 # Testing
 testing:

@@ -20,7 +20,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 import fastf1
 import numpy as np
@@ -103,7 +103,6 @@ def calculate_track_characteristics(years: List[int], output_dir: Path) -> None:
                         # For now, use a heuristic based on lap time variations
                         lap_times = session.laps.groupby("LapNumber")["LapTime"].mean()
                         if len(lap_times) > 0:
-                            lap_time_std = lap_times.std()
                             # High variation suggests SC/VSC
                             sc_laps = 0  # Placeholder
                             track_stats[race_name]["sc_laps"].append(sc_laps)
@@ -144,7 +143,6 @@ def calculate_track_characteristics(years: List[int], output_dir: Path) -> None:
             np.mean(stats["pit_times"]) if stats["pit_times"] else 22.0
         )  # Default 22s
         sc_prob = 0.3  # Default - would need better telemetry to calculate
-        total_laps_avg = np.mean(stats["total_laps"]) if stats["total_laps"] else 60
 
         # Overtaking difficulty: normalize position changes
         if stats["overtakes"]:
@@ -248,7 +246,7 @@ def copy_2025_driver_characteristics(output_dir: Path) -> None:
     if not source_file.exists():
         logger.warning(
             f"No 2025 driver characteristics found at {source_file}. "
-            f"Run: python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025"
+            f"Run: python scripts/extract_driver_characteristics.py --years 2023,2024,2025"
         )
         return
 
@@ -266,7 +264,7 @@ def copy_2025_driver_characteristics(output_dir: Path) -> None:
     with open(source_file, "w") as f:
         json.dump(driver_data, f, indent=2)
 
-    logger.info(f"✓ Updated driver characteristics with 2026 metadata")
+    logger.info("✓ Updated driver characteristics with 2026 metadata")
 
 
 def reset_learning_state() -> None:

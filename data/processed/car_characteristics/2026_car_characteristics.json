@@ -9,145 +9,304 @@
       "overall_performance": 0.85,
       "uncertainty": 0.3,
       "note": "2025 P1 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": -0.0133,
+        "slow_corner_speed": 0.0191,
+        "medium_corner_speed": 0.0301,
+        "high_corner_speed": 0.0212
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.7785,
+        "medium_corner_performance": 0.8447,
+        "fast_corner_performance": 0.7951,
+        "braking_performance": 0.7785,
+        "top_speed": 0.4315,
+        "overall_pace": 0.9063,
+        "consistency": 0.2853,
+        "tire_deg_slope": -0.1058,
+        "tire_deg_performance": 1.0,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Mercedes": {
       "overall_performance": 0.75,
       "uncertainty": 0.3,
       "note": "2025 P2 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": 0.0427,
+        "slow_corner_speed": 0.0262,
+        "medium_corner_speed": 0.0195,
+        "high_corner_speed": 0.0235
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.7771,
+        "medium_corner_performance": 0.71,
+        "fast_corner_performance": 0.7185,
+        "braking_performance": 0.7771,
+        "top_speed": 0.9305,
+        "overall_pace": 0.7395,
+        "consistency": 0.8823,
+        "tire_deg_slope": 0.0696,
+        "tire_deg_performance": 0.5666,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Red Bull Racing": {
       "overall_performance": 0.74,
       "uncertainty": 0.3,
       "note": "2025 P3 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": -0.0008,
+        "slow_corner_speed": 0.0243,
+        "medium_corner_speed": 0.0078,
+        "high_corner_speed": 0.0231
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.6993,
+        "medium_corner_performance": 0.4836,
+        "fast_corner_performance": 0.6749,
+        "braking_performance": 0.6993,
+        "top_speed": 0.4115,
+        "overall_pace": 0.5278,
+        "consistency": 0.704,
+        "tire_deg_slope": 0.1016,
+        "tire_deg_performance": 0.4876,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Ferrari": {
       "overall_performance": 0.7,
       "uncertainty": 0.3,
       "note": "2025 P4 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": 0.0074,
+        "slow_corner_speed": 0.0313,
+        "medium_corner_speed": 0.0311,
+        "high_corner_speed": 0.03
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.8124,
+        "medium_corner_performance": 0.8341,
+        "fast_corner_performance": 0.8258,
+        "braking_performance": 0.8124,
+        "top_speed": 0.5538,
+        "overall_pace": 1.0,
+        "consistency": 0.4123,
+        "tire_deg_slope": 0.2559,
+        "tire_deg_performance": 0.1063,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Williams": {
       "overall_performance": 0.55,
       "uncertainty": 0.3,
       "note": "2025 P5 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": 0.0001,
+        "slow_corner_speed": -0.0232,
+        "medium_corner_speed": -0.0186,
+        "high_corner_speed": -0.0297
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.2501,
+        "medium_corner_performance": 0.2743,
+        "fast_corner_performance": 0.1943,
+        "braking_performance": 0.2501,
+        "top_speed": 0.4925,
+        "overall_pace": 0.0,
+        "consistency": 0.3308,
+        "tire_deg_slope": 0.299,
+        "tire_deg_performance": 0.0,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "RB": {
       "overall_performance": 0.48,
       "uncertainty": 0.3,
       "note": "2025 P6 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": 0.0027,
+        "slow_corner_speed": -0.0137,
+        "medium_corner_speed": -0.0239,
+        "high_corner_speed": -0.0115
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.3841,
+        "medium_corner_performance": 0.2654,
+        "fast_corner_performance": 0.3701,
+        "braking_performance": 0.3841,
+        "top_speed": 0.574,
+        "overall_pace": 0.1677,
+        "consistency": 0.658,
+        "tire_deg_slope": 0.0514,
+        "tire_deg_performance": 0.6116,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Aston Martin": {
       "overall_performance": 0.47,
       "uncertainty": 0.3,
       "note": "2025 P7 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": -0.0284,
+        "slow_corner_speed": -0.0246,
+        "medium_corner_speed": -0.0232,
+        "high_corner_speed": -0.0215
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.213,
+        "medium_corner_performance": 0.3228,
+        "fast_corner_performance": 0.2705,
+        "braking_performance": 0.213,
+        "top_speed": 0.1941,
+        "overall_pace": 0.047,
+        "consistency": 0.4179,
+        "tire_deg_slope": 0.1147,
+        "tire_deg_performance": 0.4553,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Haas F1 Team": {
       "overall_performance": 0.43,
       "uncertainty": 0.3,
       "note": "2025 P8 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": -0.0083,
+        "slow_corner_speed": -0.0093,
+        "medium_corner_speed": -0.0054,
+        "high_corner_speed": -0.0146
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.3507,
+        "medium_corner_performance": 0.384,
+        "fast_corner_performance": 0.316,
+        "braking_performance": 0.3507,
+        "top_speed": 0.4315,
+        "overall_pace": 0.1967,
+        "consistency": 0.7462,
+        "tire_deg_slope": 0.1172,
+        "tire_deg_performance": 0.4491,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Alpine": {
       "overall_performance": 0.4,
       "uncertainty": 0.3,
       "note": "2025 P9 - starting estimate with high uncertainty",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": 0.0094,
+        "slow_corner_speed": -0.0135,
+        "medium_corner_speed": 0.0043,
+        "high_corner_speed": -0.0071
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.4186,
+        "medium_corner_performance": 0.569,
+        "fast_corner_performance": 0.4531,
+        "braking_performance": 0.4186,
+        "top_speed": 0.67,
+        "overall_pace": 0.3817,
+        "consistency": 0.2895,
+        "tire_deg_slope": 0.1265,
+        "tire_deg_performance": 0.426,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Audi": {
       "overall_performance": 0.38,
       "uncertainty": 0.3,
       "note": "2025 P10 (as Kick Sauber) - Audi takeover for 2026",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": -0.0189,
+        "slow_corner_speed": 0.0036,
+        "medium_corner_speed": 0.0031,
+        "high_corner_speed": 0.0083
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.5415,
+        "medium_corner_performance": 0.5378,
+        "fast_corner_performance": 0.6062,
+        "braking_performance": 0.5415,
+        "top_speed": 0.2506,
+        "overall_pace": 0.4874,
+        "consistency": 0.1843,
+        "tire_deg_slope": 0.0167,
+        "tire_deg_performance": 0.6973,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     },
     "Cadillac F1": {
       "overall_performance": 0.35,
       "uncertainty": 0.4,
       "note": "NEW TEAM 2026 - No historical data. Estimated P11 with very high uncertainty. Ferrari PU.",
-      "last_updated": null,
+      "last_updated": "2026-02-12T18:16:59.348096",
       "races_completed": 0,
       "directionality": {
-        "max_speed": 0.0,
-        "slow_corner_speed": 0.0,
-        "medium_corner_speed": 0.0,
-        "high_corner_speed": 0.0
+        "max_speed": -0.0076,
+        "slow_corner_speed": -0.0254,
+        "medium_corner_speed": -0.028,
+        "high_corner_speed": -0.026
+      },
+      "testing_characteristics": {
+        "slow_corner_performance": 0.2386,
+        "medium_corner_performance": 0.2036,
+        "fast_corner_performance": 0.249,
+        "braking_performance": 0.2386,
+        "top_speed": 0.4115,
+        "overall_pace": 0.0281,
+        "consistency": 0.5199,
+        "tire_deg_slope": 0.0425,
+        "tire_deg_performance": 0.6336,
+        "last_updated": "2026-02-12T18:16:59.348096",
+        "sessions_used": 1
       }
     }
   },
-  "directionality_source": "NONE - awaiting 2026 pre-season testing"
+  "directionality_source": "SESSION_EXTRACTION",
+  "directionality_last_updated": "2026-02-12T18:16:59.348096",
+  "directionality_meta": {
+    "year": 2026,
+    "characteristics_year": 2026,
+    "events": [
+      "Testing 1"
+    ],
+    "sessions_loaded": [
+      "Testing 1::Testing 1 Day 2"
+    ],
+    "testing_backend": "auto",
+    "cache_dir": "data/raw/_tmp_fastf1_cache_testing_2026",
+    "force_renew_cache": true,
+    "new_weight": 0.7,
+    "directionality_scale": 0.1
+  }
 }

@@ -12,7 +12,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 # Known driver skill ranges (from F1 community consensus + championships)
 DRIVER_VALIDATION_RULES = {

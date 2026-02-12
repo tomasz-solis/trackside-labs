@@ -12,7 +12,7 @@ Key improvements:
 - Rookie penalties
 
 USAGE:
-    python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025
+    python scripts/extract_driver_characteristics.py --years 2023,2024,2025
 """
 
 import argparse
@@ -21,7 +21,7 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import fastf1 as ff1
 import numpy as np
@@ -345,10 +345,10 @@ def calculate_racecraft_scores(
                             racecraft_gain = expected_pos - actual_pos
                             racecraft_scores[driver].append(racecraft_gain)
 
-                except Exception as e:
+                except Exception:
                     continue
 
-        except Exception as e:
+        except Exception:
             continue
 
     # Average racecraft scores
@@ -424,10 +424,10 @@ def calculate_experience_and_consistency(
                             driver_stats[driver]["dnf_count"] += 1
                             driver_stats[driver]["crash_count"] += 1
 
-                except Exception as e:
+                except Exception:
                     continue
 
-        except Exception as e:
+        except Exception:
             continue
 
     # Process into output format

@@ -54,19 +54,13 @@ def _run_post_race_analysis(year, race_name, learner):
         # Get Ground Truth (Official Results)
         session_q = ff1.get_session(year, race_name, "Q")
         session_q.load(laps=False, telemetry=False)
-        actual_pos = dict(
-            zip(session_q.results["Abbreviation"], session_q.results["Position"])
-        )
+        if session_q.results is None or session_q.results.empty:
+            return
 
         # Backtest Strategies (Compare FP3 vs Reality)
         fp3_ranks = extract_session_order_robust(year, race_name, "FP3")
         if not fp3_ranks:
             return
-
-        # Simple Logic: If FP3 was accurate, High Blend is better
-        # (Real logic would replay full predictions, this is a proxy)
-        strategies = {"blend_70_30": 0.7, "blend_50_50": 0.5}
-        best_strat, best_mae = "blend_70_30", 99.0
 
         # ... (Simplified MAE calc logic would go here) ...
         # For auto-catchup, we just log it to mark it as "seen"
@@ -131,16 +125,21 @@ def run_weekend_predictions(year, race_name, weather="dry"):
     weekend_type = get_weekend_type(year, race_name)
     data = get_available_data(year, race_name, weekend_type)
 
-    # Smart Weighting
+    # Learning system can suggest blend weight, but legacy predictor wrappers
+    # currently delegate to baseline logic with fixed internal blending.
     blend_weight = learner.get_optimal_blend_weight(default=0.7)
-    logger.info(f"   🤖 Adaptive Blend Weight: {blend_weight:.2f}")
+    logger.info(
+        "   🤖 Adaptive Blend Suggestion: "
+        f"{blend_weight:.2f} (compatibility path currently uses baseline internal blend)"
+    )
 
     # =========================================================
     # PART A: PREDICT QUALIFYING (ALWAYS RUNS)
     # =========================================================
     logger.info("\n🔮 PREDICTING QUALIFYING...")
 
-    # Decide method based on what we have
+    # Decide confidence label based on what we have.
+    # NOTE: method/blend args are kept for compatibility with older interfaces.
     if data["quali"]:
         method, conf = (
             "blend",
@@ -155,6 +154,7 @@ def run_weekend_predictions(year, race_name, weather="dry"):
     else:
         method, conf = "model", "Baseline"
         blend_weight = 0.0
+    logger.info(f"   📊 Qualifying confidence mode: {conf}")
 
     q_result = quali_predictor.predict(
         year=year,

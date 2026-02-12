@@ -1,8 +1,12 @@
 """
 2026 Baseline Predictor
 
-Used when no 2026 race data exists yet. Provides low-confidence predictions
-based on team strength + driver skill, acknowledging regulation reset uncertainty.
+Primary runtime predictor for 2026 qualifying and race simulations.
+
+Combines:
+- weight-scheduled team strength (baseline/testing/current season),
+- optional session blending for qualifying,
+- Monte Carlo race scoring with uncertainty and DNF modeling.
 """
 
 import json
@@ -37,13 +41,13 @@ logger = logging.getLogger(__name__)
 
 class Baseline2026Predictor:
     """
-    Simple predictor for 2026 season before real data is available.
+    Primary 2026 predictor used by the dashboard and compatibility wrappers.
 
     Uses:
-    - 2026 team strength from car_characteristics
-    - Driver skill from driver_characteristics
-    - Much lower confidence than Bayesian model (40-60%)
-    - Actual DNF risk per driver/team
+    - Team strength from car characteristics (baseline + directionality + current season)
+    - Driver skill and risk inputs from driver characteristics
+    - Session blending for qualifying when data is available
+    - Monte Carlo simulation for qualifying and race predictions
     """
 
     def __init__(self, data_dir: str = "data/processed"):
@@ -123,7 +127,7 @@ class Baseline2026Predictor:
             if errors:
                 logger.warning(
                     f"⚠️  Driver data has {len(errors)} validation errors. "
-                    "Consider re-running extraction: python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025"
+                    "Consider re-running extraction: python scripts/extract_driver_characteristics.py --years 2023,2024,2025"
                 )
 
             self.drivers = data["drivers"]
@@ -226,6 +230,64 @@ class Baseline2026Predictor:
 
         return blended
 
+    def _get_testing_characteristics_for_profile(self, team: str, profile: str) -> dict[str, float]:
+        """Get testing/practice characteristics for a profile with backward-compatible fallbacks."""
+        team_data = self.teams.get(team, {})
+
+        profile_store = team_data.get("testing_characteristics_profiles")
+        if isinstance(profile_store, dict):
+            profile_data = profile_store.get(profile)
+            if isinstance(profile_data, dict):
+                return profile_data
+
+        fallback = team_data.get("testing_characteristics")
+        if not isinstance(fallback, dict):
+            return {}
+
+        fallback_profile = fallback.get("run_profile")
+        if fallback_profile == profile:
+            return fallback
+
+        # Older files may only store one profile in testing_characteristics.
+        if profile == "balanced":
+            return fallback
+
+        return {}
+
+    def _compute_testing_profile_modifier(
+        self,
+        team: str,
+        profile: str,
+        metric_weights: dict[str, float],
+        scale: float,
+    ) -> tuple[float, bool]:
+        """
+        Compute a small team-strength modifier from testing/practice characteristics.
+
+        Returns (modifier, has_profile_data). Modifier is bounded to avoid overpowering
+        the existing baseline + track-suitability + season-performance logic.
+        """
+        profile_metrics = self._get_testing_characteristics_for_profile(team, profile)
+        if not profile_metrics:
+            return 0.0, False
+
+        weighted_sum = 0.0
+        total_weight = 0.0
+        for metric_name, weight in metric_weights.items():
+            value = profile_metrics.get(metric_name)
+            if value is None:
+                continue
+            centered = float(value) - 0.5
+            weighted_sum += centered * float(weight)
+            total_weight += float(weight)
+
+        if total_weight <= 0:
+            return 0.0, False
+
+        normalized_centered = weighted_sum / total_weight
+        modifier = float(np.clip(normalized_centered * float(scale), -0.04, 0.04))
+        return modifier, True
+
     def predict_qualifying(
         self, year: int, race_name: str, n_simulations: int = 50
     ) -> Dict[str, Any]:
@@ -265,10 +327,30 @@ class Baseline2026Predictor:
         # Build driver list
         all_drivers = []
         model_strengths = {}  # For blending
+        teams_with_short_profile = 0
+
+        short_profile_scale = config_loader.get(
+            "baseline_predictor.qualifying.testing_short_run_modifier_scale", 0.04
+        )
+        short_profile_weights = {
+            "overall_pace": 0.55,
+            "top_speed": 0.20,
+            "medium_corner_performance": 0.15,
+            "fast_corner_performance": 0.10,
+        }
 
         for team, drivers in lineups.items():
             # Use blended team strength (baseline + testing + current season)
             model_strength = self.get_blended_team_strength(team, race_name)
+            short_modifier, has_short_profile = self._compute_testing_profile_modifier(
+                team=team,
+                profile="short_run",
+                metric_weights=short_profile_weights,
+                scale=short_profile_scale,
+            )
+            model_strength = float(np.clip(model_strength + short_modifier, 0.0, 1.0))
+            if has_short_profile:
+                teams_with_short_profile += 1
             model_strengths[team] = model_strength
 
         # Blend model predictions with FP data (70% FP, 30% model)
@@ -365,6 +447,8 @@ class Baseline2026Predictor:
             "grid": grid,
             "data_source": session_name or "Model-only (no practice data)",
             "blend_used": session_name is not None,
+            "characteristics_profile_used": "short_run",
+            "teams_with_characteristics_profile": teams_with_short_profile,
         }
 
     def predict_sprint_race(
@@ -377,19 +461,15 @@ class Baseline2026Predictor:
         """
         Predict Sprint Race result from Sprint Qualifying grid.
 
-        Sprint races are shorter (~100km vs ~300km) with no mandatory pit stops,
-        higher sprint pace focus, less tire degradation, more wheel-to-wheel racing.
+        Sprint races use the same base race model with sprint-specific adjustments
+        (reduced chaos and increased grid influence).
         """
         # Validate inputs
         validate_enum(weather, "weather", ["dry", "rain", "mixed"])
         validate_positive_int(n_simulations, "n_simulations", min_val=1)
 
-        # Sprint races are shorter and simpler - less chaos than full races
-        # Key differences:
-        # 1. No pit stops (shorter race)
-        # 2. Less tire deg (fewer laps)
-        # 3. Higher intensity (sprint pace)
-        # 4. Grid position matters more (less time to recover)
+        # Sprint races are modeled with lower chaos and slightly stronger
+        # grid-position influence than full races.
 
         # Use predict_race but with sprint-specific adjustments
         result = self.predict_race(
@@ -420,14 +500,27 @@ class Baseline2026Predictor:
             logger.warning(f"Could not load track characteristics: {e}. Using default 0.5.")
             return 0.5
 
-    def _prepare_driver_info(self, qualifying_grid: List[Dict], race_name: Optional[str]) -> Dict:
-        """Build driver info map with team strength, skills, and DNF probabilities."""
+    def _prepare_driver_info(
+        self,
+        qualifying_grid: List[Dict],
+        race_name: Optional[str],
+    ) -> tuple[Dict, int]:
+        """Build driver info map with team strength, profile modifiers, skills, and DNF probabilities."""
         driver_info_map = {}
+        teams_with_long_profile = set()
 
         dnf_rate_historical_cap = config_loader.get(
             "baseline_predictor.race.dnf_rate_historical_cap", 0.20
         )
         dnf_rate_final_cap = config_loader.get("baseline_predictor.race.dnf_rate_final_cap", 0.35)
+        long_profile_scale = config_loader.get(
+            "baseline_predictor.race.testing_long_run_modifier_scale", 0.05
+        )
+        long_profile_weights = {
+            "overall_pace": 0.50,
+            "tire_deg_performance": 0.35,
+            "consistency": 0.15,
+        }
 
         for entry in qualifying_grid:
             driver_code = entry["driver"]
@@ -439,6 +532,16 @@ class Baseline2026Predictor:
                 if race_name
                 else self.teams.get(team, {}).get("overall_performance", 0.50)
             )
+            long_modifier, has_long_profile = self._compute_testing_profile_modifier(
+                team=team,
+                profile="long_run",
+                metric_weights=long_profile_weights,
+                scale=long_profile_scale,
+            )
+            team_strength = float(np.clip(team_strength + long_modifier, 0.0, 1.0))
+            if has_long_profile:
+                teams_with_long_profile.add(team)
+
             driver_data = self.drivers.get(driver_code, {})
 
             pace_data = driver_data.get("pace", {})
@@ -481,7 +584,7 @@ class Baseline2026Predictor:
                 "dnf_probability": max(0.0, min(adjusted_dnf, dnf_rate_final_cap)),
             }
 
-        return driver_info_map
+        return driver_info_map, len(teams_with_long_profile)
 
     def _calculate_driver_race_score(
         self,
@@ -659,7 +762,7 @@ class Baseline2026Predictor:
 
         # Load track and driver data
         track_overtaking = self._load_track_overtaking_difficulty(race_name)
-        driver_info_map = self._prepare_driver_info(qualifying_grid, race_name)
+        driver_info_map, teams_with_long_profile = self._prepare_driver_info(qualifying_grid, race_name)
         params = self._load_race_params()
 
         # Calculate base chaos
@@ -735,4 +838,8 @@ class Baseline2026Predictor:
         for i, item in enumerate(finish_order):
             item["position"] = i + 1
 
-        return {"finish_order": finish_order}
+        return {
+            "finish_order": finish_order,
+            "characteristics_profile_used": "long_run",
+            "teams_with_characteristics_profile": teams_with_long_profile,
+        }

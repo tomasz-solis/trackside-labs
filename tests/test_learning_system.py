@@ -108,6 +108,16 @@ class TestLearningSystem:
 
         assert optimal == 0.65
 
+    def test_get_recommended_method_format(self, tmp_path):
+        """Compatibility strategy payload should include blend method format."""
+        system = LearningSystem(data_dir=tmp_path)
+
+        rec = system.get_recommended_method(weekend_type="sprint", default_blend_weight=0.65)
+
+        assert rec["weekend_type"] == "sprint"
+        assert rec["blend_weight"] == 0.65
+        assert rec["method"] == "blend_65_35"
+
     def test_state_persists_across_instances(self, tmp_path):
         """State should save and reload."""
         system1 = LearningSystem(data_dir=tmp_path)
@@ -128,6 +138,20 @@ class TestLearningSystem:
         # Should log to history but not update method stats
         assert len(system.state["history"]) == 1
         assert "blend_70_30" not in system.state["method_performance"]
+
+    def test_update_after_race_returns_recommendations(self, tmp_path):
+        """Update should return a compatibility recommendations payload."""
+        system = LearningSystem(data_dir=tmp_path)
+
+        result = system.update_after_race(
+            race="Race 1",
+            actual_results={},
+            prediction_comparison={"qualifying": {"method": "blend_70_30", "mae": 2.0}},
+        )
+
+        assert "recommendations" in result
+        assert isinstance(result["recommendations"], list)
+        assert len(result["recommendations"]) >= 1
 
     def test_handles_malformed_method_names(self, tmp_path):
         """Should handle edge cases in weight extraction."""

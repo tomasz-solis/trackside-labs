@@ -301,7 +301,7 @@ def ensure_driver_characteristics(data_dir: Path) -> None:
 
     if not driver_file.exists():
         logger.warning(
-            "Driver characteristics missing! Run: python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025"
+            "Driver characteristics missing! Run: python scripts/extract_driver_characteristics.py --years 2023,2024,2025"
         )
         return
 

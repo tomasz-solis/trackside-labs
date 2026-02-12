@@ -45,9 +45,7 @@ def fetch_actual_results(year: int, race_name: str):
 
         quali_results = []
         for pos in range(1, 23):  # Up to 22 drivers
-            driver_data = quali_session.results[
-                quali_session.results["Position"] == pos
-            ]
+            driver_data = quali_session.results[quali_session.results["Position"] == pos]
             if not driver_data.empty:
                 driver_abbr = driver_data.iloc[0]["Abbreviation"]
                 team_name = driver_data.iloc[0]["TeamName"]
@@ -77,13 +75,9 @@ def fetch_actual_results(year: int, race_name: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Update saved prediction with actual race results"
-    )
+    parser = argparse.ArgumentParser(description="Update saved prediction with actual race results")
     parser.add_argument("race_name", help="Race name (e.g., 'Bahrain Grand Prix')")
-    parser.add_argument(
-        "session_name", help="Session name (e.g., 'FP1', 'FP2', 'FP3', 'SQ')"
-    )
+    parser.add_argument("session_name", help="Session name (e.g., 'FP1', 'FP2', 'FP3', 'SQ')")
     parser.add_argument("--year", type=int, default=2026, help="Season year")
 
     args = parser.parse_args()
@@ -92,9 +86,7 @@ def main():
     logger_inst = PredictionLogger()
 
     # Check if prediction exists
-    if not logger_inst.has_prediction_for_session(
-        args.year, args.race_name, args.session_name
-    ):
+    if not logger_inst.has_prediction_for_session(args.year, args.race_name, args.session_name):
         logger.error(
             f"No prediction found for {args.race_name} after {args.session_name}. "
             "Save a prediction first using the dashboard."
@@ -121,9 +113,7 @@ def main():
         logger.info(
             f"✅ Successfully updated prediction for {args.race_name} (after {args.session_name}) with actual results"
         )
-        logger.info(
-            "View accuracy metrics in the 'Prediction Accuracy' tab in the dashboard"
-        )
+        logger.info("View accuracy metrics in the 'Prediction Accuracy' tab in the dashboard")
         return 0
     else:
         logger.error("Failed to update prediction")

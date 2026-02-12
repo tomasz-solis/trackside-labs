@@ -1,8 +1,12 @@
 """
 FP Practice Session Blending
 
-Blends model predictions with actual practice session lap times.
-Validated to improve prediction accuracy (0.809 correlation vs 0.666 model-only).
+Extracts team session performance and blends it with model team strength.
+
+Current active usage:
+- called by `Baseline2026Predictor.predict_qualifying`
+- uses the best single available session by priority
+- applies a 70/30 session/model blend in baseline predictor logic
 
 Usage:
     from src.utils.fp_blending import get_best_fp_performance
@@ -18,6 +22,9 @@ import fastf1 as ff1
 import numpy as np
 import logging
 from typing import Dict, Optional, Tuple
+import pandas as pd
+
+from src.utils.team_mapping import map_team_to_characteristics
 
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
@@ -53,7 +60,10 @@ def get_fp_team_performance(
 
             # Get best lap time
             best_lap = valid_laps["LapTime"].min()
-            team = driver_laps["Team"].iloc[0]
+            team_raw = driver_laps["Team"].iloc[0]
+            if pd.isna(team_raw):
+                continue
+            team = map_team_to_characteristics(team_raw) or str(team_raw)
 
             best_times.append({"driver": driver, "team": team, "time": best_lap.total_seconds()})
 

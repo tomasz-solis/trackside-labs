@@ -2,12 +2,12 @@
 Automatic Race Data Updater
 
 Checks for completed 2026 races and automatically updates team/driver characteristics.
-Called transparently before predictions - no manual intervention needed!
+Called by the dashboard before predictions; manual scripts remain available.
 """
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Tuple
 
@@ -30,13 +30,18 @@ def get_completed_races(year: int = 2026) -> List[str]:
         schedule = fastf1.get_event_schedule(year)
 
         completed = []
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         for _, event in schedule.iterrows():
             # Check if race has happened (date in the past)
             if "EventDate" in event and pd.notna(event["EventDate"]):
-                event_date = pd.to_datetime(event["EventDate"])
-                if event_date < now:
+                event_date = pd.Timestamp(event["EventDate"])
+                if event_date.tzinfo is None:
+                    event_date = event_date.tz_localize("UTC")
+                else:
+                    event_date = event_date.tz_convert("UTC")
+
+                if event_date.to_pydatetime() < now:
                     race_name = event["EventName"]
                     # Try to load race session to confirm data is available
                     try:
@@ -134,16 +139,26 @@ def mark_race_as_learned(race_name: str) -> None:
     learning_file = Path("data/learning_state.json")
     learning_file.parent.mkdir(parents=True, exist_ok=True)
 
+    default_state = {
+        "season": 2026,
+        "races_completed": 0,
+        "history": [],
+        "method_performance": {},
+    }
+
     if learning_file.exists():
-        with open(learning_file) as f:
-            state = json.load(f)
+        try:
+            with open(learning_file) as f:
+                state = json.load(f)
+            if not isinstance(state, dict):
+                raise ValueError("Learning state root must be an object")
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            logger.warning(
+                f"Learning state at {learning_file} is invalid ({exc}). Rebuilding state file."
+            )
+            state = default_state
     else:
-        state = {
-            "season": 2026,
-            "races_completed": 0,
-            "history": [],
-            "method_performance": {},
-        }
+        state = default_state
 
     # Add to history if not already there
     if "history" not in state:

@@ -79,12 +79,8 @@ def calculate_track_characteristics(years: List[int], output_dir: Path) -> None:
                             # Estimate pit loss from lap time difference
                             pit_times = []
                             for driver in pit_laps["Driver"].unique():
-                                driver_laps = session.laps[
-                                    session.laps["Driver"] == driver
-                                ]
-                                pit_lap_idx = driver_laps[
-                                    driver_laps["PitInTime"].notna()
-                                ].index
+                                driver_laps = session.laps[session.laps["Driver"] == driver]
+                                pit_lap_idx = driver_laps[driver_laps["PitInTime"].notna()].index
                                 for idx in pit_lap_idx:
                                     # Compare to average lap time
                                     avg_lap = driver_laps["LapTime"].mean()
@@ -111,10 +107,7 @@ def calculate_track_characteristics(years: List[int], output_dir: Path) -> None:
                     # Higher position changes = easier overtaking
                     if hasattr(session, "results") and session.results is not None:
                         results = session.results
-                        if (
-                            "GridPosition" in results.columns
-                            and "Position" in results.columns
-                        ):
+                        if "GridPosition" in results.columns and "Position" in results.columns:
                             position_changes = abs(
                                 results["Position"] - results["GridPosition"]
                             ).sum()
@@ -139,9 +132,7 @@ def calculate_track_characteristics(years: List[int], output_dir: Path) -> None:
     }
 
     for track_name, stats in track_stats.items():
-        pit_time = (
-            np.mean(stats["pit_times"]) if stats["pit_times"] else 22.0
-        )  # Default 22s
+        pit_time = np.mean(stats["pit_times"]) if stats["pit_times"] else 22.0  # Default 22s
         sc_prob = 0.3  # Default - would need better telemetry to calculate
 
         # Overtaking difficulty: normalize position changes
@@ -168,9 +159,7 @@ def calculate_track_characteristics(years: List[int], output_dir: Path) -> None:
         }
 
     # Save to file
-    output_file = (
-        output_dir / "track_characteristics" / "2026_track_characteristics.json"
-    )
+    output_file = output_dir / "track_characteristics" / "2026_track_characteristics.json"
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_file, "w") as f:
@@ -313,9 +302,7 @@ def main():
         default="2023,2024,2025",
         help="Comma-separated years to use for historical averages",
     )
-    parser.add_argument(
-        "--output", type=str, default="data/processed", help="Output directory"
-    )
+    parser.add_argument("--output", type=str, default="data/processed", help="Output directory")
     parser.add_argument(
         "--skip-tracks",
         action="store_true",

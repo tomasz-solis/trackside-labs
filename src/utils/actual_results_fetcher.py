@@ -1,15 +1,17 @@
 """Fetches actual results from competitive F1 sessions."""
 
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import fastf1
+
+from src.utils.team_mapping import map_team_to_characteristics
 
 logger = logging.getLogger(__name__)
 
 
 def fetch_actual_session_results(
     year: int, race_name: str, session_name: str
-) -> Optional[List[Dict[str, any]]]:
+) -> Optional[List[Dict[str, Any]]]:
     """Fetch actual results from competitive session (SQ, Sprint, Q, R)."""
     try:
         # Load session
@@ -25,15 +27,16 @@ def fetch_actual_session_results(
 
         # Extract relevant data
         grid = []
-        for idx, row in results.iterrows():
+        for fallback_position, (_, row) in enumerate(results.iterrows(), start=1):
             try:
                 driver = row.get("Abbreviation", row.get("DriverNumber", "UNK"))
-                team = row.get("TeamName", "Unknown")
-                position = row.get("Position", idx + 1)
+                team_raw = row.get("TeamName", "Unknown")
+                team = map_team_to_characteristics(team_raw) or str(team_raw)
+                position = row.get("Position", fallback_position)
 
                 # Handle DNFs/DSQs
                 if position is None or str(position) == "nan":
-                    position = idx + 1
+                    position = fallback_position
 
                 grid.append(
                     {
@@ -43,7 +46,9 @@ def fetch_actual_session_results(
                     }
                 )
             except Exception as e:
-                logger.warning(f"Could not parse result for driver at index {idx}: {e}")
+                logger.warning(
+                    f"Could not parse result for driver at fallback position {fallback_position}: {e}"
+                )
                 continue
 
         # Sort by position

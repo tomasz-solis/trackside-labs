@@ -19,7 +19,6 @@ Note: This uses the Baseline 2026 predictor since no real race data exists yet.
       Predictions will have high uncertainty (40-60% confidence) until testing.
 """
 
-import sys
 import logging
 import pandas as pd
 from pathlib import Path
@@ -40,36 +39,22 @@ def check_and_update_data(force_update=False):
     """
     data_dir = Path("data/processed")
     driver_chars_file = data_dir / "driver_characteristics.json"
-    track_chars_file = data_dir / "track_characteristics.json"
+    track_chars_file = data_dir / "track_characteristics" / "2026_track_characteristics.json"
 
     # Check if files exist
     missing_data = not driver_chars_file.exists() or not track_chars_file.exists()
 
     if missing_data or force_update:
-        logger.info(
-            "🏭 DATA FACTORY: Updating Knowledge Bases (this may take a moment)..."
-        )
+        logger.info("🏭 DATA FACTORY: Updating Knowledge Bases (this may take a moment)...")
 
         # 1. Run Overtaking Extraction
         logger.info("   - Extracting Overtaking Likelihoods...")
-        try:
-            from scripts.extract_overtaking_likelihood import (
-                calculate_overtaking_likelihood,
-                add_overtaking_to_tracks,
-            )
-
-            # In a real run, you'd trigger the full recalculation here
-            # For now, we assume the script handles the saving/loading internally
-            pass
-        except ImportError:
-            logger.error(
-                "   ! Could not import extraction scripts. Run from root directory."
-            )
+        logger.warning("   ! Run manually: python scripts/extract_overtaking_likelihood.py")
 
         # 2. Run Driver Characteristics
         logger.info("   - Extracting Driver Characteristics (2025 baseline)...")
         logger.warning(
-            "   ! Use: python scripts/extract_driver_characteristics_fixed.py --years 2023,2024,2025"
+            "   ! Use: python scripts/extract_driver_characteristics.py --years 2023,2024,2025"
         )
         logger.warning(
             "   ! Simulator does not auto-generate driver data. Run extraction script manually."
@@ -91,9 +76,7 @@ def load_static_configs():
     if lineup_path.exists():
         with open(lineup_path) as f:
             lineups = json.load(f)
-        logger.info(
-            f"   - Lineups loaded ({len(lineups.get('current_lineups', []))} teams)"
-        )
+        logger.info(f"   - Lineups loaded ({len(lineups.get('current_lineups', []))} teams)")
     else:
         logger.warning("   ! current_lineups.json missing!")
 
@@ -162,9 +145,7 @@ def run_simulation_loop(year=2026):
         strategy = learner.get_recommended_method(weekend_type)
         lineups = get_lineups(year, race_name)
 
-        logger.info(
-            f"   📅 Format: {weekend_type.upper()} | Strategy: {strategy['method']}"
-        )
+        logger.info(f"   📅 Format: {weekend_type.upper()} | Strategy: {strategy['method']}")
 
         # B. PREDICTION Phase (Mocking the grid)
         # In real life: You'd run QualifyingPredictor here first
@@ -200,13 +181,11 @@ def run_simulation_loop(year=2026):
         mae = abs(0) if predicted_winner == actual_winner else 1.0  # Dummy MAE
         insights = learner.update_after_race(
             race=race_name,
-            actual_results={
-                "race": [{"driver": k, "position": v} for k, v in podium.items()]
-            },
-            prediction_comparison={"qualifying": {"mae": mae}},
+            actual_results={"race": [{"driver": k, "position": v} for k, v in podium.items()]},
+            prediction_comparison={"qualifying": {"method": strategy["method"], "mae": mae}},
         )
 
-        if insights.get("recommendations"):
+        if insights and insights.get("recommendations"):
             for rec in insights["recommendations"]:
                 logger.info(f"   💡 SYSTEM INSIGHT: {rec}")
 

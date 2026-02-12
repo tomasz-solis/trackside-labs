@@ -2,13 +2,14 @@
 Weekend Type Utilities - NO HARDCODING!
 
 ALWAYS uses FastF1's EventFormat - never hardcoded sprint lists.
+Falls back to local track characteristics data if FastF1 schedule is unavailable.
 
 EventFormat values:
 - 'sprint', 'sprint_qualifying', 'sprint_shootout' → sprint weekend
 - 'conventional' → normal weekend
 
 Usage:
-    from src.utils.weekend_utils import get_weekend_type, is_sprint_weekend
+    from src.utils.weekend import get_weekend_type, is_sprint_weekend
 
     weekend_type = get_weekend_type(2025, 'Chinese Grand Prix')
     # Returns: 'sprint' or 'conventional'
@@ -17,36 +18,89 @@ Usage:
         session = 'Sprint Qualifying'
 """
 
-import fastf1
+import json
 import logging
+from functools import lru_cache
+from pathlib import Path
 from typing import Literal
+
+import fastf1
 
 logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=8)
+def _get_schedule_rows(year: int) -> tuple[tuple[str, str], ...]:
+    """
+    Load (EventName, EventFormat) rows from FastF1.
+
+    Falls back to local track characteristics data if FastF1 is unavailable
+    or returns an empty schedule (common in offline/test environments).
+    """
+    rows: list[tuple[str, str]] = []
+
+    try:
+        schedule = fastf1.get_event_schedule(year)
+        if "EventName" in schedule.columns and "EventFormat" in schedule.columns:
+            for _, event in schedule.iterrows():
+                event_name = str(event.get("EventName", "")).strip()
+                event_format = str(event.get("EventFormat", "")).strip().lower()
+                if event_name:
+                    rows.append((event_name, event_format))
+    except Exception as exc:
+        logger.warning(f"Could not load FastF1 schedule for {year}: {exc}")
+
+    if rows:
+        return tuple(rows)
+
+    fallback_file = (
+        Path("data/processed/track_characteristics") / f"{year}_track_characteristics.json"
+    )
+    if not fallback_file.exists():
+        return tuple()
+
+    try:
+        with open(fallback_file) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(f"Could not load fallback schedule from {fallback_file}: {exc}")
+        return tuple()
+
+    tracks = data.get("tracks", {})
+    for race_name, track_data in tracks.items():
+        if not race_name:
+            continue
+        has_sprint = bool(isinstance(track_data, dict) and track_data.get("has_sprint", False))
+        rows.append((race_name, "sprint" if has_sprint else "conventional"))
+
+    if rows:
+        logger.info(f"Using local fallback schedule from {fallback_file} for {year}.")
+
+    return tuple(rows)
+
+
+def _find_event_format(year: int, race_name: str) -> str | None:
+    """Return EventFormat string for race_name, or None if not found."""
+    race_name_lower = race_name.lower()
+    for event_name, event_format in _get_schedule_rows(year):
+        if event_name == race_name or event_name.lower() == race_name_lower:
+            return event_format
+    return None
+
+
 def get_weekend_type(year: int, race_name: str) -> Literal["sprint", "conventional"]:
     """Get weekend type from FastF1 EventFormat. Raises ValueError if race not found."""
-    schedule = fastf1.get_event_schedule(year)
-
-    # Try exact match first
-    event = schedule[schedule["EventName"] == race_name]
-
-    if event.empty:
-        # Try case-insensitive match
-        event = schedule[schedule["EventName"].str.lower() == race_name.lower()]
-
-    if event.empty:
+    event_format = _find_event_format(year, race_name)
+    if event_format is None:
+        available_races = [event_name for event_name, _ in _get_schedule_rows(year)]
         raise ValueError(
             f"Race '{race_name}' not found in {year} schedule. "
-            f"Available races: {list(schedule['EventName'])}"
+            f"Available races: {available_races}"
         )
-
-    # Get EventFormat
-    event_format = str(event.iloc[0]["EventFormat"]).lower()
 
     # Check if sprint weekend
     # Possible sprint formats: 'sprint', 'sprint_qualifying', 'sprint_shootout'
-    if any(keyword in event_format for keyword in ["sprint"]):
+    if "sprint" in event_format:
         return "sprint"
     else:
         return "conventional"
@@ -66,43 +120,29 @@ def is_sprint_weekend(year: int, race_name: str) -> bool:
 
 def get_event_format(year: int, race_name: str) -> str:
     """Get exact EventFormat string from FastF1 schedule."""
-    schedule = fastf1.get_event_schedule(year)
-    event = schedule[schedule["EventName"] == race_name]
-
-    if event.empty:
-        event = schedule[schedule["EventName"].str.lower() == race_name.lower()]
-
-    if event.empty:
+    event_format = _find_event_format(year, race_name)
+    if event_format is None:
         raise ValueError(f"Race '{race_name}' not found in {year} schedule")
 
-    return str(event.iloc[0]["EventFormat"])
+    return event_format
 
 
 def get_all_sprint_races(year: int) -> list[str]:
     """Get all sprint race names for a season from FastF1 schedule."""
-    schedule = fastf1.get_event_schedule(year)
-
-    sprint_races = []
-    for _, event in schedule.iterrows():
-        event_format = str(event["EventFormat"]).lower()
-        # Check for any sprint format
-        if "sprint" in event_format:
-            sprint_races.append(event["EventName"])
-
-    return sprint_races
+    return [
+        event_name
+        for event_name, event_format in _get_schedule_rows(year)
+        if "sprint" in event_format
+    ]
 
 
 def get_all_conventional_races(year: int) -> list[str]:
     """Get all conventional (non-sprint) race names for a season."""
-    schedule = fastf1.get_event_schedule(year)
-
-    conventional_races = []
-    for _, event in schedule.iterrows():
-        event_format = str(event["EventFormat"]).lower()
-        if "sprint" not in event_format:
-            conventional_races.append(event["EventName"])
-
-    return conventional_races
+    return [
+        event_name
+        for event_name, event_format in _get_schedule_rows(year)
+        if "sprint" not in event_format
+    ]
 
 
 def get_best_qualifying_session(year: int, race_name: str) -> str:

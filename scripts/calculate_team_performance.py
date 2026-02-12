@@ -116,9 +116,7 @@ def calculate_team_performance_from_races(year: int) -> Dict:
 
 def rank_teams_by_performance(teams: Dict) -> Dict:
     """Add championship position based on performance."""
-    sorted_teams = sorted(
-        teams.items(), key=lambda x: x[1]["overall_performance"], reverse=True
-    )
+    sorted_teams = sorted(teams.items(), key=lambda x: x[1]["overall_performance"], reverse=True)
 
     for position, (team, data) in enumerate(sorted_teams, 1):
         teams[team]["championship_position"] = position
@@ -127,9 +125,7 @@ def rank_teams_by_performance(teams: Dict) -> Dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Calculate team performance from race data"
-    )
+    parser = argparse.ArgumentParser(description="Calculate team performance from race data")
     parser.add_argument("--year", type=int, default=2025, help="Season year")
     parser.add_argument(
         "--output",
@@ -162,9 +158,7 @@ def main():
         "generated_at": datetime.now().isoformat(),
         "data_freshness": "DATA_DRIVEN",
         "method": "Calculated from race lap times (median per team, normalized)",
-        "races_completed": max(
-            [t["races_analyzed"] for t in team_chars.values()], default=0
-        ),
+        "races_completed": max([t["races_analyzed"] for t in team_chars.values()], default=0),
         "teams": team_chars,
     }
 

@@ -93,6 +93,21 @@ TEAM_NAME_MAP = {
     "Cadillac Racing": "CADILLAC",
 }
 
+# Mapping from canonical team IDs to team names used in car characteristics files.
+CHARACTERISTICS_TEAM_MAP = {
+    "RED BULL": "Red Bull Racing",
+    "MCLAREN": "McLaren",
+    "FERRARI": "Ferrari",
+    "MERCEDES": "Mercedes",
+    "ASTON MARTIN": "Aston Martin",
+    "ALPINE": "Alpine",
+    "HAAS": "Haas F1 Team",
+    "RB": "RB",
+    "WILLIAMS": "Williams",
+    "AUDI": "Audi",
+    "CADILLAC": "Cadillac F1",
+}
+
 
 # =============================================================================
 # CANONICALIZATION FUNCTIONS
@@ -140,3 +155,57 @@ def normalize_team_column(df: Union[pd.DataFrame, pd.Series], col: str = "team")
     df[col] = canonical_names
 
     return df
+
+
+def _normalize_name(value: str) -> str:
+    """Normalize names for robust matching."""
+    return "".join(char for char in str(value).lower() if char.isalnum())
+
+
+def map_team_to_characteristics(name: str, known_teams: set[str] | None = None) -> str | None:
+    """
+    Map a team label from FastF1/other sources to characteristics team naming.
+
+    If `known_teams` is provided, returns only values present in that set; otherwise returns
+    the best-effort mapped name (or the input text when no mapping is known).
+    """
+    if name is None:
+        return None
+
+    team_text = str(name).strip()
+    if not team_text:
+        return None
+
+    if known_teams and team_text in known_teams:
+        return team_text
+
+    # Already in characteristics naming.
+    if team_text in CHARACTERISTICS_TEAM_MAP.values():
+        if known_teams is None or team_text in known_teams:
+            return team_text
+
+    canonical_id = canonicalize_team(team_text)
+    mapped = CHARACTERISTICS_TEAM_MAP.get(canonical_id)
+    if mapped and (known_teams is None or mapped in known_teams):
+        return mapped
+
+    # Fuzzy fallback when an explicit known-team set is provided.
+    if known_teams:
+        normalized_input = _normalize_name(team_text)
+        normalized_known = {_normalize_name(team): team for team in known_teams}
+
+        if normalized_input in normalized_known:
+            return normalized_known[normalized_input]
+
+        normalized_canonical = _normalize_name(canonical_id)
+        if normalized_canonical in normalized_known:
+            return normalized_known[normalized_canonical]
+
+        if mapped:
+            normalized_mapped = _normalize_name(mapped)
+            if normalized_mapped in normalized_known:
+                return normalized_known[normalized_mapped]
+
+        return None
+
+    return mapped if mapped else team_text

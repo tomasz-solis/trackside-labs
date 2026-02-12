@@ -1,5 +1,8 @@
 """
-Adaptive Learning System - Tracks performance and recommends strategy.
+Adaptive learning state for method-performance history.
+
+Stores race analysis records and can recommend a blend weight from historical MAE.
+In the current baseline dashboard path, this recommendation is advisory.
 """
 
 import json
@@ -58,9 +61,27 @@ class LearningSystem:
                 pass
         return default
 
+    def get_recommended_method(
+        self, weekend_type: str = "conventional", default_blend_weight: float = 0.7
+    ) -> Dict:
+        """
+        Return a compatibility strategy payload for legacy callers.
+
+        The method label follows `blend_XX_YY`, where XX is session data weight.
+        """
+        blend_weight = self.get_optimal_blend_weight(default=default_blend_weight)
+        blend_pct = int(round(blend_weight * 100))
+        model_pct = max(0, 100 - blend_pct)
+
+        return {
+            "weekend_type": weekend_type,
+            "method": f"blend_{blend_pct}_{model_pct}",
+            "blend_weight": blend_weight,
+        }
+
     def update_after_race(
         self, race: str, actual_results: Dict, prediction_comparison: Dict
-    ) -> None:
+    ) -> Dict:
         """Update stats after a race weekend."""
         # 1. Log the event
         self.state["history"].append(
@@ -92,3 +113,13 @@ class LearningSystem:
                 perf["count"] += 1
 
         self.save_state()
+
+        recommended = self.get_recommended_method()
+        return {
+            "recommendations": [
+                (
+                    "Best recent blend weight: "
+                    f"{recommended['blend_weight']:.2f} ({recommended['method']})"
+                )
+            ]
+        }

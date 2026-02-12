@@ -81,9 +81,7 @@ def validate_driver_characteristics(driver_file: Path) -> Tuple[bool, List[str]]
 
             # Range check
             if skill < 0.1 or skill > 0.99:
-                errors.append(
-                    f"{driver_code}: Skill {skill:.3f} out of valid range [0.1, 0.99]"
-                )
+                errors.append(f"{driver_code}: Skill {skill:.3f} out of valid range [0.1, 0.99]")
 
             # Known driver validation
             if driver_code in DRIVER_VALIDATION_RULES:
@@ -230,9 +228,7 @@ def validate_track_characteristics(track_file: Path) -> Tuple[bool, List[str]]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Validate characteristics files for sanity"
-    )
+    parser = argparse.ArgumentParser(description="Validate characteristics files for sanity")
     parser.add_argument(
         "--data-dir",
         type=str,

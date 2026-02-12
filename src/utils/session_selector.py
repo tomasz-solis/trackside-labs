@@ -32,7 +32,17 @@ def calculate_overtaking_difficulty(track_chars: Dict) -> float:
     return float(np.clip(difficulty, 0, 1))
 
 
-def get_prediction_context(current_session: str, weekend_type: str = "normal") -> Dict:
+def _normalize_weekend_type(weekend_type: str) -> str:
+    """Normalize weekend type labels for compatibility."""
+    normalized = (weekend_type or "").strip().lower()
+    if normalized in ("normal", "conventional"):
+        return "normal"
+    if normalized == "sprint":
+        return "sprint"
+    raise ValueError(f"Unsupported weekend_type '{weekend_type}'. Use 'conventional' or 'sprint'.")
+
+
+def get_prediction_context(current_session: str, weekend_type: str = "conventional") -> Dict:
     """
     Get available data and next prediction target for current session.
     """
@@ -103,7 +113,8 @@ def get_prediction_context(current_session: str, weekend_type: str = "normal") -
         },
     }
 
-    return contexts[weekend_type].get(current_session, contexts[weekend_type]["pre_fp1"])
+    weekend_key = _normalize_weekend_type(weekend_type)
+    return contexts[weekend_key].get(current_session, contexts[weekend_key]["pre_fp1"])
 
 
 def map_session_name_to_key(session_name: str, team_sessions: Dict) -> Optional[str]:
@@ -127,7 +138,7 @@ def select_best_session(
     team_sessions: Dict,
     track_chars: Dict,
     current_session: str,
-    weekend_type: str = "normal",
+    weekend_type: str = "conventional",
     prediction_target: str = "qualifying",
 ) -> Tuple[Optional[Dict], float, str]:
     """
@@ -203,11 +214,12 @@ def select_best_session(
     return best_session, confidence, reasoning
 
 
-def get_prediction_workflow(weekend_type: str = "normal") -> List[Dict]:
+def get_prediction_workflow(weekend_type: str = "conventional") -> List[Dict]:
     """
     Get complete prediction workflow for a weekend with context at each stage.
     """
-    if weekend_type == "normal":
+    weekend_key = _normalize_weekend_type(weekend_type)
+    if weekend_key == "normal":
         return [
             {
                 "timing": "Pre-FP1 (Thursday)",

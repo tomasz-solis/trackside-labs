@@ -8,6 +8,7 @@ import pytest
 import json
 import tempfile
 import shutil
+import pandas as pd
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -267,6 +268,110 @@ class TestUpdaterEdgeCases:
 
         # Check backup exists
         assert backup_file.exists(), f"Backup file should be created at {backup_file}"
+
+    def test_extract_team_performance_canonicalizes_session_team_names(self):
+        """Telemetry extraction should map sponsor names to characteristics team names."""
+        from src.systems.updater import extract_team_performance_from_telemetry
+
+        laps = pd.DataFrame(
+            [
+                {
+                    "Team": "Oracle Red Bull Racing",
+                    "LapTime": pd.Timedelta(seconds=91.0),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 2,
+                },
+                {
+                    "Team": "Oracle Red Bull Racing",
+                    "LapTime": pd.Timedelta(seconds=91.2),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 3,
+                },
+                {
+                    "Team": "Oracle Red Bull Racing",
+                    "LapTime": pd.Timedelta(seconds=91.1),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 4,
+                },
+                {
+                    "Team": "Oracle Red Bull Racing",
+                    "LapTime": pd.Timedelta(seconds=91.3),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 5,
+                },
+                {
+                    "Team": "Oracle Red Bull Racing",
+                    "LapTime": pd.Timedelta(seconds=91.0),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 6,
+                },
+                {
+                    "Team": "Oracle Red Bull Racing",
+                    "LapTime": pd.Timedelta(seconds=91.4),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 7,
+                },
+                {
+                    "Team": "Scuderia Ferrari",
+                    "LapTime": pd.Timedelta(seconds=91.4),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 2,
+                },
+                {
+                    "Team": "Scuderia Ferrari",
+                    "LapTime": pd.Timedelta(seconds=91.5),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 3,
+                },
+                {
+                    "Team": "Scuderia Ferrari",
+                    "LapTime": pd.Timedelta(seconds=91.6),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 4,
+                },
+                {
+                    "Team": "Scuderia Ferrari",
+                    "LapTime": pd.Timedelta(seconds=91.5),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 5,
+                },
+                {
+                    "Team": "Scuderia Ferrari",
+                    "LapTime": pd.Timedelta(seconds=91.7),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 6,
+                },
+                {
+                    "Team": "Scuderia Ferrari",
+                    "LapTime": pd.Timedelta(seconds=91.8),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": 7,
+                },
+            ]
+        )
+
+        session = MagicMock()
+        session.laps = laps
+
+        perf = extract_team_performance_from_telemetry(
+            session=session,
+            team_names=["Red Bull Racing", "Ferrari"],
+        )
+
+        assert "Red Bull Racing" in perf
+        assert "Ferrari" in perf
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ import pandas as pd
 
 from src.models.bayesian import BayesianDriverRanking
 from src.utils.file_operations import atomic_json_write
+from src.utils.team_mapping import map_team_to_characteristics
 
 logger = logging.getLogger(__name__)
 
@@ -61,22 +62,34 @@ def extract_team_performance_from_telemetry(
         return {}
 
     laps = session.laps
+    known_teams = set(team_names)
+    if "Team" not in laps.columns:
+        logger.warning("Lap data does not include Team column")
+        return {}
+
+    laps = laps.copy()
+    laps["_canonical_team"] = laps["Team"].apply(
+        lambda raw: map_team_to_characteristics(raw, known_teams=known_teams)
+    )
 
     for team in team_names:
-        team_laps = laps[laps["Team"] == team]
+        team_laps = laps[laps["_canonical_team"] == team]
 
         if len(team_laps) == 0:
             logger.warning(f"  No laps found for {team}")
             continue
 
         # Filter valid racing laps
-        valid_laps = team_laps[
-            (team_laps["LapTime"].notna())
-            & (team_laps["PitOutTime"].isna())
-            & (team_laps["PitInTime"].isna())
-            & (team_laps["LapNumber"] > 1)
-            & (team_laps["LapNumber"] < team_laps["LapNumber"].max())
-        ]
+        mask = team_laps["LapTime"].notna()
+        if "PitOutTime" in team_laps.columns:
+            mask &= team_laps["PitOutTime"].isna()
+        if "PitInTime" in team_laps.columns:
+            mask &= team_laps["PitInTime"].isna()
+        if "LapNumber" in team_laps.columns:
+            mask &= team_laps["LapNumber"] > 1
+            mask &= team_laps["LapNumber"] < team_laps["LapNumber"].max()
+
+        valid_laps = team_laps[mask]
 
         if len(valid_laps) < 5:
             logger.warning(f"  {team}: Only {len(valid_laps)} valid laps, skipping")
@@ -134,10 +147,22 @@ def update_team_characteristics(
     # Fallback to positions if no telemetry available
     if not race_pace:
         logger.warning("No telemetry data, using positions as fallback")
+        known_teams = set(team_names)
+        canonical_results = race_results.copy()
+        if "TeamName" in canonical_results.columns:
+            canonical_results["_canonical_team"] = canonical_results["TeamName"].apply(
+                lambda raw: map_team_to_characteristics(raw, known_teams=known_teams)
+            )
+        else:
+            canonical_results["_canonical_team"] = None
+
         for team in team_names:
-            team_results = race_results[race_results["TeamName"] == team]
+            team_results = canonical_results[canonical_results["_canonical_team"] == team]
             if len(team_results) > 0:
-                avg_position = team_results["Position"].mean()
+                positions = pd.to_numeric(team_results["Position"], errors="coerce").dropna()
+                if positions.empty:
+                    continue
+                avg_position = positions.mean()
                 performance = 1.0 - (avg_position - 1) / 19
                 race_pace[team] = performance
 

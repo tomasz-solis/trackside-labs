@@ -14,6 +14,12 @@ WORKFLOW:
 
 import argparse
 import logging
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.systems.updater import update_from_race
 
@@ -25,9 +31,7 @@ def main():
     parser = argparse.ArgumentParser(description="Update characteristics after a race")
     parser.add_argument("race_name", help="Race name (e.g., 'Bahrain Grand Prix')")
     parser.add_argument("--year", type=int, default=2026, help="Season year")
-    parser.add_argument(
-        "--data-dir", type=str, default="data/processed", help="Data directory"
-    )
+    parser.add_argument("--data-dir", type=str, default="data/processed", help="Data directory")
 
     args = parser.parse_args()
 

@@ -54,9 +54,7 @@ def extract_overtakes_from_race(year, race_name):
 
             for driver in drivers_both:
                 prev_pos = prev_lap[prev_lap["Driver"] == driver]["Position"].iloc[0]
-                curr_pos = curr_lap_clean[curr_lap_clean["Driver"] == driver][
-                    "Position"
-                ].iloc[0]
+                curr_pos = curr_lap_clean[curr_lap_clean["Driver"] == driver]["Position"].iloc[0]
 
                 if pd.notna(prev_pos) and pd.notna(curr_pos):
                     if curr_pos != prev_pos:
@@ -155,9 +153,7 @@ def classify_overtaking_difficulty(avg_changes_per_lap):
         return "very_easy", 1.0
 
 
-def add_overtaking_to_tracks(
-    track_characteristics_path, overtaking_data, output_path=None
-):
+def add_overtaking_to_tracks(track_characteristics_path, overtaking_data, output_path=None):
     """Add overtaking likelihood to existing track characteristics JSON."""
     # Load existing tracks
     with open(track_characteristics_path) as f:
@@ -172,9 +168,7 @@ def add_overtaking_to_tracks(
                 ot_data["avg_changes_per_lap"]
             )
 
-            track_data["overtaking_avg_changes_per_lap"] = ot_data[
-                "avg_changes_per_lap"
-            ]
+            track_data["overtaking_avg_changes_per_lap"] = ot_data["avg_changes_per_lap"]
             track_data["overtaking_difficulty"] = difficulty
             track_data["overtaking_likelihood"] = normalized_score
             track_data["overtaking_years_analyzed"] = ot_data["years_analyzed"]
@@ -213,19 +207,13 @@ if __name__ == "__main__":
     print("OVERTAKING LIKELIHOOD BY TRACK")
     print("=" * 70)
 
-    sorted_tracks = sorted(
-        overtaking_data.items(), key=lambda x: x[1]["avg_changes_per_lap"]
-    )
+    sorted_tracks = sorted(overtaking_data.items(), key=lambda x: x[1]["avg_changes_per_lap"])
 
     for track, data in sorted_tracks:
         difficulty, score = classify_overtaking_difficulty(data["avg_changes_per_lap"])
-        print(
-            f"{track:<30} {data['avg_changes_per_lap']:>5.1f} changes/lap  ({difficulty})"
-        )
+        print(f"{track:<30} {data['avg_changes_per_lap']:>5.1f} changes/lap  ({difficulty})")
 
     # Add to track characteristics
-    track_file = Path(
-        "../data/processed/track_characteristics/2025_track_characteristics.json"
-    )
+    track_file = Path("../data/processed/track_characteristics/2025_track_characteristics.json")
     if track_file.exists():
         add_overtaking_to_tracks(track_file, overtaking_data)

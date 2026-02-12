@@ -11,7 +11,7 @@ import shutil
 import pandas as pd
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 @pytest.fixture
@@ -204,6 +204,29 @@ class TestCompletedRacesDetection:
         assert "Saudi Arabian Grand Prix" in completed
         assert "Australian Grand Prix" not in completed
 
+    def test_get_completed_races_handles_timezone_aware_dates(self, temp_data_dir):
+        """Timezone-aware event dates should be handled without naive/aware comparison errors."""
+        from src.utils.auto_updater import get_completed_races
+
+        mock_schedule = pd.DataFrame(
+            {
+                "EventName": ["Bahrain Grand Prix", "Australian Grand Prix"],
+                "EventDate": [
+                    datetime.now(timezone.utc) - timedelta(days=2),
+                    datetime.now(timezone.utc) + timedelta(days=2),
+                ],
+            }
+        )
+
+        with patch("fastf1.get_event_schedule") as mock_get_schedule:
+            with patch("fastf1.get_session") as mock_get_session:
+                mock_get_schedule.return_value = mock_schedule
+                mock_get_session.return_value = MagicMock()
+
+                completed = get_completed_races(year=2026)
+
+        assert completed == ["Bahrain Grand Prix"]
+
 
 class TestLearnedRacesTracking:
     """Test tracking of already-learned races."""
@@ -245,6 +268,24 @@ class TestLearnedRacesTracking:
         learned = get_learned_races()
 
         assert learned == []
+
+    def test_mark_race_as_learned_recovers_from_corrupted_state(self, temp_data_dir):
+        """Corrupted learning state should be rebuilt instead of crashing."""
+        from src.utils.auto_updater import mark_race_as_learned
+
+        learning_file = Path("data/learning_state.json")
+        learning_file.parent.mkdir(parents=True, exist_ok=True)
+        learning_file.write_text("{not: valid json")
+
+        try:
+            mark_race_as_learned("Bahrain Grand Prix")
+
+            with open(learning_file) as f:
+                repaired = json.load(f)
+            assert any(entry.get("race") == "Bahrain Grand Prix" for entry in repaired["history"])
+        finally:
+            if learning_file.exists():
+                learning_file.unlink()
 
 
 if __name__ == "__main__":

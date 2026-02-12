@@ -176,20 +176,18 @@ def extract_teammate_comparisons(years: List[int]) -> List[Dict]:
 
                         # Get driver abbreviations
                         try:
-                            d1_code = results.loc[results["Abbreviation"] == d1].iloc[
-                                0
-                            ]["Abbreviation"]
-                            d2_code = results.loc[results["Abbreviation"] == d2].iloc[
-                                0
-                            ]["Abbreviation"]
+                            d1_code = results.loc[results["Abbreviation"] == d1].iloc[0][
+                                "Abbreviation"
+                            ]
+                            d2_code = results.loc[results["Abbreviation"] == d2].iloc[0][
+                                "Abbreviation"
+                            ]
                         except:
                             continue
 
                         # Sample size confidence (more laps = higher confidence)
                         sample_size = min(len(laps_d1), len(laps_d2))
-                        confidence = min(
-                            1.0, sample_size / 30.0
-                        )  # 30+ laps = full confidence
+                        confidence = min(1.0, sample_size / 30.0)  # 30+ laps = full confidence
 
                         # Store comparison (A vs B)
                         comparisons.append(
@@ -275,9 +273,7 @@ def solve_global_ratings(comparisons: List[Dict], iterations=15) -> Dict[str, fl
         if iteration % 5 == 0:
             avg_rating = np.mean(list(ratings.values()))
             std_rating = np.std(list(ratings.values()))
-            logger.info(
-                f"  Iteration {iteration}: avg={avg_rating:.3f}, std={std_rating:.3f}"
-            )
+            logger.info(f"  Iteration {iteration}: avg={avg_rating:.3f}, std={std_rating:.3f}")
 
     # Normalize ratings to 0.35-0.95 range (WIDER SPREAD!)
     # Best driver → 0.95, Average → 0.65, Worst → 0.35
@@ -293,9 +289,7 @@ def solve_global_ratings(comparisons: List[Dict], iterations=15) -> Dict[str, fl
     return ratings
 
 
-def calculate_racecraft_scores(
-    years: List[int], ratings: Dict[str, float]
-) -> Dict[str, float]:
+def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> Dict[str, float]:
     """Calculate racecraft adjustment based on finish position versus pace-expected position."""
     logger.info("Calculating racecraft adjustments...")
 
@@ -330,16 +324,12 @@ def calculate_racecraft_scores(
                     for _, row in results.iterrows():
                         driver = row["Abbreviation"]
                         if driver in ratings:
-                            expected_order.append(
-                                (driver, ratings[driver], row["Position"])
-                            )
+                            expected_order.append((driver, ratings[driver], row["Position"]))
 
                     expected_order.sort(key=lambda x: x[1], reverse=True)
 
                     # Compare expected vs actual
-                    for expected_pos, (driver, rating, actual_pos) in enumerate(
-                        expected_order, 1
-                    ):
+                    for expected_pos, (driver, rating, actual_pos) in enumerate(expected_order, 1):
                         if pd.notna(actual_pos) and actual_pos <= 20:
                             # Positive = beat expectations (good racecraft)
                             racecraft_gain = expected_pos - actual_pos
@@ -362,9 +352,7 @@ def calculate_racecraft_scores(
     return racecraft_ratings
 
 
-def calculate_experience_and_consistency(
-    years: List[int], driver_debuts: Dict[str, int]
-) -> Dict:
+def calculate_experience_and_consistency(years: List[int], driver_debuts: Dict[str, int]) -> Dict:
     """
     Calculate experience tiers, total races, and DNF rates.
     """
@@ -447,9 +435,7 @@ def calculate_experience_and_consistency(
         else:
             # Fallback: count seasons in our data
             years_of_experience = len(stats["seasons"])
-            logger.warning(
-                f"{driver}: No debut year found, using {years_of_experience} seasons"
-            )
+            logger.warning(f"{driver}: No debut year found, using {years_of_experience} seasons")
 
         # Experience tier (based on ACTUAL F1 career, not just our data window)
         if years_of_experience >= 10:
@@ -477,15 +463,9 @@ def calculate_experience_and_consistency(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Extract driver characteristics (fixed)"
-    )
-    parser.add_argument(
-        "--years", type=str, default="2024,2025", help="Comma-separated years"
-    )
-    parser.add_argument(
-        "--output", type=str, default="data/processed/driver_characteristics.json"
-    )
+    parser = argparse.ArgumentParser(description="Extract driver characteristics (fixed)")
+    parser.add_argument("--years", type=str, default="2024,2025", help="Comma-separated years")
+    parser.add_argument("--output", type=str, default="data/processed/driver_characteristics.json")
 
     args = parser.parse_args()
 
@@ -567,9 +547,7 @@ def main():
                     continue
 
                 expected_pos = team_expected[team]
-                overperformance = (
-                    expected_pos - position
-                )  # Positive = beat expectations
+                overperformance = expected_pos - position  # Positive = beat expectations
 
                 if driver not in championship_adjustments:
                     championship_adjustments[driver] = []
@@ -586,9 +564,7 @@ def main():
         # +1 position vs team = +0.03 rating (max ±0.10)
         championship_bonuses[driver] = np.clip(avg_overperf * 0.03, -0.10, 0.10)
         if abs(championship_bonuses[driver]) > 0.05:
-            logger.info(
-                f"  {driver}: {championship_bonuses[driver]:+.3f} (overperformed car)"
-            )
+            logger.info(f"  {driver}: {championship_bonuses[driver]:+.3f} (overperformed car)")
 
     # Step 6: Combine into final ratings
     final_ratings = {}
@@ -607,9 +583,7 @@ def main():
             base_rating *= 0.90
 
         # Final skill score (base + racecraft + championship overdelivery)
-        skill_score = np.clip(
-            base_rating + racecraft_bonus + championship_bonus, 0.10, 0.99
-        )
+        skill_score = np.clip(base_rating + racecraft_bonus + championship_bonus, 0.10, 0.99)
 
         final_ratings[driver] = {
             "name": f"Driver {driver}",

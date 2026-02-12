@@ -762,7 +762,9 @@ class Baseline2026Predictor:
 
         # Load track and driver data
         track_overtaking = self._load_track_overtaking_difficulty(race_name)
-        driver_info_map, teams_with_long_profile = self._prepare_driver_info(qualifying_grid, race_name)
+        driver_info_map, teams_with_long_profile = self._prepare_driver_info(
+            qualifying_grid, race_name
+        )
         params = self._load_race_params()
 
         # Calculate base chaos

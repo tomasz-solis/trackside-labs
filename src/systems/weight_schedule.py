@@ -91,11 +91,14 @@ ScheduleType = Literal[
 ]
 
 
-def get_schedule_weights(race_number: int, schedule: ScheduleType = "extreme") -> Dict[str, float]:
+def get_schedule_weights(
+    race_number: int, schedule: ScheduleType = "extreme"
+) -> Dict[str, float]:
     """Get weight distribution for a specific race with smooth linear interpolation between checkpoints."""  # noqa: E501
     if schedule not in SCHEDULES:
         raise ValueError(
-            f"Unknown schedule '{schedule}'. " f"Available: {', '.join(SCHEDULES.keys())}"
+            f"Unknown schedule '{schedule}'. "
+            f"Available: {', '.join(SCHEDULES.keys())}"
         )
 
     if race_number < 1:

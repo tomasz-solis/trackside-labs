@@ -44,7 +44,9 @@ class AbsoluteDifferenceScoring(PerformanceScoringMethod):
             score = {"driver_number": driver}
 
             for metric_name, feature_col in features.items():
-                if feature_col in testing_features.columns and pd.notna(row[feature_col]):
+                if feature_col in testing_features.columns and pd.notna(
+                    row[feature_col]
+                ):
                     median_val = testing_features[feature_col].median()
                     score[f"{metric_name}_score"] = row[feature_col] - median_val
                 else:
@@ -109,7 +111,9 @@ class QuantileScoring(PerformanceScoringMethod):
             score = {"driver_number": driver}
 
             for metric_name, feature_col in features.items():
-                if feature_col in testing_features.columns and pd.notna(row[feature_col]):
+                if feature_col in testing_features.columns and pd.notna(
+                    row[feature_col]
+                ):
                     val = row[feature_col]
                     q75 = testing_features[feature_col].quantile(0.75)
                     q25 = testing_features[feature_col].quantile(0.25)
@@ -150,7 +154,9 @@ class ZScoreScoring(PerformanceScoringMethod):
             score = {"driver_number": driver}
 
             for metric_name, feature_col in features.items():
-                if feature_col in testing_features.columns and pd.notna(row[feature_col]):
+                if feature_col in testing_features.columns and pd.notna(
+                    row[feature_col]
+                ):
                     mean_val = testing_features[feature_col].mean()
                     std_val = testing_features[feature_col].std()
 

@@ -41,9 +41,15 @@ class Car:
             return
 
         # Map testing extractors to car characteristics
-        self.characteristics.slow_corner = testing_data.get("slow_corner_performance", 0.5)
-        self.characteristics.medium_corner = testing_data.get("medium_corner_performance", 0.5)
-        self.characteristics.fast_corner = testing_data.get("fast_corner_performance", 0.5)
+        self.characteristics.slow_corner = testing_data.get(
+            "slow_corner_performance", 0.5
+        )
+        self.characteristics.medium_corner = testing_data.get(
+            "medium_corner_performance", 0.5
+        )
+        self.characteristics.fast_corner = testing_data.get(
+            "fast_corner_performance", 0.5
+        )
 
         # Normalize Top Speed (assuming 300-350 km/h range for 0-1 scaling)
         top_speed = testing_data.get("top_speed", 320.0)
@@ -69,11 +75,19 @@ class Car:
 
         # Track-Specific Modifiers
         if track_type == "monaco":  # High Downforce, Low Speed
-            score = (c.slow_corner * 0.6) + (c.medium_corner * 0.3) + (c.reliability * 0.1)
+            score = (
+                (c.slow_corner * 0.6) + (c.medium_corner * 0.3) + (c.reliability * 0.1)
+            )
         elif track_type == "monza":  # Low Drag, High Speed
-            score = (c.straight_line * 0.7) + (c.slow_corner * 0.2) + (c.fast_corner * 0.1)
+            score = (
+                (c.straight_line * 0.7) + (c.slow_corner * 0.2) + (c.fast_corner * 0.1)
+            )
         elif track_type == "silverstone":  # High Speed Cornering
-            score = (c.fast_corner * 0.5) + (c.medium_corner * 0.3) + (c.straight_line * 0.2)
+            score = (
+                (c.fast_corner * 0.5)
+                + (c.medium_corner * 0.3)
+                + (c.straight_line * 0.2)
+            )
         else:
             score = base_score
 

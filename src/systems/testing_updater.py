@@ -21,6 +21,11 @@ import pandas as pd
 from pandas.errors import SettingWithCopyWarning
 
 from src.extractors.performance import extract_all_teams_performance
+from src.systems.compound_analyzer import (
+    extract_compound_metrics,
+    normalize_compound_metrics_across_teams,
+    aggregate_compound_samples,
+)
 from src.utils.file_operations import atomic_json_write
 from src.utils.team_mapping import map_team_to_characteristics
 
@@ -307,7 +312,8 @@ def _load_sessions_for_event(
             if not _testing_session_has_started(event, day_number, now_utc=now_utc):
                 if error_messages is not None:
                     error_messages.append(
-                        f"testing#{test_number}/day{day_number} -> " "session has not started yet"
+                        f"testing#{test_number}/day{day_number} -> "
+                        "session has not started yet"
                     )
                 continue
 
@@ -396,7 +402,9 @@ def _classify_run_laps(team_laps: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
             if stint_len >= _LONG_STINT_MIN_LAPS:
                 long_chunks.append(timed)
     else:
-        lap_seconds = pd.to_timedelta(cleaned["LapTime"], errors="coerce").dt.total_seconds()
+        lap_seconds = pd.to_timedelta(
+            cleaned["LapTime"], errors="coerce"
+        ).dt.total_seconds()
         lap_seconds = lap_seconds.dropna()
         if not lap_seconds.empty:
             short_threshold = lap_seconds.quantile(0.35)
@@ -405,10 +413,14 @@ def _classify_run_laps(team_laps: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
             long_chunks.append(cleaned[lap_seconds >= long_threshold].copy())
 
     short_laps = (
-        pd.concat(short_chunks, ignore_index=False) if short_chunks else cleaned.iloc[0:0].copy()
+        pd.concat(short_chunks, ignore_index=False)
+        if short_chunks
+        else cleaned.iloc[0:0].copy()
     )
     long_laps = (
-        pd.concat(long_chunks, ignore_index=False) if long_chunks else cleaned.iloc[0:0].copy()
+        pd.concat(long_chunks, ignore_index=False)
+        if long_chunks
+        else cleaned.iloc[0:0].copy()
     )
 
     return short_laps, long_laps
@@ -435,7 +447,9 @@ def _select_stint_representative_laps(team_laps: pd.DataFrame) -> pd.DataFrame:
         if timed.empty:
             continue
 
-        lap_seconds = pd.to_timedelta(timed["LapTime"], errors="coerce").dt.total_seconds()
+        lap_seconds = pd.to_timedelta(
+            timed["LapTime"], errors="coerce"
+        ).dt.total_seconds()
         valid_idx = lap_seconds.dropna().index
         if valid_idx.empty:
             continue
@@ -450,7 +464,9 @@ def _select_stint_representative_laps(team_laps: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).copy()
 
 
-def _select_program_aware_laps(team_laps: pd.DataFrame, run_profile: str) -> pd.DataFrame:
+def _select_program_aware_laps(
+    team_laps: pd.DataFrame, run_profile: str
+) -> pd.DataFrame:
     """
     Select representative laps with program-aware run filtering.
 
@@ -525,7 +541,9 @@ def _count_team_selected_laps(
         if selected_laps.empty:
             selected_laps = valid_laps
 
-        counts[canonical_team] = counts.get(canonical_team, 0.0) + float(len(selected_laps))
+        counts[canonical_team] = counts.get(canonical_team, 0.0) + float(
+            len(selected_laps)
+        )
 
     return counts
 
@@ -547,7 +565,9 @@ def _median_lap_seconds(team_laps: pd.DataFrame) -> float | None:
     if "LapTime" not in team_laps.columns or team_laps.empty:
         return None
 
-    lap_seconds = pd.to_timedelta(team_laps["LapTime"], errors="coerce").dt.total_seconds()
+    lap_seconds = pd.to_timedelta(
+        team_laps["LapTime"], errors="coerce"
+    ).dt.total_seconds()
     lap_seconds = lap_seconds.dropna()
     if lap_seconds.empty:
         return None
@@ -576,7 +596,9 @@ def _estimate_tire_deg_slope(team_laps: pd.DataFrame) -> float | None:
         if len(stint) < 3:
             continue
 
-        lap_seconds = pd.to_timedelta(stint["LapTime"], errors="coerce").dt.total_seconds()
+        lap_seconds = pd.to_timedelta(
+            stint["LapTime"], errors="coerce"
+        ).dt.total_seconds()
         lap_seconds = lap_seconds.dropna()
         if len(lap_seconds) < 3:
             continue
@@ -594,7 +616,9 @@ def _estimate_tire_deg_slope(team_laps: pd.DataFrame) -> float | None:
     return float(np.median(slopes))
 
 
-def _normalize_tire_deg_scores(tire_deg_slopes: dict[str, float]) -> dict[str, dict[str, float]]:
+def _normalize_tire_deg_scores(
+    tire_deg_slopes: dict[str, float],
+) -> dict[str, dict[str, float]]:
     """Normalize tire degradation to 0-1 performance scale (1.0 = best tire life)."""
     if not tire_deg_slopes:
         return {}
@@ -665,7 +689,9 @@ def _extract_team_payload(valid_laps: pd.DataFrame) -> dict:
         if speed_values:
             payload["speed_profile"] = {"top_speed": float(np.nanmedian(speed_values))}
 
-    lap_seconds = pd.to_timedelta(valid_laps["LapTime"], errors="coerce").dt.total_seconds()
+    lap_seconds = pd.to_timedelta(
+        valid_laps["LapTime"], errors="coerce"
+    ).dt.total_seconds()
     lap_seconds = lap_seconds.dropna()
     if len(lap_seconds) >= 2:
         payload["consistency"] = {"std_lap_time": float(lap_seconds.std(ddof=0))}
@@ -686,7 +712,9 @@ def _collect_session_metrics(
     except Exception as exc:
         logger.debug(f"Session laps unavailable for {session_key}: {exc}")
         if diagnostics is not None:
-            diagnostics.append(f"{session_key}: laps unavailable ({type(exc).__name__})")
+            diagnostics.append(
+                f"{session_key}: laps unavailable ({type(exc).__name__})"
+            )
         return {}, {}
 
     if laps is None or laps.empty:
@@ -718,7 +746,9 @@ def _collect_session_metrics(
         if len(valid_laps) < 1:
             continue
 
-        representative_laps = _select_program_aware_laps(valid_laps, run_profile=run_profile)
+        representative_laps = _select_program_aware_laps(
+            valid_laps, run_profile=run_profile
+        )
         if representative_laps.empty:
             representative_laps = valid_laps
         selected_lap_count += len(representative_laps)
@@ -741,7 +771,9 @@ def _collect_session_metrics(
         if slope is not None:
             tire_deg_slopes[canonical_team] = slope
 
-    normalized_perf = extract_all_teams_performance(per_team_payload, session_name=session_key)
+    normalized_perf = extract_all_teams_performance(
+        per_team_payload, session_name=session_key
+    )
     normalized_pace = _normalize_lower_better(lap_pace_seconds)
     for team, pace_score in normalized_pace.items():
         normalized_perf.setdefault(team, {})["overall_pace"] = pace_score
@@ -802,12 +834,16 @@ def _blend_directionality(
     for key in _DIRECTIONALITY_KEYS:
         old_value = float(old_directionality.get(key, 0.0))
         new_value = float(new_directionality.get(key, 0.0))
-        blended[key] = round(((1.0 - bounded_weight) * old_value) + (bounded_weight * new_value), 4)
+        blended[key] = round(
+            ((1.0 - bounded_weight) * old_value) + (bounded_weight * new_value), 4
+        )
 
     return blended
 
 
-def _count_team_valid_laps(session: fastf1.core.Session, known_teams: set[str]) -> dict[str, float]:
+def _count_team_valid_laps(
+    session: fastf1.core.Session, known_teams: set[str]
+) -> dict[str, float]:
     """Count valid timed laps per canonical team for session weighting."""
     try:
         laps = session.laps
@@ -829,7 +865,9 @@ def _count_team_valid_laps(session: fastf1.core.Session, known_teams: set[str]) 
         if valid_laps.empty:
             continue
 
-        counts[canonical_team] = counts.get(canonical_team, 0.0) + float(len(valid_laps))
+        counts[canonical_team] = counts.get(canonical_team, 0.0) + float(
+            len(valid_laps)
+        )
 
     return counts
 
@@ -850,7 +888,9 @@ def _aggregate_metric_samples(
         return float(np.median(values))
 
     if session_aggregation == "laps_weighted":
-        weights = np.array([max(0.0, float(weight)) for _, weight in samples], dtype=float)
+        weights = np.array(
+            [max(0.0, float(weight)) for _, weight in samples], dtype=float
+        )
         total_weight = float(np.sum(weights))
         if total_weight > 0:
             return float(np.average(values, weights=weights))
@@ -887,10 +927,14 @@ def update_from_testing_sessions(
 
     target_year = characteristics_year or year
     characteristics_file = (
-        Path(data_dir) / "car_characteristics" / f"{target_year}_car_characteristics.json"
+        Path(data_dir)
+        / "car_characteristics"
+        / f"{target_year}_car_characteristics.json"
     )
     if not characteristics_file.exists():
-        raise FileNotFoundError(f"Characteristics file not found: {characteristics_file}")
+        raise FileNotFoundError(
+            f"Characteristics file not found: {characteristics_file}"
+        )
 
     with open(characteristics_file) as f:
         characteristics = json.load(f)
@@ -921,8 +965,11 @@ def update_from_testing_sessions(
     metric_samples: dict[str, dict[str, list[tuple[float, float]]]] = defaultdict(
         lambda: defaultdict(list)
     )
-    profile_metric_samples: dict[str, dict[str, dict[str, list[tuple[float, float]]]]] = {
-        profile: defaultdict(lambda: defaultdict(list)) for profile in _PROFILES_FOR_STORAGE
+    profile_metric_samples: dict[
+        str, dict[str, dict[str, list[tuple[float, float]]]]
+    ] = {
+        profile: defaultdict(lambda: defaultdict(list))
+        for profile in _PROFILES_FOR_STORAGE
     }
     team_sessions_used: dict[str, set[str]] = defaultdict(set)
     team_profile_sessions_used: dict[str, dict[str, set[str]]] = defaultdict(
@@ -932,6 +979,7 @@ def update_from_testing_sessions(
     discovered_sessions = []
     load_errors: list[str] = []
     extraction_diagnostics: list[str] = []
+    compound_metrics_by_session: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
 
     for event_name in events:
         event_sessions = _load_sessions_for_event(
@@ -959,11 +1007,15 @@ def update_from_testing_sessions(
                     session_key=session_name,
                     known_teams=known_teams,
                     run_profile=profile,
-                    diagnostics=extraction_diagnostics if profile == run_profile else None,
+                    diagnostics=(
+                        extraction_diagnostics if profile == run_profile else None
+                    ),
                 )
                 profile_results[profile] = (perf_by_profile, tire_by_profile)
 
-                if profile in _PROFILES_FOR_STORAGE and (perf_by_profile or tire_by_profile):
+                if profile in _PROFILES_FOR_STORAGE and (
+                    perf_by_profile or tire_by_profile
+                ):
                     profile_weights = _count_team_selected_laps(
                         session=session,
                         known_teams=known_teams,
@@ -982,7 +1034,9 @@ def update_from_testing_sessions(
                             )
                             team_profile_sessions_used[team][profile].add(session_id)
 
-            normalized_perf, normalized_tire = profile_results.get(run_profile, ({}, {}))
+            normalized_perf, normalized_tire = profile_results.get(
+                run_profile, ({}, {})
+            )
 
             if not normalized_perf and not normalized_tire:
                 continue
@@ -1007,6 +1061,46 @@ def update_from_testing_sessions(
                         (float(value), float(team_lap_weights.get(team, 1.0)))
                     )
                     team_sessions_used[team].add(session_id)
+
+            # Extract compound-specific metrics
+            try:
+                laps = session.laps
+                if laps is not None and not laps.empty and "Team" in laps.columns:
+                    session_compound_metrics = {}
+                    raw_teams = laps["Team"].dropna().unique()
+
+                    for raw_team in raw_teams:
+                        canonical_team = _canonicalize_team_name(
+                            str(raw_team), known_teams
+                        )
+                        if not canonical_team:
+                            continue
+
+                        team_laps = laps[laps["Team"] == raw_team]
+                        compound_data = extract_compound_metrics(
+                            team_laps, canonical_team, event_name
+                        )
+
+                        if compound_data:
+                            session_compound_metrics[canonical_team] = compound_data
+
+                    # Normalize compound metrics across teams for this session (track-aware)
+                    if session_compound_metrics:
+                        normalized_compound_metrics = (
+                            normalize_compound_metrics_across_teams(
+                                session_compound_metrics, event_name
+                            )
+                        )
+                        compound_metrics_by_session[session_id] = (
+                            normalized_compound_metrics
+                        )
+                        logger.debug(
+                            f"  Extracted compound metrics for {len(normalized_compound_metrics)} teams"
+                        )
+            except Exception as exc:
+                logger.warning(
+                    f"  Failed to extract compound metrics from {session_id}: {exc}"
+                )
 
     if not loaded_sessions:
         if discovered_sessions:
@@ -1061,7 +1155,9 @@ def update_from_testing_sessions(
 
         averaged_metrics: dict[str, float] = {}
         for metric_name, values in samples.items():
-            aggregated = _aggregate_metric_samples(values, session_aggregation=session_aggregation)
+            aggregated = _aggregate_metric_samples(
+                values, session_aggregation=session_aggregation
+            )
             if aggregated is not None:
                 averaged_metrics[metric_name] = aggregated
 
@@ -1106,7 +1202,9 @@ def update_from_testing_sessions(
                 )
 
         testing_characteristics["last_updated"] = now_iso
-        testing_characteristics["sessions_used"] = len(team_sessions_used.get(team_name, set()))
+        testing_characteristics["sessions_used"] = len(
+            team_sessions_used.get(team_name, set())
+        )
         testing_characteristics["session_aggregation"] = session_aggregation
         testing_characteristics["run_profile"] = run_profile
         team_data["testing_characteristics"] = testing_characteristics
@@ -1144,7 +1242,9 @@ def update_from_testing_sessions(
                 "tire_deg_performance",
             ):
                 if metric_name in profile_metrics:
-                    profile_data[metric_name] = round(float(profile_metrics[metric_name]), 4)
+                    profile_data[metric_name] = round(
+                        float(profile_metrics[metric_name]), 4
+                    )
 
             profile_data["last_updated"] = now_iso
             profile_data["sessions_used"] = len(
@@ -1155,6 +1255,30 @@ def update_from_testing_sessions(
             existing_profiles[profile] = profile_data
 
         team_data["testing_characteristics_profiles"] = existing_profiles
+
+        # Update compound-specific characteristics
+        existing_compound_chars = team_data.get("compound_characteristics")
+        if not isinstance(existing_compound_chars, dict):
+            existing_compound_chars = {}
+
+        # Aggregate compound metrics from all sessions
+        for session_id, session_compounds in compound_metrics_by_session.items():
+            if team_name in session_compounds:
+                new_compound_data = session_compounds[team_name]
+                # Blend with existing data
+                existing_compound_chars = aggregate_compound_samples(
+                    existing_compound_chars,
+                    new_compound_data,
+                    blend_weight=new_weight,
+                    race_name=event_name,
+                )
+
+        # Update last_updated timestamp for each compound
+        if existing_compound_chars:
+            for compound_data in existing_compound_chars.values():
+                compound_data["last_updated"] = now_iso
+
+        team_data["compound_characteristics"] = existing_compound_chars
         updated_teams.append(team_name)
 
     if not updated_teams:

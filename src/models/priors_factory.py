@@ -20,7 +20,9 @@ class PriorsFactory:
     def __init__(self, data_dir="data/processed"):
         self.data_dir = Path(data_dir)
         self.driver_file = self.data_dir / "driver_characteristics.json"
-        self.car_file = self.data_dir / "car_characteristics/2026_car_characteristics.json"
+        self.car_file = (
+            self.data_dir / "car_characteristics/2026_car_characteristics.json"
+        )
 
     def load_data(self):
         """Load artifacts or initialize fallbacks."""
@@ -38,7 +40,9 @@ class PriorsFactory:
             with open(self.car_file) as f:
                 self.cars = json.load(f)["teams"]
         else:
-            print("⚠️ No 2026 Testing Data. Deriving Car Performance from 2025 Driver Pace...")
+            print(
+                "⚠️ No 2026 Testing Data. Deriving Car Performance from 2025 Driver Pace..."
+            )
             self.cars = self._derive_tiers_from_drivers()
 
     def create_priors(self) -> dict:
@@ -185,9 +189,9 @@ class PriorsFactory:
                 "stability": 0.8,  # Assume mature cars are stable by default
             }
 
-        top_teams = sorted(derived_cars.items(), key=lambda x: x[1]["base_rating"], reverse=True)[
-            :5
-        ]
+        top_teams = sorted(
+            derived_cars.items(), key=lambda x: x[1]["base_rating"], reverse=True
+        )[:5]
         team_strings = [f"{t}: {d['base_rating']:.1f}" for t, d in top_teams]
         print(f"   📊 Derived Baselines: {', '.join(team_strings)}...")
 

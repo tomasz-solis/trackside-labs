@@ -140,7 +140,9 @@ class BayesianDriverRanking:
             obs_prec = 1.0 / (obs_noise**2)
 
             posterior_sigma_sq = 1.0 / (prior_prec + obs_prec)
-            posterior_mu = (prior_mu * prior_prec + observed_rating * obs_prec) * posterior_sigma_sq
+            posterior_mu = (
+                prior_mu * prior_prec + observed_rating * obs_prec
+            ) * posterior_sigma_sq
             posterior_sigma = np.sqrt(posterior_sigma_sq)
 
             # Update State

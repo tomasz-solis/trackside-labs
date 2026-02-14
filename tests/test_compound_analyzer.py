@@ -1,17 +1,18 @@
 """Tests for compound_analyzer module."""
 
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
+
 from src.systems.compound_analyzer import (
+    MIN_LAPS_PER_COMPOUND,
+    _calculate_compound_consistency,
+    _estimate_compound_tire_deg,
+    _median_lap_seconds_series,
+    _normalize_compound_name,
+    aggregate_compound_samples,
     extract_compound_metrics,
     normalize_compound_metrics_across_teams,
-    aggregate_compound_samples,
-    _normalize_compound_name,
-    _median_lap_seconds_series,
-    _estimate_compound_tire_deg,
-    _calculate_compound_consistency,
-    MIN_LAPS_PER_COMPOUND,
 )
 
 
@@ -178,9 +179,7 @@ def test_extract_compound_metrics_basic(sample_team_laps):
 
 def test_extract_compound_metrics_filters_bad_laps(sample_team_laps_with_bad_data):
     """Test that pit laps and inaccurate laps are filtered out."""
-    metrics = extract_compound_metrics(
-        sample_team_laps_with_bad_data, "Red Bull", "Bahrain"
-    )
+    metrics = extract_compound_metrics(sample_team_laps_with_bad_data, "Red Bull", "Bahrain")
 
     # Should have SOFT compound
     assert "SOFT" in metrics
@@ -196,8 +195,7 @@ def test_extract_compound_metrics_insufficient_laps():
         {
             "LapNumber": range(1, MIN_LAPS_PER_COMPOUND),
             "LapTime": [
-                pd.Timedelta(seconds=90 + i * 0.05)
-                for i in range(MIN_LAPS_PER_COMPOUND - 1)
+                pd.Timedelta(seconds=90 + i * 0.05) for i in range(MIN_LAPS_PER_COMPOUND - 1)
             ],
             "Compound": ["SOFT"] * (MIN_LAPS_PER_COMPOUND - 1),
             "Driver": ["VER"] * (MIN_LAPS_PER_COMPOUND - 1),
@@ -295,9 +293,7 @@ def test_aggregate_compound_samples_new_data():
         }
     }
 
-    result = aggregate_compound_samples(
-        existing, new, blend_weight=0.5, race_name="Bahrain"
-    )
+    result = aggregate_compound_samples(existing, new, blend_weight=0.5, race_name="Bahrain")
 
     assert "SOFT" in result
     assert result["SOFT"]["pace_performance"] == 0.8
@@ -326,9 +322,7 @@ def test_aggregate_compound_samples_blending():
     }
 
     # 50% blend: (0.5 * 0.6) + (0.5 * 0.8) = 0.7
-    result = aggregate_compound_samples(
-        existing, new, blend_weight=0.5, race_name="Bahrain"
-    )
+    result = aggregate_compound_samples(existing, new, blend_weight=0.5, race_name="Bahrain")
 
     assert result["SOFT"]["pace_performance"] == pytest.approx(0.7)
     assert result["SOFT"]["tire_deg_performance"] == pytest.approx(0.7)
@@ -354,9 +348,7 @@ def test_aggregate_compound_samples_different_tracks():
         }
     }
 
-    result = aggregate_compound_samples(
-        existing, new, blend_weight=0.5, race_name="Bahrain"
-    )
+    result = aggregate_compound_samples(existing, new, blend_weight=0.5, race_name="Bahrain")
 
     # Should use new data only (different tracks)
     assert result["SOFT"]["pace_performance"] == 0.8
@@ -384,9 +376,7 @@ def test_aggregate_compound_samples_handles_none_values():
         }
     }
 
-    result = aggregate_compound_samples(
-        existing, new, blend_weight=0.5, race_name="Bahrain"
-    )
+    result = aggregate_compound_samples(existing, new, blend_weight=0.5, race_name="Bahrain")
 
     # Pace should blend
     assert result["SOFT"]["pace_performance"] == pytest.approx(0.7)

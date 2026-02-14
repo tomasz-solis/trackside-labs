@@ -8,16 +8,17 @@ Tests cover:
 - All three schema types (driver, team, track characteristics)
 """
 
-import pytest
 import json
 from pathlib import Path
 
+import pytest
+
 from src.utils.schema_validation import (
+    DRIVER_CHARACTERISTICS_SCHEMA,
     validate_driver_characteristics,
+    validate_json,
     validate_team_characteristics,
     validate_track_characteristics,
-    validate_json,
-    DRIVER_CHARACTERISTICS_SCHEMA,
 )
 
 

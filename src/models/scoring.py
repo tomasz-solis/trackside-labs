@@ -1,7 +1,7 @@
 """Performance scoring methods for driver ranking."""
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 class PerformanceScoringMethod:
@@ -38,15 +38,13 @@ class AbsoluteDifferenceScoring(PerformanceScoringMethod):
             "throttle_usage": "pct_full_throttle",
         }
 
-        for idx, row in testing_features.iterrows():
+        for _idx, row in testing_features.iterrows():
             driver = row["driver_number"]
 
             score = {"driver_number": driver}
 
             for metric_name, feature_col in features.items():
-                if feature_col in testing_features.columns and pd.notna(
-                    row[feature_col]
-                ):
+                if feature_col in testing_features.columns and pd.notna(row[feature_col]):
                     median_val = testing_features[feature_col].median()
                     score[f"{metric_name}_score"] = row[feature_col] - median_val
                 else:
@@ -71,7 +69,7 @@ class RankingScoring(PerformanceScoringMethod):
             "throttle_usage": "pct_full_throttle",
         }
 
-        for idx, row in testing_features.iterrows():
+        for _idx, row in testing_features.iterrows():
             driver = row["driver_number"]
 
             score = {"driver_number": driver}
@@ -82,7 +80,7 @@ class RankingScoring(PerformanceScoringMethod):
                     rank = testing_features[feature_col].rank(
                         ascending=False, method="min", na_option="keep"
                     )
-                    score[f"{metric_name}_score"] = rank.loc[idx]
+                    score[f"{metric_name}_score"] = rank.loc[_idx]
                 else:
                     score[f"{metric_name}_score"] = np.nan
 
@@ -105,15 +103,13 @@ class QuantileScoring(PerformanceScoringMethod):
             "throttle_usage": "pct_full_throttle",
         }
 
-        for idx, row in testing_features.iterrows():
+        for _idx, row in testing_features.iterrows():
             driver = row["driver_number"]
 
             score = {"driver_number": driver}
 
             for metric_name, feature_col in features.items():
-                if feature_col in testing_features.columns and pd.notna(
-                    row[feature_col]
-                ):
+                if feature_col in testing_features.columns and pd.notna(row[feature_col]):
                     val = row[feature_col]
                     q75 = testing_features[feature_col].quantile(0.75)
                     q25 = testing_features[feature_col].quantile(0.25)
@@ -148,15 +144,13 @@ class ZScoreScoring(PerformanceScoringMethod):
             "throttle_usage": "pct_full_throttle",
         }
 
-        for idx, row in testing_features.iterrows():
+        for _idx, row in testing_features.iterrows():
             driver = row["driver_number"]
 
             score = {"driver_number": driver}
 
             for metric_name, feature_col in features.items():
-                if feature_col in testing_features.columns and pd.notna(
-                    row[feature_col]
-                ):
+                if feature_col in testing_features.columns and pd.notna(row[feature_col]):
                     mean_val = testing_features[feature_col].mean()
                     std_val = testing_features[feature_col].std()
 

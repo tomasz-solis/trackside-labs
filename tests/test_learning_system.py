@@ -3,6 +3,7 @@ Tests for adaptive learning system.
 """
 
 import pytest
+
 from src.systems.learning import LearningSystem
 
 

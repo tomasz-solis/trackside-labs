@@ -4,10 +4,11 @@ Test Weight Schedule Integration
 Quick test to ensure the weight schedule system is properly integrated.
 """
 
-from src.systems.weight_schedule import get_schedule_weights
-from src.predictors.baseline_2026 import Baseline2026Predictor
 import sys
 from pathlib import Path
+
+from src.predictors.baseline_2026 import Baseline2026Predictor
+from src.systems.weight_schedule import get_schedule_weights
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -60,7 +61,9 @@ def test_weight_schedule_integration():
     # 5. Test qualifying prediction (full integration test)
     print("5. Testing qualifying prediction with weight schedule...")
     result = predictor.predict_qualifying(
-        year=2026, race_name="Bahrain Grand Prix", n_simulations=10  # Fast test
+        year=2026,
+        race_name="Bahrain Grand Prix",
+        n_simulations=10,  # Fast test
     )
 
     print(f"   ✓ Generated grid with {len(result['grid'])} drivers")

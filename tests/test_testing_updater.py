@@ -1,7 +1,7 @@
 """Unit tests for testing/practice directionality updater helpers."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
@@ -11,16 +11,16 @@ from src.systems.testing_updater import (
     _build_directionality_from_metrics,
     _canonicalize_team_name,
     _classify_run_laps,
+    _coerce_utc_datetime,
     _count_team_selected_laps,
     _count_team_valid_laps,
-    _coerce_utc_datetime,
     _extract_testing_day,
     _extract_testing_number,
     _is_testing_event,
-    _normalize_tire_deg_scores,
     _normalize_testing_event_sessions,
-    _resolve_testing_cache_dir,
+    _normalize_tire_deg_scores,
     _resolve_testing_backends,
+    _resolve_testing_cache_dir,
     _select_program_aware_laps,
     _testing_session_has_started,
 )
@@ -146,7 +146,7 @@ def test_count_team_selected_laps_respects_run_profile():
             "Team": ["McLaren"] * 9,
             "Driver": ["NOR"] * 9,
             "Stint": [1, 1, 1, 2, 2, 2, 2, 2, 2],
-            "LapTime": [pd.to_timedelta(f"0:01:{30+i:02d}") for i in range(9)],
+            "LapTime": [pd.to_timedelta(f"0:01:{30 + i:02d}") for i in range(9)],
             "PitOutTime": [pd.NaT] * 9,
             "PitInTime": [pd.NaT] * 9,
         }
@@ -166,7 +166,7 @@ def test_classify_run_laps_by_stint_length():
         {
             "Driver": ["DRV"] * 12,
             "Stint": [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2],
-            "LapTime": [pd.to_timedelta(f"0:01:{30+i:02d}") for i in range(12)],
+            "LapTime": [pd.to_timedelta(f"0:01:{30 + i:02d}") for i in range(12)],
             "PitOutTime": [pd.NaT] * 12,
             "PitInTime": [pd.NaT] * 12,
         }
@@ -183,7 +183,7 @@ def test_select_program_aware_laps_balanced_prefers_representatives():
             "Driver": ["DRV"] * 12,
             "Stint": [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2],
             "Compound": ["C3"] * 12,
-            "LapTime": [pd.to_timedelta(f"0:01:{30+i:02d}") for i in range(12)],
+            "LapTime": [pd.to_timedelta(f"0:01:{30 + i:02d}") for i in range(12)],
             "PitOutTime": [pd.NaT] * 12,
             "PitInTime": [pd.NaT] * 12,
         }
@@ -229,7 +229,7 @@ def test_resolve_testing_cache_dir():
 
 
 def test_coerce_utc_datetime_and_started_window():
-    now = datetime(2026, 2, 11, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 11, 12, 0, tzinfo=UTC)
 
     assert _coerce_utc_datetime(None) is None
 

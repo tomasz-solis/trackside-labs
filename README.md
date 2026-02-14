@@ -39,16 +39,14 @@ streamlit run app.py --server.port 8502
 
 ### Race
 
-- Starts from predicted qualifying grid, or actual qualifying results if already available.
-- Simulates race outcomes with:
-  - grid influence,
-  - team pace,
-  - driver skill,
-  - overtaking context,
-  - lap-1 chaos,
-  - strategy variance,
-  - safety car luck,
-  - DNF probability.
+Lap-by-lap Monte Carlo simulation (50 runs) with:
+- Multi-compound pit strategy generation (FIA mandates ≥2 compounds per dry race)
+- Tire degradation (compound-specific slopes), fresh tire advantage, fuel effect
+- Traffic effect (P1-5: 5% better tire life, P16+: 5% worse)
+- Track-specific pit loss (Monaco: 19s, Singapore: 24s)
+- Grid influence, driver skill, lap-1 chaos, safety car luck, DNF probability
+
+Outputs: Finish order + compound strategy distribution + pit window histogram.
 
 ## Data Update Flows
 
@@ -116,6 +114,8 @@ These remain useful for experiments and extensions, but the app runtime path is 
 - `docs/DASHBOARD_AUTO_UPDATE.md`
 - `docs/PREDICTION_TRACKING.md`
 - `docs/WEIGHT_SCHEDULE_GUIDE.md`
+- `docs/COMPOUND_ANALYSIS.md` - Tire compound performance system
+- `docs/ERROR_HANDLING_PATTERNS.md` - Error handling conventions
 
 ## Tests
 

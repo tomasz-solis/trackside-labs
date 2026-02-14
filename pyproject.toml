@@ -9,7 +9,10 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-ignore = ["E203"]  # compatible with Black
+ignore = [
+  "E203", # black compat
+  "E501", # black doesn't wrap long strings/f-strings reliably
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]

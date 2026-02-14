@@ -3,6 +3,7 @@ Tests for Prediction Metrics Calculator
 """
 
 import pytest
+
 from src.utils.prediction_metrics import PredictionMetrics
 
 

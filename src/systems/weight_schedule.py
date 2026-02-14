@@ -18,7 +18,7 @@ Usage:
 """
 
 import logging
-from typing import Dict, Literal
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -91,15 +91,10 @@ ScheduleType = Literal[
 ]
 
 
-def get_schedule_weights(
-    race_number: int, schedule: ScheduleType = "extreme"
-) -> Dict[str, float]:
+def get_schedule_weights(race_number: int, schedule: ScheduleType = "extreme") -> dict[str, float]:
     """Get weight distribution for a specific race with smooth linear interpolation between checkpoints."""  # noqa: E501
     if schedule not in SCHEDULES:
-        raise ValueError(
-            f"Unknown schedule '{schedule}'. "
-            f"Available: {', '.join(SCHEDULES.keys())}"
-        )
+        raise ValueError(f"Unknown schedule '{schedule}'. Available: {', '.join(SCHEDULES.keys())}")
 
     if race_number < 1:
         raise ValueError(f"race_number must be >= 1, got {race_number}")

@@ -15,8 +15,6 @@ Usage:
     3
 """
 
-from typing import Optional
-
 # 2026 Driver Numbers
 DRIVER_NUMBERS = {
     # McLaren
@@ -81,7 +79,7 @@ DRIVER_ABBREVIATIONS = {
 }
 
 
-def get_driver_number(driver_name: str, use_champion_number: bool = False) -> Optional[int]:
+def get_driver_number(driver_name: str, use_champion_number: bool = False) -> int | None:
     """
     Get driver's permanent race number. Defending champion can use #1.
     """
@@ -95,7 +93,7 @@ def get_driver_number(driver_name: str, use_champion_number: bool = False) -> Op
     return number
 
 
-def get_driver_from_abbreviation(abbr: str) -> Optional[str]:
+def get_driver_from_abbreviation(abbr: str) -> str | None:
     """
     Convert 3-letter abbreviation to full driver name.
     """

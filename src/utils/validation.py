@@ -5,8 +5,7 @@ Compare predicted rankings vs actual qualifying results
 """
 
 import numpy as np
-from typing import Dict, List, Tuple
-from scipy.stats import spearmanr, kendalltau
+from scipy.stats import kendalltau, spearmanr
 
 try:
     from src.utils.team_mapping import canonicalize_team
@@ -14,7 +13,7 @@ except ImportError:
     from src.utils.team_mapping import canonicalize_team
 
 
-def compare_rankings(predicted: List[str], actual: List[str]) -> Dict[str, float]:
+def compare_rankings(predicted: list[str], actual: list[str]) -> dict[str, float]:
     """
     Compare predicted team ranking vs actual results. Returns dict with all metrics.
     """
@@ -52,13 +51,13 @@ def compare_rankings(predicted: List[str], actual: List[str]) -> Dict[str, float
         metrics["kendall_tau"] = float(tau)
 
         # Mean absolute error (positions off)
-        mae = np.mean([abs(p - a) for p, a in zip(pred_positions, actual_positions)])
+        mae = np.mean([abs(p - a) for p, a in zip(pred_positions, actual_positions, strict=False)])
         metrics["mae_positions"] = float(mae)
 
     return metrics
 
 
-def aggregate_metrics(all_metrics: List[Dict[str, float]]) -> Dict[str, float]:
+def aggregate_metrics(all_metrics: list[dict[str, float]]) -> dict[str, float]:
     """
     Aggregate metrics across multiple races
 
@@ -78,7 +77,7 @@ def aggregate_metrics(all_metrics: List[Dict[str, float]]) -> Dict[str, float]:
     return aggregated
 
 
-def confidence_calibration(predictions: List[Tuple[float, bool]]) -> Dict[str, float]:
+def confidence_calibration(predictions: list[tuple[float, bool]]) -> dict[str, float]:
     """
     Check if confidence scores are well-calibrated. Returns calibration metrics.
     """
@@ -108,7 +107,7 @@ def confidence_calibration(predictions: List[Tuple[float, bool]]) -> Dict[str, f
     return {"brier_score": float(brier), "bins": bin_accuracy}
 
 
-def analyze_by_track_type(results: Dict[str, Dict], track_types: Dict[str, str]) -> Dict[str, Dict]:
+def analyze_by_track_type(results: dict[str, dict], track_types: dict[str, str]) -> dict[str, dict]:
     """
     Group results by track type. Returns aggregated metrics per type.
     """
@@ -131,13 +130,13 @@ def analyze_by_track_type(results: Dict[str, Dict], track_types: Dict[str, str])
     return aggregated
 
 
-def analyze_by_stage(results: Dict[str, Dict[str, Dict]]) -> Dict[str, Dict]:
+def analyze_by_stage(results: dict[str, dict[str, dict]]) -> dict[str, dict]:
     """
     Compare prediction quality by stage. Returns aggregated metrics per stage.
     """
     by_stage = {}
 
-    for race, stage_results in results.items():
+    for _race, stage_results in results.items():
         for stage, metrics in stage_results.items():
             if stage not in by_stage:
                 by_stage[stage] = []

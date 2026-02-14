@@ -1,7 +1,8 @@
 """Feature pipeline orchestration."""
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from ..features.telemetry import LapFeatureExtractor, SessionFeatureAggregator
 
 
@@ -47,14 +48,10 @@ class RelativePerformanceCalculator:
 
         # Lower is better for lap times
         if "fastest_lap" in df.columns:
-            df["fastest_lap_pct"] = (
-                df["fastest_lap"].rank(pct=True, ascending=True) * 100
-            )
+            df["fastest_lap_pct"] = df["fastest_lap"].rank(pct=True, ascending=True) * 100
 
         # Higher is better for speed metrics
-        speed_cols = [
-            col for col in df.columns if "speed" in col.lower() and "_rel" not in col
-        ]
+        speed_cols = [col for col in df.columns if "speed" in col.lower() and "_rel" not in col]
         for col in speed_cols:
             if col in df.columns:
                 df[f"{col}_pct"] = df[col].rank(pct=True, ascending=False) * 100
@@ -122,8 +119,6 @@ class F1FeaturePipeline:
 
         if verbose:
             print(f"\n Processed {len(all_features)} sessions")
-            print(
-                f"  {len(combined)} total rows, {combined['driver_number'].nunique()} drivers"
-            )
+            print(f"  {len(combined)} total rows, {combined['driver_number'].nunique()} drivers")
 
         return combined

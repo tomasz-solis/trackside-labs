@@ -13,7 +13,6 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 import fastf1 as ff1
 import numpy as np
@@ -23,7 +22,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def calculate_team_performance_from_races(year: int) -> Dict:
+def calculate_team_performance_from_races(year: int) -> dict:
     """
     Calculate team performance ratings from actual race data.
 
@@ -114,11 +113,11 @@ def calculate_team_performance_from_races(year: int) -> Dict:
     return team_characteristics
 
 
-def rank_teams_by_performance(teams: Dict) -> Dict:
+def rank_teams_by_performance(teams: dict) -> dict:
     """Add championship position based on performance."""
     sorted_teams = sorted(teams.items(), key=lambda x: x[1]["overall_performance"], reverse=True)
 
-    for position, (team, data) in enumerate(sorted_teams, 1):
+    for position, (team, _data) in enumerate(sorted_teams, 1):
         teams[team]["championship_position"] = position
 
     return teams

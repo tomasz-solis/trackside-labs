@@ -3,14 +3,13 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Optional
 
 from src.utils import config_loader
 
 logger = logging.getLogger(__name__)
 
 
-def load_track_specific_params(race_name: Optional[str] = None) -> Dict:
+def load_track_specific_params(race_name: str | None = None) -> dict:
     """Load track-specific parameters from track_characteristics.
 
     Returns dict with track-specific overrides for race simulation:
@@ -31,7 +30,7 @@ def load_track_specific_params(race_name: Optional[str] = None) -> Dict:
         )
 
         try:
-            with open(track_chars_path, "r") as f:
+            with open(track_chars_path) as f:
                 track_data = json.load(f)
 
             tracks = track_data.get("tracks", {})
@@ -42,9 +41,7 @@ def load_track_specific_params(race_name: Optional[str] = None) -> Dict:
                 pit_loss = track_info.get("pit_stop_loss")
                 if pit_loss is not None:
                     track_params["pit_stops"] = {"loss_duration": float(pit_loss)}
-                    logger.info(
-                        f"Loaded track-specific pit stop loss for {race_name}: {pit_loss}s"
-                    )
+                    logger.info(f"Loaded track-specific pit stop loss for {race_name}: {pit_loss}s")
 
                 # Extract safety car probability
                 sc_prob = track_info.get("safety_car_prob")
@@ -74,14 +71,13 @@ def load_track_specific_params(race_name: Optional[str] = None) -> Dict:
             )
         except Exception as e:
             logger.error(
-                f"Unexpected error loading track characteristics: {e}. "
-                "Using config defaults."
+                f"Unexpected error loading track characteristics: {e}. Using config defaults."
             )
 
     return track_params
 
 
-def get_tire_stress_score(race_name: Optional[str] = None) -> float:
+def get_tire_stress_score(race_name: str | None = None) -> float:
     """Get tire stress score for race from Pirelli data.
 
     Returns average of traction + braking + lateral + abrasion.
@@ -96,7 +92,7 @@ def get_tire_stress_score(race_name: Optional[str] = None) -> float:
     pirelli_path = Path("data") / "2025_pirelli_info.json"
 
     try:
-        with open(pirelli_path, "r") as f:
+        with open(pirelli_path) as f:
             pirelli_data = json.load(f)
 
         # Normalize race name (lowercase, underscores)
@@ -116,9 +112,7 @@ def get_tire_stress_score(race_name: Optional[str] = None) -> float:
 
             return float(stress_score)
         else:
-            logger.warning(
-                f"Tire stress data not found for {race_name}. Using default (3.0)."
-            )
+            logger.warning(f"Tire stress data not found for {race_name}. Using default (3.0).")
 
     except FileNotFoundError:
         logger.warning(
@@ -128,12 +122,10 @@ def get_tire_stress_score(race_name: Optional[str] = None) -> float:
         logger.error(f"Error loading Pirelli data: {e}. Using default stress (3.0).")
 
     # Fallback to config default
-    return config_loader.get(
-        "baseline_predictor.compound_selection.default_stress_fallback", 3.0
-    )
+    return config_loader.get("baseline_predictor.compound_selection.default_stress_fallback", 3.0)
 
 
-def get_available_compounds(race_name: Optional[str] = None) -> list:
+def get_available_compounds(race_name: str | None = None) -> list:
     """Get list of available tire compounds for race.
 
     Currently returns all dry compounds.

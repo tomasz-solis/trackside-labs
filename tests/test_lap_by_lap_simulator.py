@@ -3,8 +3,8 @@
 import numpy as np
 
 from src.utils.lap_by_lap_simulator import (
-    simulate_race_lap_by_lap,
     _get_traffic_overtake_effect,
+    simulate_race_lap_by_lap,
 )
 
 

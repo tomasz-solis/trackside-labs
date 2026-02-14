@@ -8,12 +8,11 @@ If validation fails, FIX THE EXTRACTION, don't add caps!
 """
 
 import logging
-from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
 
-def validate_driver_data(drivers: Dict) -> List[str]:
+def validate_driver_data(drivers: dict) -> list[str]:
     """
     Validate driver characteristics for obvious errors.
 

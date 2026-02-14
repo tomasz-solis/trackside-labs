@@ -5,10 +5,11 @@ Extracts actual lineups from session data (handles all corner cases automaticall
 Falls back to current_lineups.json for future predictions.
 """
 
-import fastf1 as ff1
 import json
-from pathlib import Path
 import logging
+from pathlib import Path
+
+import fastf1 as ff1
 
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)

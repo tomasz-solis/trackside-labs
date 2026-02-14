@@ -1,13 +1,12 @@
 """Unit tests for pit strategy generation and validation."""
 
-import pytest
 import numpy as np
 
 from src.utils.pit_strategy import (
+    _get_default_strategy,
+    _sample_compound_sequence,
     generate_pit_strategy,
     validate_strategy,
-    _sample_compound_sequence,
-    _get_default_strategy,
 )
 
 

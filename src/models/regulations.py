@@ -5,11 +5,10 @@ This module applies penalties/boosts to team baselines based on
 expected impact of 2026 regulation changes (Active Aero, Engine).
 """
 
-from typing import Dict
 from .bayesian import DriverPrior
 
 
-def apply_2026_regulations(priors: Dict[str, DriverPrior]) -> Dict[str, DriverPrior]:
+def apply_2026_regulations(priors: dict[str, DriverPrior]) -> dict[str, DriverPrior]:
     """
     Adjust priors based on 2026 Regulation Scenarios.
 

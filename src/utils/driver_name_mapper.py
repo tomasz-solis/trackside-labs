@@ -1,7 +1,6 @@
 """Maps driver names between FastF1 abbreviations and full names."""
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +90,7 @@ class DriverNameMapper:
     }
 
     @classmethod
-    def normalize_driver_name(cls, name: str) -> Optional[str]:
+    def normalize_driver_name(cls, name: str) -> str | None:
         """Normalize any driver name format to FastF1 abbreviation."""
         if not name:
             return name

@@ -4,13 +4,14 @@ Tests for src/systems/updater.py - Post-race update system
 Critical path testing for the update_from_race functionality.
 """
 
-import pytest
 import json
-import tempfile
 import shutil
-import pandas as pd
+import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
 
 
 @pytest.fixture

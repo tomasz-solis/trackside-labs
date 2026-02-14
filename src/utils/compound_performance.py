@@ -6,7 +6,6 @@ during race predictions.
 """
 
 import logging
-from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +14,9 @@ COMPOUND_NAMES = {"SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"}
 
 
 def get_compound_performance_modifier(
-    team_compound_chars: Dict[str, Dict[str, float]],
+    team_compound_chars: dict[str, dict[str, float]],
     compound: str,
-    metric_weights: Optional[Dict[str, float]] = None,
+    metric_weights: dict[str, float] | None = None,
 ) -> float:
     """Calculate performance modifier from compound characteristics (-0.05 to +0.05)."""
     if not team_compound_chars:
@@ -60,7 +59,7 @@ def get_compound_performance_modifier(
 
 
 def get_compound_tire_deg_factor(
-    team_compound_chars: Dict[str, Dict[str, float]],
+    team_compound_chars: dict[str, dict[str, float]],
     compound: str,
 ) -> float:
     """Get tire degradation factor (0.0 = best, 1.0 = worst, default 0.5)."""
@@ -83,7 +82,7 @@ def get_compound_tire_deg_factor(
 
 
 def should_use_compound_adjustments(
-    team_compound_chars: Dict[str, Dict[str, float]],
+    team_compound_chars: dict[str, dict[str, float]],
     min_laps_threshold: int = 10,
 ) -> bool:
     """Check if compound data has sufficient laps for reliable use."""
@@ -104,7 +103,7 @@ def should_use_compound_adjustments(
 
 
 def get_team_compound_advantage(
-    team_compound_chars: Dict[str, Dict[str, float]],
+    team_compound_chars: dict[str, dict[str, float]],
     race_compounds: list[str],
 ) -> float:
     """Calculate average performance modifier across multiple race compounds."""

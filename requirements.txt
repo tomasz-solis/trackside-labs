@@ -7,11 +7,8 @@ arrow==1.4.0
 asttokens==3.0.1
 async-lru==2.1.0
 attrs==25.4.0
-autoflake==2.3.1
-autopep8==2.3.2
 babel==2.17.0
 beautifulsoup4==4.14.3
-black==26.1.0
 bleach==6.3.0
 blinker==1.9.0
 cachetools==6.2.6
@@ -31,7 +28,6 @@ defusedxml==0.7.1
 executing==2.2.1
 fastf1==3.7.0
 fastjsonschema==2.21.2
-flake8==7.3.0
 fonttools==4.61.0
 fqdn==1.5.1
 gitdb==4.0.12
@@ -92,6 +88,7 @@ pillow==12.0.0
 platformdirs==4.5.1
 plotly==6.5.0
 pluggy==1.6.0
+pre-commit==3.7.1
 prometheus_client==0.24.1
 prompt_toolkit==3.0.52
 protobuf==6.33.4
@@ -123,6 +120,7 @@ rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rfc3987-syntax==1.1.0
 rpds-py==0.30.0
+ruff==0.9.6
 scikit-learn==1.7.2
 scipy==1.16.3
 Send2Trash==2.1.0

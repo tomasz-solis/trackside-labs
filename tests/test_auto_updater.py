@@ -4,14 +4,15 @@ Tests for src/utils/auto_updater.py - Automatic race detection and updating
 Critical path testing for dashboard auto-update functionality.
 """
 
-import pytest
 import json
-import tempfile
 import shutil
-import pandas as pd
+import tempfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
 
 
 @pytest.fixture
@@ -212,8 +213,39 @@ class TestCompletedRacesDetection:
             {
                 "EventName": ["Bahrain Grand Prix", "Australian Grand Prix"],
                 "EventDate": [
-                    datetime.now(timezone.utc) - timedelta(days=2),
-                    datetime.now(timezone.utc) + timedelta(days=2),
+                    datetime.now(UTC) - timedelta(days=2),
+                    datetime.now(UTC) + timedelta(days=2),
+                ],
+            }
+        )
+
+        with patch("fastf1.get_event_schedule") as mock_get_schedule:
+            with patch("fastf1.get_session") as mock_get_session:
+                mock_get_schedule.return_value = mock_schedule
+                mock_get_session.return_value = MagicMock()
+
+                completed = get_completed_races(year=2026)
+
+        assert completed == ["Bahrain Grand Prix"]
+
+    def test_get_completed_races_excludes_testing_events(self, temp_data_dir):
+        """Testing events should never be treated as completed races to learn from."""
+        from src.utils.auto_updater import get_completed_races
+
+        mock_schedule = pd.DataFrame(
+            {
+                "EventName": [
+                    "Pre-Season Testing",
+                    "Bahrain Grand Prix",
+                ],
+                "EventFormat": [
+                    "testing",
+                    "conventional",
+                ],
+                "RoundNumber": [0, 1],
+                "EventDate": [
+                    datetime.now() - timedelta(days=10),
+                    datetime.now() - timedelta(days=5),
                 ],
             }
         )

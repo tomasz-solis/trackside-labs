@@ -2,26 +2,18 @@
 FP Practice Session Blending
 
 Extracts team session performance and blends it with model team strength.
+Also extracts compound-specific performance during FP sessions.
 
 Current active usage:
 - called by `Baseline2026Predictor.predict_qualifying`
 - uses the best single available session by priority
 - applies a 70/30 session/model blend in baseline predictor logic
-
-Usage:
-    from src.utils.fp_blending import get_best_fp_performance
-
-    # Get best available practice data
-    fp_data = get_best_fp_performance(2026, "Bahrain Grand Prix", is_sprint=False)
-    if fp_data:
-        # Blend with model predictions
-        ...
 """
+
+import logging
 
 import fastf1 as ff1
 import numpy as np
-import logging
-from typing import Dict, Optional, Tuple
 import pandas as pd
 
 from src.utils.team_mapping import map_team_to_characteristics
@@ -32,14 +24,17 @@ logger = logging.getLogger(__name__)
 
 def get_fp_team_performance(
     year: int, race_name: str, session_type: str
-) -> Optional[Dict[str, float]]:
-    """Extract team performance from practice/qualifying session using median lap times (robust to outliers). Returns None if unavailable."""
+) -> tuple[dict[str, float] | None, pd.DataFrame | None]:
+    """
+    Extract team performance and session laps from practice/qualifying session.
+    Returns (team_performance, session_laps) or (None, None) if unavailable.
+    """
     try:
         session = ff1.get_session(year, race_name, session_type)
         session.load(laps=True, telemetry=False, weather=False)
 
         if not hasattr(session, "laps") or session.laps is None or session.laps.empty:
-            return None
+            return None, None
 
         laps = session.laps
 
@@ -68,7 +63,7 @@ def get_fp_team_performance(
             best_times.append({"driver": driver, "team": team, "time": best_lap.total_seconds()})
 
         if not best_times:
-            return None
+            return None, None
 
         # Get median time per team (robust to one driver having issues)
         team_times = {}
@@ -88,38 +83,54 @@ def get_fp_team_performance(
 
         if fastest == slowest:
             # All teams same pace (unlikely)
-            return {team: 0.5 for team in team_medians}
+            return {team: 0.5 for team in team_medians}, laps
 
         team_performance = {
             team: 1.0 - (time - fastest) / (slowest - fastest)
             for team, time in team_medians.items()
         }
 
-        return team_performance
+        return team_performance, laps
 
     except Exception as e:
         logger.debug(
             f"Could not extract team performance from {session_type} for {race_name} ({year}): {e}"
         )
-        return None
+        return None, None
 
 
 def get_best_fp_performance(
-    year: int, race_name: str, is_sprint: bool = False
-) -> Tuple[Optional[str], Optional[Dict[str, float]]]:
+    year: int,
+    race_name: str,
+    is_sprint: bool = False,
+    qualifying_stage: str = "auto",
+) -> tuple[str | None, dict[str, float] | None, pd.DataFrame | None]:
     """
     Get the best available practice session data for blending.
+    Returns (session_label, team_performance, session_laps).
 
     Normal weekend priority: FP3 > FP2 > FP1
-    Sprint weekend priority: Sprint Race > Sprint Qualifying > FP1
+
+    Sprint weekend priorities depend on qualifying stage:
+    - stage="sprint": FP1 only (pre-SQ context)
+    - stage="main": Sprint Race > Sprint Qualifying > FP1
+    - stage="auto": Sprint Race > Sprint Qualifying > FP1 (legacy behavior)
     """
+    stage = (qualifying_stage or "auto").strip().lower()
+    if stage not in {"auto", "sprint", "main"}:
+        raise ValueError("qualifying_stage must be one of: 'auto', 'sprint', 'main'")
+
     if is_sprint:
-        # Sprint weekend: Try Sprint Race (best indicator) > Sprint Quali > FP1
-        sessions = [
-            ("Sprint", "Sprint Race times"),
-            ("Sprint Qualifying", "Sprint Qualifying times"),
-            ("FP1", "FP1 times"),
-        ]
+        if stage == "sprint":
+            # Sprint Qualifying prediction should be anchored to pre-SQ context.
+            sessions = [("FP1", "FP1 times")]
+        else:
+            # Main qualifying on sprint weekends can use sprint/SQ evidence.
+            sessions = [
+                ("Sprint", "Sprint Race times"),
+                ("Sprint Qualifying", "Sprint Qualifying times"),
+                ("FP1", "FP1 times"),
+            ]
     else:
         # Normal weekend: Try FP3 > FP2 > FP1
         sessions = [
@@ -129,20 +140,20 @@ def get_best_fp_performance(
         ]
 
     for session_code, session_label in sessions:
-        fp_data = get_fp_team_performance(year, race_name, session_code)
+        fp_data, session_laps = get_fp_team_performance(year, race_name, session_code)
         if fp_data is not None:
             logger.info(f"Using {session_label} for blending")
-            return session_label, fp_data
+            return session_label, fp_data, session_laps
 
     logger.info("No practice data available - using model-only predictions")
-    return None, None
+    return None, None, None
 
 
 def blend_team_strength(
-    model_strength: Dict[str, float],
-    fp_performance: Optional[Dict[str, float]],
+    model_strength: dict[str, float],
+    fp_performance: dict[str, float] | None,
     blend_weight: float = 0.7,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Blend model predictions with FP data (default: 70% practice + 30% model). Validates team name matches."""
     if fp_performance is None:
         return model_strength

@@ -4,11 +4,12 @@ Configuration loader for F1 prediction system.
 Loads settings from YAML config files with environment variable overrides.
 """
 
-import os
-import yaml
 import logging
+import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,7 @@ class Config:
 
         return value
 
-    def get_section(self, section: str) -> Dict:
+    def get_section(self, section: str) -> dict:
         """Get entire config section."""
         return self._config.get(section, {})
 
@@ -179,7 +180,7 @@ def get(key: str, default: Any = None) -> Any:
     return _config.get(key, default)
 
 
-def get_section(section: str) -> Dict:
+def get_section(section: str) -> dict:
     """Get config section."""
     return _config.get_section(section)
 

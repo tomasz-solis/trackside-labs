@@ -6,9 +6,8 @@ In the current baseline dashboard path, this recommendation is advisory.
 """
 
 import json
-from pathlib import Path
 from datetime import datetime
-from typing import Dict
+from pathlib import Path
 
 
 class LearningSystem:
@@ -18,7 +17,7 @@ class LearningSystem:
         self.state_file = self.data_dir / "learning_state.json"
         self.state = self._load_state()
 
-    def _load_state(self) -> Dict:
+    def _load_state(self) -> dict:
         if self.state_file.exists():
             with open(self.state_file) as f:
                 return json.load(f)
@@ -63,7 +62,7 @@ class LearningSystem:
 
     def get_recommended_method(
         self, weekend_type: str = "conventional", default_blend_weight: float = 0.7
-    ) -> Dict:
+    ) -> dict:
         """
         Return a compatibility strategy payload for legacy callers.
 
@@ -80,8 +79,8 @@ class LearningSystem:
         }
 
     def update_after_race(
-        self, race: str, actual_results: Dict, prediction_comparison: Dict
-    ) -> Dict:
+        self, race: str, actual_results: dict, prediction_comparison: dict
+    ) -> dict:
         """Update stats after a race weekend."""
         # 1. Log the event
         self.state["history"].append(

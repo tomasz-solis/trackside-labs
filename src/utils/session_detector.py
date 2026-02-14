@@ -1,8 +1,9 @@
 """Detects completed F1 sessions for prediction tracking."""
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional, List
+from datetime import UTC, datetime
+from pathlib import Path
+
 import fastf1
 
 logger = logging.getLogger(__name__)
@@ -31,9 +32,14 @@ class SessionDetector:
     }
 
     def __init__(self):
-        pass
+        cache_dir = Path("data/raw/.fastf1_cache")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            fastf1.Cache.enable_cache(str(cache_dir))
+        except Exception as exc:
+            logger.debug(f"Could not enable FastF1 cache in SessionDetector: {exc}")
 
-    def get_completed_sessions(self, year: int, race_name: str, is_sprint: bool) -> List[str]:
+    def get_completed_sessions(self, year: int, race_name: str, is_sprint: bool) -> list[str]:
         """Get completed sessions for a race weekend."""
         try:
             # Get event schedule
@@ -45,7 +51,7 @@ class SessionDetector:
             )
 
             completed = []
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             for session_name in sessions_to_check:
                 try:
@@ -87,7 +93,7 @@ class SessionDetector:
 
     def get_latest_completed_session(
         self, year: int, race_name: str, is_sprint: bool
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get the most recent completed session."""
         completed = self.get_completed_sessions(year, race_name, is_sprint)
         return completed[-1] if completed else None
@@ -101,7 +107,7 @@ class SessionDetector:
             if session_date is None:
                 return False
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             from datetime import timedelta
 
             duration = self.SESSION_DURATIONS.get(session_name, 2.0)
@@ -112,6 +118,6 @@ class SessionDetector:
             logger.warning(f"Could not check if {session_name} completed: {e}")
             return False
 
-    def get_sessions_for_weekend(self, is_sprint: bool) -> List[str]:
+    def get_sessions_for_weekend(self, is_sprint: bool) -> list[str]:
         """Get session names for a weekend type."""
         return self.SPRINT_WEEKEND_SESSIONS if is_sprint else self.NORMAL_WEEKEND_SESSIONS

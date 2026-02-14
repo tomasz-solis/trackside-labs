@@ -42,8 +42,9 @@ def test_get_fp_team_performance_maps_fastf1_team_names():
     mock_session.laps = laps
 
     with patch("src.utils.fp_blending.ff1.get_session", return_value=mock_session):
-        perf = get_fp_team_performance(2026, "Bahrain Grand Prix", "FP1")
+        perf, session_laps = get_fp_team_performance(2026, "Bahrain Grand Prix", "FP1")
 
     assert perf is not None
+    assert session_laps is not None
     assert "Red Bull Racing" in perf
     assert "Ferrari" in perf

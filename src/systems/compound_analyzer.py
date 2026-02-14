@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -73,9 +72,7 @@ def _estimate_compound_tire_deg(compound_laps: pd.DataFrame) -> float | None:
         if len(stint) < 3:
             continue
 
-        lap_seconds = pd.to_timedelta(
-            stint["LapTime"], errors="coerce"
-        ).dt.total_seconds()
+        lap_seconds = pd.to_timedelta(stint["LapTime"], errors="coerce").dt.total_seconds()
         lap_seconds = lap_seconds.dropna()
         if len(lap_seconds) < 3:
             continue
@@ -99,9 +96,7 @@ def _calculate_compound_consistency(compound_laps: pd.DataFrame) -> float | None
     if compound_laps.empty or "LapTime" not in compound_laps.columns:
         return None
 
-    lap_seconds = pd.to_timedelta(
-        compound_laps["LapTime"], errors="coerce"
-    ).dt.total_seconds()
+    lap_seconds = pd.to_timedelta(compound_laps["LapTime"], errors="coerce").dt.total_seconds()
     lap_seconds = lap_seconds.dropna()
 
     if len(lap_seconds) < 3:
@@ -114,7 +109,7 @@ def extract_compound_metrics(
     team_laps: pd.DataFrame,
     canonical_team: str,
     track_name: str,
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """Extract compound-specific metrics for a team at a specific track."""
     if team_laps.empty or "Compound" not in team_laps.columns:
         return {}
@@ -127,7 +122,7 @@ def extract_compound_metrics(
 
     # Add FastF1 quality filters if available
     if "IsAccurate" in team_laps.columns:
-        valid_mask &= team_laps["IsAccurate"] == True
+        valid_mask &= team_laps["IsAccurate"]
 
     # Filter out pit in/out laps (inflate lap times)
     if "PitInTime" in team_laps.columns:
@@ -141,14 +136,10 @@ def extract_compound_metrics(
         return {}
 
     # Normalize compound names
-    valid_laps["_normalized_compound"] = valid_laps["Compound"].apply(
-        _normalize_compound_name
-    )
+    valid_laps["_normalized_compound"] = valid_laps["Compound"].apply(_normalize_compound_name)
 
     # Group by compound
-    for compound_name, compound_laps in valid_laps.groupby(
-        "_normalized_compound", dropna=True
-    ):
+    for compound_name, compound_laps in valid_laps.groupby("_normalized_compound", dropna=True):
         if compound_name is None:
             continue
 
@@ -193,16 +184,18 @@ def extract_compound_metrics(
                 f"{laps_count} laps, "
                 f"pace={median_time:.3f}s, "
                 if median_time
-                else "" f"deg={tire_deg:.4f}s/lap" if tire_deg else ""
+                else f"deg={tire_deg:.4f}s/lap"
+                if tire_deg
+                else ""
             )
 
     return compound_metrics
 
 
 def normalize_compound_metrics_across_teams(
-    all_team_compound_metrics: Dict[str, Dict[str, Dict[str, float]]],
+    all_team_compound_metrics: dict[str, dict[str, dict[str, float]]],
     track_name: str,
-) -> Dict[str, Dict[str, Dict[str, float]]]:
+) -> dict[str, dict[str, dict[str, float]]]:
     """Normalize compound metrics to 0-1 scale (track-specific, avoids cross-track comparison)."""
     normalized_output = {}
 
@@ -218,9 +211,7 @@ def normalize_compound_metrics_across_teams(
                         "laps_count",
                         "track_name",
                     ):  # Skip non-performance metrics
-                        compound_metric_values[compound][metric_name].append(
-                            (team_name, value)
-                        )
+                        compound_metric_values[compound][metric_name].append((team_name, value))
 
     # Normalize each compound+metric independently (within track)
     for team_name, compounds in all_team_compound_metrics.items():
@@ -233,9 +224,7 @@ def normalize_compound_metrics_across_teams(
             if metrics.get("median_lap_time") is not None:
                 all_values = [
                     v
-                    for _, v in compound_metric_values[compound].get(
-                        "median_lap_time", []
-                    )
+                    for _, v in compound_metric_values[compound].get("median_lap_time", [])
                     if v is not None
                 ]
                 if len(all_values) > 1:
@@ -258,9 +247,7 @@ def normalize_compound_metrics_across_teams(
             if metrics.get("tire_deg_slope") is not None:
                 all_values = [
                     v
-                    for _, v in compound_metric_values[compound].get(
-                        "tire_deg_slope", []
-                    )
+                    for _, v in compound_metric_values[compound].get("tire_deg_slope", [])
                     if v is not None
                 ]
                 if len(all_values) > 1:
@@ -308,18 +295,16 @@ def normalize_compound_metrics_across_teams(
 
 
 def aggregate_compound_samples(
-    existing_compound_chars: Dict[str, Dict[str, float]],
-    new_compound_metrics: Dict[str, Dict[str, float]],
+    existing_compound_chars: dict[str, dict[str, float]],
+    new_compound_metrics: dict[str, dict[str, float]],
     blend_weight: float = 0.5,
     race_name: str = None,
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """Blend existing compound data with new session data (track-aware, only blends same track)."""
     blended = {}
 
     # Process all compounds (existing + new)
-    all_compounds = set(existing_compound_chars.keys()) | set(
-        new_compound_metrics.keys()
-    )
+    all_compounds = set(existing_compound_chars.keys()) | set(new_compound_metrics.keys())
 
     for compound in all_compounds:
         existing = existing_compound_chars.get(compound, {})
@@ -371,9 +356,7 @@ def aggregate_compound_samples(
             new_val = new.get(metric)
 
             if old_val is not None and new_val is not None:
-                blended_metrics[metric] = (
-                    1 - blend_weight
-                ) * old_val + blend_weight * new_val
+                blended_metrics[metric] = (1 - blend_weight) * old_val + blend_weight * new_val
             elif new_val is not None:
                 blended_metrics[metric] = new_val
             elif old_val is not None:

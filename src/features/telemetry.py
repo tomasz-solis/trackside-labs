@@ -1,9 +1,10 @@
 """Feature extraction from F1 telemetry data."""
 
-import pandas as pd
-import numpy as np
 import logging
-from typing import Dict, Any
+from typing import Any
+
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class LapFeatureExtractor:
         else:
             self.corner_thresholds = corner_speed_thresholds
 
-    def extract_corner_speeds(self, telemetry) -> Dict[str, float]:
+    def extract_corner_speeds(self, telemetry) -> dict[str, float]:
         """Average speed in slow/medium/high-speed corners."""
         # Corner threshold: 250 km/h separates corners from straights
         # Based on typical F1 corner exit speeds (Monza Parabolica ~230, Spa Pouhon ~270)
@@ -43,7 +44,7 @@ class LapFeatureExtractor:
 
         return speeds
 
-    def extract_throttle_metrics(self, telemetry) -> Dict[str, float]:
+    def extract_throttle_metrics(self, telemetry) -> dict[str, float]:
         """Throttle usage - percentage at full throttle, average, smoothness."""
         throttle = telemetry["Throttle"]
 
@@ -53,7 +54,7 @@ class LapFeatureExtractor:
             "throttle_smoothness": throttle.std(),  # lower = smoother
         }
 
-    def extract_braking_metrics(self, telemetry) -> Dict[str, float]:
+    def extract_braking_metrics(self, telemetry) -> dict[str, float]:
         """Braking zones and intensity."""
         brake = telemetry["Brake"]
 
@@ -66,7 +67,7 @@ class LapFeatureExtractor:
             "avg_brake_intensity": brake[brake > 0].mean() if (brake > 0).any() else 0,
         }
 
-    def extract_straight_line_speed(self, telemetry) -> Dict[str, float]:
+    def extract_straight_line_speed(self, telemetry) -> dict[str, float]:
         """Top speed and speed at full throttle."""
         full_throttle = telemetry[telemetry["Throttle"] == 100]
 
@@ -82,12 +83,12 @@ class LapFeatureExtractor:
             "pct_at_max_gear": len(top_gear) / len(telemetry) * 100,
         }
 
-    def extract_drs_usage(self, telemetry) -> Dict[str, float]:
+    def extract_drs_usage(self, telemetry) -> dict[str, float]:
         """How much DRS was available and used."""
         drs = telemetry["DRS"]
         return {"drs_active_pct": (drs > 0).sum() / len(drs) * 100}
 
-    def extract_features(self, lap) -> Dict[str, float]:
+    def extract_features(self, lap) -> dict[str, float]:
         """
         Extract all features from a lap.
         Returns dict of feature_name -> value.
@@ -140,7 +141,7 @@ class SessionFeatureAggregator:
 
         return clean
 
-    def extract_driver_session(self, laps) -> Dict[str, float]:
+    def extract_driver_session(self, laps) -> dict[str, float]:
         """
         Extract features for one driver's session.
         Returns aggregated features (median across clean laps).
@@ -169,7 +170,7 @@ class SessionFeatureAggregator:
 
         # Extract features from all clean laps
         lap_features = []
-        for idx, lap in clean_laps.iterrows():
+        for _idx, lap in clean_laps.iterrows():
             features = self.lap_extractor.extract_features(lap)
             if features:  # Skip if telemetry failed
                 lap_features.append(features)

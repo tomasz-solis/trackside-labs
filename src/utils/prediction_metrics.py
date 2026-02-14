@@ -1,9 +1,11 @@
 """Calculates accuracy metrics by comparing predictions to actual results."""
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any
+
 import numpy as np
 from scipy.stats import spearmanr
+
 from src.utils.driver_name_mapper import DriverNameMapper
 
 logger = logging.getLogger(__name__)
@@ -13,7 +15,7 @@ class PredictionMetrics:
     """Calculates various accuracy metrics for race predictions."""
 
     @staticmethod
-    def position_accuracy(predicted: List[Dict], actual: List[Dict]) -> float:
+    def position_accuracy(predicted: list[dict], actual: list[dict]) -> float:
         """Calculate exact position accuracy (% of drivers in correct position)."""
         if not predicted or not actual:
             return 0.0
@@ -45,7 +47,7 @@ class PredictionMetrics:
         return (correct / len(predicted_norm)) * 100
 
     @staticmethod
-    def mean_absolute_error(predicted: List[Dict], actual: List[Dict]) -> float:
+    def mean_absolute_error(predicted: list[dict], actual: list[dict]) -> float:
         """Calculate Mean Absolute Error (MAE) of position predictions."""
         if not predicted or not actual:
             return float("inf")
@@ -70,7 +72,7 @@ class PredictionMetrics:
         return np.mean(errors)
 
     @staticmethod
-    def within_n_positions(predicted: List[Dict], actual: List[Dict], n: int = 1) -> float:
+    def within_n_positions(predicted: list[dict], actual: list[dict], n: int = 1) -> float:
         """Calculate % of predictions within N positions of actual."""
         if not predicted or not actual:
             return 0.0
@@ -93,7 +95,7 @@ class PredictionMetrics:
         return (within_n / len(predicted_norm)) * 100
 
     @staticmethod
-    def correlation_coefficient(predicted: List[Dict], actual: List[Dict]) -> float:
+    def correlation_coefficient(predicted: list[dict], actual: list[dict]) -> float:
         """Calculate Spearman correlation between predicted and actual positions."""
         if not predicted or not actual:
             return 0.0
@@ -121,7 +123,7 @@ class PredictionMetrics:
         return corr if not np.isnan(corr) else 0.0
 
     @staticmethod
-    def podium_accuracy(predicted: List[Dict], actual: List[Dict]) -> Dict[str, Any]:
+    def podium_accuracy(predicted: list[dict], actual: list[dict]) -> dict[str, Any]:
         """Calculate podium prediction accuracy."""
         if not predicted or not actual:
             return {"correct_drivers": 0, "correct_positions": 0, "accuracy": 0.0}
@@ -151,7 +153,7 @@ class PredictionMetrics:
         }
 
     @staticmethod
-    def winner_accuracy(predicted: List[Dict], actual: List[Dict]) -> bool:
+    def winner_accuracy(predicted: list[dict], actual: list[dict]) -> bool:
         """Check if race winner was predicted correctly."""
         if not predicted or not actual:
             return False
@@ -164,8 +166,8 @@ class PredictionMetrics:
 
     @staticmethod
     def calculate_all_metrics(
-        prediction_data: Dict[str, Any],
-    ) -> Optional[Dict[str, Any]]:
+        prediction_data: dict[str, Any],
+    ) -> dict[str, Any] | None:
         """Calculate all metrics for a prediction with actuals."""
         # Check if actuals are available
         if prediction_data.get("actuals") is None:
@@ -206,7 +208,7 @@ class PredictionMetrics:
         return metrics
 
     @staticmethod
-    def aggregate_metrics(all_predictions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def aggregate_metrics(all_predictions: list[dict[str, Any]]) -> dict[str, Any]:
         """Aggregate metrics across multiple predictions."""
         # Calculate metrics for each prediction
         all_metrics = []

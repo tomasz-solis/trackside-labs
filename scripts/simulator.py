@@ -20,8 +20,9 @@ Note: This uses the Baseline 2026 predictor since no real race data exists yet.
 """
 
 import logging
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 
 # Setup logging
 logging.basicConfig(
@@ -94,13 +95,13 @@ def run_simulation_loop(year=2026):
     logger.info(f"🏎️  STARTING {year} SIMULATION ENGINE")
 
     # Imports inside function to avoid circular dependencies during setup
-    from src.systems.learning import LearningSystem
-    from src.utils.performance_tracker import PerformanceTracker
     from src.models.bayesian import BayesianDriverRanking
     from src.models.priors_factory import PriorsFactory  # <--- NEW IMPORT
     from src.models.regulations import apply_2026_regulations
     from src.predictors.race import RacePredictor
+    from src.systems.learning import LearningSystem
     from src.utils.lineups import get_lineups
+    from src.utils.performance_tracker import PerformanceTracker
     from src.utils.weekend import get_weekend_type
 
     # 1. Initialize Systems

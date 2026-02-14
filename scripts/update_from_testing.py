@@ -21,7 +21,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.systems.testing_updater import update_from_testing_sessions
+from src.systems.testing_updater import update_from_testing_sessions  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def main() -> None:
         "--cache-dir",
         type=str,
         default="data/raw/.fastf1_cache_testing",
-        help=("FastF1 cache directory for this run. Relative paths are created " "under data/raw."),
+        help=("FastF1 cache directory for this run. Relative paths are created under data/raw."),
     )
     parser.add_argument(
         "--force-renew-cache",
@@ -123,7 +123,7 @@ def main() -> None:
         )
     except Exception as exc:
         logger.error(f"Testing directionality update failed: {exc}")
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     logger.info("=" * 70)
     logger.info("Testing directionality update complete")

@@ -1,7 +1,7 @@
 """Lap-by-lap race simulation engine with tire degradation and pit stops."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 
@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 def simulate_race_lap_by_lap(
-    driver_info_map: Dict[str, Dict],
-    strategies: Dict[str, Dict],
-    race_params: Dict,
+    driver_info_map: dict[str, dict],
+    strategies: dict[str, dict],
+    race_params: dict,
     race_distance: int,
     weather: str,
     rng: np.random.Generator,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Simulate one race iteration lap-by-lap, return finish order and metadata.
 
     Returns dict with:
@@ -37,9 +37,7 @@ def simulate_race_lap_by_lap(
         driver_states[driver] = {
             "position": info["grid_pos"],
             # Preserve qualifying order at lights-out; pace then decides who can move.
-            "cumulative_time": max(
-                0.0, (info["grid_pos"] - 1) * start_grid_gap_seconds
-            ),
+            "cumulative_time": max(0.0, (info["grid_pos"] - 1) * start_grid_gap_seconds),
             "current_compound": strategies[driver]["compound_sequence"][0],
             "laps_on_tire": 0,
             "stint_number": 1,
@@ -59,14 +57,11 @@ def simulate_race_lap_by_lap(
             key=lambda item: item[1],
         )
         driver_ahead_map = {
-            active_order[idx][0]: active_order[idx - 1][0]
-            for idx in range(1, len(active_order))
+            active_order[idx][0]: active_order[idx - 1][0] for idx in range(1, len(active_order))
         }
         # Treat safety-car probability as a race-level likelihood; convert to
         # per-lap trigger chance to avoid over-applying random swings.
-        sc_probability_race = float(
-            np.clip(race_params.get("sc_probability", 0.0), 0.0, 1.0)
-        )
+        sc_probability_race = float(np.clip(race_params.get("sc_probability", 0.0), 0.0, 1.0))
         sc_laps_remaining = max(1, race_distance - 10)
         sc_lap_probability = sc_probability_race / sc_laps_remaining
         sc_deployed_this_lap = lap_num > 10 and rng.random() < sc_lap_probability
@@ -92,9 +87,7 @@ def simulate_race_lap_by_lap(
             fuel_load = state["fuel_load"]
 
             # 3. Calculate base pace (team strength for this compound + skill)
-            team_strength = info["team_strength_by_compound"].get(
-                compound, info["team_strength"]
-            )
+            team_strength = info["team_strength_by_compound"].get(compound, info["team_strength"])
             skill = info["skill"]
 
             # Base lap time from team strength (inverted: 1.0 = fastest, 0.0 = slowest)
@@ -106,20 +99,12 @@ def simulate_race_lap_by_lap(
             skill_improvement_max = race_params.get("lap_time", {}).get(
                 "skill_improvement_max", 0.5
             )
-            team_strength_compression = float(
-                race_params.get("team_strength_compression", 0.45)
-            )
+            team_strength_compression = float(race_params.get("team_strength_compression", 0.45))
 
-            compressed_team_strength = 0.5 + (
-                (team_strength - 0.5) * team_strength_compression
-            )
-            compressed_team_strength = float(
-                np.clip(compressed_team_strength, 0.0, 1.0)
-            )
+            compressed_team_strength = 0.5 + ((team_strength - 0.5) * team_strength_compression)
+            compressed_team_strength = float(np.clip(compressed_team_strength, 0.0, 1.0))
 
-            team_pace_penalty = (
-                1.0 - compressed_team_strength
-            ) * team_pace_penalty_range
+            team_pace_penalty = (1.0 - compressed_team_strength) * team_pace_penalty_range
             skill_improvement = skill * skill_improvement_max
             elite_skill_threshold = race_params.get("lap_time", {}).get(
                 "elite_skill_threshold", 0.88
@@ -127,9 +112,7 @@ def simulate_race_lap_by_lap(
             elite_skill_lap_bonus_max = race_params.get("lap_time", {}).get(
                 "elite_skill_lap_bonus_max", 0.09
             )
-            elite_skill_exponent = race_params.get("lap_time", {}).get(
-                "elite_skill_exponent", 1.3
-            )
+            elite_skill_exponent = race_params.get("lap_time", {}).get("elite_skill_exponent", 1.3)
             elite_denominator = max(1e-6, 1.0 - float(elite_skill_threshold))
             elite_skill_normalized = max(
                 0.0, (float(skill) - float(elite_skill_threshold)) / elite_denominator
@@ -139,12 +122,8 @@ def simulate_race_lap_by_lap(
             )
 
             # Reference lap time (track-specific if available in race_params)
-            race_advantage_lap_impact = race_params.get(
-                "race_advantage_lap_impact", 0.35
-            )
-            race_advantage_delta = (
-                -info.get("race_advantage", 0.0) * race_advantage_lap_impact
-            )
+            race_advantage_lap_impact = race_params.get("race_advantage_lap_impact", 0.35)
+            race_advantage_delta = -info.get("race_advantage", 0.0) * race_advantage_lap_impact
             base_lap_time = (
                 reference_base
                 + team_pace_penalty
@@ -193,9 +172,7 @@ def simulate_race_lap_by_lap(
                 chaos += _get_lap1_chaos(state["position"], race_params, rng)
 
             # Base chaos (weather-dependent unpredictability)
-            weather_key = (
-                "wet" if str(weather).lower() in {"wet", "rain", "mixed"} else "dry"
-            )
+            weather_key = "wet" if str(weather).lower() in {"wet", "rain", "mixed"} else "dry"
             base_chaos_std = race_params["base_chaos"][weather_key]
             chaos += rng.normal(0, base_chaos_std)
 
@@ -203,9 +180,7 @@ def simulate_race_lap_by_lap(
             # Harder tracks = less chaos (positions more stable)
             if "track_overtaking" in race_params:
                 track_chaos_factor = race_params.get("track_chaos_multiplier", 0.4)
-                track_multiplier = 1.0 - (
-                    race_params["track_overtaking"] * track_chaos_factor
-                )
+                track_multiplier = 1.0 - (race_params["track_overtaking"] * track_chaos_factor)
                 chaos *= track_multiplier
 
             # 8. Safety car luck (random position swing if SC deployed)
@@ -215,9 +190,7 @@ def simulate_race_lap_by_lap(
                 sc_luck = rng.uniform(-sc_luck_range, sc_luck_range)
 
             # 9. Teammate variance (setup/strategy differences)
-            teammate_variance = rng.normal(
-                0, race_params.get("teammate_variance_std", 0.15)
-            )
+            teammate_variance = rng.normal(0, race_params.get("teammate_variance_std", 0.15))
 
             # 10.5 Traffic + overtaking effects
             traffic_overtake_effect = _get_traffic_overtake_effect(
@@ -242,9 +215,7 @@ def simulate_race_lap_by_lap(
             )
 
             # Ensure lap time is reasonable (no negative or absurdly high)
-            lap_time_bounds = race_params.get("lap_time", {}).get(
-                "bounds", [70.0, 120.0]
-            )
+            lap_time_bounds = race_params.get("lap_time", {}).get("bounds", [70.0, 120.0])
             lap_time = max(lap_time_bounds[0], min(lap_time_bounds[1], lap_time))
 
             # Update cumulative time and tire age
@@ -252,9 +223,7 @@ def simulate_race_lap_by_lap(
             state["laps_on_tire"] += 1
 
             # Fuel burn (configurable)
-            fuel_burn_rate = race_params.get("fuel", {}).get(
-                "burn_rate_kg_per_lap", 1.5
-            )
+            fuel_burn_rate = race_params.get("fuel", {}).get("burn_rate_kg_per_lap", 1.5)
             state["fuel_load"] = max(0.0, state["fuel_load"] - fuel_burn_rate)
 
             # 12. Pit stop handling
@@ -271,10 +240,10 @@ def simulate_race_lap_by_lap(
 
 def _get_traffic_overtake_effect(
     driver: str,
-    driver_states: Dict[str, Dict],
-    driver_info_map: Dict[str, Dict],
-    driver_ahead_map: Dict[str, str],
-    race_params: Dict,
+    driver_states: dict[str, dict],
+    driver_info_map: dict[str, dict],
+    driver_ahead_map: dict[str, str],
+    race_params: dict,
     rng: np.random.Generator,
 ) -> float:
     """Return lap-time delta from traffic and overtake attempts.
@@ -302,9 +271,7 @@ def _get_traffic_overtake_effect(
     info = driver_info_map[driver]
     ahead_info = driver_info_map.get(ahead_driver, {})
     dirty_air_penalty_base = float(overtake_cfg.get("dirty_air_penalty_base", 0.05))
-    dirty_air_penalty_track_scale = float(
-        overtake_cfg.get("dirty_air_penalty_track_scale", 0.12)
-    )
+    dirty_air_penalty_track_scale = float(overtake_cfg.get("dirty_air_penalty_track_scale", 0.12))
     dirty_air_relief = float(np.clip(info.get("overtaking_skill", 0.5), 0.0, 1.0)) * 0.5
     dirty_air_penalty = (
         dirty_air_penalty_base + (track_overtaking * dirty_air_penalty_track_scale)
@@ -329,9 +296,7 @@ def _get_traffic_overtake_effect(
         )
     )
 
-    pace_delta_to_ahead = ahead_state.get("base_pace", 90.0) - state.get(
-        "base_pace", 90.0
-    )
+    pace_delta_to_ahead = ahead_state.get("base_pace", 90.0) - state.get("base_pace", 90.0)
     overtake_score = (
         (pace_delta_to_ahead * pace_diff_scale)
         + ((info.get("overtaking_skill", 0.5) - 0.5) * skill_scale)
@@ -347,8 +312,7 @@ def _get_traffic_overtake_effect(
         return effect
 
     pass_probability = float(overtake_cfg.get("pass_probability_base", 0.30)) + (
-        (overtake_score - pass_threshold)
-        * float(overtake_cfg.get("pass_probability_scale", 0.45))
+        (overtake_score - pass_threshold) * float(overtake_cfg.get("pass_probability_scale", 0.45))
     )
     pass_probability = float(np.clip(pass_probability, 0.05, 0.95))
 
@@ -362,9 +326,7 @@ def _get_traffic_overtake_effect(
     return effect
 
 
-def _get_lap1_chaos(
-    position: int, race_params: Dict, rng: np.random.Generator
-) -> float:
+def _get_lap1_chaos(position: int, race_params: dict, rng: np.random.Generator) -> float:
     """Calculate lap 1 chaos based on grid position."""
     lap1_config = race_params.get("lap1_chaos", {})
 
@@ -381,9 +343,9 @@ def _get_lap1_chaos(
 
 
 def _apply_pit_stop(
-    state: Dict,
-    strategy: Dict,
-    race_params: Dict,
+    state: dict,
+    strategy: dict,
+    race_params: dict,
     rng: np.random.Generator,
 ) -> None:
     """Apply pit stop time loss and compound change to driver state."""
@@ -409,8 +371,7 @@ def _apply_pit_stop(
         state["laps_on_tire"] = 0  # Fresh tires
 
         logger.debug(
-            f"Pit stop: {state.get('driver', 'unknown')} → {new_compound} "
-            f"(+{total_pit_loss:.2f}s)"
+            f"Pit stop: {state.get('driver', 'unknown')} → {new_compound} (+{total_pit_loss:.2f}s)"
         )
     else:
         logger.warning(
@@ -419,7 +380,7 @@ def _apply_pit_stop(
         )
 
 
-def _update_positions_from_times(driver_states: Dict[str, Dict]) -> None:
+def _update_positions_from_times(driver_states: dict[str, dict]) -> None:
     """Update positions based on cumulative race time.
 
     Drivers with lower cumulative time get better positions.
@@ -453,9 +414,9 @@ def _update_positions_from_times(driver_states: Dict[str, Dict]) -> None:
 
 
 def _generate_race_result(
-    driver_states: Dict[str, Dict],
-    strategies: Dict[str, Dict],
-) -> Dict:
+    driver_states: dict[str, dict],
+    strategies: dict[str, dict],
+) -> dict:
     """Generate final race result dict from driver states."""
     # Sort drivers by position
     sorted_drivers = sorted(driver_states.items(), key=lambda x: x[1]["position"])
@@ -471,8 +432,8 @@ def _generate_race_result(
 
 
 def aggregate_simulation_results(
-    simulation_results: List[Dict],
-) -> Dict:
+    simulation_results: list[dict],
+) -> dict:
     """Aggregate results from multiple simulations.
 
     Returns dict with:
@@ -505,7 +466,7 @@ def aggregate_simulation_results(
             dnf_counts[driver] += 1
 
         # Collect strategy data
-        for driver, strategy in strategies.items():
+        for _driver, strategy in strategies.items():
             sequence = "→".join(strategy["compound_sequence"])
             strategy_counts[sequence] += 1
 
@@ -521,17 +482,12 @@ def aggregate_simulation_results(
     }
 
     # Calculate DNF rates
-    dnf_rates = {
-        driver: count / total_simulations for driver, count in dnf_counts.items()
-    }
+    dnf_rates = {driver: count / total_simulations for driver, count in dnf_counts.items()}
 
     # Convert strategy counts to percentages
     total_strategy_count = sum(strategy_counts.values())
     compound_strategy_distribution = (
-        {
-            strategy: count / total_strategy_count
-            for strategy, count in strategy_counts.items()
-        }
+        {strategy: count / total_strategy_count for strategy, count in strategy_counts.items()}
         if total_strategy_count > 0
         else {}
     )

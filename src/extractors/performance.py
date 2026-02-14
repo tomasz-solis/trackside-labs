@@ -5,12 +5,11 @@ Extracts and normalizes team performance RELATIVE to each other.
 """
 
 import numpy as np
-from typing import Dict, Optional
 
 
 def extract_all_teams_performance(
-    all_team_data: Dict[str, Dict], session_name: str = "fp1"
-) -> Dict[str, Dict]:
+    all_team_data: dict[str, dict], session_name: str = "fp1"
+) -> dict[str, dict]:
     """Extract and normalize team performance relative to each other from specified session."""
     # Step 1: Extract raw metrics from all teams
     raw_metrics = {}
@@ -32,7 +31,7 @@ def extract_all_teams_performance(
     return _normalize_relative(raw_metrics)
 
 
-def _find_session(sessions: Dict, session_name: str) -> Optional[Dict]:
+def _find_session(sessions: dict, session_name: str) -> dict | None:
     """
     Find session that matches name with flexible matching.
 
@@ -67,7 +66,7 @@ def _find_session(sessions: Dict, session_name: str) -> Optional[Dict]:
     return None
 
 
-def _extract_raw_metrics(session_data: Dict) -> Dict:
+def _extract_raw_metrics(session_data: dict) -> dict:
     """Extract raw metrics (no normalization)."""
     metrics = {}
 
@@ -93,11 +92,11 @@ def _extract_raw_metrics(session_data: Dict) -> Dict:
     return metrics
 
 
-def _normalize_relative(raw_metrics: Dict[str, Dict]) -> Dict[str, Dict]:
+def _normalize_relative(raw_metrics: dict[str, dict]) -> dict[str, dict]:
     """Normalize team metrics relative to each other using z-scores into 0-1 range."""
     # Collect all values per metric
     all_values = {}
-    for team, metrics in raw_metrics.items():
+    for _team, metrics in raw_metrics.items():
         for metric, value in metrics.items():
             if metric not in all_values:
                 all_values[metric] = []
@@ -114,7 +113,7 @@ def _normalize_relative(raw_metrics: Dict[str, Dict]) -> Dict[str, Dict]:
     # Normalize each team
     normalized = {}
 
-    for team, metrics in raw_metrics.items():
+    for _team, metrics in raw_metrics.items():
         perf = {}
 
         # S1 (lower is better, so negate z-score)

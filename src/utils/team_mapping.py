@@ -26,9 +26,9 @@ Author: Tomasz Solis
 Date: November 2025
 """
 
-import pandas as pd
 import logging
-from typing import Union
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ def canonicalize_team(name: str) -> str:
     return TEAM_NAME_MAP.get(name, str(name).upper())
 
 
-def normalize_team_column(df: Union[pd.DataFrame, pd.Series], col: str = "team") -> pd.DataFrame:
+def normalize_team_column(df: pd.DataFrame | pd.Series, col: str = "team") -> pd.DataFrame:
     """Normalize team names in DataFrame using canonical mapping, handling edge cases gracefully."""
     # Handle Series input (convert to DataFrame)
     if isinstance(df, pd.Series):

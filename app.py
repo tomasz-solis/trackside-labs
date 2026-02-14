@@ -4,25 +4,42 @@ Streamlit Dashboard for F1 2026 Predictions
 Live race predictions with historical accuracy tracking.
 """
 
-import streamlit as st
-import pandas as pd
-import fastf1
-import time
-import logging
 import json
-from typing import Dict
-from pathlib import Path
+import logging
+import time
 from datetime import datetime
+from pathlib import Path
+
+import fastf1
+import pandas as pd
+import streamlit as st
+
+logging.getLogger("fastf1").setLevel(logging.WARNING)
+logging.getLogger("fastf1.api").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 _PRACTICE_UPDATE_STATE_FILE = Path("data/systems/practice_characteristics_state.json")
+_FASTF1_CACHE_DIR = Path("data/raw/.fastf1_cache")
+
+
+def _enable_fastf1_cache() -> None:
+    """Ensure FastF1 uses project-local cache (avoids default-cache warnings/noise)."""
+    _FASTF1_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        fastf1.Cache.enable_cache(str(_FASTF1_CACHE_DIR))
+    except Exception as exc:
+        logger.warning(f"Could not enable FastF1 cache at {_FASTF1_CACHE_DIR}: {exc}")
+
+
+_enable_fastf1_cache()
 
 
 # Get file modification times for cache invalidation
 def get_data_file_timestamps():
     """Get modification timestamps of all data files."""
-    from pathlib import Path
     import os
+    from pathlib import Path
 
     files = [
         "data/processed/car_characteristics/2026_car_characteristics.json",
@@ -30,6 +47,8 @@ def get_data_file_timestamps():
         "data/processed/track_characteristics/2026_track_characteristics.json",
         "data/2025_pirelli_info.json",  # Tire characteristics (fallback for 2026)
         "data/2026_pirelli_info.json",  # Tire characteristics (if available)
+        "config/default.yaml",  # Model weight tuning
+        "src/predictors/baseline_2026.py",  # Predictor logic changes
     ]
 
     timestamps = {}
@@ -47,8 +66,9 @@ def get_data_file_timestamps():
 @st.cache_resource(show_spinner=False)
 def get_predictor(_timestamps):
     """Load and cache the baseline predictor instance (invalidates when data files change)."""
-    from src.predictors.baseline_2026 import Baseline2026Predictor
     import logging
+
+    from src.predictors.baseline_2026 import Baseline2026Predictor
 
     # Temporarily suppress INFO logs during initialization to avoid clutter
     original_level = logging.getLogger("src.utils.data_generator").level
@@ -138,8 +158,8 @@ def auto_update_practice_characteristics_if_needed(
     This is conservative and only runs when new FP sessions are completed for a race.
     """
     from src.systems.testing_updater import update_from_testing_sessions
-    from src.utils.session_detector import SessionDetector
     from src.utils import config_loader
+    from src.utils.session_detector import SessionDetector
 
     detector = SessionDetector()
     completed = detector.get_completed_sessions(year, race_name, is_sprint)
@@ -160,9 +180,7 @@ def auto_update_practice_characteristics_if_needed(
     if latest_processed:
         return {"updated": False, "completed_fp_sessions": completed_fp_sessions}
 
-    practice_new_weight = config_loader.get(
-        "baseline_predictor.practice_capture.new_weight", 0.35
-    )
+    practice_new_weight = config_loader.get("baseline_predictor.practice_capture.new_weight", 0.35)
     practice_directionality_scale = config_loader.get(
         "baseline_predictor.practice_capture.directionality_scale", 0.08
     )
@@ -203,7 +221,7 @@ def auto_update_practice_characteristics_if_needed(
     }
 
 
-def display_prediction_result(result: Dict, prediction_name: str, is_race: bool = False):
+def display_prediction_result(result: dict, prediction_name: str, is_race: bool = False):
     """Display a single prediction result (qualifying or race)."""
     st.markdown("---")
     icon = "🏎️" if is_race else "🏁"
@@ -229,11 +247,85 @@ def display_prediction_result(result: Dict, prediction_name: str, is_race: bool 
 
     characteristics_profile = result.get("characteristics_profile_used")
     teams_with_profile = result.get("teams_with_characteristics_profile", 0)
+    compound_strategies = result.get("compound_strategies", {})
+    pit_lap_distribution = result.get("pit_lap_distribution", {})
+
     if characteristics_profile and teams_with_profile:
         st.info(
             "📈 Car characteristics profile in use: "
             f"`{characteristics_profile}` ({teams_with_profile} teams)"
         )
+
+    # Display compound strategies (multi-stint race simulation)
+    if compound_strategies and is_race:
+        st.subheader("🏎️ Tire Compound Strategies")
+
+        # Sort strategies by frequency (descending)
+        sorted_strategies = sorted(compound_strategies.items(), key=lambda x: x[1], reverse=True)
+
+        # Display top 3 most common strategies
+        cols = st.columns(min(3, len(sorted_strategies)))
+        for idx, (strategy, frequency) in enumerate(sorted_strategies[:3]):
+            with cols[idx]:
+                percentage = frequency * 100
+                st.metric(
+                    label=strategy,
+                    value=f"{percentage:.1f}%",
+                    help="Frequency of this compound sequence across simulations",
+                )
+
+        # Show all strategies in expander if more than 3
+        if len(sorted_strategies) > 3:
+            with st.expander("📊 View all strategies"):
+                for strategy, frequency in sorted_strategies:
+                    percentage = frequency * 100
+                    st.write(f"**{strategy}**: {percentage:.1f}%")
+
+    # Display pit lap distribution
+    if pit_lap_distribution and is_race:
+        st.subheader("⏱️ Pit Stop Windows")
+
+        # Sort by lap range start
+        sorted_pit_laps = sorted(
+            pit_lap_distribution.items(),
+            key=lambda x: int(x[0].split("_")[1].split("-")[0]),
+        )
+
+        total_stops = sum(count for _, count in sorted_pit_laps) or 1
+
+        # Convert to (label, count, pct)
+        windows = []
+        for lap_bin, count in sorted_pit_laps:
+            label = lap_bin.replace("lap_", "L")  # lap_25-30 -> L25-30
+            pct = 100 * (count / total_stops)
+            windows.append((label, count, pct))
+
+        # Show TOP windows by share (much more readable)
+        top_windows = sorted(windows, key=lambda x: x[2], reverse=True)[:5]
+
+        st.caption(
+            "Share of all simulated pit events (all cars × all simulations). "
+            "Windows are 5-lap bins, e.g. L25–30."
+        )
+
+        most_likely = top_windows[0]
+        st.info(f"Most likely pit window: **{most_likely[0]}** ({most_likely[2]:.1f}%)")
+
+        cols = st.columns(len(top_windows))
+        for col, (label, count, pct) in zip(cols, top_windows, strict=False):
+            with col:
+                st.metric(
+                    label,
+                    f"{pct:.1f}%",
+                    help=f"{count:,} of {total_stops:,} simulated pit events",
+                )
+                st.progress(min(pct / 100, 1.0))
+
+        # Optional: show full distribution in expander
+        with st.expander("View full pit stop distribution"):
+            dist_df = pd.DataFrame(windows, columns=["Window", "Stops", "Share %"])
+            dist_df["Share %"] = dist_df["Share %"].round(2)
+            st.dataframe(dist_df, width="stretch", hide_index=True)
 
     # Determine which key to use for results
     results_key = "finish_order" if is_race else "grid"
@@ -273,27 +365,96 @@ def display_prediction_result(result: Dict, prediction_name: str, is_race: bool 
 
         # Style the dataframe
         def color_position(val):
-            if val <= 3:
-                colors = {1: "#FFD700", 2: "#C0C0C0", 3: "#CD7F32"}
-                return f"background-color: {colors[val]}; font-weight: bold; color: black"
-            elif val <= 10:
-                return "background-color: #e3f2fd; font-weight: bold"
-            return ""
+            if val == 1:
+                return (
+                    "background-color: rgba(255,215,0,0.18);"
+                    "border-left: 4px solid #FFD700;"
+                    "font-weight: 800;"
+                    "color: rgba(237,239,243,0.95);"
+                )
+            if val == 2:
+                return (
+                    "background-color: rgba(192,192,192,0.14);"
+                    "border-left: 4px solid #C0C0C0;"
+                    "font-weight: 800;"
+                    "color: rgba(237,239,243,0.95);"
+                )
+            if val == 3:
+                return (
+                    "background-color: rgba(205,127,50,0.16);"
+                    "border-left: 4px solid #CD7F32;"
+                    "font-weight: 800;"
+                    "color: rgba(237,239,243,0.95);"
+                )
+
+            if val <= 10:
+                return (
+                    "background-color: rgba(227,242,253,0.07);"
+                    "border-left: 4px solid rgba(227,242,253,0.30);"
+                    "font-weight: 800;"
+                    "color: rgba(237,239,243,0.95);"
+                )
+
+            return "border-left: 4px solid transparent; color: rgba(237,239,243,0.88);"
 
         def color_dnf_risk(val):
             if val > 20:
-                return "background-color: #ffcdd2; color: #c62828"
-            elif val >= 10:
-                return "background-color: #fff9c4; color: #f57f17"
-            return "background-color: #c8e6c9; color: #2e7d32"
+                return "background-color: rgba(198,40,40,0.22); color: rgba(255,255,255,0.92); font-weight: 700;"
+            if val >= 10:
+                return "background-color: rgba(245,127,23,0.20); color: rgba(255,255,255,0.92); font-weight: 700;"
+            return "background-color: rgba(46,125,50,0.18); color: rgba(237,239,243,0.92); font-weight: 700;"
 
         styled_df = (
-            df_display.style.map(color_position, subset=["Pos"])
+            df_display.style
+            # base dark styling for ALL cells
+            .set_properties(
+                **{
+                    "background-color": "#10141c",
+                    "color": "rgba(237,239,243,0.88)",
+                    "border-color": "rgba(255,255,255,0.06)",
+                }
+            )
+            .set_table_styles(
+                [
+                    {
+                        "selector": "td",
+                        "props": [
+                            ("border-color", "rgba(255,255,255,0.06)"),
+                            ("font-variant-numeric", "tabular-nums"),
+                        ],
+                    },
+                    {
+                        "selector": "td:nth-child(1)",
+                        "props": [  # Pos
+                            ("font-size", "0.98rem"),
+                            ("font-weight", "800"),
+                            ("text-align", "center"),
+                            ("width", "64px"),
+                        ],
+                    },
+                    {
+                        "selector": "td:nth-child(4), td:nth-child(5), td:nth-child(6)",
+                        "props": [  # numeric cols
+                            ("font-weight", "700"),
+                        ],
+                    },
+                ]
+            )
+            .map(color_position, subset=["Pos"])
             .map(color_dnf_risk, subset=["DNF Risk %"])
             .format({"Confidence %": "{:.1f}", "Podium %": "{:.1f}", "DNF Risk %": "{:.1f}"})
         )
 
-        st.dataframe(styled_df, width="stretch", height=500)
+        # Hide the index in the HTML output and keep your styling
+        try:
+            styled_df = styled_df.hide(axis="index")
+        except Exception:
+            pass  # older pandas
+
+        st.markdown(
+            f'<div class="rc-table">{styled_df.to_html()}</div>',
+            unsafe_allow_html=True,
+        )
 
         # DNF warnings
         high_dnf = df[df["dnf_probability"] > 20]
@@ -307,7 +468,7 @@ def display_prediction_result(result: Dict, prediction_name: str, is_race: bool 
         podium = df[df["position"] <= 3].copy()
 
         col1, col2, col3 = st.columns(3)
-        for i, (idx, row) in enumerate(podium.iterrows()):
+        for i, (_idx, row) in enumerate(podium.iterrows()):
             col = [col2, col1, col3][i]
             with col:
                 medal = ["🥇", "🥈", "🥉"][row["position"] - 1]
@@ -325,15 +486,24 @@ def display_prediction_result(result: Dict, prediction_name: str, is_race: bool 
 
         with col1:
             st.markdown("**P1-10**")
-            st.dataframe(df_display.head(10), width="stretch", hide_index=True)
+            st.markdown(
+                f'<div class="rc-table">{df_display.head(10).to_html(index=False)}</div>',
+                unsafe_allow_html=True,
+            )
 
         with col2:
             st.markdown("**P11-15**")
-            st.dataframe(df_display.iloc[10:15], width="stretch", hide_index=True)
+            st.markdown(
+                f'<div class="rc-table">{df_display.iloc[10:15].to_html(index=False)}</div>',
+                unsafe_allow_html=True,
+            )
 
         with col3:
             st.markdown("**P16-22**")
-            st.dataframe(df_display.iloc[15:], width="stretch", hide_index=True)
+            st.markdown(
+                f'<div class="rc-table">{df_display.iloc[15:].to_html(index=False)}</div>',
+                unsafe_allow_html=True,
+            )
 
 
 def fetch_grid_if_available(
@@ -358,8 +528,10 @@ def fetch_grid_if_available(
 
 
 # Cache prediction results
-@st.cache_data(ttl=3600)  # Cache for 1 hour
-def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = False):
+@st.cache_data(
+    ttl=3600, show_spinner=False
+)  # cache for 1 hour to avoid redundant runs during active sessions
+def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = False) -> dict:
     """
     Run full weekend cascade prediction with caching.
 
@@ -384,7 +556,11 @@ def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = 
 
         # 1. Sprint Qualifying Prediction
         sq_start = time.time()
-        sq_result = predictor.predict_qualifying(year=2026, race_name=race_name)
+        sq_result = predictor.predict_qualifying(
+            year=2026,
+            race_name=race_name,
+            qualifying_stage="sprint",
+        )
         timing["sprint_quali"] = time.time() - sq_start
         results["sprint_quali"] = sq_result
 
@@ -404,7 +580,11 @@ def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = 
 
         # 3. Main Qualifying Prediction
         mq_start = time.time()
-        mq_result = predictor.predict_qualifying(year=2026, race_name=race_name)
+        mq_result = predictor.predict_qualifying(
+            year=2026,
+            race_name=race_name,
+            qualifying_stage="main",
+        )
         timing["main_quali"] = time.time() - mq_start
         results["main_quali"] = mq_result
 
@@ -427,7 +607,11 @@ def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = 
 
         # 1. Qualifying Prediction
         quali_start = time.time()
-        quali_result = predictor.predict_qualifying(year=2026, race_name=race_name)
+        quali_result = predictor.predict_qualifying(
+            year=2026,
+            race_name=race_name,
+            qualifying_stage="main",
+        )
         timing["qualifying"] = time.time() - quali_start
         results["qualifying"] = quali_result
 
@@ -457,58 +641,259 @@ def run_prediction(race_name: str, weather: str, _timestamps, is_sprint: bool = 
 
 
 # Page config
+# Page config
 st.set_page_config(
-    page_title="F1 2026 Predictions",
-    page_icon="🏎️",
+    page_title="Racecraft Labs",
+    page_icon="🏁",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # Custom CSS
+# --- Retro Tech Lab (Option A) theme ---
 st.markdown(
     """
 <style>
-    .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        color: #e10600;
-        text-align: center;
-        margin-bottom: 1rem;
-    }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .metric-card {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #e10600;
-    }
+/* ---- App background ---- */
+[data-testid="stAppViewContainer"] {
+    background: #0F1115;
+}
+[data-testid="stHeader"] {
+    background: rgba(15,17,21,0.0);
+}
+[data-testid="stSidebar"] {
+    background: #111318;
+    border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ---- Typography ---- */
+.main-header {
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-align: center;
+  margin: 0.2rem 0 0.1rem 0;
+  color: #EDEFF3;
+}
+.sub-header {
+  font-size: 0.95rem;
+  text-align: center;
+  color: rgba(237,239,243,0.72);
+  margin: 0 0 1.1rem 0;
+}
+.micro-disclaimer {
+  font-size: 0.78rem;
+  text-align: center;
+  color: rgba(237,239,243,0.58);
+  margin: 0 0 1.25rem 0;
+}
+
+/* Stronger global text defaults (Streamlit DOM-safe) */
+[data-testid="stMarkdownContainer"] *,
+[data-testid="stText"] *,
+[data-testid="stCaptionContainer"] *,
+[data-testid="stHeader"] *,
+[data-testid="stToolbar"] * {
+  color: rgba(237,239,243,0.88);
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+  color: #EDEFF3 !important;
+  letter-spacing: 0.2px;
+}
+h1, h2 {
+  text-shadow: 0 0 14px rgba(255, 46, 99, 0.10);
+}
+
+/* ---- Sidebar controls contrast ---- */
+[data-testid="stSidebar"] * {
+  color: rgba(237,239,243,0.86) !important;
+}
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* ---- Inputs (readable values + placeholders) ---- */
+[data-baseweb="select"] > div,
+.stTextInput > div > div,
+.stNumberInput > div > div {
+  background: #10141c !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+}
+[data-baseweb="select"] * {
+  color: rgba(237,239,243,0.92) !important;
+}
+[data-baseweb="select"] input::placeholder {
+  color: rgba(237,239,243,0.45) !important;
+}
+label {
+  color: rgba(237,239,243,0.78) !important;
+}
+
+
+/* ---- Tables ---- */
+[data-testid="stDataFrame"] {
+  background: rgba(21,25,34,0.72);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 0.35rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+/* The grid itself */
+[data-testid="stDataFrame"] [role="grid"] {
+  background: #10141c !important;
+  color: rgba(237,239,243,0.88) !important;
+  border-radius: 12px;
+}
+
+/* ---- HTML tables (our controlled dark tables) ---- */
+.rc-table {
+  background: rgba(21,25,34,0.72);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 0.6rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  overflow: hidden;
+}
+
+.rc-table table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.92rem;
+  color: rgba(237,239,243,0.88);
+}
+
+.rc-table thead th {
+  background: #151922;
+  color: rgba(237,239,243,0.92);
+  text-align: left;
+  font-weight: 700;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+.rc-table tbody tr:nth-child(even) td {
+  background: rgba(16,20,28,0.92);
+}
+
+.rc-table table th:first-child,
+.rc-table table td:first-child {
+  width: 64px;
+  text-align: center;
+  font-weight: 800;
+  color: rgba(237,239,243,0.92);
+}
+
+.rc-table table td:nth-child(2) {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.rc-table tbody tr:hover td {
+  background: rgba(255,255,255,0.03);
+}
+
+.rc-table { overflow: auto; }
+
+.rc-table table th:first-child,
+.rc-table table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #10141c;
+}
+
+.rc-table table th:nth-child(2),
+.rc-table table td:nth-child(2) {
+  position: sticky;
+  left: 64px; /* same as Pos width */
+  z-index: 2;
+  background: #10141c;
+}
+
+/* Header row */
+[data-testid="stDataFrame"] [role="columnheader"] {
+  background: #151922 !important;
+  color: rgba(237,239,243,0.92) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.10) !important;
+}
+
+/* Body cells */
+[data-testid="stDataFrame"] [role="gridcell"] {
+  background: #10141c !important;
+  color: rgba(237,239,243,0.88) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+/* Hover */
+[data-testid="stDataFrame"] [role="row"]:hover [role="gridcell"] {
+  background: rgba(255,255,255,0.03) !important;
+}
+
+/* Hide/neutralize Streamlit spinner/status blocks that show as white bars */
+[data-testid="stSpinner"] {
+  background: transparent !important;
+}
+[data-testid="stSpinner"] > div {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.stCacheStatus, [data-testid="stStatusWidget"] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* hide Streamlit footer/menu noise */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+
+/* Top-right Deploy / toolbar */
+[data-testid="stToolbar"] { visibility: hidden !important; height: 0 !important; }
+[data-testid="stToolbarActions"] { display: none !important; }
+header[data-testid="stHeader"] { height: 0 !important; }
+
+/* Cache + status widgets */
+.stCacheStatus, [data-testid="stStatusWidget"] { display: none !important; }
+
+/* Footer variants */
+footer, [data-testid="stFooter"] { display: none !important; }
+#MainMenu { visibility: hidden !important; }
+
+[data-testid="stSpinner"] { display: none !important; }
+
 </style>
 """,
     unsafe_allow_html=True,
 )
 
 # Header
+st.markdown('<div class="main-header">Racecraft Labs</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="main-header">🏎️ Formula 1 2026 Predictions</div>',
+    '<div class="sub-header">Race Weekend Prediction Engine</div>',
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div class="sub-header">Race Weekend Prediction Engine</div>',
+    '<div class="micro-disclaimer">Independent fan project • not affiliated with any racing series, teams, or governing bodies</div>',
     unsafe_allow_html=True,
 )
 
 # Sidebar
 with st.sidebar:
-    logo_path = Path("assets/motorsport_predictor_logo.svg")
+    logo_path = Path("assets/logo.png")
     if logo_path.exists():
-        st.image(str(logo_path), use_container_width=True)
+        st.image(str(logo_path), width=240)
     else:
-        st.markdown("### Motorsport Predictor")
+        st.markdown("### Racecraft Labs")
+
+    # st.caption("Retro Tech Lab Edition")
     st.markdown("---")
 
     page = st.radio(
@@ -536,6 +921,7 @@ with st.sidebar:
 
 # Page: Live Prediction
 if page == "Live Prediction":
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.header("Race Weekend Prediction")
 
     # Load 2026 calendar dynamically
@@ -639,8 +1025,8 @@ if page == "Live Prediction":
 
                 # Save prediction if logging is enabled
                 if enable_logging:
-                    from src.utils.session_detector import SessionDetector
                     from src.utils.prediction_logger import PredictionLogger
+                    from src.utils.session_detector import SessionDetector
 
                     detector = SessionDetector()
                     logger_inst = PredictionLogger()
@@ -764,6 +1150,7 @@ if page == "Live Prediction":
                     "`python scripts/extract_driver_characteristics.py --years 2023,2024,2025`"
                 )
 
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # Page: Model Insights
 elif page == "Model Insights":
@@ -975,7 +1362,7 @@ else:
     st.header("About This Project")
 
     st.markdown("""
-    ### Formula 1 2026 Prediction Engine
+    #### Racecraft Labs Prediction Engine
 
     This project focuses on weekend predictions for the 2026 season.
 
@@ -1007,13 +1394,13 @@ else:
     """)
 
     st.info(
-        "Independent project for analysis and experimentation. Not affiliated with FIA or Formula 1."
+        "Independent project for analysis and experimentation. Not affiliated with any racing series, teams, or governing bodies."
     )
 
 
 # Footer
 st.markdown("---")
 st.markdown(
-    '<div style="text-align: center; color: #666;">Built with ❤️ for F1 fans and data nerds</div>',
+    '<div style="text-align:center; color: rgba(237,239,243,0.55); padding: 0.75rem 0;">Built with ❤️ for racing fans and data nerds</div>',
     unsafe_allow_html=True,
 )

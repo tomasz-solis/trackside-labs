@@ -7,9 +7,8 @@ Called by the dashboard before predictions; manual scripts remain available.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import List, Tuple
 
 import fastf1
 import pandas as pd
@@ -17,7 +16,34 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def get_completed_races(year: int = 2026) -> List[str]:
+def _is_competitive_race_event(event: pd.Series) -> bool:
+    """Return True only for proper race weekends (exclude testing/non-race placeholders)."""
+    event_name = str(event.get("EventName", "")).strip()
+    if not event_name:
+        return False
+
+    # Guardrail 1: explicit testing labels in event name.
+    if "testing" in event_name.lower():
+        return False
+
+    # Guardrail 2: EventFormat metadata (when available).
+    event_format = str(event.get("EventFormat", "")).strip().lower()
+    if "testing" in event_format:
+        return False
+
+    # Guardrail 3: testing events are usually round 0.
+    round_number = event.get("RoundNumber")
+    if pd.notna(round_number):
+        try:
+            if int(round_number) <= 0:
+                return False
+        except (TypeError, ValueError):
+            pass
+
+    return True
+
+
+def get_completed_races(year: int = 2026) -> list[str]:
     """Get list of completed races for the given year."""
     try:
         # Ensure cache directory exists
@@ -30,9 +56,12 @@ def get_completed_races(year: int = 2026) -> List[str]:
         schedule = fastf1.get_event_schedule(year)
 
         completed = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for _, event in schedule.iterrows():
+            if not _is_competitive_race_event(event):
+                continue
+
             # Check if race has happened (date in the past)
             if "EventDate" in event and pd.notna(event["EventDate"]):
                 event_date = pd.Timestamp(event["EventDate"])
@@ -65,7 +94,7 @@ def get_completed_races(year: int = 2026) -> List[str]:
         return []
 
 
-def get_learned_races() -> List[str]:
+def get_learned_races() -> list[str]:
     """Get list of races we've already learned from."""
     learning_file = Path("data/learning_state.json")
 
@@ -83,7 +112,7 @@ def get_learned_races() -> List[str]:
         return []
 
 
-def needs_update() -> Tuple[bool, List[str]]:
+def needs_update() -> tuple[bool, list[str]]:
     """Check if there are new races to learn from."""
     completed = get_completed_races()
     learned = get_learned_races()

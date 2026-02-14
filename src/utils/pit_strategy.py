@@ -1,7 +1,6 @@
 """Pit stop strategy generation and validation for race simulation."""
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -16,10 +15,10 @@ COMPOUND_DEG_ORDER = ["SOFT", "MEDIUM", "HARD"]
 def generate_pit_strategy(
     race_distance: int,
     tire_stress_score: float,
-    available_compounds: List[str],
+    available_compounds: list[str],
     rng: np.random.Generator,
-    driver_risk_profile: Optional[float] = None,
-) -> Dict:
+    driver_risk_profile: float | None = None,
+) -> dict:
     """Generate Monte Carlo pit strategy for one driver in one simulation.
 
     Returns dict with:
@@ -86,17 +85,13 @@ def generate_pit_strategy(
 
     # Validate strategy
     if not validate_strategy(strategy, race_distance, available_compounds):
-        logger.warning(
-            f"Invalid strategy generated: {strategy}. Falling back to default."
-        )
+        logger.warning(f"Invalid strategy generated: {strategy}. Falling back to default.")
         strategy = _get_default_strategy(race_distance, available_compounds)
 
     return strategy
 
 
-def _sample_pit_laps(
-    race_distance: int, num_stops: int, rng: np.random.Generator
-) -> List[int]:
+def _sample_pit_laps(race_distance: int, num_stops: int, rng: np.random.Generator) -> list[int]:
     """Sample pit lap numbers from realistic windows."""
     # Load pit windows from config
     one_stop_window = config_loader.get(
@@ -118,9 +113,7 @@ def _sample_pit_laps(
     )
 
     # Load safety margins
-    min_pit_lap = config_loader.get(
-        "baseline_predictor.race.strategy_constraints.min_pit_lap", 5
-    )
+    min_pit_lap = config_loader.get("baseline_predictor.race.strategy_constraints.min_pit_lap", 5)
     max_pit_lap_from_end = config_loader.get(
         "baseline_predictor.race.strategy_constraints.max_pit_lap_from_end", 5
     )
@@ -191,11 +184,11 @@ def _sample_pit_laps(
 
 
 def _sample_compound_sequence(
-    available_compounds: List[str],
+    available_compounds: list[str],
     num_stops: int,
     tire_stress_score: float,
     rng: np.random.Generator,
-) -> List[str]:
+) -> list[str]:
     """Sample compound sequence (starting + post-pit compounds).
 
     Must satisfy FIA rule: ≥2 different compounds used.
@@ -203,18 +196,16 @@ def _sample_compound_sequence(
     num_compounds_needed = num_stops + 1  # Starting compound + 1 per stop
 
     # Load compound preferences from config
-    compound_prefs = config_loader.get(
-        "baseline_predictor.race.tire_strategy.compound_preferences",
-        {"SOFT": 1.0, "MEDIUM": 0.8, "HARD": 0.6},
-    )
+    # compound_prefs = config_loader.get(
+    #    "baseline_predictor.race.tire_strategy.compound_preferences",
+    #     {"SOFT": 1.0, "MEDIUM": 0.8, "HARD": 0.6},
+    # )
 
     # Filter available compounds
     available = [c for c in COMPOUND_DEG_ORDER if c in available_compounds]
 
     if len(available) < 2:
-        logger.warning(
-            f"Insufficient compounds available: {available}. Cannot satisfy FIA rule."
-        )
+        logger.warning(f"Insufficient compounds available: {available}. Cannot satisfy FIA rule.")
         # Fallback: repeat available compound (will fail validation)
         available = available_compounds
 
@@ -265,7 +256,7 @@ def _sample_compound_sequence(
     return compound_sequence
 
 
-def _calculate_stint_lengths(race_distance: int, pit_laps: List[int]) -> List[int]:
+def _calculate_stint_lengths(race_distance: int, pit_laps: list[int]) -> list[int]:
     """Calculate lap count per stint from pit laps."""
     if not pit_laps:
         # No stops: entire race is one stint
@@ -288,14 +279,10 @@ def _calculate_stint_lengths(race_distance: int, pit_laps: List[int]) -> List[in
     return stint_lengths
 
 
-def validate_strategy(
-    strategy: Dict, race_distance: int, available_compounds: List[str]
-) -> bool:
+def validate_strategy(strategy: dict, race_distance: int, available_compounds: list[str]) -> bool:
     """Validate strategy satisfies FIA rules and physical constraints."""
     # Load safety margins
-    min_pit_lap = config_loader.get(
-        "baseline_predictor.race.strategy_constraints.min_pit_lap", 5
-    )
+    min_pit_lap = config_loader.get("baseline_predictor.race.strategy_constraints.min_pit_lap", 5)
     max_pit_lap_from_end = config_loader.get(
         "baseline_predictor.race.strategy_constraints.max_pit_lap_from_end", 5
     )
@@ -339,9 +326,7 @@ def validate_strategy(
     # Check: all compounds available
     for compound in compound_sequence:
         if compound not in available_compounds:
-            logger.warning(
-                f"Compound {compound} not in available compounds: {available_compounds}"
-            )
+            logger.warning(f"Compound {compound} not in available compounds: {available_compounds}")
             return False
 
     # Check: pit laps are sorted and within race bounds
@@ -359,7 +344,7 @@ def validate_strategy(
     return True
 
 
-def _get_default_strategy(race_distance: int, available_compounds: List[str]) -> Dict:
+def _get_default_strategy(race_distance: int, available_compounds: list[str]) -> dict:
     """Return safe default 1-stop strategy as fallback."""
     # Default: 1-stop at ~50% race distance
     pit_lap = race_distance // 2
@@ -368,9 +353,7 @@ def _get_default_strategy(race_distance: int, available_compounds: List[str]) ->
     available = [c for c in COMPOUND_DEG_ORDER if c in available_compounds]
     if len(available) < 2:
         available = (
-            available_compounds[:2]
-            if len(available_compounds) >= 2
-            else available_compounds * 2
+            available_compounds[:2] if len(available_compounds) >= 2 else available_compounds * 2
         )
 
     compound_sequence = available[:2]
@@ -385,7 +368,7 @@ def _get_default_strategy(race_distance: int, available_compounds: List[str]) ->
     }
 
 
-def analyze_strategy_distribution(strategies: Dict[str, Dict]) -> Dict:
+def analyze_strategy_distribution(strategies: dict[str, dict]) -> dict:
     """Analyze compound strategy distribution across all drivers in simulation."""
     strategy_counts = {}
 
@@ -399,14 +382,12 @@ def analyze_strategy_distribution(strategies: Dict[str, Dict]) -> Dict:
 
     # Convert to percentages
     total = sum(strategy_counts.values())
-    strategy_distribution = {
-        seq: count / total for seq, count in strategy_counts.items()
-    }
+    strategy_distribution = {seq: count / total for seq, count in strategy_counts.items()}
 
     return strategy_distribution
 
 
-def analyze_pit_lap_distribution(strategies: Dict[str, Dict]) -> Dict:
+def analyze_pit_lap_distribution(strategies: dict[str, dict]) -> dict:
     """Analyze pit lap timing distribution across all drivers."""
     pit_lap_bins = {}
 

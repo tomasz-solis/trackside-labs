@@ -5,10 +5,11 @@ Unified extraction logic used by both racecraft and DNF risk scripts.
 Ensures consistency across all metrics.
 """
 
+import logging
+import warnings
+
 import fastf1 as ff1
 import pandas as pd
-import warnings
-import logging
 
 # Suppress noise
 logging.getLogger("fastf1").setLevel(logging.ERROR)
@@ -31,7 +32,7 @@ def extract_race_data(year, race_name):
 
         results = {}
 
-        for idx, row in race.results.iterrows():
+        for _idx, row in race.results.iterrows():
             driver = row["Abbreviation"]
 
             # Get DNF flag (FastF1's actual property)

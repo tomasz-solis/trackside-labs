@@ -1,7 +1,8 @@
 """Fetches actual results from competitive F1 sessions."""
 
 import logging
-from typing import List, Dict, Optional, Any
+from typing import Any
+
 import fastf1
 
 from src.utils.team_mapping import map_team_to_characteristics
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def fetch_actual_session_results(
     year: int, race_name: str, session_name: str
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     """Fetch actual results from competitive session (SQ, Sprint, Q, R)."""
     try:
         # Load session

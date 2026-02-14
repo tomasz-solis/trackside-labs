@@ -11,10 +11,9 @@ Progressive refinement: Predictions improve after each session.
 """
 
 import numpy as np
-from typing import Dict, Tuple, Optional, List
 
 
-def calculate_overtaking_difficulty(track_chars: Dict) -> float:
+def calculate_overtaking_difficulty(track_chars: dict) -> float:
     """
     Calculate overtaking difficulty (0 = very easy, 1 = nearly impossible).
     """
@@ -42,7 +41,7 @@ def _normalize_weekend_type(weekend_type: str) -> str:
     raise ValueError(f"Unsupported weekend_type '{weekend_type}'. Use 'conventional' or 'sprint'.")
 
 
-def get_prediction_context(current_session: str, weekend_type: str = "conventional") -> Dict:
+def get_prediction_context(current_session: str, weekend_type: str = "conventional") -> dict:
     """
     Get available data and next prediction target for current session.
     """
@@ -117,7 +116,7 @@ def get_prediction_context(current_session: str, weekend_type: str = "convention
     return contexts[weekend_key].get(current_session, contexts[weekend_key]["pre_fp1"])
 
 
-def map_session_name_to_key(session_name: str, team_sessions: Dict) -> Optional[str]:
+def map_session_name_to_key(session_name: str, team_sessions: dict) -> str | None:
     """
     Map generic session name to actual key in team_sessions dict.
     """
@@ -135,12 +134,12 @@ def map_session_name_to_key(session_name: str, team_sessions: Dict) -> Optional[
 
 
 def select_best_session(
-    team_sessions: Dict,
-    track_chars: Dict,
+    team_sessions: dict,
+    track_chars: dict,
     current_session: str,
     weekend_type: str = "conventional",
     prediction_target: str = "qualifying",
-) -> Tuple[Optional[Dict], float, str]:
+) -> tuple[dict | None, float, str]:
     """
     Select best session data for prediction. Returns (session_data, confidence, reasoning).
     """
@@ -214,7 +213,7 @@ def select_best_session(
     return best_session, confidence, reasoning
 
 
-def get_prediction_workflow(weekend_type: str = "conventional") -> List[Dict]:
+def get_prediction_workflow(weekend_type: str = "conventional") -> list[dict]:
     """
     Get complete prediction workflow for a weekend with context at each stage.
     """

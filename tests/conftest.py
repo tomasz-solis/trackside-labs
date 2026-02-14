@@ -3,6 +3,7 @@ Shared test fixtures and configuration.
 """
 
 import pytest
+
 from src.models.bayesian import DriverPrior
 
 

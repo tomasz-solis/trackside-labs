@@ -12,7 +12,11 @@ def test_fetch_actual_session_results_canonicalizes_teams_and_positions():
     mock_session = MagicMock()
     mock_session.results = pd.DataFrame(
         [
-            {"Abbreviation": "VER", "TeamName": "Oracle Red Bull Racing", "Position": 1},
+            {
+                "Abbreviation": "VER",
+                "TeamName": "Oracle Red Bull Racing",
+                "Position": 1,
+            },
             {"Abbreviation": "LEC", "TeamName": "Scuderia Ferrari", "Position": None},
         ]
     )

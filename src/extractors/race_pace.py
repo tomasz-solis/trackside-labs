@@ -5,17 +5,17 @@ Extract long run pace from FP2 sessions.
 Detects race simulation runs (10+ laps on same tire).
 """
 
-import fastf1 as ff1
-import pandas as pd
-import numpy as np
-from typing import Dict, Optional
 import logging
+
+import fastf1 as ff1
+import numpy as np
+import pandas as pd
 
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 
-def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> Optional[Dict]:
+def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> dict | None:
     """Extract long run pace from FP2, detecting race simulations and calculating degradation."""
     try:
         # Load FP2
@@ -94,7 +94,7 @@ def _detect_long_runs(team_laps: pd.DataFrame, verbose: bool = False) -> list:
 
     long_runs = []
 
-    for stint_id, stint_laps in valid_laps.groupby("CompoundChange"):
+    for _stint_id, stint_laps in valid_laps.groupby("CompoundChange"):
         # Check if long enough (10+ laps)
         if len(stint_laps) < 10:
             continue
@@ -137,7 +137,7 @@ def _detect_long_runs(team_laps: pd.DataFrame, verbose: bool = False) -> list:
     return long_runs
 
 
-def _select_best_stint(long_runs: list) -> Optional[Dict]:
+def _select_best_stint(long_runs: list) -> dict | None:
     """
     Select best/most representative long run stint.
 

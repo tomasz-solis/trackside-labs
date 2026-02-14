@@ -5,10 +5,11 @@ The issue: FP sessions have LAP TIMES, not positions!
 The fix: Extract fastest laps for FP, use positions for Quali/Race.
 """
 
-import fastf1 as ff1
-import pandas as pd
-import numpy as np
 import logging
+
+import fastf1 as ff1
+import numpy as np
+import pandas as pd
 
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)

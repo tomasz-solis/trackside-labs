@@ -4,8 +4,8 @@ Smoke tests for Streamlit dashboard
 Basic tests to ensure the dashboard can load without crashing.
 """
 
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 
 class TestDashboardSmoke:
@@ -134,7 +134,7 @@ class TestDashboardDataFlow:
         confidence = 54.7
         formatted = round(confidence, 1)
         assert formatted == 54.7
-        assert isinstance(formatted, (int, float))
+        assert isinstance(formatted, int | float)
 
     def test_dnf_risk_color_logic(self):
         """Test DNF risk color coding logic"""

@@ -8,13 +8,12 @@ Detects first F1 season, calculates experience, and assigns tiers:
 - Veteran: 7+ complete seasons
 """
 
-from typing import Dict
+import csv
 import json
 from pathlib import Path
-import csv
 
 
-def load_driver_debuts_from_csv(csv_path: Path) -> Dict[str, int]:
+def load_driver_debuts_from_csv(csv_path: Path) -> dict[str, int]:
     """Load driver debuts from CSV file, returning updated debuts dictionary."""
     name_to_abbr = {
         "Fernando Alonso": "ALO",
@@ -49,7 +48,7 @@ def load_driver_debuts_from_csv(csv_path: Path) -> Dict[str, int]:
 
     debuts = {}
 
-    with open(csv_path, "r") as f:
+    with open(csv_path) as f:
         reader = csv.DictReader(f)
         for row in reader:
             driver_name = row["Driver"]
@@ -62,7 +61,7 @@ def load_driver_debuts_from_csv(csv_path: Path) -> Dict[str, int]:
     return debuts
 
 
-def detect_first_season(driver_data: Dict) -> int:
+def detect_first_season(driver_data: dict) -> int:
     """Detect driver's first F1 season from their by_year data."""
     if "by_year" not in driver_data:
         return None
@@ -73,9 +72,9 @@ def detect_first_season(driver_data: Dict) -> int:
 
 def calculate_experience(
     driver_abbr: str,
-    driver_data: Dict,
+    driver_data: dict,
     current_year: int = 2025,
-    driver_debuts: Dict[str, int] = None,
+    driver_debuts: dict[str, int] = None,
 ) -> int:
     """Calculate years of F1 experience using debut year from provided dict or auto-detection."""
     debut_year = None
@@ -115,7 +114,7 @@ def calculate_pace_delta(quali_ratio: float, race_ratio: float) -> float:
 
 
 def determine_confidence_flag(
-    driver_data: Dict, experience_tier: str, pace_delta: float, min_sessions: int = 10
+    driver_data: dict, experience_tier: str, pace_delta: float, min_sessions: int = 10
 ) -> str:
     """Determine confidence flag (high/gathering_info/low) based on data quality and patterns."""
     sessions = driver_data.get("sessions", 0)
@@ -142,11 +141,11 @@ def determine_confidence_flag(
 
 
 def enrich_driver_characteristics(
-    quali_data: Dict,
-    race_data: Dict,
+    quali_data: dict,
+    race_data: dict,
     current_year: int = 2025,
     debuts_csv_path: str = None,
-) -> Dict:
+) -> dict:
     """Add experience metadata and confidence flags to driver characteristics data."""
     # Load debuts from CSV if provided
     driver_debuts = {}
@@ -210,7 +209,7 @@ def enrich_driver_characteristics(
     }
 
 
-def analyze_experience_distribution(enriched_data: Dict) -> Dict:
+def analyze_experience_distribution(enriched_data: dict) -> dict:
     """Analyze distribution of drivers across experience tiers with summary statistics."""
     tiers = {"rookie": [], "developing": [], "established": [], "veteran": []}
 

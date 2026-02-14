@@ -94,8 +94,7 @@ def get_weekend_type(year: int, race_name: str) -> Literal["sprint", "convention
     if event_format is None:
         available_races = [event_name for event_name, _ in _get_schedule_rows(year)]
         raise ValueError(
-            f"Race '{race_name}' not found in {year} schedule. "
-            f"Available races: {available_races}"
+            f"Race '{race_name}' not found in {year} schedule. Available races: {available_races}"
         )
 
     # Check if sprint weekend

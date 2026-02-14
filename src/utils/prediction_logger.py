@@ -2,9 +2,9 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +21,11 @@ class PredictionLogger:
         year: int,
         race_name: str,
         session_name: str,
-        qualifying_prediction: List[Dict[str, Any]],
-        race_prediction: List[Dict[str, Any]],
+        qualifying_prediction: list[dict[str, Any]],
+        race_prediction: list[dict[str, Any]],
         weather: str,
-        fp_blend_info: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        fp_blend_info: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Path:
         """Save a prediction to disk with validation."""
         # Validate inputs
@@ -67,7 +67,7 @@ class PredictionLogger:
                 "year": year,
                 "race_name": race_name,
                 "session_name": session_name,
-                "predicted_at": datetime.now(timezone.utc).isoformat(),
+                "predicted_at": datetime.now(UTC).isoformat(),
                 "weather": weather,
                 "fp_blend_info": fp_blend_info or {},
                 **({} if metadata is None else metadata),
@@ -109,7 +109,7 @@ class PredictionLogger:
 
     def load_prediction(
         self, year: int, race_name: str, session_name: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Load a saved prediction from disk with schema validation."""
         safe_race_name = race_name.lower().replace(" ", "_").replace("'", "")
         filepath = (
@@ -161,8 +161,8 @@ class PredictionLogger:
         year: int,
         race_name: str,
         session_name: str,
-        qualifying_results: Optional[List[Dict[str, Any]]] = None,
-        race_results: Optional[List[Dict[str, Any]]] = None,
+        qualifying_results: list[dict[str, Any]] | None = None,
+        race_results: list[dict[str, Any]] | None = None,
     ) -> bool:
         """Update a saved prediction with actual race results."""
         prediction = self.load_prediction(year, race_name, session_name)
@@ -197,7 +197,7 @@ class PredictionLogger:
         logger.info(f"Updated actuals in {filepath}")
         return True
 
-    def get_all_predictions(self, year: int) -> List[Dict[str, Any]]:
+    def get_all_predictions(self, year: int) -> list[dict[str, Any]]:
         """Load all predictions for a given year."""
         year_dir = self.predictions_dir / str(year)
         if not year_dir.exists():

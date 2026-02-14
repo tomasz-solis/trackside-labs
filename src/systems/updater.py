@@ -11,7 +11,6 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 import fastf1
 import numpy as np
@@ -19,9 +18,9 @@ import pandas as pd
 
 from src.models.bayesian import BayesianDriverRanking
 from src.systems.compound_analyzer import (
+    aggregate_compound_samples,
     extract_compound_metrics,
     normalize_compound_metrics_across_teams,
-    aggregate_compound_samples,
 )
 from src.utils import config_loader
 from src.utils.file_operations import atomic_json_write
@@ -30,9 +29,7 @@ from src.utils.team_mapping import map_team_to_characteristics
 logger = logging.getLogger(__name__)
 
 
-def load_race_session(
-    year: int, race_name: str
-) -> tuple[pd.DataFrame, fastf1.core.Session]:
+def load_race_session(year: int, race_name: str) -> tuple[pd.DataFrame, fastf1.core.Session]:
     """Load race results and session from FastF1."""
     logger.info(f"Loading {year} {race_name} results...")
 
@@ -52,7 +49,7 @@ def load_race_session(
 
 def extract_team_performance_from_telemetry(
     session: fastf1.core.Session, team_names: list[str]
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Extract team performance from race telemetry using median lap times.
 
@@ -119,9 +116,7 @@ def extract_team_performance_from_telemetry(
 
         median_time = clean_times.median()
         race_pace[team] = median_time
-        logger.debug(
-            f"  {team}: Median lap time {median_time:.3f}s ({len(clean_times)} laps)"
-        )
+        logger.debug(f"  {team}: Median lap time {median_time:.3f}s ({len(clean_times)} laps)")
 
     # Convert lap times to 0-1 performance scale
     if race_pace:
@@ -131,9 +126,7 @@ def extract_team_performance_from_telemetry(
         if fastest_time < slowest_time:
             for team in race_pace:
                 # Invert: faster time = higher score
-                performance = 1.0 - (race_pace[team] - fastest_time) / (
-                    slowest_time - fastest_time
-                )
+                performance = 1.0 - (race_pace[team] - fastest_time) / (slowest_time - fastest_time)
                 race_pace[team] = performance
         else:
             # All teams same pace
@@ -169,13 +162,9 @@ def update_team_characteristics(
             canonical_results["_canonical_team"] = None
 
         for team in team_names:
-            team_results = canonical_results[
-                canonical_results["_canonical_team"] == team
-            ]
+            team_results = canonical_results[canonical_results["_canonical_team"] == team]
             if len(team_results) > 0:
-                positions = pd.to_numeric(
-                    team_results["Position"], errors="coerce"
-                ).dropna()
+                positions = pd.to_numeric(team_results["Position"], errors="coerce").dropna()
                 if positions.empty:
                     continue
                 avg_position = positions.mean()
@@ -205,6 +194,12 @@ def update_team_characteristics(
                 f"({team_data['races_completed']} races, uncertainty {old_uncertainty:.2f}→{updated_uncertainty:.2f})"
             )
 
+    race_name = None
+    try:
+        race_name = session.event["EventName"]
+    except Exception:
+        race_name = getattr(session, "name", None) or "Unknown Race"
+
     # Extract compound-specific metrics from race session
     logger.info("Extracting compound-specific performance from race...")
     try:
@@ -215,16 +210,12 @@ def update_team_characteristics(
             raw_teams = laps["Team"].dropna().unique()
 
             for raw_team in raw_teams:
-                canonical_team = map_team_to_characteristics(
-                    str(raw_team), known_teams=known_teams
-                )
+                canonical_team = map_team_to_characteristics(str(raw_team), known_teams=known_teams)
                 if not canonical_team:
                     continue
 
                 team_laps = laps[laps["Team"] == raw_team]
-                compound_data = extract_compound_metrics(
-                    team_laps, canonical_team, race_name
-                )
+                compound_data = extract_compound_metrics(team_laps, canonical_team, race_name)
 
                 if compound_data:
                     race_compound_metrics[canonical_team] = compound_data
@@ -241,9 +232,7 @@ def update_team_characteristics(
                     if team_name in char_data["teams"]:
                         team_data = char_data["teams"][team_name]
 
-                        existing_compound_chars = team_data.get(
-                            "compound_characteristics"
-                        )
+                        existing_compound_chars = team_data.get("compound_characteristics")
                         if not isinstance(existing_compound_chars, dict):
                             existing_compound_chars = {}
 
@@ -305,16 +294,14 @@ def update_bayesian_driver_ratings(race_results: pd.DataFrame) -> None:
     drivers = race_results["Abbreviation"].tolist()
     positions = race_results["Position"].tolist()
 
-    for driver, position in zip(drivers, positions):
+    for driver, position in zip(drivers, positions, strict=False):
         if pd.notna(position):
             bayesian.update(driver, int(position))
 
     logger.info(f"✓ Updated Bayesian ratings for {len(drivers)} drivers")
 
 
-def update_from_race(
-    year: int, race_name: str, data_dir: str = "data/processed"
-) -> None:
+def update_from_race(year: int, race_name: str, data_dir: str = "data/processed") -> None:
     """
     Main entry point: Update all characteristics after a race.
 
@@ -337,9 +324,7 @@ def update_from_race(
         raise
 
     # Update team characteristics
-    char_file = (
-        Path(data_dir) / "car_characteristics" / f"{year}_car_characteristics.json"
-    )
+    char_file = Path(data_dir) / "car_characteristics" / f"{year}_car_characteristics.json"
     if char_file.exists():
         update_team_characteristics(race_results, session, char_file)
     else:

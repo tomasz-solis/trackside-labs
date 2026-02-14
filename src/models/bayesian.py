@@ -7,10 +7,10 @@ by incorporating a 'volatility' parameter that inflates uncertainty when observa
 deviate significantly from priors.
 """
 
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
-from typing import Dict, List, Tuple
 
 
 @dataclass
@@ -52,13 +52,13 @@ class BayesianDriverRanking:
         - Confidence Weighting: Trust Race results more than Practice.
     """
 
-    def __init__(self, priors: Dict[str, DriverPrior]):
+    def __init__(self, priors: dict[str, DriverPrior]):
         self.priors = priors
         # State: {driver_number: (mu, sigma)}
-        self.ratings: Dict[str, Tuple[float, float]] = {
+        self.ratings: dict[str, tuple[float, float]] = {
             d: (p.mu, p.sigma) for d, p in priors.items()
         }
-        self.history: List[UpdateRecord] = []
+        self.history: list[UpdateRecord] = []
 
     def get_current_ratings(self) -> pd.DataFrame:
         """Return current ratings as a DataFrame for analysis."""
@@ -85,7 +85,7 @@ class BayesianDriverRanking:
         return pd.DataFrame(data).sort_values("rating_mu", ascending=False)
 
     def update(
-        self, observations: Dict[str, int], session_name: str, confidence: float = 1.0
+        self, observations: dict[str, int], session_name: str, confidence: float = 1.0
     ) -> None:
         """Update driver ratings based on observed race results with specified confidence."""
         # Load config for volatility and other parameters
@@ -140,9 +140,7 @@ class BayesianDriverRanking:
             obs_prec = 1.0 / (obs_noise**2)
 
             posterior_sigma_sq = 1.0 / (prior_prec + obs_prec)
-            posterior_mu = (
-                prior_mu * prior_prec + observed_rating * obs_prec
-            ) * posterior_sigma_sq
+            posterior_mu = (prior_mu * prior_prec + observed_rating * obs_prec) * posterior_sigma_sq
             posterior_sigma = np.sqrt(posterior_sigma_sq)
 
             # Update State

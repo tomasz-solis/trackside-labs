@@ -3,6 +3,7 @@ Tests for Bayesian driver ranking system.
 """
 
 import pytest
+
 from src.models.bayesian import BayesianDriverRanking, DriverPrior
 
 

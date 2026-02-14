@@ -9,16 +9,16 @@ Prevents data corruption by:
 """
 
 import json
+import logging
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, Dict
-import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def atomic_json_write(file_path: Path, data: Dict[str, Any], create_backup: bool = True) -> None:
+def atomic_json_write(file_path: Path, data: dict[str, Any], create_backup: bool = True) -> None:
     """Write JSON data to file atomically with optional backup, preserving original on failure."""
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -49,7 +49,7 @@ def atomic_json_write(file_path: Path, data: Dict[str, Any], create_backup: bool
             Path(temp_path).unlink()
         except BaseException:
             pass
-        raise IOError(f"Failed to write {file_path}: {e}") from e
+        raise OSError(f"Failed to write {file_path}: {e}") from e
 
 
 def restore_from_backup(file_path: Path) -> bool:

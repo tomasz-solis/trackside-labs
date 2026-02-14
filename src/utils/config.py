@@ -8,7 +8,7 @@ NO hardcoded performance values!
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Literal
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class ProductionConfig:
         with open(config_file) as f:
             self.config = json.load(f)
 
-    def get_qualifying_strategy(self, weekend_type: Literal["sprint", "conventional"]) -> Dict:
+    def get_qualifying_strategy(self, weekend_type: Literal["sprint", "conventional"]) -> dict:
         """Get best qualifying prediction strategy for the given weekend type."""
         quali_config = self.config["qualifying_methods"]
 
@@ -67,7 +67,7 @@ class ProductionConfig:
 
         return 4.0  # Conservative fallback
 
-    def get_performance_ranking(self) -> Dict:
+    def get_performance_ranking(self) -> dict:
         """Get performance ranking from 2025 testing."""
         return self.config["notes"]["performance_ranking_2025"].copy()
 
@@ -113,7 +113,7 @@ def load_production_config(
     return ProductionConfig(config_path)
 
 
-def get_best_method(weekend_type: Literal["sprint", "conventional"]) -> Dict:
+def get_best_method(weekend_type: Literal["sprint", "conventional"]) -> dict:
     """Get best method for the given weekend type."""
     config = load_production_config()
     return config.get_qualifying_strategy(weekend_type)

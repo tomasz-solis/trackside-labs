@@ -12,7 +12,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 # Known driver skill ranges (from F1 community consensus + championships)
 DRIVER_VALIDATION_RULES = {
@@ -57,7 +56,7 @@ TEAM_VALIDATION_RULES = {
 }
 
 
-def validate_driver_characteristics(driver_file: Path) -> Tuple[bool, List[str]]:
+def validate_driver_characteristics(driver_file: Path) -> tuple[bool, list[str]]:
     """Validate driver characteristics file, returning validation status and errors."""
     errors = []
 
@@ -126,7 +125,7 @@ def validate_driver_characteristics(driver_file: Path) -> Tuple[bool, List[str]]
     return len(errors) == 0, errors
 
 
-def validate_team_characteristics(team_file: Path) -> Tuple[bool, List[str]]:
+def validate_team_characteristics(team_file: Path) -> tuple[bool, list[str]]:
     """Validate team/car characteristics file, returning validation status and errors."""
     errors = []
 
@@ -173,7 +172,7 @@ def validate_team_characteristics(team_file: Path) -> Tuple[bool, List[str]]:
     return len(errors) == 0, errors
 
 
-def validate_track_characteristics(track_file: Path) -> Tuple[bool, List[str]]:
+def validate_track_characteristics(track_file: Path) -> tuple[bool, list[str]]:
     """Validate track characteristics file, returning validation status and errors."""
     errors = []
 

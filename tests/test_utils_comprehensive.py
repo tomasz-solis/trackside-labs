@@ -4,8 +4,9 @@ Comprehensive tests for utils modules
 Increases test coverage for lineups, weekend, and config utilities.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 class TestLineupsModule:
@@ -23,7 +24,7 @@ class TestLineupsModule:
         assert "Cadillac F1" in lineups
 
         # Each team should have 2 drivers
-        for team, drivers in lineups.items():
+        for _team, drivers in lineups.items():
             assert len(drivers) == 2
 
     def test_lineup_driver_codes_valid(self):
@@ -32,7 +33,7 @@ class TestLineupsModule:
 
         lineups = get_lineups(2026, "Bahrain Grand Prix")
 
-        for team, drivers in lineups.items():
+        for _team, drivers in lineups.items():
             for driver in drivers:
                 assert len(driver) == 3, f"Invalid driver code: {driver}"
                 assert driver.isupper(), f"Driver code not uppercase: {driver}"
@@ -172,7 +173,7 @@ class TestDataValidation:
         assert len(tracks) >= 23  # At least 23 (allow for calendar changes)
 
         # Check required fields
-        for track, values in tracks.items():
+        for _track, values in tracks.items():
             assert "pit_stop_loss" in values
             assert "safety_car_prob" in values
             assert "overtaking_difficulty" in values
@@ -197,7 +198,7 @@ class TestDataValidation:
         assert len(lineups) == 11
 
         # Each team has 2 drivers
-        for team, drivers in lineups.items():
+        for _team, drivers in lineups.items():
             assert len(drivers) == 2
             for driver in drivers:
                 assert len(driver) == 3  # 3-letter code

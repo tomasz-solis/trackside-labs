@@ -5,12 +5,13 @@ Analyzes last 2 years of race data to determine overtaking likelihood at each tr
 Monaco is processional (low overtakes), Bahrain/Monza have high overtakes.
 """
 
-import fastf1 as ff1
-import pandas as pd
-import numpy as np
-from pathlib import Path
 import json
 import logging
+from pathlib import Path
+
+import fastf1 as ff1
+import numpy as np
+import pandas as pd
 
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
@@ -87,8 +88,12 @@ def extract_overtakes_from_race(year, race_name):
         return None
 
 
-def calculate_overtaking_likelihood(years=[2024, 2025]):
+def calculate_overtaking_likelihood(years=None):
     """Calculate overtaking likelihood for all tracks from specified years."""
+
+    if years is None:
+        years = [2024, 2025]
+
     overtaking_data = {}
 
     print("Extracting overtaking data from races...")

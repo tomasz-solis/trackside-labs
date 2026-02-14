@@ -24,9 +24,7 @@ class TestRaceRealismDiagnostic:
         Target: >= 0.75 for realistic race behavior
         """
         # Use high simulation count for stable measurement
-        quali = predictor.predict_qualifying(
-            2026, "Bahrain Grand Prix", n_simulations=500
-        )
+        quali = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=500)
         race = predictor.predict_race(
             quali["grid"],
             weather="dry",
@@ -36,9 +34,7 @@ class TestRaceRealismDiagnostic:
 
         # Extract grid and race positions
         grid_positions = {entry["driver"]: entry["position"] for entry in quali["grid"]}
-        race_positions = {
-            entry["driver"]: entry["position"] for entry in race["finish_order"]
-        }
+        race_positions = {entry["driver"]: entry["position"] for entry in race["finish_order"]}
 
         # Align drivers
         drivers = sorted(grid_positions.keys())
@@ -48,9 +44,9 @@ class TestRaceRealismDiagnostic:
         # Calculate Spearman correlation
         correlation, p_value = spearmanr(grid_pos, race_pos)
 
-        print(f"\n=== Grid-to-Race Correlation Diagnostic ===")
+        print("\n=== Grid-to-Race Correlation Diagnostic ===")
         print(f"Spearman correlation: {correlation:.3f} (p={p_value:.4f})")
-        print(f"Target: >= 0.75")
+        print("Target: >= 0.75")
         print(f"Status: {'✓ PASS' if correlation >= 0.75 else '✗ FAIL'}")
 
         # Show position changes
@@ -67,9 +63,7 @@ class TestRaceRealismDiagnostic:
 
         Target: <= 3.0 positions for realistic races
         """
-        quali = predictor.predict_qualifying(
-            2026, "Bahrain Grand Prix", n_simulations=500
-        )
+        quali = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=500)
         race = predictor.predict_race(
             quali["grid"],
             weather="dry",
@@ -78,9 +72,7 @@ class TestRaceRealismDiagnostic:
         )
 
         grid_positions = {entry["driver"]: entry["position"] for entry in quali["grid"]}
-        race_positions = {
-            entry["driver"]: entry["position"] for entry in race["finish_order"]
-        }
+        race_positions = {entry["driver"]: entry["position"] for entry in race["finish_order"]}
 
         position_changes = [
             abs(grid_positions[d] - race_positions[d]) for d in grid_positions.keys()
@@ -88,9 +80,9 @@ class TestRaceRealismDiagnostic:
 
         mean_change = np.mean(position_changes)
 
-        print(f"\n=== Mean Position Change Diagnostic ===")
+        print("\n=== Mean Position Change Diagnostic ===")
         print(f"Mean absolute position change: {mean_change:.2f}")
-        print(f"Target: <= 3.0")
+        print("Target: <= 3.0")
         print(f"Status: {'✓ PASS' if mean_change <= 3.0 else '✗ FAIL'}")
 
         # Show distribution
@@ -106,9 +98,7 @@ class TestRaceRealismDiagnostic:
 
         Target: >= 45% for realistic races
         """
-        quali = predictor.predict_qualifying(
-            2026, "Bahrain Grand Prix", n_simulations=500
-        )
+        quali = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=500)
         race = predictor.predict_race(
             quali["grid"],
             weather="dry",
@@ -117,17 +107,15 @@ class TestRaceRealismDiagnostic:
         )
 
         pole_driver = quali["grid"][0]["driver"]
-        pole_finish = next(
-            e for e in race["finish_order"] if e["driver"] == pole_driver
-        )
+        pole_finish = next(e for e in race["finish_order"] if e["driver"] == pole_driver)
 
         # Use podium probability from race prediction
         top3_prob = pole_finish["podium_probability"]
 
-        print(f"\n=== Pole Sitter Top-3 Probability Diagnostic ===")
+        print("\n=== Pole Sitter Top-3 Probability Diagnostic ===")
         print(f"Driver: {pole_driver}")
         print(f"Podium probability: {top3_prob:.1f}%")
-        print(f"Target: >= 45%")
+        print("Target: >= 45%")
         print(f"Status: {'✓ PASS' if top3_prob >= 45.0 else '✗ FAIL'}")
         print(f"Predicted finish position: P{pole_finish['position']}")
 
@@ -139,9 +127,7 @@ class TestRaceRealismDiagnostic:
 
         Target: >= 50% (majority of podium outcomes from top grid positions)
         """
-        quali = predictor.predict_qualifying(
-            2026, "Bahrain Grand Prix", n_simulations=500
-        )
+        quali = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=500)
         race = predictor.predict_race(
             quali["grid"],
             weather="dry",
@@ -163,13 +149,11 @@ class TestRaceRealismDiagnostic:
                 top5_podium_prob += prob
 
         # Normalize (total should be ~300% since 3 drivers get 100% total)
-        top5_fraction = (
-            (top5_podium_prob / total_podium_prob) * 100 if total_podium_prob > 0 else 0
-        )
+        top5_fraction = (top5_podium_prob / total_podium_prob) * 100 if total_podium_prob > 0 else 0
 
-        print(f"\n=== Top-5 Starters Podium Dominance Diagnostic ===")
+        print("\n=== Top-5 Starters Podium Dominance Diagnostic ===")
         print(f"Top-5 starters' share of podium probability: {top5_fraction:.1f}%")
-        print(f"Target: >= 50%")
+        print("Target: >= 50%")
         print(f"Status: {'✓ PASS' if top5_fraction >= 50.0 else '✗ FAIL'}")
 
         # Show individual top-5 podium probs
@@ -177,13 +161,9 @@ class TestRaceRealismDiagnostic:
         for entry in race["finish_order"]:
             if entry["driver"] in top5_drivers:
                 grid_pos = next(
-                    e["position"]
-                    for e in quali["grid"]
-                    if e["driver"] == entry["driver"]
+                    e["position"] for e in quali["grid"] if e["driver"] == entry["driver"]
                 )
-                print(
-                    f"  P{grid_pos} {entry['driver']}: {entry['podium_probability']:.1f}%"
-                )
+                print(f"  P{grid_pos} {entry['driver']}: {entry['podium_probability']:.1f}%")
 
         # Uncomment after fixes:
         # assert top5_fraction >= 50.0, f"Top-5 podium dominance too low: {top5_fraction:.1f}%"
@@ -193,9 +173,7 @@ class TestRaceRealismDiagnostic:
 
         Target: Rare (< 10% of the time for each driver)
         """
-        quali = predictor.predict_qualifying(
-            2026, "Bahrain Grand Prix", n_simulations=500
-        )
+        quali = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=500)
         race = predictor.predict_race(
             quali["grid"],
             weather="dry",
@@ -205,15 +183,13 @@ class TestRaceRealismDiagnostic:
 
         top3_drivers = [entry["driver"] for entry in quali["grid"][:3]]
 
-        print(f"\n=== Top-3 Starter Falloff Diagnostic ===")
+        print("\n=== Top-3 Starter Falloff Diagnostic ===")
         print("Measuring P95 (95th percentile worst finish) for top-3 starters:")
 
         falloff_count = 0
         for driver in top3_drivers:
             entry = next(e for e in race["finish_order"] if e["driver"] == driver)
-            grid_pos = next(
-                e["position"] for e in quali["grid"] if e["driver"] == driver
-            )
+            grid_pos = next(e["position"] for e in quali["grid"] if e["driver"] == driver)
             p95 = entry["p95"]
 
             print(f"  P{grid_pos} {driver}: P95={p95}")
@@ -221,7 +197,7 @@ class TestRaceRealismDiagnostic:
                 falloff_count += 1
 
         print(f"\nTop-3 drivers with P95 >= 10: {falloff_count}/3")
-        print(f"Target: 0-1 drivers (rare falloffs)")
+        print("Target: 0-1 drivers (rare falloffs)")
         print(f"Status: {'✓ PASS' if falloff_count <= 1 else '✗ FAIL'}")
 
         # Uncomment after fixes:
@@ -232,9 +208,7 @@ class TestRaceRealismDiagnostic:
 
         Target: At least for top 8, podium% should generally decrease
         """
-        quali = predictor.predict_qualifying(
-            2026, "Bahrain Grand Prix", n_simulations=500
-        )
+        quali = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=500)
         race = predictor.predict_race(
             quali["grid"],
             weather="dry",
@@ -245,14 +219,12 @@ class TestRaceRealismDiagnostic:
         # Get top 8 finishers
         top8 = sorted(race["finish_order"], key=lambda x: x["position"])[:8]
 
-        print(f"\n=== Podium Probability Ordering Diagnostic ===")
+        print("\n=== Podium Probability Ordering Diagnostic ===")
         print("Top-8 finishers with podium probabilities:")
 
         inversions = 0
         for i, entry in enumerate(top8):
-            print(
-                f"  P{entry['position']} {entry['driver']}: {entry['podium_probability']:.1f}%"
-            )
+            print(f"  P{entry['position']} {entry['driver']}: {entry['podium_probability']:.1f}%")
             if i > 0:
                 prev_prob = top8[i - 1]["podium_probability"]
                 curr_prob = entry["podium_probability"]
@@ -260,7 +232,7 @@ class TestRaceRealismDiagnostic:
                     inversions += 1
 
         print(f"\nInversions (podium% increases): {inversions}")
-        print(f"Target: <= 2 (mostly monotonic decrease)")
+        print("Target: <= 2 (mostly monotonic decrease)")
         print(f"Status: {'✓ PASS' if inversions <= 2 else '✗ FAIL'}")
 
         # Uncomment after fixes:

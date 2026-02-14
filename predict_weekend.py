@@ -1,20 +1,21 @@
 import argparse
 import logging
-import pandas as pd
+from datetime import UTC, datetime
+
 import fastf1 as ff1
-from datetime import datetime, timezone
+import pandas as pd
 from tabulate import tabulate
 
-from src.utils.performance_tracker import PerformanceTracker
+from src.extractors.race_pace import extract_fp2_pace
+from src.extractors.session import extract_session_order_robust
 from src.models.priors_factory import PriorsFactory
 from src.models.regulations import apply_2026_regulations
 from src.predictors.qualifying import QualifyingPredictor
 from src.predictors.race import RacePredictor
 from src.systems.learning import LearningSystem
 from src.utils.lineups import get_lineups
+from src.utils.performance_tracker import PerformanceTracker
 from src.utils.weekend import get_weekend_type
-from src.extractors.session import extract_session_order_robust
-from src.extractors.race_pace import extract_fp2_pace
 
 # Logging Setup
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -30,7 +31,7 @@ def auto_catchup_history(year, learner):
 
     try:
         schedule = ff1.get_event_schedule(year)
-        now = datetime.now(timezone.utc if schedule["Session1DateUtc"].dt.tz else None)
+        now = datetime.now(UTC if schedule["Session1DateUtc"].dt.tz else None)
 
         # Get races that are finished but not in learner history
         finished_races = schedule[schedule["Session5DateUtc"] < now]
@@ -86,9 +87,7 @@ def get_available_data(year, race_name, weekend_type):
         data["fp3"] = extract_session_order_robust(year, race_name, "FP3")
         data["quali"] = extract_session_order_robust(year, race_name, "Q")
     elif weekend_type == "sprint":
-        data["sprint_quali"] = extract_session_order_robust(
-            year, race_name, "Sprint Qualifying"
-        )
+        data["sprint_quali"] = extract_session_order_robust(year, race_name, "Sprint Qualifying")
 
     found = [k.upper() for k, v in data.items() if v is not None]
     if found:
@@ -112,9 +111,7 @@ def run_weekend_predictions(year, race_name, weather="dry"):
 
     ranker = BayesianDriverRanking(priors)
 
-    quali_predictor = QualifyingPredictor(
-        driver_ranker=ranker, performance_tracker=tracker
-    )
+    quali_predictor = QualifyingPredictor(driver_ranker=ranker, performance_tracker=tracker)
     race_predictor = RacePredictor(
         driver_chars=factory.drivers,
         driver_chars_path=factory.driver_file,
@@ -208,9 +205,7 @@ def run_weekend_predictions(year, race_name, weather="dry"):
     r_df = pd.DataFrame(r_result["finish_order"])
     print(
         tabulate(
-            r_df[
-                ["position", "driver", "team", "confidence", "podium_probability"]
-            ].head(10),
+            r_df[["position", "driver", "team", "confidence", "podium_probability"]].head(10),
             headers="keys",
             tablefmt="simple",
             floatfmt=".1f",

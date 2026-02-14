@@ -2,10 +2,12 @@
 Tests for Prediction Logger
 """
 
-import pytest
 import json
 import tempfile
 from pathlib import Path
+
+import pytest
+
 from src.utils.prediction_logger import PredictionLogger
 
 

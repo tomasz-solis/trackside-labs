@@ -1,13 +1,12 @@
 """Unit tests for tire degradation and fuel effect modeling."""
 
 import pytest
-import numpy as np
 
 from src.utils.tire_degradation import (
-    calculate_tire_deg_delta,
     calculate_fuel_delta,
-    get_fresh_tire_advantage,
+    calculate_tire_deg_delta,
     get_effective_tire_deg_slope,
+    get_fresh_tire_advantage,
 )
 
 
@@ -163,9 +162,7 @@ class TestGetEffectiveTireDegSlope:
     def test_zero_cars_returns_base(self):
         """Edge case: 0 total cars returns base slope."""
         base_slope = 0.15
-        result = get_effective_tire_deg_slope(
-            base_slope, traffic_position=1, total_cars=0
-        )
+        result = get_effective_tire_deg_slope(base_slope, traffic_position=1, total_cars=0)
         assert result == base_slope
 
 

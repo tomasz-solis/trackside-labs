@@ -20,7 +20,6 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 import fastf1
 import numpy as np
@@ -30,7 +29,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def calculate_track_characteristics(years: List[int], output_dir: Path) -> None:
+def calculate_track_characteristics(years: list[int], output_dir: Path) -> None:
     """
     Calculate track characteristics from historical race data.
 
@@ -81,7 +80,7 @@ def calculate_track_characteristics(years: List[int], output_dir: Path) -> None:
                             for driver in pit_laps["Driver"].unique():
                                 driver_laps = session.laps[session.laps["Driver"] == driver]
                                 pit_lap_idx = driver_laps[driver_laps["PitInTime"].notna()].index
-                                for idx in pit_lap_idx:
+                                for _idx in pit_lap_idx:
                                     # Compare to average lap time
                                     avg_lap = driver_laps["LapTime"].mean()
                                     if pd.notna(avg_lap):

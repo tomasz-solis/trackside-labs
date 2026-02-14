@@ -11,44 +11,25 @@ This folder explains how the current system behaves in code.
 ## Detailed Guides
 
 ### `WEIGHT_SCHEDULE_GUIDE.md`
-
-What it covers:
-
-- baseline/testing/current signal blending,
-- race-by-race weight progression,
-- why the model shifts toward in-season data quickly.
+Baseline/testing/current signal blending and race-by-race weight progression.
 
 ### `FP_BLENDING_SYSTEM.md`
-
-What it covers:
-
-- where session blending is used (qualifying path),
-- session priority rules for normal and sprint weekends,
-- caveats and fallback behavior.
+Session blending for qualifying with priority rules for normal and sprint weekends.
 
 ### `WEEKEND_PREDICTIONS.md`
-
-What it covers:
-
-- normal vs sprint cascade output in the dashboard,
-- when ACTUAL grids are used vs PREDICTED grids,
-- how predictions are chained between sessions.
+Normal vs sprint cascade output, ACTUAL vs PREDICTED grids, and session chaining.
 
 ### `DASHBOARD_AUTO_UPDATE.md`
-
-What it covers:
-
-- what updates automatically during dashboard use,
-- what still requires explicit script execution,
-- cache behavior.
+Automatic vs manual updates during dashboard use and cache behavior.
 
 ### `PREDICTION_TRACKING.md`
+Session-based prediction storage, attaching actual results, and accuracy metrics.
 
-What it covers:
+### `COMPOUND_ANALYSIS.md`
+Tire compound performance collection, dynamic selection, and race prediction adjustments.
 
-- how session-based prediction files are stored,
-- how to attach actual results,
-- how accuracy metrics are computed.
+### `ERROR_HANDLING_PATTERNS.md`
+Error handling conventions and when to return None vs raise exceptions.
 
 ## Validation Notebooks
 

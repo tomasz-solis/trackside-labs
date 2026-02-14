@@ -1,7 +1,6 @@
 """Input validation utilities for critical functions."""
 
 import logging
-from typing import List, Union
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +19,14 @@ def validate_positive_int(value: int, name: str, min_val: int = 1) -> None:
     logger.debug(f"Validated {name}={value} is positive integer >= {min_val}")
 
 
-def validate_enum(value: str, name: str, valid_values: List[str]) -> None:
+def validate_enum(value: str, name: str, valid_values: list[str]) -> None:
     """Validate value is one of allowed enum values. Raises ValueError if not."""
     if value not in valid_values:
         raise ValueError(f"{name} must be one of {valid_values}, got '{value}'")
     logger.debug(f"Validated {name}='{value}' is in {valid_values}")
 
 
-def validate_position(
-    value: Union[int, float], name: str, min_pos: int = 1, max_pos: int = 20
-) -> None:
+def validate_position(value: int | float, name: str, min_pos: int = 1, max_pos: int = 20) -> None:
     """Validate grid or race position is within range. Raises ValueError if outside."""
     # Convert to int if it's a float
     if isinstance(value, float):

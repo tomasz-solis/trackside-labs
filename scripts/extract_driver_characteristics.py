@@ -21,7 +21,6 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List
 
 import fastf1 as ff1
 import numpy as np
@@ -31,7 +30,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def load_driver_debuts(csv_path: str = "data/driver_debuts.csv") -> Dict[str, int]:
+def load_driver_debuts(csv_path: str = "data/driver_debuts.csv") -> dict[str, int]:
     """Load driver F1 debut years from CSV."""
     debuts = {}
 
@@ -112,7 +111,7 @@ def calculate_driver_pace_gap(driver_laps, teammate_laps, session_type="R") -> f
     return gap_pct
 
 
-def extract_teammate_comparisons(years: List[int]) -> List[Dict]:
+def extract_teammate_comparisons(years: list[int]) -> list[dict]:
     """
     Extract all teammate pace comparisons across multiple seasons.
 
@@ -182,7 +181,7 @@ def extract_teammate_comparisons(years: List[int]) -> List[Dict]:
                             d2_code = results.loc[results["Abbreviation"] == d2].iloc[0][
                                 "Abbreviation"
                             ]
-                        except:
+                        except (KeyError, ValueError, TypeError):
                             continue
 
                         # Sample size confidence (more laps = higher confidence)
@@ -215,7 +214,7 @@ def extract_teammate_comparisons(years: List[int]) -> List[Dict]:
     return comparisons
 
 
-def solve_global_ratings(comparisons: List[Dict], iterations=15) -> Dict[str, float]:
+def solve_global_ratings(comparisons: list[dict], iterations=15) -> dict[str, float]:
     """
     Solve for absolute driver ratings using iterative global optimization.
 
@@ -289,7 +288,7 @@ def solve_global_ratings(comparisons: List[Dict], iterations=15) -> Dict[str, fl
     return ratings
 
 
-def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> Dict[str, float]:
+def calculate_racecraft_scores(years: list[int], ratings: dict[str, float]) -> dict[str, float]:
     """Calculate racecraft adjustment based on finish position versus pace-expected position."""
     logger.info("Calculating racecraft adjustments...")
 
@@ -329,7 +328,7 @@ def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> D
                     expected_order.sort(key=lambda x: x[1], reverse=True)
 
                     # Compare expected vs actual
-                    for expected_pos, (driver, rating, actual_pos) in enumerate(expected_order, 1):
+                    for expected_pos, (driver, _rating, actual_pos) in enumerate(expected_order, 1):
                         if pd.notna(actual_pos) and actual_pos <= 20:
                             # Positive = beat expectations (good racecraft)
                             racecraft_gain = expected_pos - actual_pos
@@ -352,7 +351,7 @@ def calculate_racecraft_scores(years: List[int], ratings: Dict[str, float]) -> D
     return racecraft_ratings
 
 
-def calculate_experience_and_consistency(years: List[int], driver_debuts: Dict[str, int]) -> Dict:
+def calculate_experience_and_consistency(years: list[int], driver_debuts: dict[str, int]) -> dict:
     """
     Calculate experience tiers, total races, and DNF rates.
     """
@@ -523,7 +522,7 @@ def main():
             team_points = defaultdict(list)
             driver_positions = {}
 
-            for idx, row in results.iterrows():
+            for _idx, row in results.iterrows():
                 driver = row["Abbreviation"]
                 team = row["TeamName"]
                 position = row["Position"]
@@ -538,7 +537,7 @@ def main():
                 team_expected[team] = np.mean(positions)
 
             # For each driver, compare their finish vs team expected
-            for idx, row in results.iterrows():
+            for _idx, row in results.iterrows():
                 driver = row["Abbreviation"]
                 team = row["TeamName"]
                 position = row["Position"]

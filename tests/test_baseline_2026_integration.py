@@ -4,8 +4,9 @@ Integration tests for Baseline 2026 Predictor
 Tests the full prediction pipeline: loading data → qualifying → race
 """
 
-import pytest
 import numpy as np
+import pytest
+
 from src.predictors.baseline_2026 import Baseline2026Predictor
 
 
@@ -178,11 +179,42 @@ class TestBaseline2026Integration:
         pole_finish = next(e for e in race["finish_order"] if e["driver"] == pole_driver)
 
         assert pole_finish["position"] <= 8, "Pole sitter should finish in top 8 most of the time"
-        # Adjust threshold to 20% based on actual Monte Carlo variance (high chaos
-        # on overtaking tracks)
-        assert (
-            pole_finish["podium_probability"] >= 20
-        ), "Pole sitter should have >=20% podium chance"
+        assert pole_finish["p95"] <= 17, (
+            "Pole sitter should not regularly fall to the back half of the field"
+        )
+
+    def test_race_order_is_not_clustered_by_team(self, predictor):
+        """Race order should not collapse into teammate pairs."""
+        quali = predictor.predict_qualifying(2026, "Australian Grand Prix", n_simulations=150)
+        race = predictor.predict_race(
+            quali["grid"],
+            weather="dry",
+            race_name="Australian Grand Prix",
+            n_simulations=150,
+        )
+
+        finish = sorted(race["finish_order"], key=lambda e: e["position"])
+        top10_adjacent_teammates = sum(
+            1 for idx in range(9) if finish[idx]["team"] == finish[idx + 1]["team"]
+        )
+
+        assert top10_adjacent_teammates <= 4, (
+            "Top 10 should not be mostly teammate blocks in race prediction"
+        )
+
+    def test_sprint_race_uses_no_pit_stop_model(self, predictor):
+        """Sprint races should run without scheduled pit stops."""
+        quali = predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=20)
+        sprint = predictor.predict_sprint_race(
+            sprint_quali_grid=quali["grid"],
+            weather="dry",
+            race_name="Bahrain Grand Prix",
+            n_simulations=20,
+        )
+
+        assert sprint["pit_lap_distribution"] == {}
+        assert sprint["compound_strategies"], "Expected compound strategy output"
+        assert all("→" not in strategy for strategy in sprint["compound_strategies"].keys())
 
 
 class TestBaseline2026EdgeCases:

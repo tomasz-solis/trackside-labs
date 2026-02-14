@@ -1,7 +1,5 @@
 """Tire degradation and fuel effect modeling for lap-by-lap race simulation."""
 
-from typing import Dict, Optional
-
 from src.utils import config_loader
 
 
@@ -9,7 +7,7 @@ def calculate_tire_deg_delta(
     tire_deg_slope: float,
     laps_on_tire: int,
     fuel_load_kg: float,
-    initial_fuel_kg: Optional[float] = None,
+    initial_fuel_kg: float | None = None,
 ) -> float:
     """Calculate lap time penalty from tire wear.
 
@@ -21,13 +19,9 @@ def calculate_tire_deg_delta(
 
     # Load config
     if initial_fuel_kg is None:
-        initial_fuel_kg = config_loader.get(
-            "baseline_predictor.race.fuel.initial_load_kg", 110.0
-        )
+        initial_fuel_kg = config_loader.get("baseline_predictor.race.fuel.initial_load_kg", 110.0)
 
-    fuel_deg_multiplier = config_loader.get(
-        "baseline_predictor.race.fuel.deg_multiplier", 0.10
-    )
+    fuel_deg_multiplier = config_loader.get("baseline_predictor.race.fuel.deg_multiplier", 0.10)
 
     # Fuel load effect on degradation: heavier car = more tire stress
     # Multiplier: 1.0 (empty) to 1.1 (full tank)
@@ -63,7 +57,7 @@ def calculate_fuel_delta(
 def get_fresh_tire_advantage(
     compound: str,
     laps_on_tire: int,
-    track_temp: Optional[float] = None,
+    track_temp: float | None = None,
 ) -> float:
     """Calculate lap time advantage for fresh tires.
 

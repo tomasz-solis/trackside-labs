@@ -20,6 +20,7 @@ Examples:
 - `baseline_predictor.qualifying.noise_std_normal`
 - `baseline_predictor.qualifying.team_weight`
 - `baseline_predictor.qualifying.testing_short_run_modifier_scale`
+- `baseline_predictor.compound_selection.*` (tire compound selection thresholds)
 - `baseline_predictor.race.base_chaos.dry`
 - `baseline_predictor.race.grid_weight_min`
 - `baseline_predictor.race.pace_weight_base`
@@ -48,6 +49,14 @@ Edit:
 
 These should sum to `1.0`.
 
+### Change tire compound selection thresholds
+
+Edit:
+
+- `baseline_predictor.compound_selection.high_stress_threshold` (default 3.5)
+- `baseline_predictor.compound_selection.low_stress_threshold` (default 2.5)
+- `baseline_predictor.compound_selection.default_stress_fallback` (default 3.0)
+
 ### Change race volatility / chaos
 
 Edit:
@@ -55,7 +64,8 @@ Edit:
 - `baseline_predictor.race.base_chaos.dry`
 - `baseline_predictor.race.base_chaos.wet`
 - `baseline_predictor.race.lap1_chaos.*`
-- `baseline_predictor.race.strategy_variance_base`
+- `baseline_predictor.race.teammate_variance_std`
+- `baseline_predictor.race.track_chaos_multiplier`
 
 ### Change DNF behavior
 
@@ -63,6 +73,44 @@ Edit:
 
 - `baseline_predictor.race.dnf_rate_historical_cap`
 - `baseline_predictor.race.dnf_rate_final_cap`
+
+### Change lap-by-lap simulation parameters (NEW)
+
+The race predictor now uses lap-by-lap simulation with tire degradation and pit stops. Edit:
+
+**Tire physics:**
+- `baseline_predictor.race.tire_physics.fresh_tire_advantage` - Initial pace advantage per compound (SOFT/MEDIUM/HARD)
+- `baseline_predictor.race.tire_physics.fresh_tire_duration` - Laps fresh tire advantage lasts
+- `baseline_predictor.race.tire_physics.default_deg_slope` - Fallback degradation if no compound data
+- `baseline_predictor.race.tire_physics.clean_air_bonus` - P1-5 tire life advantage (default 0.05 = 5%)
+- `baseline_predictor.race.tire_physics.traffic_deg_penalty` - P16+ tire life penalty (default 0.05 = 5%)
+
+**Fuel effects:**
+- `baseline_predictor.race.fuel.initial_load_kg` - Starting fuel load (default 110kg for 60-lap race)
+- `baseline_predictor.race.fuel.burn_rate_kg_per_lap` - Fuel consumed per lap (default 1.5kg)
+- `baseline_predictor.race.fuel.effect_per_lap` - Lap time penalty per 10kg fuel (default 0.035s)
+- `baseline_predictor.race.fuel.deg_multiplier` - How fuel load affects tire degradation (default 0.10 = 10%)
+
+**Pit stop strategy:**
+- `baseline_predictor.race.tire_strategy.windows.one_stop` - Lap window for 1-stop (default [23, 37])
+- `baseline_predictor.race.tire_strategy.windows.two_stop_first` - First stop window for 2-stop (default [15, 25])
+- `baseline_predictor.race.tire_strategy.windows.two_stop_second` - Second stop window for 2-stop (default [35, 45])
+- `baseline_predictor.race.tire_strategy.stop_probability` - Stress-based stop count probabilities
+- `baseline_predictor.race.pit_stops.loss_duration` - Base pit stop time loss (track-specific override available)
+- `baseline_predictor.race.pit_stops.overtake_loss_range` - Extra time loss if overtaken during stop
+
+**Strategy constraints:**
+- `baseline_predictor.race.strategy_constraints.min_pit_lap` - Earliest allowed pit lap (default 5)
+- `baseline_predictor.race.strategy_constraints.max_pit_lap_from_end` - Latest allowed pit lap from end (default 5)
+- `baseline_predictor.race.strategy_constraints.min_laps_between_stops` - Minimum stint length (default 8)
+- `baseline_predictor.race.strategy_constraints.pit_lap_variance` - Randomness in pit timing (one_stop: 3.0, two_stop: 2.0)
+- `baseline_predictor.race.strategy_constraints.strategy_optimality` - % of optimal strategies (default 0.60 = 60%)
+
+**Lap time modeling:**
+- `baseline_predictor.race.lap_time.reference_base` - Reference lap time in seconds (default 90.0)
+- `baseline_predictor.race.lap_time.team_pace_penalty_range` - Max penalty for slowest team (default 5.0s)
+- `baseline_predictor.race.lap_time.skill_improvement_max` - Max driver skill advantage (default 0.5s)
+- `baseline_predictor.race.lap_time.bounds` - Min/max lap time clipping (default [70.0, 120.0])
 
 ### Change FastF1/cache paths
 

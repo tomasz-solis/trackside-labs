@@ -26,11 +26,11 @@ Author: Tomasz Solis
 Date: December 2025
 """
 
-import pandas as pd
 import logging
+
+import pandas as pd
 from scipy.signal import find_peaks
 from sklearn.preprocessing import StandardScaler
-from typing import Dict, Optional
 
 # NOTE: circuit.py moved to archive/ - contains legacy clustering/PCA analysis
 # We only use extract_track_metrics from it, which is now inlined below
@@ -38,7 +38,7 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 
 
-def extract_track_metrics(session) -> Optional[Dict[str, float]]:
+def extract_track_metrics(session) -> dict[str, float] | None:
     """Extract speed and braking metrics from fastest lap telemetry. Returns low/medium/high speed percentages and braking event count."""
     try:
         if session.laps.empty:
@@ -101,7 +101,7 @@ def identify_corners(telemetry: pd.DataFrame, min_speed_drop: int = 15) -> pd.Da
     return pd.DataFrame(corners)
 
 
-def extract_corner_characteristics(session) -> Optional[Dict[str, float]]:
+def extract_corner_characteristics(session) -> dict[str, float] | None:
     """Extract corner severity, density, and speed loss metrics from session telemetry."""
     try:
         lap = session.laps.pick_fastest()
@@ -136,7 +136,7 @@ def extract_corner_characteristics(session) -> Optional[Dict[str, float]]:
         return None
 
 
-def extract_full_throttle_pct(session) -> Optional[float]:
+def extract_full_throttle_pct(session) -> float | None:
     """Extract percentage of lap at full throttle (≥98%). Returns float 0-1 or None."""
     try:
         lap = session.laps.pick_fastest()
@@ -151,7 +151,7 @@ def extract_full_throttle_pct(session) -> Optional[float]:
         return None
 
 
-def extract_tire_stress_proxy(session) -> Optional[float]:
+def extract_tire_stress_proxy(session) -> float | None:
     """Extract tire stress energy score from speed and variance. Returns float or None."""
     try:
         lap = session.laps.pick_fastest()
@@ -168,7 +168,7 @@ def extract_tire_stress_proxy(session) -> Optional[float]:
         return None
 
 
-def extract_track_profile(season: int, session) -> Optional[Dict]:
+def extract_track_profile(season: int, session) -> dict | None:
     """Extract complete track profile including corner distribution, severity, power, and tire stress."""
     metrics = extract_track_metrics(session)
     if metrics is None:
@@ -225,7 +225,7 @@ def identify_street_circuits(track_name: str) -> int:
     return 1 if any(sc in track_name for sc in STREET_CIRCUITS) else 0
 
 
-def calculate_track_z_scores(df_tracks: pd.DataFrame, features: list) -> tuple[pd.DataFrame, Dict]:
+def calculate_track_z_scores(df_tracks: pd.DataFrame, features: list) -> tuple[pd.DataFrame, dict]:
     """Calculate z-scores for track features. Returns dataframe with z-score columns and scaler parameters."""
     # Remove tracks with missing data
     df_complete = df_tracks.dropna(subset=features)

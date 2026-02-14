@@ -118,23 +118,43 @@ baseline_predictor:
   # Qualifying simulation parameters
   qualifying:
     # Qualifying noise standard deviation (random variation)
-    noise_std_sprint: 0.025    # Sprint weekends (less practice data)
-    noise_std_normal: 0.02     # Normal weekends
+    noise_std_sprint: 0.030    # Sprint weekends (less practice data)
+    noise_std_normal: 0.026    # Normal weekends
 
     # Score composition weights
-    team_weight: 0.7           # 70% weight given to team strength
-    skill_weight: 0.3          # 30% weight given to driver skill
+    team_weight: 0.66          # Car remains dominant, but less deterministic
+    skill_weight: 0.34         # Driver one-lap signal (pace+skill)
+
+    # Compress team spread before scoring.
+    # 1.0 = raw team deltas, lower = closer field.
+    team_strength_compression: 0.52
+
+    # Driver signal composition for qualifying
+    driver_quali_pace_weight: 0.70
+    driver_skill_weight: 0.30
+
+    # Extra teammate divergence for setup/execution differences
+    teammate_setup_std: 0.018
+    driver_offset_cap: 0.12
 
     # Program-aware testing/practice modifier
     # Uses short-run profile characteristics to make a small team-strength adjustment.
     testing_short_run_modifier_scale: 0.04
 
+  # Compound selection parameters
+  compound_selection:
+    # Tire stress thresholds for compound selection (based on Pirelli data)
+    high_stress_threshold: 3.5    # Above this: HARD compound (Bahrain, Singapore, Hungary)
+    low_stress_threshold: 2.5     # Below this: SOFT compound (Monaco, Canada)
+    default_stress_fallback: 3.0  # Default if stress metric missing (neutral)
+
   # Race simulation parameters
   race:
     # Weather-based base chaos (unpredictability)
+    # Reduced from 0.35 to improve realism and reduce tail variance
     base_chaos:
-      dry: 0.35                 # Dry conditions chaos level
-      wet: 0.45                 # Wet conditions chaos level (more unpredictable)
+      dry: 0.28                 # Dry conditions chaos level (down from 0.35)
+      wet: 0.42                 # Wet conditions chaos level (down from 0.45)
 
     # Track chaos modifier
     # Harder to overtake (higher overtaking_difficulty) = lower chaos
@@ -164,11 +184,12 @@ baseline_predictor:
     overtaking_track_threshold: 0.5    # Track overtaking difficulty threshold (<= this)
 
     # Lap 1 chaos by grid position (random incidents/battles)
+    # Reduced lap 1 chaos to improve front-runner stability
     lap1_chaos:
-      front_row: 0.15          # P1-P3: safer, fewer battles
-      upper_midfield: 0.32     # P4-P10: competitive battles
-      midfield: 0.38           # P11-P15: most chaotic
-      back_field: 0.28         # P16+: fewer competitors
+      front_row: 0.10          # P1-P3: safer, fewer battles (down from 0.15)
+      upper_midfield: 0.28     # P4-P10: competitive battles (down from 0.32)
+      midfield: 0.35           # P11-P15: most chaotic (down from 0.38)
+      back_field: 0.25         # P16+: fewer competitors (down from 0.28)
 
     # Strategy variance
     # Less variance on Monaco (follow leader strategy), more on Bahrain
@@ -186,7 +207,8 @@ baseline_predictor:
 
     # Intra-team variance
     # Setup/tire choices vary between teammates
-    teammate_variance_std: 0.15 # Standard deviation of teammate variance
+    # Reduced to improve consistency and reduce tail variance
+    teammate_variance_std: 0.13 # Standard deviation of teammate variance (down from 0.16)
 
     # DNF rate caps
     dnf_rate_historical_cap: 0.20  # Cap on historical DNF rate before team uncertainty adjustment
@@ -196,12 +218,110 @@ baseline_predictor:
     # Uses long-run profile characteristics to make a small team-strength adjustment.
     testing_long_run_modifier_scale: 0.05
 
+    # Pit stop configuration
+    pit_stops:
+      loss_duration: 22.0              # seconds (track average pit stop time loss)
+      overtake_loss_range: [0, 3]      # extra seconds if overtaken during stop (uniform random)
+
+    # Tire strategy configuration
+    tire_strategy:
+      windows:
+        one_stop: [23, 37]             # lap range for 1-stop window (60-lap race baseline)
+        two_stop_first: [15, 25]       # first stop window for 2-stop strategy
+        two_stop_second: [35, 45]      # second stop window for 2-stop strategy
+
+      stop_probability:
+        high_stress_2stop: 0.80        # >3.5 tire stress: 80% chance of 2-stop
+        medium_stress_1stop: 0.90      # 2.5-3.5 tire stress: 90% chance of 1-stop
+        low_stress_1stop: 0.95         # <2.5 tire stress: 95% chance of 1-stop
+
+      compound_preferences:
+        SOFT: 1.0                      # preference weight (higher = more likely)
+        MEDIUM: 0.8
+        HARD: 0.6
+
+    # Fuel effect configuration
+    fuel:
+      effect_per_lap: 0.035            # seconds per lap per 10kg fuel
+      initial_load_kg: 110             # starting fuel load for 60-lap race
+      burn_rate_kg_per_lap: 1.5        # fuel consumption per lap
+      deg_multiplier: 0.10             # 10% worse tire deg when fully fueled
+
+    # Tire degradation and fresh tire effects
+    tire_physics:
+      fresh_tire_advantage:
+        SOFT: 0.5                      # seconds/lap advantage for fresh SOFT tires
+        MEDIUM: 0.3                    # seconds/lap advantage for fresh MEDIUM tires
+        HARD: 0.1                      # seconds/lap advantage for fresh HARD tires
+
+      fresh_tire_duration:
+        SOFT: 3                        # laps that fresh tire advantage lasts
+        MEDIUM: 3
+        HARD: 2
+
+      default_deg_slope: 0.15          # default tire_deg_slope if missing data
+      traffic_deg_penalty: 0.05        # 5% worse tire life in dirty air (P16+)
+      clean_air_bonus: 0.05            # 5% better tire life for leaders (P1-P5)
+
+    # Lap time modeling
+    lap_time:
+      reference_base: 90.0             # baseline lap time (seconds) - generic
+      team_pace_penalty_range: 5.0    # worst team is +5.0s slower than best
+      skill_improvement_max: 0.35      # max lap time improvement from driver skill (up from 0.30)
+      team_strength_compression: 0.40  # compress car spread in race pace conversion
+      elite_skill_threshold: 0.88      # only exceptional drivers get extra race-craft pace bonus
+      elite_skill_lap_bonus_max: 0.22  # max additional sec/lap improvement at skill=1.0 (up from 0.15)
+      elite_skill_exponent: 1.30       # non-linear curve for elite-only uplift
+      bounds: [70.0, 120.0]            # min/max lap time clamps (safety)
+
+    # Driver race-pace signal impact per lap (higher = more racecraft influence)
+    race_advantage_lap_impact: 0.20
+
+    # Final ranking blend after lap-by-lap simulation
+    # Increased grid anchor to better preserve qualifying order and reduce tail variance
+    grid_anchor:
+      base: 0.40                        # Up from 0.32 - stronger grid influence
+      track_scale: 0.35                 # Unchanged - track difficulty still matters
+      min: 0.70                         # New - minimum anchor for normal races
+      sprint_min: 0.78                  # Kept - sprint races preserve grid more
+
+    final_blend:
+      overtaking_skill_scale: 1.0       # Down from 1.3 - reduce driver adjustment magnitude
+      race_advantage_scale: 0.8         # Down from 1.0 - moderate race pace impact
+      driver_skill_scale: 0.6           # Down from 0.7 - reduce skill adjustment
+      elite_driver_skill_threshold: 0.88
+      elite_driver_scale: 1.2           # Down from 1.6 - less extreme elite advantage
+      elite_driver_exponent: 1.35
+      max_driver_adjustment_positions: 1.5  # Down from 2.0 - cap position swings
+
+    # Pit strategy constraints
+    strategy_constraints:
+      min_pit_lap: 5                   # earliest lap for pit stop
+      max_pit_lap_from_end: 5          # don't pit in last N laps
+      min_laps_between_stops: 8        # minimum stint length (consecutive stops)
+
+      pit_lap_variance:
+        one_stop: 3.0                  # ±3 lap variance for 1-stop window
+        two_stop: 2.0                  # ±2 lap variance for 2-stop windows
+
+      strategy_optimality: 0.60        # 60% optimal, 40% suboptimal (realism)
+
   # Dashboard auto-capture settings for completed FP sessions
   practice_capture:
     new_weight: 0.35
     directionality_scale: 0.08
     session_aggregation: "laps_weighted"
     run_profile: "balanced"
+
+  # Compound characteristics blend weights
+  # How much to weight new session data vs existing compound data
+  compound_blend_weights:
+    # Practice sessions (exploratory, varied fuel loads)
+    practice: 0.30              # 30% new, 70% existing
+    # Sprint race (competitive but short)
+    sprint: 0.50                # 50% new, 50% existing
+    # Main race (most reliable, full commitment)
+    race: 0.70                  # 70% new, 30% existing
 
 # Testing
 testing:

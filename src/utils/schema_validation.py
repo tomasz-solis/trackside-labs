@@ -6,10 +6,10 @@ and track characteristics to prevent crashes from malformed JSON data.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any
 
 try:
-    from jsonschema import validate, ValidationError
+    from jsonschema import ValidationError, validate
 except ImportError:
     # Fallback if jsonschema not installed
     validate = None
@@ -196,7 +196,7 @@ TRACK_CHARACTERISTICS_SCHEMA = {
 # ============================================================================
 
 
-def validate_json(data: Dict[str, Any], schema: Dict[str, Any], filename: str) -> None:
+def validate_json(data: dict[str, Any], schema: dict[str, Any], filename: str) -> None:
     """
     Validate JSON data against schema using jsonschema library.
 
@@ -223,21 +223,21 @@ def validate_json(data: Dict[str, Any], schema: Dict[str, Any], filename: str) -
         raise ValueError(error_msg) from e
 
 
-def validate_driver_characteristics(data: Dict[str, Any]) -> None:
+def validate_driver_characteristics(data: dict[str, Any]) -> None:
     """
     Validate driver characteristics JSON.
     """
     validate_json(data, DRIVER_CHARACTERISTICS_SCHEMA, "driver_characteristics.json")
 
 
-def validate_team_characteristics(data: Dict[str, Any]) -> None:
+def validate_team_characteristics(data: dict[str, Any]) -> None:
     """
     Validate team characteristics JSON.
     """
     validate_json(data, TEAM_CHARACTERISTICS_SCHEMA, "team_characteristics.json")
 
 
-def validate_track_characteristics(data: Dict[str, Any]) -> None:
+def validate_track_characteristics(data: dict[str, Any]) -> None:
     """
     Validate track characteristics JSON.
     """

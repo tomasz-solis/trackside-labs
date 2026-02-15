@@ -56,6 +56,6 @@ notebooks/dirty_exploration/
 *.tmp
 *.log
 changes.txt
-htmlcov/
 *.ipynb_checkpoints/
 archive/
+.uv-cache/

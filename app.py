@@ -1,5 +1,5 @@
 """
-Streamlit Dashboard for F1 2026 Predictions
+Trackside Labs Streamlit Dashboard for F1 2026 Predictions
 
 Live race predictions with historical accuracy tracking.
 """
@@ -9,6 +9,7 @@ import logging
 import streamlit as st
 
 from src.dashboard import (
+    BRAND_NAME,
     configure_page,
     enable_fastf1_cache,
     render_global_styles,
@@ -29,8 +30,7 @@ render_header()
 page, enable_logging = render_sidebar()
 render_page(page, enable_logging)
 
-st.markdown("---")
 st.markdown(
-    '<div style="text-align:center; color: rgba(237,239,243,0.55); padding: 0.75rem 0;">Built with ❤️ for racing fans and data nerds</div>',
+    (f'<div class="brand-footer">{BRAND_NAME} | independent motorsport forecasting project</div>'),
     unsafe_allow_html=True,
 )

@@ -6,14 +6,27 @@ Current runtime path in the dashboard:
 
 ```text
 Streamlit UI (app.py)
-  -> auto_update_if_needed()
-  -> Baseline2026Predictor
-       -> weight_schedule.py
-       -> fp_blending.py (qualifying only)
+  -> src/dashboard/layout.py
+  -> src/dashboard/pages.py
+       -> src/dashboard/update_flow.py
+       -> src/dashboard/prediction_flow.py
+       -> Baseline2026Predictor
+            -> weight_schedule.py
+            -> fp_blending.py (qualifying only)
+       -> src/dashboard/rendering.py
   -> qualifying + race outputs
 ```
 
 `src/predictors/qualifying.py` and `src/predictors/race.py` are compatibility wrappers; they call the baseline predictor internally.
+
+## Dashboard Modules
+
+- `src/dashboard/cache.py`: FastF1 cache setup, file timestamp tracking, cached predictor loading.
+- `src/dashboard/layout.py`: page config, CSS/theme injection, header, sidebar controls.
+- `src/dashboard/pages.py`: per-page orchestration (live prediction, insights, accuracy, about).
+- `src/dashboard/prediction_flow.py`: cached weekend prediction cascade + ACTUAL/PREDICTED grid switching.
+- `src/dashboard/rendering.py`: qualifying/race result tables and race-specific visual sections.
+- `src/dashboard/update_flow.py`: auto-update hooks for completed races and FP practice capture.
 
 ## Core Components
 
@@ -145,3 +158,10 @@ File: `src/utils/weekend.py`
 
 - Bayesian ranking and learning modules still exist and are testable.
 - They are not the direct scoring path used by the dashboard’s baseline predictor flow.
+
+## Modularization Candidates (Next)
+
+To continue reducing file size without changing outputs:
+
+- `src/predictors/baseline_2026.py` (1495 lines)
+- `src/systems/testing_updater.py` (1260 lines)

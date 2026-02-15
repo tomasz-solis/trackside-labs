@@ -1,6 +1,6 @@
 # Weekend Prediction Flow
 
-This guide describes the current dashboard behavior in `app.py`.
+This guide describes the current dashboard behavior in `src/dashboard/pages.py` (entrypoint: `app.py`).
 
 ## Overview
 
@@ -42,7 +42,7 @@ Process:
 
 ## ACTUAL vs PREDICTED Grid Source
 
-Grid source is resolved in `fetch_grid_if_available()` in `app.py`.
+Grid source is resolved in `fetch_grid_if_available()` in `src/dashboard/prediction_flow.py`.
 
 - `ACTUAL`: completed competitive session results were fetched.
 - `PREDICTED`: no completed results available (or fetch failed), so model output is used.
@@ -77,7 +77,7 @@ Current sprint adjustments in baseline predictor:
 
 ## Prediction Tracking Integration
 
-When tracking is enabled in the sidebar:
+When tracking is enabled in the **⚙️ Settings** expander:
 
 - one prediction file is saved per detected completed session,
 - max one file per race/session key,

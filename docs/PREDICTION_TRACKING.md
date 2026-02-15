@@ -8,11 +8,11 @@ This system stores predictions by session and lets you attach actual results lat
 - Session detection: `src/utils/session_detector.py`
 - Metrics: `src/utils/prediction_metrics.py`
 - Update script: `scripts/update_prediction_actuals.py`
-- Dashboard usage: `app.py` (Prediction toggle + Accuracy page)
+- Dashboard usage: `src/dashboard/pages.py` (Prediction toggle + Accuracy page; entrypoint: `app.py`)
 
 ## How Saving Works
 
-1. Enable **Save Predictions for Accuracy Tracking** in the sidebar.
+1. Enable **Save Predictions for Accuracy Tracking** in the **⚙️ Settings** expander on the main page.
 2. Click **Generate Prediction**.
 3. App detects the latest completed session for the weekend type.
 4. If no prediction exists yet for that race/session key, it writes one JSON file.

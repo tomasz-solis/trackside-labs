@@ -6,7 +6,13 @@ This repository predicts F1 weekends for the 2026 season using a simulation-firs
 
 The Streamlit app and the main weekend flow use:
 
-- `app.py`
+- `app.py` (entrypoint)
+- `src/dashboard/cache.py`
+- `src/dashboard/layout.py`
+- `src/dashboard/pages.py`
+- `src/dashboard/prediction_flow.py`
+- `src/dashboard/rendering.py`
+- `src/dashboard/update_flow.py`
 - `src/predictors/baseline_2026.py` (`Baseline2026Predictor`)
 - `src/systems/weight_schedule.py`
 - `src/utils/fp_blending.py`
@@ -103,6 +109,13 @@ Testing cache defaults to `data/raw/.fastf1_cache_testing`.
 - Additional scripts and legacy-compatible interfaces
 
 These remain useful for experiments and extensions, but the app runtime path is the baseline predictor stack listed above.
+
+## Modularization Candidates (Next)
+
+Largest files still worth splitting while preserving behavior:
+
+- `src/predictors/baseline_2026.py` (prediction orchestration + race simulation assembly in one file)
+- `src/systems/testing_updater.py` (session loading, metrics extraction, and persistence combined)
 
 ## Documentation
 

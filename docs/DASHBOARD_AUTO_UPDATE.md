@@ -4,9 +4,9 @@ This guide explains what the app updates automatically and what still requires a
 
 ## Automatic During `Generate Prediction`
 
-When the user clicks **Generate Prediction** in `app.py`:
+When the user clicks **Generate Prediction** in `src/dashboard/pages.py` (called by `app.py`):
 
-1. `auto_update_if_needed()` checks for completed races not yet marked as learned.
+1. `auto_update_if_needed()` (in `src/dashboard/update_flow.py`) checks for completed races not yet marked as learned.
 2. If new races are found, it runs `auto_update_from_races()`.
 3. Characteristics are updated through `src/systems/updater.py`.
 4. Streamlit caches are cleared so the new data is used immediately.

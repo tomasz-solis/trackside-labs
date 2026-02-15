@@ -51,7 +51,7 @@ For each selected session:
 ## Where It Is Used
 
 - `src/predictors/baseline_2026.py` (`predict_qualifying`)
-- Dashboard qualifying outputs in `app.py`
+- Dashboard prediction flow in `src/dashboard/prediction_flow.py` (called from `src/dashboard/pages.py`)
 
 ## Where It Is Not Used Directly
 

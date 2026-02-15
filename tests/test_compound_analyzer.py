@@ -19,12 +19,13 @@ from src.systems.compound_analyzer import (
 @pytest.fixture
 def sample_team_laps():
     """Create sample lap data for testing."""
+    rng = np.random.default_rng(42)
     laps = []
     # Create 10 laps on SOFT compound with realistic degradation
     for lap_num in range(1, 11):
         base_time = 90.0
         deg = lap_num * 0.05  # 0.05s/lap degradation
-        noise = np.random.uniform(-0.2, 0.2)
+        noise = rng.uniform(-0.2, 0.2)
         lap_time = pd.Timedelta(seconds=base_time + deg + noise)
 
         laps.append(
@@ -45,7 +46,7 @@ def sample_team_laps():
     for lap_num in range(1, 10):
         base_time = 91.0
         deg = lap_num * 0.03
-        noise = np.random.uniform(-0.2, 0.2)
+        noise = rng.uniform(-0.2, 0.2)
         lap_time = pd.Timedelta(seconds=base_time + deg + noise)
 
         laps.append(

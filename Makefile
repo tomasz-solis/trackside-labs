@@ -1,9 +1,12 @@
+dev-sync:
+	uv sync --extra dev
+
 fmt:
-	ruff check src tests scripts app.py predict_weekend.py --fix
-	ruff format src tests scripts app.py predict_weekend.py
+	uv run --extra dev ruff check src tests scripts app.py predict_weekend.py --fix
+	uv run --extra dev ruff format src tests scripts app.py predict_weekend.py
 
 lint:
-	ruff check src tests scripts app.py predict_weekend.py
+	uv run --extra dev ruff check src tests scripts app.py predict_weekend.py
 
 test:
-	pytest -q
+	uv run --extra dev pytest -q

@@ -20,11 +20,7 @@ def get_supabase_client() -> Client:
     """
     Get or create Supabase client (singleton pattern).
 
-    Returns:
-        Supabase client instance
-
-    Raises:
-        RuntimeError: If DB storage not enabled or credentials missing
+    Raises RuntimeError if DB storage not enabled or credentials missing.
     """
     global _supabase_client
 
@@ -48,12 +44,7 @@ def get_supabase_client() -> Client:
 
 
 def check_connection() -> tuple[bool, str]:
-    """
-    Health check: Verify Supabase connection is working.
-
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
+    """Health check: Verify Supabase connection is working. Returns (success, message)."""
     try:
         client = get_supabase_client()
         # Quick health check: query for any artifact (limit 1)

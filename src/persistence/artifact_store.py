@@ -12,6 +12,7 @@ import json
 import logging
 import time
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -35,12 +36,7 @@ class ArtifactStore:
     """
 
     def __init__(self, data_root: str | Path = "data"):
-        """
-        Initialize artifact store.
-
-        Args:
-            data_root: Root directory for file-based storage
-        """
+        """Initialize artifact store with data_root for file-based storage."""
         self.data_root = Path(data_root)
         self.storage_mode = get_storage_mode()
         logger.info(f"ArtifactStore initialized with mode: {self.storage_mode}")
@@ -56,18 +52,7 @@ class ArtifactStore:
         """
         Save artifact to configured storage backend(s).
 
-        Args:
-            artifact_type: Type of artifact (e.g., 'car_characteristics', 'prediction')
-            artifact_key: Unique key within type (e.g., '2026::car_characteristics')
-            data: Artifact data (must be JSON-serializable)
-            version: Explicit version number (auto-increments if None)
-            run_id: Optional run ID for predictions (enables run-based versioning)
-
-        Returns:
-            Saved artifact metadata (includes id, version, timestamps)
-
-        Raises:
-            RuntimeError: If all writes fail
+        Raises RuntimeError if all writes fail. Returns saved artifact metadata.
         """
         start_time = time.time()
         file_success = db_success = False
@@ -137,18 +122,7 @@ class ArtifactStore:
         version: str | int = "latest",
         run_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """
-        Load artifact from configured storage backend(s).
-
-        Args:
-            artifact_type: Type of artifact
-            artifact_key: Unique key within type
-            version: Version to load ('latest' or specific version number)
-            run_id: Optional run ID to load specific prediction run
-
-        Returns:
-            Artifact data or None if not found
-        """
+        """Load artifact from configured storage backend(s). Returns data or None if not found."""
         start_time = time.time()
 
         # Try DB first if configured
@@ -184,17 +158,7 @@ class ArtifactStore:
         key_prefix: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """
-        List artifacts of given type.
-
-        Args:
-            artifact_type: Type to filter by
-            key_prefix: Optional prefix filter (e.g., '2026::Bahrain')
-            limit: Maximum number of results
-
-        Returns:
-            List of artifact metadata (sorted by created_at DESC)
-        """
+        """List artifacts of given type. Returns artifact metadata sorted by created_at DESC."""
         # Try DB first if configured
         if should_read_db_first():
             try:
@@ -206,16 +170,7 @@ class ArtifactStore:
         return self._list_files(artifact_type, key_prefix, limit)
 
     def get_latest_version(self, artifact_type: str, artifact_key: str) -> int:
-        """
-        Get the latest version number for an artifact.
-
-        Args:
-            artifact_type: Type of artifact
-            artifact_key: Unique key within type
-
-        Returns:
-            Latest version number (0 if artifact doesn't exist)
-        """
+        """Get the latest version number for an artifact. Returns 0 if artifact doesn't exist."""
         if should_read_db_first():
             try:
                 supabase = get_supabase_client()
@@ -310,10 +265,112 @@ class ArtifactStore:
         self, artifact_type: str, key_prefix: str | None, limit: int
     ) -> list[dict[str, Any]]:
         """List files (slow, fallback only)."""
-        # Simplified: just return empty list
-        # Full implementation would scan directories
-        logger.warning("File-based listing not implemented, use DB mode")
-        return []
+        base_path = self._get_file_listing_base_path(artifact_type)
+        candidates = self._iter_candidate_files(artifact_type, base_path)
+
+        rows: list[tuple[float, dict[str, Any]]] = []
+        for file_path in candidates:
+            if not file_path.exists() or not file_path.is_file():
+                continue
+
+            artifact_key = self._artifact_key_from_file_path(artifact_type, file_path, base_path)
+            if key_prefix and not artifact_key.startswith(key_prefix):
+                continue
+
+            try:
+                data = json.loads(file_path.read_text())
+            except Exception as exc:
+                logger.warning(f"Skipping unreadable artifact file {file_path}: {exc}")
+                continue
+
+            mtime = file_path.stat().st_mtime
+            rows.append(
+                (
+                    mtime,
+                    {
+                        "artifact_type": artifact_type,
+                        "artifact_key": artifact_key,
+                        "version": data.get("version") if isinstance(data, dict) else None,
+                        "run_id": data.get("run_id") if isinstance(data, dict) else None,
+                        "created_at": datetime.fromtimestamp(mtime, tz=UTC).isoformat(),
+                        "data": data,
+                    },
+                )
+            )
+
+        rows.sort(key=lambda item: item[0], reverse=True)
+        return [row for _, row in rows[:limit]]
+
+    def _get_file_listing_base_path(self, artifact_type: str) -> Path:
+        """Get base directory for file-based artifact listing."""
+        if artifact_type == "car_characteristics":
+            return self.data_root / "processed" / "car_characteristics"
+        if artifact_type == "driver_characteristics":
+            return self.data_root / "processed"
+        if artifact_type == "track_characteristics":
+            return self.data_root / "processed" / "track_characteristics"
+        if artifact_type == "learning_state":
+            return self.data_root
+        if artifact_type == "practice_state":
+            return self.data_root / "systems"
+        if artifact_type == "prediction":
+            return self.data_root / "predictions"
+        return self.data_root / artifact_type
+
+    def _iter_candidate_files(self, artifact_type: str, base_path: Path) -> list[Path]:
+        """Return candidate files for fallback listing."""
+        if artifact_type == "driver_characteristics":
+            return [base_path / "driver_characteristics.json"]
+        if artifact_type == "learning_state":
+            return [base_path / "learning_state.json"]
+        if artifact_type == "practice_state":
+            return [base_path / "practice_characteristics_state.json"]
+
+        if not base_path.exists():
+            return []
+
+        pattern = "*.json"
+        if artifact_type == "car_characteristics":
+            pattern = "*_car_characteristics.json"
+        elif artifact_type == "track_characteristics":
+            pattern = "*_track_characteristics.json"
+
+        return list(base_path.rglob(pattern))
+
+    def _artifact_key_from_file_path(
+        self, artifact_type: str, file_path: Path, base_path: Path
+    ) -> str:
+        """Derive artifact key from file path for file-based listing."""
+        if artifact_type == "car_characteristics":
+            year = file_path.stem.split("_")[0]
+            return f"{year}::car_characteristics"
+
+        if artifact_type == "driver_characteristics":
+            return "driver_characteristics"
+
+        if artifact_type == "track_characteristics":
+            year = file_path.stem.split("_")[0]
+            return f"{year}::track_characteristics"
+
+        if artifact_type == "learning_state":
+            return "learning_state"
+
+        if artifact_type == "practice_state":
+            return "practice_state"
+
+        if artifact_type == "prediction":
+            parts = file_path.relative_to(base_path).parts
+            if len(parts) >= 3:
+                year = parts[0]
+                race_slug = parts[-2]
+                session_fragment = Path(parts[-1]).stem
+                prefix = f"{race_slug}_"
+                if session_fragment.startswith(prefix):
+                    session_fragment = session_fragment[len(prefix) :]
+                return f"{year}::{race_slug}::{session_fragment}"
+
+        relative_stem = file_path.relative_to(base_path).with_suffix("")
+        return "::".join(relative_stem.parts)
 
     # Private methods: Database operations
 

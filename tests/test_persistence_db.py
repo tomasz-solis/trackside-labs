@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
+
+import src.persistence.db as db_module
+
+
+def test_get_supabase_client_raises_when_db_disabled(monkeypatch):
+    monkeypatch.setattr(db_module, "_supabase_client", None)
+    monkeypatch.setattr(db_module, "is_db_enabled", lambda: False)
+
+    with pytest.raises(RuntimeError, match="not enabled"):
+        db_module.get_supabase_client()
+
+
+def test_get_supabase_client_raises_when_credentials_missing(monkeypatch):
+    monkeypatch.setattr(db_module, "_supabase_client", None)
+    monkeypatch.setattr(db_module, "is_db_enabled", lambda: True)
+    monkeypatch.setattr(db_module, "SUPABASE_URL", None)
+    monkeypatch.setattr(db_module, "SUPABASE_KEY", None)
+
+    with pytest.raises(RuntimeError, match="environment variables must be set"):
+        db_module.get_supabase_client()
+
+
+def test_get_supabase_client_initializes_once(monkeypatch):
+    created = object()
+    create_client = MagicMock(return_value=created)
+
+    monkeypatch.setattr(db_module, "_supabase_client", None)
+    monkeypatch.setattr(db_module, "is_db_enabled", lambda: True)
+    monkeypatch.setattr(db_module, "SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setattr(db_module, "SUPABASE_KEY", "secret")
+    monkeypatch.setattr(db_module, "create_client", create_client)
+
+    first = db_module.get_supabase_client()
+    second = db_module.get_supabase_client()
+
+    assert first is created
+    assert second is created
+    create_client.assert_called_once_with("https://example.supabase.co", "secret")
+
+
+def test_get_supabase_client_wraps_creation_errors(monkeypatch):
+    monkeypatch.setattr(db_module, "_supabase_client", None)
+    monkeypatch.setattr(db_module, "is_db_enabled", lambda: True)
+    monkeypatch.setattr(db_module, "SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setattr(db_module, "SUPABASE_KEY", "secret")
+    monkeypatch.setattr(
+        db_module,
+        "create_client",
+        lambda url, key: (_ for _ in ()).throw(RuntimeError("connect fail")),
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to connect to Supabase"):
+        db_module.get_supabase_client()
+
+
+def test_check_connection_success(monkeypatch):
+    query = MagicMock()
+    query.select.return_value = query
+    query.limit.return_value = query
+    query.execute.return_value = SimpleNamespace(data=[{"id": 1}])
+
+    client = MagicMock()
+    client.table.return_value = query
+
+    monkeypatch.setattr(db_module, "get_supabase_client", lambda: client)
+
+    success, message = db_module.check_connection()
+
+    assert success is True
+    assert "healthy" in message
+
+
+def test_check_connection_failure(monkeypatch):
+    monkeypatch.setattr(
+        db_module,
+        "get_supabase_client",
+        lambda: (_ for _ in ()).throw(RuntimeError("auth failed")),
+    )
+
+    success, message = db_module.check_connection()
+
+    assert success is False
+    assert "auth failed" in message
+
+
+def test_close_client_resets_singleton(monkeypatch):
+    monkeypatch.setattr(db_module, "_supabase_client", object())
+    db_module.close_client()
+
+    assert db_module._supabase_client is None

@@ -24,7 +24,6 @@ from src.systems.compound_analyzer import (
     normalize_compound_metrics_across_teams,
 )
 from src.utils import config_loader
-from src.utils.file_operations import atomic_json_write
 from src.utils.team_mapping import map_team_to_characteristics
 
 logger = logging.getLogger(__name__)
@@ -270,10 +269,10 @@ def update_team_characteristics(
                         )
 
                 logger.info(
-                    f"✓ Updated compound characteristics for {len(normalized_compound_metrics)} teams"
+                    f"Updated compound characteristics for {len(normalized_compound_metrics)} teams"
                 )
     except Exception as exc:
-        logger.warning(f"⚠️  Failed to extract compound metrics from race: {exc}")
+        logger.warning(f"Failed to extract compound metrics from race: {exc}")
 
     # Update metadata
     char_data["last_updated"] = datetime.now().isoformat()
@@ -285,6 +284,14 @@ def update_team_characteristics(
     new_version = current_version + 1
     char_data["version"] = new_version
 
+    # Create backup of existing file before updating (always, for safety)
+    if characteristics_file.exists():
+        backup_file = Path(str(characteristics_file) + ".backup")
+        import shutil
+
+        shutil.copy2(characteristics_file, backup_file)
+        logger.debug(f"Created backup at {backup_file}")
+
     # Save via ArtifactStore (dual-write mode if configured)
     try:
         store.save_artifact(
@@ -293,11 +300,13 @@ def update_team_characteristics(
             data=char_data,
             version=new_version,
         )
-        logger.info(f"✓ Updated team characteristics (v{new_version}) via ArtifactStore")
+        logger.info(f"Updated team characteristics (v{new_version}) via ArtifactStore")
     except Exception as e:
         logger.error(f"ArtifactStore save failed: {e}, falling back to file")
-        atomic_json_write(characteristics_file, char_data, create_backup=True)
-        logger.info(f"✓ Updated team characteristics (v{new_version}) in {characteristics_file}")
+        # Don't create backup here since we already did above
+        with open(characteristics_file, "w") as f:
+            json.dump(char_data, f, indent=2)
+        logger.info(f"Updated team characteristics (v{new_version}) in {characteristics_file}")
 
 
 def update_bayesian_driver_ratings(race_results: pd.DataFrame) -> None:
@@ -311,14 +320,23 @@ def update_bayesian_driver_ratings(race_results: pd.DataFrame) -> None:
     priors = factory.create_priors()
 
     bayesian = BayesianDriverRanking(priors)
-    drivers = race_results["Abbreviation"].tolist()
-    positions = race_results["Position"].tolist()
-
-    for driver, position in zip(drivers, positions, strict=False):
+    observations: dict[str, int] = {}
+    for driver, position in zip(
+        race_results["Abbreviation"].tolist(),
+        race_results["Position"].tolist(),
+        strict=False,
+    ):
         if pd.notna(position):
-            bayesian.update(driver, int(position))
+            observations[str(driver)] = int(position)
 
-    logger.info(f"✓ Updated Bayesian ratings for {len(drivers)} drivers")
+    if not observations:
+        logger.warning("No valid race positions available for Bayesian rating update")
+        return
+
+    session_name = str(race_results.get("race_name", pd.Series(["Race"])).iloc[0])
+    bayesian.update(observations=observations, session_name=session_name, confidence=1.0)
+
+    logger.info(f"Updated Bayesian ratings for {len(observations)} drivers")
 
 
 def update_from_race(year: int, race_name: str, data_dir: str = "data/processed") -> None:
@@ -337,7 +355,7 @@ def update_from_race(year: int, race_name: str, data_dir: str = "data/processed"
 
     try:
         race_results, session = load_race_session(year, race_name)
-        logger.info(f"✓ Loaded results for {len(race_results)} drivers\n")
+        logger.info(f"Loaded results for {len(race_results)} drivers\n")
     except Exception as e:
         logger.error(f"Failed to load race results: {e}")
         logger.error("Make sure race has completed and data is available via FastF1")
@@ -354,7 +372,7 @@ def update_from_race(year: int, race_name: str, data_dir: str = "data/processed"
     update_bayesian_driver_ratings(race_results)
 
     logger.info("\n" + "=" * 60)
-    logger.info("✓ Race Update Complete!")
+    logger.info("Race update complete.")
     logger.info("=" * 60)
     logger.info("\nSystem learned from this race:")
     logger.info("- Team performance updated from telemetry")

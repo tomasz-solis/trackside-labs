@@ -5,8 +5,11 @@ Manual/explicit updater for testing and weekend practice telemetry.
 This script only runs when called directly.
 
 Examples:
+    # Preview only (default mode)
     python scripts/update_from_testing.py "Pre-Season Testing"
-    python scripts/update_from_testing.py "Bahrain Grand Prix" --sessions FP1 FP2 FP3
+    # Persist changes to car_characteristics JSON
+    python scripts/update_from_testing.py "Bahrain Grand Prix" --sessions FP1 FP2 FP3 --apply
+    # Explicit preview mode (equivalent to default)
     python scripts/update_from_testing.py "Pre-Season Testing" "Bahrain Grand Prix" --dry-run
     python scripts/update_from_testing.py "Testing 1" --session-aggregation laps_weighted
     python scripts/update_from_testing.py "Testing 1" --run-profile balanced
@@ -97,13 +100,25 @@ def main() -> None:
             "balanced blends short and long stint representatives."
         ),
     )
-    parser.add_argument(
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--apply",
+        action="store_true",
+        help=(
+            "Persist updates to characteristics file. By default the script runs in dry-run mode."
+        ),
+    )
+    mode_group.add_argument(
         "--dry-run",
         action="store_true",
-        help="Compute updates without writing characteristics file",
+        help="Preview updates without writing characteristics file (default mode)",
     )
 
     args = parser.parse_args()
+    dry_run = args.dry_run or not args.apply
+
+    if dry_run:
+        logger.info("Running in dry-run mode. Use --apply to write changes to disk.")
 
     try:
         summary = update_from_testing_sessions(
@@ -119,7 +134,7 @@ def main() -> None:
             directionality_scale=args.directionality_scale,
             session_aggregation=args.session_aggregation,
             run_profile=args.run_profile,
-            dry_run=args.dry_run,
+            dry_run=dry_run,
         )
     except Exception as exc:
         logger.error(f"Testing directionality update failed: {exc}")

@@ -257,15 +257,20 @@ class TestUpdaterEdgeCases:
         char_file = Path(temp_data_dir) / "car_characteristics" / "2026_car_characteristics.json"
         backup_file = Path(str(char_file) + ".backup")
 
-        with patch("src.systems.updater.load_race_session") as mock_load:
-            mock_load.return_value = (mock_race_results, mock_session)
+        # Mock Supabase to force file fallback (which creates backups)
+        with patch("src.persistence.db.get_supabase_client") as mock_supabase:
+            # Make Supabase fail so it falls back to file mode
+            mock_supabase.side_effect = RuntimeError("Supabase unavailable in test")
 
-            with patch(
-                "src.systems.updater.extract_team_performance_from_telemetry"
-            ) as mock_extract:
-                mock_extract.return_value = {"Red Bull": 0.95, "McLaren": 0.85}
+            with patch("src.systems.updater.load_race_session") as mock_load:
+                mock_load.return_value = (mock_race_results, mock_session)
 
-                update_from_race(2026, "Bahrain Grand Prix", temp_data_dir)
+                with patch(
+                    "src.systems.updater.extract_team_performance_from_telemetry"
+                ) as mock_extract:
+                    mock_extract.return_value = {"Red Bull": 0.95, "McLaren": 0.85}
+
+                    update_from_race(2026, "Bahrain Grand Prix", temp_data_dir)
 
         # Check backup exists
         assert backup_file.exists(), f"Backup file should be created at {backup_file}"
@@ -373,6 +378,30 @@ class TestUpdaterEdgeCases:
 
         assert "Red Bull Racing" in perf
         assert "Ferrari" in perf
+
+    def test_update_bayesian_driver_ratings_uses_observation_mapping(self):
+        """Bayesian updater should receive a full observations mapping, not per-driver scalars."""
+        from src.systems.updater import update_bayesian_driver_ratings
+
+        race_results = pd.DataFrame(
+            {
+                "Abbreviation": ["VER", "NOR", "PIA"],
+                "Position": [1, 2, pd.NA],
+                "race_name": ["Bahrain Grand Prix", "Bahrain Grand Prix", "Bahrain Grand Prix"],
+            }
+        )
+
+        with patch("src.models.priors_factory.PriorsFactory.create_priors", return_value={}) as _:
+            with patch("src.systems.updater.BayesianDriverRanking") as mock_bayesian_cls:
+                mock_bayesian = mock_bayesian_cls.return_value
+
+                update_bayesian_driver_ratings(race_results)
+
+        mock_bayesian.update.assert_called_once()
+        kwargs = mock_bayesian.update.call_args.kwargs
+        assert kwargs["observations"] == {"VER": 1, "NOR": 2}
+        assert kwargs["session_name"] == "Bahrain Grand Prix"
+        assert kwargs["confidence"] == 1.0
 
 
 if __name__ == "__main__":

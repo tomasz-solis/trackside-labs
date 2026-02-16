@@ -1,0 +1,258 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pandas as pd
+import pytest
+
+from src.systems import updater
+
+
+def _timedelta_seconds(value: float) -> pd.Timedelta:
+    return pd.to_timedelta(value, unit="s")
+
+
+def _write_characteristics_file(path: Path) -> None:
+    payload = {
+        "year": 2026,
+        "version": 1,
+        "races_completed": 0,
+        "teams": {
+            "Ferrari": {
+                "overall_performance": 0.8,
+                "directionality": {
+                    "max_speed": 0.0,
+                    "slow_corner_speed": 0.0,
+                    "medium_corner_speed": 0.0,
+                    "high_corner_speed": 0.0,
+                },
+                "uncertainty": 0.3,
+            }
+        },
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload))
+
+
+def test_load_race_session_enriches_results_and_uses_cache(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    results = pd.DataFrame({"Abbreviation": ["LEC"], "Position": [1]})
+    session = MagicMock()
+    session.results = results
+
+    enable_cache = MagicMock()
+    monkeypatch.setattr(updater.fastf1.Cache, "enable_cache", enable_cache)
+    monkeypatch.setattr(
+        updater.fastf1,
+        "get_session",
+        lambda year, race_name, session_name: session,
+    )
+
+    loaded_results, loaded_session = updater.load_race_session(2026, "Bahrain Grand Prix")
+
+    assert loaded_session is session
+    assert list(loaded_results["race_name"].unique()) == ["Bahrain Grand Prix"]
+    assert list(loaded_results["year"].unique()) == [2026]
+    enable_cache.assert_called_once_with("data/raw/.fastf1_cache")
+    session.load.assert_called_once_with(laps=True, telemetry=False, weather=False)
+
+
+def test_extract_team_performance_missing_laps_or_team_column():
+    session_no_laps = SimpleNamespace(laps=pd.DataFrame())
+    assert updater.extract_team_performance_from_telemetry(session_no_laps, ["Ferrari"]) == {}
+
+    session_no_team_column = SimpleNamespace(
+        laps=pd.DataFrame(
+            {
+                "LapTime": [_timedelta_seconds(90), _timedelta_seconds(91)],
+                "LapNumber": [2, 3],
+            }
+        )
+    )
+    assert (
+        updater.extract_team_performance_from_telemetry(session_no_team_column, ["Ferrari"]) == {}
+    )
+
+
+def test_extract_team_performance_equal_pace_and_missing_team(monkeypatch):
+    rows = []
+    for team in ("Ferrari", "McLaren"):
+        for lap in range(2, 9):
+            rows.append(
+                {
+                    "Team": team,
+                    "LapTime": _timedelta_seconds(90),
+                    "PitOutTime": pd.NaT,
+                    "PitInTime": pd.NaT,
+                    "LapNumber": lap,
+                }
+            )
+
+    session = SimpleNamespace(laps=pd.DataFrame(rows))
+    monkeypatch.setattr(updater, "map_team_to_characteristics", lambda raw, known_teams: str(raw))
+
+    result = updater.extract_team_performance_from_telemetry(
+        session,
+        ["Ferrari", "McLaren", "Red Bull"],
+    )
+
+    assert result["Ferrari"] == 0.5
+    assert result["McLaren"] == 0.5
+    assert "Red Bull" not in result
+
+
+def test_extract_team_performance_skips_insufficient_valid_laps(monkeypatch):
+    laps = pd.DataFrame(
+        {
+            "Team": ["Ferrari"] * 4,
+            "LapTime": [
+                _timedelta_seconds(90),
+                _timedelta_seconds(91),
+                _timedelta_seconds(92),
+                _timedelta_seconds(93),
+            ],
+            "PitOutTime": [pd.NaT] * 4,
+            "PitInTime": [pd.NaT] * 4,
+            "LapNumber": [2, 3, 4, 5],
+        }
+    )
+    session = SimpleNamespace(laps=laps)
+    monkeypatch.setattr(updater, "map_team_to_characteristics", lambda raw, known_teams: str(raw))
+
+    result = updater.extract_team_performance_from_telemetry(session, ["Ferrari"])
+    assert result == {}
+
+
+def test_update_team_characteristics_position_fallback_and_file_save(monkeypatch, tmp_path):
+    characteristics_file = (
+        tmp_path / "processed" / "car_characteristics" / "2026_car_characteristics.json"
+    )
+    _write_characteristics_file(characteristics_file)
+
+    class FailingStore:
+        def __init__(self, data_root):
+            self.data_root = data_root
+
+        def load_artifact(self, artifact_type, artifact_key):
+            return None
+
+        def save_artifact(self, artifact_type, artifact_key, data, version):
+            raise RuntimeError("db save failed")
+
+    monkeypatch.setattr(updater, "ArtifactStore", FailingStore)
+    monkeypatch.setattr(
+        updater, "extract_team_performance_from_telemetry", lambda session, team_names: {}
+    )
+    monkeypatch.setattr(updater, "map_team_to_characteristics", lambda raw, known_teams: str(raw))
+
+    race_results = pd.DataFrame({"TeamName": ["Ferrari"], "Position": [2]})
+    session = SimpleNamespace(event=None, name="Race Session", laps=pd.DataFrame())
+
+    updater.update_team_characteristics(race_results, session, characteristics_file)
+
+    saved = json.loads(characteristics_file.read_text())
+    ferrari = saved["teams"]["Ferrari"]
+    assert ferrari["current_season_performance"]
+    assert ferrari["races_completed"] == 1
+    assert saved["version"] == 2
+    assert saved["data_freshness"] == "LIVE_UPDATED"
+    assert Path(str(characteristics_file) + ".backup").exists()
+
+
+def test_update_team_characteristics_handles_compound_extraction_failure(monkeypatch, tmp_path):
+    characteristics_file = (
+        tmp_path / "processed" / "car_characteristics" / "2026_car_characteristics.json"
+    )
+    _write_characteristics_file(characteristics_file)
+
+    payload = json.loads(characteristics_file.read_text())
+
+    class Store:
+        def __init__(self, data_root):
+            self.saved = False
+
+        def load_artifact(self, artifact_type, artifact_key):
+            return payload
+
+        def save_artifact(self, artifact_type, artifact_key, data, version):
+            self.saved = True
+
+    store = Store(data_root=tmp_path)
+    monkeypatch.setattr(updater, "ArtifactStore", lambda data_root: store)
+    monkeypatch.setattr(
+        updater,
+        "extract_team_performance_from_telemetry",
+        lambda session, team_names: {"Ferrari": 0.8},
+    )
+    monkeypatch.setattr(updater, "map_team_to_characteristics", lambda raw, known_teams: "Ferrari")
+    monkeypatch.setattr(
+        updater,
+        "extract_compound_metrics",
+        lambda team_laps, canonical_team, race_name: (_ for _ in ()).throw(
+            RuntimeError("bad compound")
+        ),
+    )
+
+    session = SimpleNamespace(
+        event={"EventName": "Bahrain Grand Prix"},
+        laps=pd.DataFrame(
+            {
+                "Team": ["Ferrari"],
+                "LapTime": [_timedelta_seconds(90)],
+            }
+        ),
+    )
+
+    updater.update_team_characteristics(
+        pd.DataFrame({"TeamName": ["Ferrari"], "Position": [1]}), session, characteristics_file
+    )
+
+    assert store.saved is True
+
+
+def test_update_bayesian_driver_ratings_skips_when_no_valid_positions(monkeypatch):
+    race_results = pd.DataFrame({"Abbreviation": ["LEC"], "Position": [pd.NA]})
+
+    bayesian_cls = MagicMock()
+    monkeypatch.setattr(updater, "BayesianDriverRanking", bayesian_cls)
+    monkeypatch.setattr("src.models.priors_factory.PriorsFactory.create_priors", lambda self: {})
+
+    updater.update_bayesian_driver_ratings(race_results)
+
+    bayesian_cls.return_value.update.assert_not_called()
+
+
+def test_update_from_race_skips_team_update_when_characteristics_missing(monkeypatch, tmp_path):
+    data_dir = tmp_path / "processed"
+    (data_dir / "car_characteristics").mkdir(parents=True)
+
+    race_results = pd.DataFrame({"Abbreviation": ["LEC"], "Position": [1]})
+    session = SimpleNamespace(name="Race")
+
+    monkeypatch.setattr(
+        updater, "load_race_session", lambda year, race_name: (race_results, session)
+    )
+    team_update = MagicMock()
+    bayesian_update = MagicMock()
+    monkeypatch.setattr(updater, "update_team_characteristics", team_update)
+    monkeypatch.setattr(updater, "update_bayesian_driver_ratings", bayesian_update)
+
+    updater.update_from_race(2026, "Bahrain Grand Prix", str(data_dir))
+
+    team_update.assert_not_called()
+    bayesian_update.assert_called_once_with(race_results)
+
+
+def test_update_from_race_reraises_load_errors(monkeypatch):
+    monkeypatch.setattr(
+        updater,
+        "load_race_session",
+        lambda year, race_name: (_ for _ in ()).throw(RuntimeError("load failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="load failed"):
+        updater.update_from_race(2026, "Bahrain Grand Prix")

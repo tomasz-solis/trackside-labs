@@ -526,3 +526,80 @@ def test_update_from_testing_sessions_suggests_fresh_cache_on_data_not_loaded(
 
     assert "Likely cache issue" in message
     assert "--force-renew-cache" in message
+
+
+def test_update_from_testing_sessions_uses_session_event_name_for_compounds(tmp_path, monkeypatch):
+    from src.systems import testing_updater
+
+    data_dir = tmp_path / "data" / "processed" / "car_characteristics"
+    data_dir.mkdir(parents=True)
+    (data_dir / "2026_car_characteristics.json").write_text(
+        json.dumps(
+            {
+                "teams": {
+                    "McLaren": {
+                        "directionality": {
+                            "max_speed": 0.0,
+                            "slow_corner_speed": 0.0,
+                            "medium_corner_speed": 0.0,
+                            "high_corner_speed": 0.0,
+                        },
+                        "testing_characteristics": {},
+                        "compound_characteristics": {},
+                    }
+                }
+            }
+        )
+    )
+
+    class DummySession:
+        def __init__(self):
+            self.laps = pd.DataFrame(
+                {
+                    "Team": ["McLaren", "McLaren"],
+                    "LapTime": [pd.to_timedelta("0:01:30"), pd.to_timedelta("0:01:31")],
+                }
+            )
+
+    def _mock_load_sessions_for_event(**kwargs):
+        return [("Day 1", DummySession())]
+
+    monkeypatch.setattr(testing_updater, "_load_sessions_for_event", _mock_load_sessions_for_event)
+    monkeypatch.setattr(
+        testing_updater,
+        "_collect_session_metrics",
+        lambda **kwargs: ({"McLaren": {"overall_pace": 0.7}}, {}),
+    )
+    monkeypatch.setattr(
+        testing_updater,
+        "_count_team_selected_laps",
+        lambda session, known_teams, run_profile: {"McLaren": 10.0},
+    )
+    monkeypatch.setattr(
+        testing_updater,
+        "extract_compound_metrics",
+        lambda team_laps, canonical_team, race_name: {"SOFT": {"laps_sampled": 10}},
+    )
+    monkeypatch.setattr(
+        testing_updater,
+        "normalize_compound_metrics_across_teams",
+        lambda metrics, race_name: {"McLaren": {"SOFT": {"laps_sampled": 10}}},
+    )
+
+    race_names = []
+
+    def _capture_aggregate(existing, new, blend_weight, race_name):
+        race_names.append(race_name)
+        return new
+
+    monkeypatch.setattr(testing_updater, "aggregate_compound_samples", _capture_aggregate)
+
+    summary = testing_updater.update_from_testing_sessions(
+        year=2026,
+        events=["Event One", "Event Two"],
+        data_dir=str(tmp_path / "data" / "processed"),
+        dry_run=True,
+    )
+
+    assert summary["updated_teams"] == ["McLaren"]
+    assert race_names == ["Event One", "Event Two"]

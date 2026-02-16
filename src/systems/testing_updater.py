@@ -351,8 +351,9 @@ def _filter_valid_laps(team_laps: pd.DataFrame) -> pd.DataFrame:
     # Enforce this only when explicit True rows exist.
     if "IsAccurate" in team_laps.columns:
         accurate = team_laps["IsAccurate"]
-        if accurate.notna().any() and bool(accurate.fillna(False).any()):
-            mask &= accurate.fillna(False)
+        accurate_true = accurate.eq(True)
+        if accurate.notna().any() and bool(accurate_true.any()):
+            mask &= accurate_true
 
     return team_laps[mask].copy()
 
@@ -936,7 +937,7 @@ def update_from_testing_sessions(
     discovered_sessions = []
     load_errors: list[str] = []
     extraction_diagnostics: list[str] = []
-    compound_metrics_by_session: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
+    compound_metrics_by_session: dict[str, tuple[str, dict[str, dict[str, dict[str, float]]]]] = {}
 
     for event_name in events:
         event_sessions = _load_sessions_for_event(
@@ -1038,7 +1039,10 @@ def update_from_testing_sessions(
                         normalized_compound_metrics = normalize_compound_metrics_across_teams(
                             session_compound_metrics, event_name
                         )
-                        compound_metrics_by_session[session_id] = normalized_compound_metrics
+                        compound_metrics_by_session[session_id] = (
+                            event_name,
+                            normalized_compound_metrics,
+                        )
                         logger.debug(
                             f"  Extracted compound metrics for {len(normalized_compound_metrics)} teams"
                         )
@@ -1199,7 +1203,8 @@ def update_from_testing_sessions(
             existing_compound_chars = {}
 
         # Aggregate compound metrics from all sessions
-        for _session_id, session_compounds in compound_metrics_by_session.items():
+        for _session_id, session_payload in compound_metrics_by_session.items():
+            session_event_name, session_compounds = session_payload
             if team_name in session_compounds:
                 new_compound_data = session_compounds[team_name]
                 # Blend with existing data
@@ -1207,7 +1212,7 @@ def update_from_testing_sessions(
                     existing_compound_chars,
                     new_compound_data,
                     blend_weight=new_weight,
-                    race_name=event_name,
+                    race_name=session_event_name,
                 )
 
         # Update last_updated timestamp for each compound
@@ -1241,6 +1246,14 @@ def update_from_testing_sessions(
     }
 
     if not dry_run:
+        current_version = characteristics.get("version", 0)
+        try:
+            current_version = int(current_version)
+        except (TypeError, ValueError):
+            current_version = 0
+
+        characteristics["last_updated"] = now_iso
+        characteristics["version"] = current_version + 1
         atomic_json_write(characteristics_file, characteristics, create_backup=True)
 
     return {

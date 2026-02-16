@@ -72,17 +72,28 @@ def get_completed_races(year: int = 2026) -> list[str]:
 
                 if event_date.to_pydatetime() < now:
                     race_name = event["EventName"]
-                    # Try to load race session to confirm data is available
+                    # Try to load session metadata to confirm data is available.
                     try:
                         session = fastf1.get_session(year, race_name, "R")
-                        if session is not None:
-                            completed.append(race_name)
+                        if session is None:
+                            continue
+                        session.load(laps=False, telemetry=False, weather=False, messages=False)
+                        results = getattr(session, "results", None)
+                        if results is None:
+                            continue
+                        try:
+                            if len(results) == 0:
+                                continue
+                        except TypeError:
+                            pass
+                        completed.append(race_name)
                     except (
                         ValueError,
                         KeyError,
                         AttributeError,
                         TypeError,
                         FileNotFoundError,
+                        RuntimeError,
                     ) as e:
                         logger.debug(f"Race {race_name} not available yet: {e}")
                         continue  # Race not available yet
@@ -127,7 +138,7 @@ def auto_update_from_races(progress_callback=None) -> int:
     needs_update_flag, new_races = needs_update()
 
     if not needs_update_flag:
-        logger.info("✓ All completed races already learned from - data is fresh!")
+        logger.info("All completed races have already been learned from.")
         return 0
 
     logger.info(f"Found {len(new_races)} new race(s) to learn from: {new_races}")
@@ -151,14 +162,14 @@ def auto_update_from_races(progress_callback=None) -> int:
             mark_race_as_learned(race_name)
 
             updated_count += 1
-            logger.info(f"  ✓ Successfully learned from {race_name}")
+            logger.info(f"  Learned from {race_name}")
 
         except Exception as e:
-            logger.warning(f"  ⚠️  Could not update from {race_name}: {e}")
+            logger.warning(f"  Could not update from {race_name}: {e}")
             # Continue with other races even if one fails
 
     if updated_count > 0:
-        logger.info(f"✓ Updated from {updated_count} race(s) - data is now fresher!")
+        logger.info(f"Updated from {updated_count} race(s).")
 
     return updated_count
 

@@ -211,9 +211,11 @@ def render_live_prediction_page(enable_logging: bool) -> None:
                         f"continuing with current data ({practice_exc})"
                     )
 
+                st.info("Running simulation (cached results will load instantly)...")
+
+                # Capture timestamps AFTER all updates to ensure cache invalidation works correctly
                 timestamps = get_data_file_timestamps()
 
-                st.info("Running simulation (cached results will load instantly)...")
                 prediction_results = run_prediction(race_name, weather, timestamps, is_sprint)
 
                 _save_prediction_if_enabled(

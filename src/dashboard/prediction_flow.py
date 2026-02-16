@@ -13,11 +13,7 @@ def fetch_grid_if_available(
     session_name: str,
     predicted_grid: list,
 ) -> tuple:
-    """
-    Fetch actual grid if session completed, otherwise use predicted grid.
-
-    Returns: (grid, grid_source) where grid_source is "ACTUAL" or "PREDICTED".
-    """
+    """Fetch actual grid if session completed, otherwise use predicted grid."""
     from src.utils.actual_results_fetcher import (
         fetch_actual_session_results,
         is_competitive_session_completed,
@@ -41,13 +37,7 @@ def run_prediction(
     _timestamps: dict[str, float],
     is_sprint: bool = False,
 ) -> dict:
-    """
-    Run full weekend cascade prediction with caching.
-
-    Returns dict with:
-    - Normal weekend: {"qualifying": {...}, "race": {...}}
-    - Sprint weekend: {"sprint_quali": {...}, "sprint_race": {...}, "main_quali": {...}, "main_race": {...}}
-    """
+    """Run full weekend cascade prediction with caching."""
     valid_weather = ["dry", "rain", "mixed"]
     if weather not in valid_weather:
         raise ValueError(f"Weather must be one of {valid_weather}, got '{weather}'")

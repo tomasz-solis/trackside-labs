@@ -5,18 +5,21 @@ import logging
 import fastf1
 import streamlit as st
 
+from src.utils.weekend import is_sprint_weekend
+
 from .cache import get_artifact_versions
 from .prediction_flow import run_prediction
 from .rendering import display_prediction_result
 from .update_flow import auto_update_if_needed, auto_update_practice_characteristics_if_needed
 
 logger = logging.getLogger(__name__)
+DEFAULT_SEASON = 2026
 
 
 def _load_race_options() -> list[str]:
     """Load race options from FastF1 schedule with sprint labels."""
     try:
-        schedule = fastf1.get_event_schedule(2026)
+        schedule = fastf1.get_event_schedule(DEFAULT_SEASON)
         race_events = schedule[
             (schedule["EventFormat"].notna())
             & (~schedule["EventName"].str.contains("Testing", case=False, na=False))
@@ -33,7 +36,7 @@ def _load_race_options() -> list[str]:
 
         return race_options
     except Exception as e:
-        st.error(f"Failed to load 2026 calendar: {e}")
+        st.error(f"Failed to load {DEFAULT_SEASON} calendar: {e}")
         return [
             "Bahrain Grand Prix",
             "Saudi Arabian Grand Prix",
@@ -50,6 +53,7 @@ def _save_prediction_if_enabled(
     is_sprint: bool,
     race_name: str,
     weather: str,
+    year: int = DEFAULT_SEASON,
 ) -> None:
     if not enable_logging:
         return
@@ -60,10 +64,10 @@ def _save_prediction_if_enabled(
     detector = SessionDetector()
     logger_inst = PredictionLogger()
 
-    latest_session = detector.get_latest_completed_session(2026, race_name, is_sprint)
+    latest_session = detector.get_latest_completed_session(year, race_name, is_sprint)
 
     if latest_session:
-        if not logger_inst.has_prediction_for_session(2026, race_name, latest_session):
+        if not logger_inst.has_prediction_for_session(year, race_name, latest_session):
             try:
                 if is_sprint:
                     quali_grid = prediction_results["main_quali"]["grid"]
@@ -79,7 +83,7 @@ def _save_prediction_if_enabled(
                     )
 
                 logger_inst.save_prediction(
-                    year=2026,
+                    year=year,
                     race_name=race_name,
                     session_name=latest_session,
                     qualifying_prediction=quali_grid,
@@ -87,28 +91,26 @@ def _save_prediction_if_enabled(
                     weather=weather,
                     fp_blend_info=fp_blend_info,
                 )
-                st.info(f"📊 Prediction saved for accuracy tracking (after {latest_session})")
+                st.info(f"Prediction saved for accuracy tracking (after {latest_session})")
             except Exception as e:
                 st.warning(f"Could not save prediction: {e}")
         else:
-            st.info(f"ℹ️ Prediction for {latest_session} already saved (max 1 per session)")
+            st.info(f"Prediction for {latest_session} already saved (max 1 per session)")
     else:
-        st.info(
-            "ℹ️ No completed sessions yet - prediction not saved (will save after FP1/FP2/FP3/SQ)"
-        )
+        st.info("No completed sessions yet; prediction not saved (will save after FP1/FP2/FP3/SQ)")
 
 
 def _render_prediction_results(prediction_results: dict, is_sprint: bool) -> None:
     first_result = list(prediction_results.values())[0]
     timing = first_result.get("timing", {})
     if timing:
-        st.success(f"✅ Predictions complete in {timing['total']:.2f}s")
+        st.success(f"Predictions complete in {timing['total']:.2f}s")
     else:
-        st.success("✅ Predictions complete!")
+        st.success("Predictions complete.")
 
     if is_sprint:
         st.markdown("---")
-        st.header("🏃 Sprint Weekend Cascade")
+        st.header("Sprint Weekend Cascade")
         st.info("Full weekend flow: Sprint Qualifying → Sprint Race → Main Qualifying → Main Race")
 
         display_prediction_result(
@@ -133,7 +135,7 @@ def _render_prediction_results(prediction_results: dict, is_sprint: bool) -> Non
         )
     else:
         st.markdown("---")
-        st.header("🏁 Normal Weekend Cascade")
+        st.header("Normal Weekend Cascade")
         st.info("Weekend flow: Qualifying → Race")
 
         display_prediction_result(
@@ -146,6 +148,49 @@ def _render_prediction_results(prediction_results: dict, is_sprint: bool) -> Non
             "Race Prediction",
             is_race=True,
         )
+
+
+def execute_live_prediction_pipeline(
+    race_name: str,
+    weather: str,
+    year: int = DEFAULT_SEASON,
+) -> dict:
+    """
+    Refresh input data and execute a prediction run.
+
+    Kept separate from Streamlit rendering so tests can assert refresh call order.
+    """
+    auto_update_if_needed()
+
+    is_sprint = is_sprint_weekend(year, race_name)
+
+    practice_update = auto_update_practice_characteristics_if_needed(
+        year=year,
+        race_name=race_name,
+        is_sprint=is_sprint,
+    )
+
+    # Ensure same-click freshness when practice updates write new characteristics.
+    if practice_update.get("updated"):
+        st.cache_resource.clear()
+        st.cache_data.clear()
+
+    # Capture versions after updates so cache invalidation keys include latest writes.
+    artifact_versions = get_artifact_versions()
+    prediction_results = run_prediction(
+        race_name,
+        weather,
+        artifact_versions,
+        is_sprint=is_sprint,
+        year=year,
+    )
+
+    return {
+        "prediction_results": prediction_results,
+        "is_sprint": is_sprint,
+        "practice_update": practice_update,
+        "practice_update_error": None,
+    }
 
 
 def render_live_prediction_page(enable_logging: bool) -> None:
@@ -164,61 +209,40 @@ def render_live_prediction_page(enable_logging: bool) -> None:
         weather = st.selectbox("Weather Forecast", ["dry", "rain", "mixed"])
 
     if st.button("Generate Prediction", type="primary"):
-        auto_update_if_needed()
-
         with st.spinner("Running simulation..."):
             try:
-                from src.utils.weekend import is_sprint_weekend
+                pipeline_output = execute_live_prediction_pipeline(
+                    race_name=race_name,
+                    weather=weather,
+                    year=DEFAULT_SEASON,
+                )
+                prediction_results = pipeline_output["prediction_results"]
+                is_sprint = bool(pipeline_output["is_sprint"])
+                practice_update = pipeline_output["practice_update"]
 
-                try:
-                    is_sprint = is_sprint_weekend(2026, race_name)
-                except (ValueError, KeyError, FileNotFoundError) as e:
-                    logger.warning(f"Could not determine sprint weekend status: {e}")
-                    is_sprint = False
-
-                st.warning("⚠️ 2026 regulation reset - predictions uncertain until races complete")
+                st.warning("2026 regulation reset: predictions are uncertain until races complete.")
 
                 if is_sprint:
                     st.info(
-                        "🏃 **Sprint Weekend** - System predicts Sprint Qualifying (Friday) → "
-                        "Sprint Race (Saturday) → Sunday Qualifying → Sunday Race. "
+                        "**Sprint Weekend** - System predicts Sprint Qualifying (Friday) → "
+                        "Sprint Race (Saturday) → Main Qualifying (Saturday) → Main Race (Sunday). "
                         "Sprint predictions use adjusted chaos modeling "
                         "(30% less variance, grid position +10% importance)."
                     )
 
-                try:
-                    practice_update = auto_update_practice_characteristics_if_needed(
-                        year=2026,
-                        race_name=race_name,
-                        is_sprint=is_sprint,
+                if practice_update.get("updated"):
+                    st.success(
+                        "Updated car characteristics from completed practice sessions: "
+                        f"{', '.join(practice_update['completed_fp_sessions'])} "
+                        f"({practice_update['teams_updated']} teams)"
                     )
-                    if practice_update.get("updated"):
-                        st.success(
-                            "✅ Updated car characteristics from completed practice sessions: "
-                            f"{', '.join(practice_update['completed_fp_sessions'])} "
-                            f"({practice_update['teams_updated']} teams)"
-                        )
-                        st.cache_resource.clear()
-                        st.cache_data.clear()
-                    elif practice_update.get("completed_fp_sessions"):
-                        st.info(
-                            "ℹ️ Practice characteristics already up to date for sessions: "
-                            f"{', '.join(practice_update['completed_fp_sessions'])}"
-                        )
-                except Exception as practice_exc:
-                    st.warning(
-                        "⚠️ Could not update practice characteristics automatically; "
-                        f"continuing with current data ({practice_exc})"
+                elif practice_update.get("completed_fp_sessions"):
+                    st.info(
+                        "Practice characteristics already up to date for sessions: "
+                        f"{', '.join(practice_update['completed_fp_sessions'])}"
                     )
 
-                st.info("Running simulation (cached results will load instantly)...")
-
-                # Capture artifact versions AFTER all updates to ensure cache invalidation works correctly
-                artifact_versions = get_artifact_versions()
-
-                prediction_results = run_prediction(
-                    race_name, weather, artifact_versions, is_sprint
-                )
+                st.info("Running simulation with fresh session checks...")
 
                 _save_prediction_if_enabled(
                     enable_logging=enable_logging,
@@ -226,6 +250,7 @@ def render_live_prediction_page(enable_logging: bool) -> None:
                     is_sprint=is_sprint,
                     race_name=race_name,
                     weather=weather,
+                    year=DEFAULT_SEASON,
                 )
 
                 _render_prediction_results(prediction_results, is_sprint)
@@ -297,7 +322,7 @@ def render_model_insights_page() -> None:
 
 
 def render_prediction_accuracy_page() -> None:
-    st.header("📊 Prediction Accuracy Tracker")
+    st.header("Prediction Accuracy Tracker")
 
     from src.utils.prediction_logger import PredictionLogger
     from src.utils.prediction_metrics import PredictionMetrics
@@ -305,7 +330,7 @@ def render_prediction_accuracy_page() -> None:
     logger_inst = PredictionLogger()
     metrics_calc = PredictionMetrics()
 
-    all_predictions = logger_inst.get_all_predictions(2026)
+    all_predictions = logger_inst.get_all_predictions(DEFAULT_SEASON)
 
     if not all_predictions:
         st.info(
@@ -324,7 +349,7 @@ def render_prediction_accuracy_page() -> None:
 
     if predictions_with_actuals:
         st.markdown("---")
-        st.subheader("📈 Overall Accuracy")
+        st.subheader("Overall Accuracy")
 
         agg_metrics = metrics_calc.aggregate_metrics(predictions_with_actuals)
 
@@ -381,7 +406,7 @@ def render_prediction_accuracy_page() -> None:
                 )
 
         st.markdown("---")
-        st.subheader("🎯 Per-Race Breakdown")
+        st.subheader("Per-Race Breakdown")
 
         for pred in predictions_with_actuals:
             metrics = metrics_calc.calculate_all_metrics(pred)
@@ -409,7 +434,7 @@ def render_prediction_accuracy_page() -> None:
                             st.write(f"- MAE: {r['mae']:.2f} positions")
                             st.write(f"- Within ±3: {r['within_3']:.1f}%")
                             st.write(
-                                f"- Winner: {'✅ Correct' if r['winner_correct'] else '❌ Wrong'}"
+                                f"- Winner: {'Correct' if r['winner_correct'] else 'Incorrect'}"
                             )
                             st.write(
                                 f"- Podium: {r['podium']['correct_drivers']}/3 drivers correct"
@@ -421,7 +446,7 @@ def render_prediction_accuracy_page() -> None:
         )
 
     st.markdown("---")
-    st.subheader("📋 All Saved Predictions")
+    st.subheader("All Saved Predictions")
 
     for pred in all_predictions:
         metadata = pred["metadata"]
@@ -432,10 +457,8 @@ def render_prediction_accuracy_page() -> None:
             and (pred["actuals"].get("qualifying") or pred["actuals"].get("race"))
         )
 
-        status_icon = "✅" if has_actuals else "⏳"
         status_text = "Results added" if has_actuals else "Awaiting results"
-
-        st.write(f"{status_icon} **{race_name}** (after {session_name}) - {status_text}")
+        st.write(f"**{race_name}** (after {session_name}) - {status_text}")
 
 
 def render_about_page() -> None:

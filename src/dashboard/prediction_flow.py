@@ -1,10 +1,11 @@
-"""Dashboard prediction orchestration and result caching."""
+"""Dashboard prediction orchestration."""
 
+import logging
 import time
 
-import streamlit as st
-
 from .cache import get_predictor
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_grid_if_available(
@@ -12,36 +13,43 @@ def fetch_grid_if_available(
     race_name: str,
     session_name: str,
     predicted_grid: list,
-) -> tuple:
+) -> tuple[list, str]:
     """Fetch actual grid if session completed, otherwise use predicted grid."""
     from src.utils.actual_results_fetcher import (
         fetch_actual_session_results,
         is_competitive_session_completed,
     )
 
+    logger.info(f"Checking grid for {session_name} at {race_name} ({year})")
+
     if is_competitive_session_completed(year, race_name, session_name):
+        logger.info(f"{session_name} is completed, fetching actual grid from FastF1")
         actual_grid = fetch_actual_session_results(year, race_name, session_name)
         if actual_grid:
+            logger.info(
+                f"Using actual {session_name} grid from FastF1 ({len(actual_grid)} drivers)"
+            )
             return actual_grid, "ACTUAL"
+        raise RuntimeError(
+            f"FastF1 returned no {session_name} results for completed session at "
+            f"{race_name} {year}; refusing to fall back to predicted grid."
+        )
+    else:
+        logger.info(f"{session_name} not completed yet, using predicted grid")
+        return predicted_grid, "PREDICTED"
 
-    return predicted_grid, "PREDICTED"
 
-
-@st.cache_data(
-    ttl=3600,
-    show_spinner=False,
-)
 def run_prediction(
     race_name: str,
     weather: str,
     _artifact_versions: dict[str, tuple[int, str]],
     is_sprint: bool = False,
+    year: int = 2026,
 ) -> dict:
     """
-    Run full weekend cascade prediction with caching.
+    Run full weekend cascade prediction.
 
-    Cache invalidates when artifact versions change (DB-backed artifacts)
-    or file timestamps change (config, code, Pirelli info).
+    Executes on every user-triggered run so FastF1-dependent session checks refresh.
     """
     valid_weather = ["dry", "rain", "mixed"]
     if weather not in valid_weather:
@@ -58,7 +66,7 @@ def run_prediction(
 
         sq_start = time.time()
         sq_result = predictor.predict_qualifying(
-            year=2026,
+            year=year,
             race_name=race_name,
             qualifying_stage="sprint",
         )
@@ -66,7 +74,7 @@ def run_prediction(
         results["sprint_quali"] = sq_result
 
         sprint_start = time.time()
-        sq_grid, grid_source = fetch_grid_if_available(2026, race_name, "SQ", sq_result["grid"])
+        sq_grid, grid_source = fetch_grid_if_available(year, race_name, "SQ", sq_result["grid"])
         results["sprint_quali"]["grid_source"] = grid_source
 
         sprint_result = predictor.predict_sprint_race(
@@ -80,7 +88,7 @@ def run_prediction(
 
         mq_start = time.time()
         mq_result = predictor.predict_qualifying(
-            year=2026,
+            year=year,
             race_name=race_name,
             qualifying_stage="main",
         )
@@ -88,7 +96,7 @@ def run_prediction(
         results["main_quali"] = mq_result
 
         mr_start = time.time()
-        quali_grid, grid_source = fetch_grid_if_available(2026, race_name, "Q", mq_result["grid"])
+        quali_grid, grid_source = fetch_grid_if_available(year, race_name, "Q", mq_result["grid"])
         results["main_quali"]["grid_source"] = grid_source
 
         main_race_result = predictor.predict_race(
@@ -105,7 +113,7 @@ def run_prediction(
 
         quali_start = time.time()
         quali_result = predictor.predict_qualifying(
-            year=2026,
+            year=year,
             race_name=race_name,
             qualifying_stage="main",
         )
@@ -114,7 +122,7 @@ def run_prediction(
 
         race_start = time.time()
         quali_grid, grid_source = fetch_grid_if_available(
-            2026, race_name, "Q", quali_result["grid"]
+            year, race_name, "Q", quali_result["grid"]
         )
         results["qualifying"]["grid_source"] = grid_source
 

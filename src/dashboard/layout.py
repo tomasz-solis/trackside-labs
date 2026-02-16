@@ -357,7 +357,7 @@ def _brand_asset_path(filename: str) -> Path:
 
 def _page_icon() -> str:
     icon_path = _brand_asset_path(BRAND_FAVICON_FILE)
-    return str(icon_path) if icon_path.exists() else "🏁"
+    return str(icon_path) if icon_path.exists() else "F1"
 
 
 def _header_alignment() -> str:
@@ -424,7 +424,7 @@ def render_sidebar() -> tuple[str, bool]:
         horizontal=True,
     )
 
-    with st.expander("⚙️ Settings", expanded=False):
+    with st.expander("Settings", expanded=False):
         enable_logging = st.checkbox(
             "Save Predictions for Accuracy Tracking",
             value=False,

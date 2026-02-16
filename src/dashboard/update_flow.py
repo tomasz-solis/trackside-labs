@@ -19,7 +19,7 @@ def auto_update_if_needed() -> None:
     needs_update_flag, new_races = needs_update()
 
     if needs_update_flag:
-        st.info(f"🔄 Found {len(new_races)} new race(s) to learn from! Updating characteristics...")
+        st.info(f"Found {len(new_races)} new race(s) to learn from. Updating characteristics...")
 
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -33,12 +33,14 @@ def auto_update_if_needed() -> None:
         progress_bar.empty()
         status_text.empty()
 
-        if updated_count > 0:
-            st.success(f"✅ Learned from {updated_count} race(s)! Predictions now use fresh data.")
+        if updated_count == len(new_races):
+            st.success(f"Learned from {updated_count} race(s). Predictions now use updated data.")
             st.cache_resource.clear()
             st.cache_data.clear()
         else:
-            st.warning("⚠️ Could not update from new races - using existing data")
+            raise RuntimeError(
+                f"Race refresh incomplete: updated {updated_count} of {len(new_races)} new races."
+            )
 
 
 def _load_practice_update_state() -> dict:
@@ -65,8 +67,10 @@ def _load_practice_update_state() -> dict:
 def _save_practice_update_state(state: dict) -> None:
     """Persist state for practice characteristic updates."""
     _PRACTICE_UPDATE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(_PRACTICE_UPDATE_STATE_FILE, "w") as f:
+    tmp_path = _PRACTICE_UPDATE_STATE_FILE.with_suffix(".tmp")
+    with open(tmp_path, "w") as f:
         json.dump(state, f, indent=2)
+    tmp_path.replace(_PRACTICE_UPDATE_STATE_FILE)
 
 
 def auto_update_practice_characteristics_if_needed(
@@ -128,16 +132,17 @@ def auto_update_practice_characteristics_if_needed(
         run_profile=practice_run_profile,
         dry_run=False,
     )
+    updated_teams = summary.get("updated_teams", []) if isinstance(summary, dict) else []
 
     state["races"][race_key] = {
         "sessions": completed_fp_sessions,
         "updated_at": datetime.now().isoformat(),
-        "teams_updated": len(summary.get("updated_teams", [])),
+        "teams_updated": len(updated_teams),
     }
     _save_practice_update_state(state)
 
     return {
         "updated": True,
         "completed_fp_sessions": completed_fp_sessions,
-        "teams_updated": len(summary.get("updated_teams", [])),
+        "teams_updated": len(updated_teams),
     }

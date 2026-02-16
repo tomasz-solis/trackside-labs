@@ -117,8 +117,8 @@ class TestDashboardDataFlow:
 
     def test_race_name_processing(self):
         """Test sprint indicator removal works"""
-        race_selection = "Chinese Grand Prix 🏃 (Sprint)"
-        race_name = race_selection.replace(" 🏃 (Sprint)", "")
+        race_selection = "Chinese Grand Prix (Sprint)"
+        race_name = race_selection.replace(" (Sprint)", "")
         assert race_name == "Chinese Grand Prix"
 
     def test_weather_options_valid(self):
@@ -141,14 +141,14 @@ class TestDashboardDataFlow:
 
         def get_dnf_status(dnf_pct):
             if dnf_pct > 20:
-                return "⚠️ High"
+                return "High"
             elif dnf_pct > 10:
-                return "⚡ Medium"
-            return "✓ Low"
+                return "Medium"
+            return "Low"
 
-        assert get_dnf_status(5) == "✓ Low"
-        assert get_dnf_status(15) == "⚡ Medium"
-        assert get_dnf_status(25) == "⚠️ High"
+        assert get_dnf_status(5) == "Low"
+        assert get_dnf_status(15) == "Medium"
+        assert get_dnf_status(25) == "High"
 
 
 class TestDashboardEdgeCases:

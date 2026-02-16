@@ -5,7 +5,7 @@ import streamlit as st
 
 
 def _render_compound_strategies(compound_strategies: dict) -> None:
-    st.subheader("🏎️ Tire Compound Strategies")
+    st.subheader("Tire Compound Strategies")
 
     sorted_strategies = sorted(compound_strategies.items(), key=lambda x: x[1], reverse=True)
 
@@ -20,14 +20,14 @@ def _render_compound_strategies(compound_strategies: dict) -> None:
             )
 
     if len(sorted_strategies) > 3:
-        with st.expander("📊 View all strategies"):
+        with st.expander("View all strategies"):
             for strategy, frequency in sorted_strategies:
                 percentage = frequency * 100
                 st.write(f"**{strategy}**: {percentage:.1f}%")
 
 
 def _render_pit_lap_distribution(pit_lap_distribution: dict) -> None:
-    st.subheader("⏱️ Pit Stop Windows")
+    st.subheader("Pit Stop Windows")
 
     sorted_pit_laps = sorted(
         pit_lap_distribution.items(),
@@ -162,7 +162,7 @@ def _render_race_result(df: pd.DataFrame) -> None:
     df["dnf_probability"] = (df["dnf_probability"] * 100).round(1)
 
     df["dnf_risk"] = df["dnf_probability"].apply(
-        lambda x: "⚠️ High" if x > 20 else "⚡ Medium" if x >= 10 else "✓ Low"
+        lambda x: "High" if x > 20 else "Medium" if x >= 10 else "Low"
     )
 
     df_display = df[
@@ -196,18 +196,17 @@ def _render_race_result(df: pd.DataFrame) -> None:
     high_dnf = df[df["dnf_probability"] > 20]
     if not high_dnf.empty:
         st.warning(
-            f"⚠️ High DNF risk ({len(high_dnf)} drivers): {', '.join(high_dnf['driver'].values)}"
+            f"High DNF risk ({len(high_dnf)} drivers): {', '.join(high_dnf['driver'].values)}"
         )
 
-    st.subheader("🏆 Predicted Podium")
+    st.subheader("Predicted Podium")
     podium = df[df["position"] <= 3].copy()
 
     col1, col2, col3 = st.columns(3)
     for i, (_idx, row) in enumerate(podium.iterrows()):
         col = [col2, col1, col3][i]
         with col:
-            medal = ["🥇", "🥈", "🥉"][row["position"] - 1]
-            st.markdown(f"### {medal} P{row['position']}")
+            st.markdown(f"### P{row['position']}")
             st.markdown(f"## **{row['driver']}**")
             st.markdown(f"*{row['team']}*")
             st.metric("Confidence", f"{row['confidence']:.1f}%")
@@ -245,24 +244,23 @@ def _render_qualifying_result(df: pd.DataFrame) -> None:
 def display_prediction_result(result: dict, prediction_name: str, is_race: bool = False) -> None:
     """Display a single prediction result (qualifying or race)."""
     st.markdown("---")
-    icon = "🏎️" if is_race else "🏁"
-    st.header(f"{icon} {prediction_name}")
+    st.header(prediction_name)
 
     grid_source = result.get("grid_source")
     if grid_source:
         if grid_source == "ACTUAL":
-            st.success("✅ Using ACTUAL grid from completed session")
+            st.success("Using ACTUAL grid from completed session")
         else:
-            st.info("ℹ️ Using PREDICTED grid")
+            st.info("Using PREDICTED grid")
 
     if not is_race:
         data_source = result.get("data_source", "Unknown")
         blend_used = result.get("blend_used", False)
 
         if blend_used:
-            st.success(f"✅ Using {data_source} (70% practice data + 30% model)")
+            st.success(f"Using {data_source} (70% practice data + 30% model)")
         else:
-            st.info(f"ℹ️ {data_source}")
+            st.info(data_source)
 
     characteristics_profile = result.get("characteristics_profile_used")
     teams_with_profile = result.get("teams_with_characteristics_profile", 0)
@@ -271,7 +269,7 @@ def display_prediction_result(result: dict, prediction_name: str, is_race: bool 
 
     if characteristics_profile and teams_with_profile:
         st.info(
-            "📈 Car characteristics profile in use: "
+            "Car characteristics profile in use: "
             f"`{characteristics_profile}` ({teams_with_profile} teams)"
         )
 

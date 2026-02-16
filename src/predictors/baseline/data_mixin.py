@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.persistence.artifact_store import ArtifactStore
 from src.systems.weight_schedule import calculate_blended_performance, get_recommended_schedule
 from src.utils import config_loader
 from src.utils.compound_performance import (
@@ -28,76 +29,102 @@ class BaselineDataMixin:
 
     def load_data(self) -> None:
         """Load 2026 team data and driver characteristics with schema validation."""
+        # Initialize artifact store
+        store = ArtifactStore(data_root=self.data_dir)
+
         # Load and validate 2026 car characteristics
-        car_file = self.data_dir / "car_characteristics/2026_car_characteristics.json"
-        with open(car_file) as f:
-            data = json.load(f)
-            # Validate team characteristics before using
-            try:
-                validate_team_characteristics(data)
-            except ValueError as e:
-                logger.error(f"Failed to load team characteristics: {e}")
-                raise
-            self.teams = data["teams"]
+        data = store.load_artifact(
+            artifact_type="car_characteristics", artifact_key="2026::car_characteristics"
+        )
 
-            # Check data freshness and warn if stale
-            data_freshness = data.get("data_freshness", "UNKNOWN")
-            races_completed = data.get("races_completed", 0)
-            data.get("last_updated")
+        if not data:
+            # Fallback to file for backward compatibility
+            logger.warning("Could not load car characteristics from DB, falling back to file")
+            car_file = self.data_dir / "car_characteristics/2026_car_characteristics.json"
+            with open(car_file) as f:
+                data = json.load(f)
 
-            if data_freshness == "BASELINE_PRESEASON":
-                logger.warning(
-                    "⚠️  Using PRE-SEASON BASELINE data - team performance highly uncertain until races complete!"
-                )
-            elif data_freshness == "LIVE_UPDATED":
-                logger.info(
-                    f"✓ Using LIVE data updated from {races_completed} race(s) - confidence increasing"
-                )
-            else:
-                logger.warning(
-                    f"⚠️  Data freshness unknown ({data_freshness}) - predictions may be outdated"
-                )
+        # Validate team characteristics before using
+        try:
+            validate_team_characteristics(data)
+        except ValueError as e:
+            logger.error(f"Failed to load team characteristics: {e}")
+            raise
+
+        self.teams = data["teams"]
+
+        # Check data freshness and warn if stale
+        data_freshness = data.get("data_freshness", "UNKNOWN")
+        races_completed = data.get("races_completed", 0)
+        data.get("last_updated")
+
+        if data_freshness == "BASELINE_PRESEASON":
+            logger.warning(
+                "⚠️  Using PRE-SEASON BASELINE data - team performance highly uncertain until races complete!"
+            )
+        elif data_freshness == "LIVE_UPDATED":
+            logger.info(
+                f"✓ Using LIVE data updated from {races_completed} race(s) - confidence increasing"
+            )
+        else:
+            logger.warning(
+                f"⚠️  Data freshness unknown ({data_freshness}) - predictions may be outdated"
+            )
 
         # Load and validate driver characteristics
-        driver_file = self.data_dir / "driver_characteristics.json"
-        with open(driver_file) as f:
-            data = json.load(f)
-            # Validate driver characteristics before using
-            try:
-                validate_driver_characteristics(data)
-            except ValueError as e:
-                logger.error(f"Failed to load driver characteristics: {e}")
-                raise
+        driver_data = store.load_artifact(
+            artifact_type="driver_characteristics", artifact_key="2026::driver_characteristics"
+        )
 
-            # ERROR DETECTION: Check for extraction bugs (does NOT correct)
-            from src.utils.driver_validation import validate_driver_data
+        if not driver_data:
+            # Fallback to file for backward compatibility
+            logger.warning("Could not load driver characteristics from DB, falling back to file")
+            driver_file = self.data_dir / "driver_characteristics.json"
+            with open(driver_file) as f:
+                driver_data = json.load(f)
 
-            errors = validate_driver_data(data["drivers"])
-            if errors:
-                logger.warning(
-                    f"⚠️  Driver data has {len(errors)} validation errors. "
-                    "Consider re-running extraction: python scripts/extract_driver_characteristics.py --years 2023,2024,2025"
-                )
+        # Validate driver characteristics before using
+        try:
+            validate_driver_characteristics(driver_data)
+        except ValueError as e:
+            logger.error(f"Failed to load driver characteristics: {e}")
+            raise
 
-            self.drivers = data["drivers"]
+        # ERROR DETECTION: Check for extraction bugs (does NOT correct)
+        from src.utils.driver_validation import validate_driver_data
+
+        errors = validate_driver_data(driver_data["drivers"])
+        if errors:
+            logger.warning(
+                f"⚠️  Driver data has {len(errors)} validation errors. "
+                "Consider re-running extraction: python scripts/extract_driver_characteristics.py --years 2023,2024,2025"
+            )
+
+        self.drivers = driver_data["drivers"]
 
         # Load track characteristics for weight schedule system
-        track_file = self.data_dir / "track_characteristics/2026_track_characteristics.json"
-        try:
-            with open(track_file) as f:
-                track_data = json.load(f)
-                self.tracks = track_data.get("tracks", {})
-                logger.info(f"✓ Loaded track characteristics for {len(self.tracks)} circuits")
-        except FileNotFoundError:
-            logger.warning(f"⚠️  Track characteristics not found at {track_file}")
-            self.tracks = {}
+        track_data = store.load_artifact(
+            artifact_type="track_characteristics", artifact_key="2026::track_characteristics"
+        )
 
-        # Store races completed and year for weight schedule
-        car_file = self.data_dir / "car_characteristics/2026_car_characteristics.json"
-        with open(car_file) as f:
-            data = json.load(f)
-            self.races_completed = data.get("races_completed", 0)
-            self.year = data.get("year", 2026)
+        if not track_data:
+            # Fallback to file for backward compatibility
+            logger.warning("Could not load track characteristics from DB, falling back to file")
+            track_file = self.data_dir / "track_characteristics/2026_track_characteristics.json"
+            try:
+                with open(track_file) as f:
+                    track_data = json.load(f)
+            except FileNotFoundError:
+                logger.warning("⚠️  Track characteristics not found")
+                track_data = {}
+
+        self.tracks = track_data.get("tracks", {})
+        if self.tracks:
+            logger.info(f"✓ Loaded track characteristics for {len(self.tracks)} circuits")
+
+        # Store races completed and year for weight schedule (from car characteristics)
+        self.races_completed = data.get("races_completed", 0)
+        self.year = data.get("year", 2026)
 
     def calculate_track_suitability(self, team: str, race_name: str) -> float:
         """Calculate track-car suitability modifier (-0.1 to +0.1) based on car directionality vs track composition."""

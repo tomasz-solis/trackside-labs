@@ -2,9 +2,12 @@
 
 import json
 import logging
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from src.persistence.artifact_store import ArtifactStore
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,9 @@ class PredictionLogger:
         self.predictions_dir = Path(predictions_dir)
         self.predictions_dir.mkdir(parents=True, exist_ok=True)
 
+        # Initialize ArtifactStore (data_root is parent of predictions_dir)
+        self.artifact_store = ArtifactStore(data_root=self.predictions_dir.parent)
+
     def save_prediction(
         self,
         year: int,
@@ -26,8 +32,9 @@ class PredictionLogger:
         weather: str,
         fp_blend_info: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
+        run_id: str | None = None,
     ) -> Path:
-        """Save a prediction to disk with validation."""
+        """Save a prediction to disk with validation and run-based versioning."""
         # Validate inputs
         if not qualifying_prediction or not race_prediction:
             raise ValueError("Predictions cannot be empty")
@@ -46,10 +53,14 @@ class PredictionLogger:
         if weather not in valid_weather:
             logger.warning(f"Unusual weather value: {weather}. Expected one of {valid_weather}")
 
+        # Generate run_id if not provided (for run-based versioning)
+        if run_id is None:
+            run_id = str(uuid.uuid4())
+
         # Sanitize race name for filename
         safe_race_name = race_name.lower().replace(" ", "_").replace("'", "")
 
-        # Create year directory
+        # Create year directory (for file fallback)
         year_dir = self.predictions_dir / str(year)
         year_dir.mkdir(parents=True, exist_ok=True)
 
@@ -64,6 +75,7 @@ class PredictionLogger:
         # Build prediction data structure
         prediction_data = {
             "metadata": {
+                "run_id": run_id,
                 "year": year,
                 "race_name": race_name,
                 "session_name": session_name,
@@ -100,17 +112,50 @@ class PredictionLogger:
             "actuals": {"qualifying": None, "race": None},
         }
 
-        # Save to file
-        with open(filepath, "w") as f:
-            json.dump(prediction_data, f, indent=2)
+        # Save via ArtifactStore (dual-write mode if configured)
+        artifact_key = f"{year}::{race_name}::{session_name}"
+        try:
+            self.artifact_store.save_artifact(
+                artifact_type="prediction",
+                artifact_key=artifact_key,
+                data=prediction_data,
+                version=1,
+                run_id=run_id,
+            )
+            logger.info(f"Saved prediction via ArtifactStore (run_id={run_id})")
+        except Exception as e:
+            logger.warning(f"ArtifactStore save failed: {e}, falling back to file")
+            with open(filepath, "w") as f:
+                json.dump(prediction_data, f, indent=2)
+            logger.info(f"Saved prediction to {filepath}")
 
-        logger.info(f"Saved prediction to {filepath}")
         return filepath
 
     def load_prediction(
-        self, year: int, race_name: str, session_name: str
+        self, year: int, race_name: str, session_name: str, run_id: str | None = None
     ) -> dict[str, Any] | None:
-        """Load a saved prediction from disk with schema validation."""
+        """Load a saved prediction with schema validation (DB-first, file fallback)."""
+        # Try loading from ArtifactStore (latest run by default)
+        artifact_key = f"{year}::{race_name}::{session_name}"
+        try:
+            data = self.artifact_store.load_artifact(
+                artifact_type="prediction",
+                artifact_key=artifact_key,
+                version="latest",
+                run_id=run_id,
+            )
+
+            if data:
+                # Validate schema
+                if self._validate_prediction_schema(data):
+                    return data
+                else:
+                    logger.error(f"Invalid prediction schema from DB for {artifact_key}")
+
+        except Exception as e:
+            logger.warning(f"ArtifactStore load failed: {e}, trying file fallback")
+
+        # Fallback to file
         safe_race_name = race_name.lower().replace(" ", "_").replace("'", "")
         filepath = (
             self.predictions_dir
@@ -120,34 +165,18 @@ class PredictionLogger:
         )
 
         if not filepath.exists():
-            logger.warning(f"Prediction not found: {filepath}")
+            logger.warning(f"Prediction not found in file: {filepath}")
             return None
 
         try:
             with open(filepath) as f:
                 data = json.load(f)
 
-            # Validate schema
-            required_keys = ["metadata", "qualifying", "race", "actuals"]
-            if not all(key in data for key in required_keys):
-                logger.error(f"Invalid prediction schema in {filepath}: missing required keys")
+            if self._validate_prediction_schema(data):
+                return data
+            else:
+                logger.error(f"Invalid prediction schema in file {filepath}")
                 return None
-
-            # Validate metadata
-            if not isinstance(data["metadata"], dict):
-                logger.error(f"Invalid metadata in {filepath}")
-                return None
-
-            # Validate prediction lists
-            if "predicted_grid" not in data["qualifying"]:
-                logger.error(f"Missing predicted_grid in {filepath}")
-                return None
-
-            if "predicted_results" not in data["race"]:
-                logger.error(f"Missing predicted_results in {filepath}")
-                return None
-
-            return data
 
         except json.JSONDecodeError as e:
             logger.error(f"Corrupted JSON file {filepath}: {e}")
@@ -156,6 +185,26 @@ class PredictionLogger:
             logger.error(f"Failed to load prediction from {filepath}: {e}")
             return None
 
+    def _validate_prediction_schema(self, data: dict[str, Any]) -> bool:
+        """Validate prediction data structure."""
+        # Validate required keys
+        required_keys = ["metadata", "qualifying", "race", "actuals"]
+        if not all(key in data for key in required_keys):
+            return False
+
+        # Validate metadata
+        if not isinstance(data["metadata"], dict):
+            return False
+
+        # Validate prediction lists
+        if "predicted_grid" not in data["qualifying"]:
+            return False
+
+        if "predicted_results" not in data["race"]:
+            return False
+
+        return True
+
     def update_actuals(
         self,
         year: int,
@@ -163,9 +212,10 @@ class PredictionLogger:
         session_name: str,
         qualifying_results: list[dict[str, Any]] | None = None,
         race_results: list[dict[str, Any]] | None = None,
+        run_id: str | None = None,
     ) -> bool:
         """Update a saved prediction with actual race results."""
-        prediction = self.load_prediction(year, race_name, session_name)
+        prediction = self.load_prediction(year, race_name, session_name, run_id=run_id)
         if prediction is None:
             return False
 
@@ -182,19 +232,33 @@ class PredictionLogger:
                 for i, r in enumerate(race_results)
             ]
 
-        # Save updated prediction
-        safe_race_name = race_name.lower().replace(" ", "_").replace("'", "")
-        filepath = (
-            self.predictions_dir
-            / str(year)
-            / safe_race_name
-            / f"{safe_race_name}_{session_name.lower()}.json"
-        )
+        # Extract run_id from prediction metadata
+        actual_run_id = run_id or prediction["metadata"].get("run_id")
 
-        with open(filepath, "w") as f:
-            json.dump(prediction, f, indent=2)
+        # Save updated prediction via ArtifactStore
+        artifact_key = f"{year}::{race_name}::{session_name}"
+        try:
+            self.artifact_store.save_artifact(
+                artifact_type="prediction",
+                artifact_key=artifact_key,
+                data=prediction,
+                version=1,
+                run_id=actual_run_id,
+            )
+            logger.info(f"Updated actuals via ArtifactStore (run_id={actual_run_id})")
+        except Exception as e:
+            logger.warning(f"ArtifactStore save failed: {e}, falling back to file")
+            safe_race_name = race_name.lower().replace(" ", "_").replace("'", "")
+            filepath = (
+                self.predictions_dir
+                / str(year)
+                / safe_race_name
+                / f"{safe_race_name}_{session_name.lower()}.json"
+            )
+            with open(filepath, "w") as f:
+                json.dump(prediction, f, indent=2)
+            logger.info(f"Updated actuals in {filepath}")
 
-        logger.info(f"Updated actuals in {filepath}")
         return True
 
     def get_all_predictions(self, year: int) -> list[dict[str, Any]]:
@@ -213,7 +277,19 @@ class PredictionLogger:
         return predictions
 
     def has_prediction_for_session(self, year: int, race_name: str, session_name: str) -> bool:
-        """Check if a prediction exists for a given session."""
+        """Check if a prediction exists for a given session (DB-first, file fallback)."""
+        # Try DB first
+        artifact_key = f"{year}::{race_name}::{session_name}"
+        try:
+            data = self.artifact_store.load_artifact(
+                artifact_type="prediction", artifact_key=artifact_key, version="latest"
+            )
+            if data:
+                return True
+        except Exception:
+            pass
+
+        # Fallback to file
         safe_race_name = race_name.lower().replace(" ", "_").replace("'", "")
         filepath = (
             self.predictions_dir

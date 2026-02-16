@@ -5,7 +5,7 @@ import logging
 import fastf1
 import streamlit as st
 
-from .cache import get_data_file_timestamps
+from .cache import get_artifact_versions
 from .prediction_flow import run_prediction
 from .rendering import display_prediction_result
 from .update_flow import auto_update_if_needed, auto_update_practice_characteristics_if_needed
@@ -213,10 +213,12 @@ def render_live_prediction_page(enable_logging: bool) -> None:
 
                 st.info("Running simulation (cached results will load instantly)...")
 
-                # Capture timestamps AFTER all updates to ensure cache invalidation works correctly
-                timestamps = get_data_file_timestamps()
+                # Capture artifact versions AFTER all updates to ensure cache invalidation works correctly
+                artifact_versions = get_artifact_versions()
 
-                prediction_results = run_prediction(race_name, weather, timestamps, is_sprint)
+                prediction_results = run_prediction(
+                    race_name, weather, artifact_versions, is_sprint
+                )
 
                 _save_prediction_if_enabled(
                     enable_logging=enable_logging,

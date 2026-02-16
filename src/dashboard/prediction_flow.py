@@ -34,10 +34,15 @@ def fetch_grid_if_available(
 def run_prediction(
     race_name: str,
     weather: str,
-    _timestamps: dict[str, float],
+    _artifact_versions: dict[str, tuple[int, str]],
     is_sprint: bool = False,
 ) -> dict:
-    """Run full weekend cascade prediction with caching."""
+    """
+    Run full weekend cascade prediction with caching.
+
+    Cache invalidates when artifact versions change (DB-backed artifacts)
+    or file timestamps change (config, code, Pirelli info).
+    """
     valid_weather = ["dry", "rain", "mixed"]
     if weather not in valid_weather:
         raise ValueError(f"Weather must be one of {valid_weather}, got '{weather}'")
@@ -45,7 +50,7 @@ def run_prediction(
     timing: dict[str, float] = {}
     overall_start = time.time()
 
-    predictor = get_predictor(_timestamps)
+    predictor = get_predictor(_artifact_versions)
     results = {}
 
     if is_sprint:

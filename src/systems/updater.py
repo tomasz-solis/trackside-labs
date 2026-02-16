@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from src.models.bayesian import BayesianDriverRanking
+from src.persistence.artifact_store import ArtifactStore
 from src.systems.compound_analyzer import (
     aggregate_compound_samples,
     extract_compound_metrics,
@@ -142,8 +143,18 @@ def update_team_characteristics(
     """Update team performance ratings from race telemetry."""
     logger.info("Updating team characteristics from race telemetry...")
 
-    with open(characteristics_file) as f:
-        char_data = json.load(f)
+    # Load via ArtifactStore (with file fallback)
+    store = ArtifactStore(data_root=characteristics_file.parent.parent.parent)
+    year = characteristics_file.stem.split("_")[0]
+    char_data = store.load_artifact(
+        artifact_type="car_characteristics", artifact_key=f"{year}::car_characteristics"
+    )
+
+    # Fallback to file if DB load fails
+    if not char_data:
+        logger.warning("DB load failed, falling back to file")
+        with open(characteristics_file) as f:
+            char_data = json.load(f)
 
     # Extract performance from telemetry
     team_names = list(char_data["teams"].keys())
@@ -271,13 +282,22 @@ def update_team_characteristics(
 
     # Increment version
     current_version = char_data.get("version", 0)
-    char_data["version"] = current_version + 1
+    new_version = current_version + 1
+    char_data["version"] = new_version
 
-    # Save with atomic write
-    atomic_json_write(characteristics_file, char_data, create_backup=True)
-    logger.info(
-        f"✓ Updated team characteristics (v{char_data['version']}) in {characteristics_file}"
-    )
+    # Save via ArtifactStore (dual-write mode if configured)
+    try:
+        store.save_artifact(
+            artifact_type="car_characteristics",
+            artifact_key=f"{year}::car_characteristics",
+            data=char_data,
+            version=new_version,
+        )
+        logger.info(f"✓ Updated team characteristics (v{new_version}) via ArtifactStore")
+    except Exception as e:
+        logger.error(f"ArtifactStore save failed: {e}, falling back to file")
+        atomic_json_write(characteristics_file, char_data, create_backup=True)
+        logger.info(f"✓ Updated team characteristics (v{new_version}) in {characteristics_file}")
 
 
 def update_bayesian_driver_ratings(race_results: pd.DataFrame) -> None:

@@ -1,0 +1,403 @@
+"""
+Artifact Store: Abstraction layer for file and database persistence.
+
+Supports multiple storage modes:
+- file_only: Read/write only to local files (development)
+- db_only: Read/write only to Supabase (production)
+- fallback: Read DB first, fall back to file if not found
+- dual_write: Write to both DB and file (migration phase)
+"""
+
+import json
+import logging
+import time
+import uuid
+from pathlib import Path
+from typing import Any
+
+from .config import (
+    get_storage_mode,
+    should_read_db_first,
+    should_write_to_db,
+    should_write_to_file,
+)
+from .db import get_supabase_client
+
+logger = logging.getLogger(__name__)
+
+
+class ArtifactStore:
+    """
+    Unified interface for artifact persistence.
+
+    Handles both file-based and database-backed storage with
+    configurable modes for zero-downtime migration.
+    """
+
+    def __init__(self, data_root: str | Path = "data"):
+        """
+        Initialize artifact store.
+
+        Args:
+            data_root: Root directory for file-based storage
+        """
+        self.data_root = Path(data_root)
+        self.storage_mode = get_storage_mode()
+        logger.info(f"ArtifactStore initialized with mode: {self.storage_mode}")
+
+    def save_artifact(
+        self,
+        artifact_type: str,
+        artifact_key: str,
+        data: dict[str, Any],
+        version: int | None = None,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Save artifact to configured storage backend(s).
+
+        Args:
+            artifact_type: Type of artifact (e.g., 'car_characteristics', 'prediction')
+            artifact_key: Unique key within type (e.g., '2026::car_characteristics')
+            data: Artifact data (must be JSON-serializable)
+            version: Explicit version number (auto-increments if None)
+            run_id: Optional run ID for predictions (enables run-based versioning)
+
+        Returns:
+            Saved artifact metadata (includes id, version, timestamps)
+
+        Raises:
+            RuntimeError: If all writes fail
+        """
+        start_time = time.time()
+        file_success = db_success = False
+        last_error = None
+
+        # Determine version
+        if version is None:
+            # Auto-increment: get latest version + 1
+            try:
+                latest_version = self.get_latest_version(artifact_type, artifact_key)
+                version = latest_version + 1
+            except Exception:
+                version = 1  # First version
+
+        # Prepare run_id (convert to UUID if needed)
+        run_uuid = None
+        if run_id:
+            try:
+                run_uuid = uuid.UUID(run_id) if isinstance(run_id, str) else run_id
+            except ValueError:
+                logger.warning(f"Invalid run_id format: {run_id}, ignoring")
+
+        # Write to file
+        if should_write_to_file():
+            try:
+                self._write_file(artifact_type, artifact_key, data)
+                file_success = True
+                logger.debug(f"File write successful: {artifact_type}::{artifact_key} v{version}")
+            except Exception as e:
+                last_error = e
+                logger.error(f"File write failed: {e}")
+
+        # Write to DB
+        if should_write_to_db():
+            try:
+                result = self._write_db(artifact_type, artifact_key, data, version, run_uuid)
+                db_success = True
+                elapsed = time.time() - start_time
+                logger.info(
+                    f"DB write successful: {artifact_type}::{artifact_key} v{version} ({elapsed:.3f}s)"
+                )
+                # Return DB result (includes id, timestamps)
+                return result
+            except Exception as e:
+                last_error = e
+                logger.error(f"DB write failed: {e}")
+
+        # Check if any write succeeded
+        if not file_success and not db_success:
+            raise RuntimeError(f"All writes failed. Last error: {last_error}")
+
+        # Return minimal metadata if only file write succeeded
+        elapsed = time.time() - start_time
+        return {
+            "artifact_type": artifact_type,
+            "artifact_key": artifact_key,
+            "version": version,
+            "run_id": str(run_uuid) if run_uuid else None,
+            "storage": "file_only",
+            "elapsed_ms": elapsed * 1000,
+        }
+
+    def load_artifact(
+        self,
+        artifact_type: str,
+        artifact_key: str,
+        version: str | int = "latest",
+        run_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """
+        Load artifact from configured storage backend(s).
+
+        Args:
+            artifact_type: Type of artifact
+            artifact_key: Unique key within type
+            version: Version to load ('latest' or specific version number)
+            run_id: Optional run ID to load specific prediction run
+
+        Returns:
+            Artifact data or None if not found
+        """
+        start_time = time.time()
+
+        # Try DB first if configured
+        if should_read_db_first():
+            try:
+                result = self._read_db(artifact_type, artifact_key, version, run_id)
+                if result:
+                    elapsed = time.time() - start_time
+                    logger.debug(
+                        f"DB read successful: {artifact_type}::{artifact_key} ({elapsed:.3f}s)"
+                    )
+                    return result
+            except Exception as e:
+                logger.warning(f"DB read failed, trying file fallback: {e}")
+
+        # Try file (either as primary or fallback)
+        try:
+            result = self._read_file(artifact_type, artifact_key)
+            if result:
+                elapsed = time.time() - start_time
+                logger.debug(
+                    f"File read successful: {artifact_type}::{artifact_key} ({elapsed:.3f}s)"
+                )
+                return result
+        except Exception as e:
+            logger.error(f"File read failed: {e}")
+
+        return None
+
+    def list_artifacts(
+        self,
+        artifact_type: str,
+        key_prefix: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """
+        List artifacts of given type.
+
+        Args:
+            artifact_type: Type to filter by
+            key_prefix: Optional prefix filter (e.g., '2026::Bahrain')
+            limit: Maximum number of results
+
+        Returns:
+            List of artifact metadata (sorted by created_at DESC)
+        """
+        # Try DB first if configured
+        if should_read_db_first():
+            try:
+                return self._list_db(artifact_type, key_prefix, limit)
+            except Exception as e:
+                logger.warning(f"DB list failed: {e}")
+
+        # Fallback to file listing (less efficient)
+        return self._list_files(artifact_type, key_prefix, limit)
+
+    def get_latest_version(self, artifact_type: str, artifact_key: str) -> int:
+        """
+        Get the latest version number for an artifact.
+
+        Args:
+            artifact_type: Type of artifact
+            artifact_key: Unique key within type
+
+        Returns:
+            Latest version number (0 if artifact doesn't exist)
+        """
+        if should_read_db_first():
+            try:
+                supabase = get_supabase_client()
+                result = (
+                    supabase.table("artifacts")
+                    .select("version")
+                    .eq("artifact_type", artifact_type)
+                    .eq("artifact_key", artifact_key)
+                    .order("version", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                if result.data:
+                    return result.data[0]["version"]
+            except Exception as e:
+                logger.warning(f"DB version check failed: {e}")
+
+        # Fallback: check file (version stored in data if available)
+        try:
+            data = self._read_file(artifact_type, artifact_key)
+            if data and "version" in data:
+                return data["version"]
+        except Exception:
+            pass
+
+        return 0
+
+    # Private methods: File operations
+
+    def _get_file_path(self, artifact_type: str, artifact_key: str) -> Path:
+        """Map artifact type/key to file path."""
+        # Map to existing file paths
+        if artifact_type == "car_characteristics":
+            year = artifact_key.split("::")[0] if "::" in artifact_key else "2026"
+            return (
+                self.data_root
+                / "processed"
+                / "car_characteristics"
+                / f"{year}_car_characteristics.json"
+            )
+        elif artifact_type == "driver_characteristics":
+            return self.data_root / "processed" / "driver_characteristics.json"
+        elif artifact_type == "track_characteristics":
+            year = artifact_key.split("::")[0] if "::" in artifact_key else "2026"
+            return (
+                self.data_root
+                / "processed"
+                / "track_characteristics"
+                / f"{year}_track_characteristics.json"
+            )
+        elif artifact_type == "learning_state":
+            return self.data_root / "learning_state.json"
+        elif artifact_type == "practice_state":
+            return self.data_root / "systems" / "practice_characteristics_state.json"
+        elif artifact_type == "prediction":
+            # Parse key: '2026::Bahrain Grand Prix::qualifying'
+            parts = artifact_key.split("::")
+            if len(parts) == 3:
+                year, race_name, session_name = parts
+                safe_race = race_name.lower().replace(" ", "_").replace("'", "")
+                return (
+                    self.data_root
+                    / "predictions"
+                    / year
+                    / safe_race
+                    / f"{safe_race}_{session_name.lower()}.json"
+                )
+
+        # Default: use type/key structure
+        safe_key = artifact_key.replace("::", "/")
+        return self.data_root / artifact_type / f"{safe_key}.json"
+
+    def _write_file(self, artifact_type: str, artifact_key: str, data: dict[str, Any]) -> None:
+        """Write artifact to file."""
+        file_path = self._get_file_path(artifact_type, artifact_key)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def _read_file(self, artifact_type: str, artifact_key: str) -> dict[str, Any] | None:
+        """Read artifact from file."""
+        file_path = self._get_file_path(artifact_type, artifact_key)
+
+        if not file_path.exists():
+            return None
+
+        with open(file_path) as f:
+            return json.load(f)
+
+    def _list_files(
+        self, artifact_type: str, key_prefix: str | None, limit: int
+    ) -> list[dict[str, Any]]:
+        """List files (slow, fallback only)."""
+        # Simplified: just return empty list
+        # Full implementation would scan directories
+        logger.warning("File-based listing not implemented, use DB mode")
+        return []
+
+    # Private methods: Database operations
+
+    def _write_db(
+        self,
+        artifact_type: str,
+        artifact_key: str,
+        data: dict[str, Any],
+        version: int,
+        run_uuid: uuid.UUID | None,
+    ) -> dict[str, Any]:
+        """Write artifact to Supabase."""
+        supabase = get_supabase_client()
+
+        row = {
+            "artifact_type": artifact_type,
+            "artifact_key": artifact_key,
+            "version": version,
+            "data": data,
+        }
+
+        if run_uuid:
+            row["run_id"] = str(run_uuid)
+
+        # Insert or update (upsert on conflict)
+        result = (
+            supabase.table("artifacts")
+            .upsert(row, on_conflict="artifact_type,artifact_key,version")
+            .execute()
+        )
+
+        if not result.data:
+            raise RuntimeError("DB insert returned no data")
+
+        return result.data[0]
+
+    def _read_db(
+        self,
+        artifact_type: str,
+        artifact_key: str,
+        version: str | int,
+        run_id: str | None,
+    ) -> dict[str, Any] | None:
+        """Read artifact from Supabase."""
+        supabase = get_supabase_client()
+
+        query = supabase.table("artifacts").select("data")
+
+        # Filter by type and key
+        query = query.eq("artifact_type", artifact_type)
+        query = query.eq("artifact_key", artifact_key)
+
+        # Filter by run_id if provided
+        if run_id:
+            query = query.eq("run_id", run_id)
+
+        # Filter by version
+        if version == "latest":
+            query = query.order("version", desc=True).limit(1)
+        else:
+            query = query.eq("version", version)
+
+        result = query.execute()
+
+        if result.data:
+            return result.data[0]["data"]
+
+        return None
+
+    def _list_db(
+        self, artifact_type: str, key_prefix: str | None, limit: int
+    ) -> list[dict[str, Any]]:
+        """List artifacts from Supabase."""
+        supabase = get_supabase_client()
+
+        query = supabase.table("artifacts").select(
+            "artifact_key, version, run_id, created_at, data"
+        )
+        query = query.eq("artifact_type", artifact_type)
+
+        if key_prefix:
+            query = query.like("artifact_key", f"{key_prefix}%")
+
+        query = query.order("created_at", desc=True).limit(limit)
+
+        result = query.execute()
+        return result.data if result.data else []

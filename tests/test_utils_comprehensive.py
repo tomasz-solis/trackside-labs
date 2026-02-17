@@ -6,6 +6,7 @@ Increases test coverage for lineups, weekend, and config utilities.
 
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 
@@ -57,56 +58,76 @@ class TestLineupsModule:
 class TestWeekendModule:
     """Test weekend type detection"""
 
+    @staticmethod
+    def _mock_schedule():
+        return pd.DataFrame(
+            {
+                "EventName": [
+                    "Bahrain Grand Prix",
+                    "Chinese Grand Prix",
+                    "Miami Grand Prix",
+                    "Monaco Grand Prix",
+                ],
+                "EventFormat": [
+                    "conventional",
+                    "sprint",
+                    "sprint_shootout",
+                    "conventional",
+                ],
+            }
+        )
+
     def test_sprint_weekend_detection_2026(self):
-        """Test known 2026 sprint weekends"""
-        from src.utils.weekend import is_sprint_weekend
+        """Sprint detection should come from FastF1 EventFormat."""
+        from src.utils import weekend
 
-        sprint_races = [
-            "Chinese Grand Prix",
-            "Miami Grand Prix",
-            "Canadian Grand Prix",
-            "British Grand Prix",
-            "Dutch Grand Prix",
-            "Singapore Grand Prix",
-        ]
-
-        for race in sprint_races:
-            assert is_sprint_weekend(2026, race), f"{race} should be sprint weekend"
+        weekend.refresh_schedule_cache()
+        with patch(
+            "src.utils.weekend.fastf1.get_event_schedule",
+            return_value=self._mock_schedule(),
+        ):
+            assert weekend.is_sprint_weekend(2026, "Chinese Grand Prix") is True
+            assert weekend.is_sprint_weekend(2026, "Miami Grand Prix") is True
 
     def test_normal_weekend_detection_2026(self):
-        """Test known 2026 normal weekends"""
-        from src.utils.weekend import is_sprint_weekend
+        """Conventional events should resolve to non-sprint weekends."""
+        from src.utils import weekend
 
-        normal_races = [
-            "Bahrain Grand Prix",
-            "Saudi Arabian Grand Prix",
-            "Monaco Grand Prix",
-            "Italian Grand Prix",
-        ]
-
-        for race in normal_races:
-            assert is_sprint_weekend(2026, race) is False, f"{race} should be normal weekend"
+        weekend.refresh_schedule_cache()
+        with patch(
+            "src.utils.weekend.fastf1.get_event_schedule",
+            return_value=self._mock_schedule(),
+        ):
+            assert weekend.is_sprint_weekend(2026, "Bahrain Grand Prix") is False
+            assert weekend.is_sprint_weekend(2026, "Monaco Grand Prix") is False
 
     def test_get_all_sprint_races(self):
-        """Test getting all sprint races for a season"""
-        from src.utils.weekend import get_all_sprint_races
+        """Sprint race list should be derived from schedule metadata."""
+        from src.utils import weekend
 
-        sprint_races = get_all_sprint_races(2026)
+        weekend.refresh_schedule_cache()
+        with patch(
+            "src.utils.weekend.fastf1.get_event_schedule",
+            return_value=self._mock_schedule(),
+        ):
+            sprint_races = weekend.get_all_sprint_races(2026)
 
-        # 2026 should have 6 sprint weekends
-        assert len(sprint_races) == 6
+        assert sprint_races == ["Chinese Grand Prix", "Miami Grand Prix"]
 
     def test_get_best_qualifying_session(self):
-        """Test best session selection for qualifying"""
-        from src.utils.weekend import get_best_qualifying_session
+        """Best qualifying source should follow weekend format."""
+        from src.utils import weekend
 
-        # Sprint weekend should use Sprint Qualifying
-        session = get_best_qualifying_session(2026, "Chinese Grand Prix")
-        assert session == "Sprint Qualifying"
-
-        # Normal weekend should use FP3
-        session = get_best_qualifying_session(2026, "Bahrain Grand Prix")
-        assert session == "FP3"
+        weekend.refresh_schedule_cache()
+        with patch(
+            "src.utils.weekend.fastf1.get_event_schedule",
+            return_value=self._mock_schedule(),
+        ):
+            assert (
+                weekend.get_best_qualifying_session(2026, "Chinese Grand Prix")
+                == "Sprint Qualifying"
+            )
+            assert weekend.get_best_qualifying_session(2026, "Bahrain Grand Prix") == "FP3"
 
     def test_invalid_race_name_handling(self):
         """Test graceful handling of invalid race names"""

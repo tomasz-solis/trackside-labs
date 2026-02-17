@@ -211,15 +211,15 @@ def validate_json(data: dict[str, Any], schema: dict[str, Any], filename: str) -
 
     try:
         validate(instance=data, schema=schema)
-        logger.info(f"✓ {filename} validated successfully")
+        logger.info(f"{filename} validated successfully")
     except ValidationError as e:
         # In Python 3, ValidationError.message doesn't exist - use str(e) instead
         error_msg = f"Invalid {filename}: {str(e)}"
-        logger.error(f"✗ {filename} validation failed: {error_msg}")
+        logger.error(f"{filename} validation failed: {error_msg}")
         raise ValueError(error_msg) from e
     except (AttributeError, TypeError, KeyError, ValueError) as e:
         error_msg = f"Unexpected validation error in {filename}: {str(e)}"
-        logger.error(f"✗ {error_msg}")
+        logger.error(error_msg)
         raise ValueError(error_msg) from e
 
 

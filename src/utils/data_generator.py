@@ -61,7 +61,7 @@ def ensure_baseline_exists(data_dir: Path) -> None:
     if needs_generation:
         logger.info("Generating baseline data automatically...")
         generate_quick_baseline(data_dir)
-        logger.info("✓ Baseline data generated successfully!")
+        logger.info("Baseline data generated successfully.")
 
 
 def generate_quick_baseline(data_dir: Path) -> None:
@@ -112,7 +112,7 @@ def generate_neutral_team_characteristics(data_dir: Path) -> None:
     team_characteristics = {
         "year": 2026,
         "version": 1,
-        "note": "AUTO-GENERATED: Based on 2025 standings with HIGH uncertainty (new regulations). Teams will be re-ranked as 2026 races complete.",
+        "note": "Initialized from 2025 standings with high uncertainty for the regulation reset. Teams are re-ranked as 2026 races complete.",
         "generated_at": datetime.now().isoformat(),
         "data_freshness": "BASELINE_PRESEASON",
         "races_completed": 0,
@@ -135,7 +135,7 @@ def generate_neutral_team_characteristics(data_dir: Path) -> None:
     with open(output_file, "w") as f:
         json.dump(team_characteristics, f, indent=2)
 
-    logger.info(f"  ✓ Generated {len(team_2025_standings)} team ratings from 2025 standings")
+    logger.info(f"  Generated {len(team_2025_standings)} team ratings from 2025 standings")
 
 
 def generate_default_track_characteristics(data_dir: Path) -> None:
@@ -279,7 +279,7 @@ def generate_default_track_characteristics(data_dir: Path) -> None:
     track_characteristics = {
         "year": 2026,
         "version": 1,
-        "note": "AUTO-GENERATED: Reasonable F1 defaults. Run scripts/generate_2026_baseline.py for historical averages.",
+        "note": "Initialized from default F1 assumptions. Run scripts/generate_2026_baseline.py for historical averages.",
         "generated_at": datetime.now().isoformat(),
         "data_freshness": "BASELINE_PRESEASON",
         "last_updated": datetime.now().isoformat(),
@@ -292,7 +292,7 @@ def generate_default_track_characteristics(data_dir: Path) -> None:
     with open(output_file, "w") as f:
         json.dump(track_characteristics, f, indent=2)
 
-    logger.info(f"  ✓ Generated {len(tracks)} track characteristics")
+    logger.info(f"  Generated {len(tracks)} track characteristics")
 
 
 def ensure_driver_characteristics(data_dir: Path) -> None:
@@ -319,9 +319,9 @@ def ensure_driver_characteristics(data_dir: Path) -> None:
         with open(driver_file, "w") as f:
             json.dump(data, f, indent=2)
 
-        logger.info("  ✓ Updated driver characteristics metadata")
+        logger.info("  Updated driver characteristics metadata")
     else:
-        logger.info("  ✓ Driver characteristics already have proper metadata")
+        logger.info("  Driver characteristics already include metadata")
 
 
 def reset_learning_state() -> None:
@@ -332,7 +332,7 @@ def reset_learning_state() -> None:
         with open(learning_file) as f:
             state = json.load(f)
             if state.get("races_completed", 0) > 0 and state.get("season") == 2026:
-                logger.info("  ✓ Learning state already has race data - keeping it")
+                logger.info("  Learning state already has race data; keeping it")
                 return
 
     learning_state = {
@@ -361,4 +361,4 @@ def reset_learning_state() -> None:
     with open(learning_file, "w") as f:
         json.dump(learning_state, f, indent=2)
 
-    logger.info("  ✓ Reset learning state to clean 2026 baseline")
+    logger.info("  Reset learning state to clean 2026 baseline")

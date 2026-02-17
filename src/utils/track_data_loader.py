@@ -2,11 +2,62 @@
 
 import json
 import logging
+from functools import lru_cache
 from pathlib import Path
+
+import fastf1
 
 from src.utils import config_loader
 
 logger = logging.getLogger(__name__)
+
+KNOWN_MAIN_RACE_LAPS: dict[str, int] = {
+    "Bahrain Grand Prix": 57,
+    "Saudi Arabian Grand Prix": 50,
+    "Australian Grand Prix": 58,
+    "Japanese Grand Prix": 53,
+    "Chinese Grand Prix": 56,
+    "Miami Grand Prix": 57,
+    "Monaco Grand Prix": 78,
+    "Spanish Grand Prix": 66,
+    "Canadian Grand Prix": 70,
+    "Austrian Grand Prix": 71,
+    "British Grand Prix": 52,
+    "Belgian Grand Prix": 44,
+    "Dutch Grand Prix": 72,
+    "Italian Grand Prix": 53,
+    "Singapore Grand Prix": 62,
+    "United States Grand Prix": 56,
+    "Mexico City Grand Prix": 71,
+    "Brazilian Grand Prix": 71,
+    "Las Vegas Grand Prix": 50,
+    "Qatar Grand Prix": 57,
+    "Abu Dhabi Grand Prix": 58,
+}
+
+KNOWN_SPRINT_LAPS: dict[str, int] = {
+    "Bahrain Grand Prix": 19,
+    "Saudi Arabian Grand Prix": 19,
+    "Australian Grand Prix": 19,
+    "Japanese Grand Prix": 17,
+    "Chinese Grand Prix": 19,
+    "Miami Grand Prix": 19,
+    "Monaco Grand Prix": 26,
+    "Spanish Grand Prix": 22,
+    "Canadian Grand Prix": 18,
+    "Austrian Grand Prix": 24,
+    "British Grand Prix": 17,
+    "Belgian Grand Prix": 15,
+    "Dutch Grand Prix": 24,
+    "Italian Grand Prix": 18,
+    "Singapore Grand Prix": 20,
+    "United States Grand Prix": 19,
+    "Mexico City Grand Prix": 24,
+    "Brazilian Grand Prix": 24,
+    "Las Vegas Grand Prix": 17,
+    "Qatar Grand Prix": 19,
+    "Abu Dhabi Grand Prix": 20,
+}
 
 
 def load_track_specific_params(race_name: str | None = None) -> dict:
@@ -125,11 +176,57 @@ def get_tire_stress_score(race_name: str | None = None) -> float:
     return config_loader.get("baseline_predictor.compound_selection.default_stress_fallback", 3.0)
 
 
-def get_available_compounds(race_name: str | None = None) -> list:
+def get_available_compounds(race_name: str | None = None, weather: str = "dry") -> list[str]:
     """Get list of available tire compounds for race.
 
-    Currently returns all dry compounds.
-    Future: could be track/weather specific.
+    Weather-aware approximation:
+    - dry: dry compounds only
+    - rain: wet compounds only
+    - mixed: dry compounds + intermediate
     """
-    # For now, all dry compounds available
+    weather_key = (weather or "dry").strip().lower()
+    if weather_key == "rain":
+        return ["INTERMEDIATE", "WET"]
+    if weather_key == "mixed":
+        return ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE"]
+
     return ["SOFT", "MEDIUM", "HARD"]
+
+
+@lru_cache(maxsize=128)
+def resolve_race_distance_laps(year: int, race_name: str | None, is_sprint: bool) -> int:
+    """
+    Resolve race distance in laps from FastF1 session metadata.
+
+    Falls back to conservative defaults when metadata is unavailable.
+    """
+    default_distance = 20 if is_sprint else 60
+    if not race_name:
+        return default_distance
+
+    known_laps = (KNOWN_SPRINT_LAPS if is_sprint else KNOWN_MAIN_RACE_LAPS).get(race_name)
+    if known_laps:
+        return known_laps
+
+    session_name = "S" if is_sprint else "R"
+    try:
+        session = fastf1.get_session(year, race_name, session_name)
+        if session is None:
+            return default_distance
+
+        total_laps = getattr(session, "total_laps", None)
+        if total_laps:
+            return max(1, int(total_laps))
+
+        # Metadata load is enough for total_laps; telemetry/laps are unnecessary here.
+        session.load(laps=False, telemetry=False, weather=False, messages=False)
+        total_laps = getattr(session, "total_laps", None)
+        if total_laps:
+            return max(1, int(total_laps))
+    except Exception as exc:
+        logger.warning(
+            f"Could not resolve race distance for {race_name} ({year}, {session_name}): {exc}. "
+            f"Using fallback {default_distance} laps."
+        )
+
+    return default_distance

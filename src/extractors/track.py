@@ -57,7 +57,7 @@ def extract_track_metrics(session) -> dict[str, float] | None:
             "high_pct": float((tel["Speed"] >= 200).mean()),
         }
     except (AttributeError, KeyError, ValueError, TypeError) as e:
-        logger.warning(f"⚠️ Failed to extract track metrics: {e}")
+        logger.warning(f"Failed to extract track metrics: {e}")
         return None
 
 

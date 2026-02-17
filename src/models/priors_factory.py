@@ -31,16 +31,16 @@ class PriorsFactory:
             with open(self.driver_file) as f:
                 self.drivers = json.load(f)["drivers"]
         else:
-            print("⚠️ No Driver Characteristics found. Using empty dict.")
+            print("No driver characteristics found. Using an empty dictionary.")
             self.drivers = {}
 
         # 2. Load Car Data (Testing) OR Fallback to Derived Baseline
         if self.car_file.exists():
-            print("✅ Loading Real Testing Data from 2026_car_characteristics.json")
+            print("Loading testing data from 2026_car_characteristics.json")
             with open(self.car_file) as f:
                 self.cars = json.load(f)["teams"]
         else:
-            print("⚠️ No 2026 Testing Data. Deriving Car Performance from 2025 Driver Pace...")
+            print("No 2026 testing data found. Deriving car performance from 2025 driver pace.")
             self.cars = self._derive_tiers_from_drivers()
 
     def create_priors(self) -> dict:
@@ -191,6 +191,6 @@ class PriorsFactory:
             :5
         ]
         team_strings = [f"{t}: {d['base_rating']:.1f}" for t, d in top_teams]
-        print(f"   📊 Derived Baselines: {', '.join(team_strings)}...")
+        print(f"   Derived baselines: {', '.join(team_strings)}...")
 
         return derived_cars

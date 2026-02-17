@@ -292,4 +292,4 @@ if __name__ == "__main__":
     with open(output_path, "w") as f:
         json.dump(enriched, f, indent=2)
 
-    print(f"\n🟢 Saved enriched data to {output_path}")
+    print(f"\nSaved enriched data to {output_path}")

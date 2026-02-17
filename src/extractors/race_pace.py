@@ -24,7 +24,7 @@ def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> dict |
 
         if not hasattr(session, "laps") or session.laps is None:
             if verbose:
-                print("   ⚠️  No FP2 lap data available")
+                print("   No FP2 lap data available")
             return None
 
         laps = session.laps
@@ -55,7 +55,7 @@ def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> dict |
 
         if not team_pace:
             if verbose:
-                print("   ⚠️  No long runs detected")
+                print("   No long runs detected")
             return None
 
         # Calculate relative pace (vs median)
@@ -66,7 +66,7 @@ def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> dict |
             team_pace[team]["relative_pace"] = team_pace[team]["avg_pace"] - median_pace
 
         if verbose:
-            print(f"   ✓ Extracted pace for {len(team_pace)} teams")
+            print(f"   Extracted pace for {len(team_pace)} teams")
 
         return team_pace
 
@@ -75,7 +75,7 @@ def extract_fp2_pace(year: int, race_name: str, verbose: bool = False) -> dict |
             f"Failed to extract FP2 pace for {race_name} ({year}): {e}. Race pace simulation will be unavailable."
         )
         if verbose:
-            print(f"   ✗ FP2 extraction failed: {e}")
+            print(f"   FP2 extraction failed: {e}")
         return None
 
 
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     pace = extract_fp2_pace(2025, "Bahrain Grand Prix", verbose=True)
 
     if pace:
-        print(f"\n✓ Extracted pace for {len(pace)} teams:")
+        print(f"\nExtracted pace for {len(pace)} teams:")
         print(f"\n{'Team':<20} {'Avg Pace':<12} {'Rel Pace':<12} {'Deg (s/lap)':<12}")
         print("-" * 70)
 
@@ -190,4 +190,4 @@ if __name__ == "__main__":
                 f"{metrics['degradation']:.4f}"
             )
     else:
-        print("\n✗ Failed to extract FP2 pace")
+        print("\nFailed to extract FP2 pace")

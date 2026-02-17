@@ -142,7 +142,7 @@ def _normalize_relative(raw_metrics: dict[str, dict]) -> dict[str, dict]:
             z = -(metrics["std"] - stats["std"]["mean"]) / stats["std"]["std"]
             perf["consistency"] = _sigmoid(z)
 
-        normalized[team] = perf
+        normalized[_team] = perf
 
     return normalized
 

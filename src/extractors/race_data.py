@@ -35,8 +35,12 @@ def extract_race_data(year, race_name):
         for _idx, row in race.results.iterrows():
             driver = row["Abbreviation"]
 
-            # Get DNF flag (FastF1's actual property)
-            is_dnf = row.dnf if hasattr(row, "dn") else False
+            # Determine DNF robustly across FastF1 result schema variants.
+            if hasattr(row, "dnf"):
+                is_dnf = bool(row.dnf)
+            else:
+                status = str(row.get("Status", "")).strip().lower()
+                is_dnf = any(marker in status for marker in ("dnf", "retired", "disqualified"))
 
             # Get race position
             if pd.notna(row["Position"]):
@@ -64,6 +68,8 @@ def extract_race_data(year, race_name):
                 "quali": quali_pos,
                 "race": race_pos,
                 "gain": gain,
+                # Keep both keys for backward compatibility with downstream consumers.
+                "dnf": is_dnf,
                 "dn": is_dnf,
                 "has_quali": has_quali,
                 "team": row["TeamName"],
@@ -88,7 +94,7 @@ def extract_season(year, verbose=True):
     races = [
         event["EventName"]
         for idx, event in schedule.iterrows()
-        if "testing" not in event.get("EventFormat", "").lower()
+        if "testing" not in str(event.get("EventFormat", "")).lower()
     ]
 
     if verbose:
@@ -102,24 +108,24 @@ def extract_season(year, verbose=True):
 
         if results:
             if verbose:
-                print(f"  ✓ {race_name}: {len(results)} drivers")
+                print(f"  {race_name}: {len(results)} drivers")
 
             for driver, data in results.items():
                 driver_data[driver].append(data)
         else:
             if verbose:
-                print(f"  ✗ {race_name}: Failed")
+                print(f"  {race_name}: failed")
 
     if verbose:
-        print(f"\n✅ Extracted {len(races)} races")
-        print(f"✅ Data for {len(driver_data)} drivers")
+        print(f"\nExtracted {len(races)} races")
+        print(f"Data for {len(driver_data)} drivers")
 
     return driver_data
 
 
 def count_total_dnfs(driver_races):
     """Count total DNF races for a driver. Returns int."""
-    return sum(1 for race in driver_races if race.get("dn", False))
+    return sum(1 for race in driver_races if race.get("dnf", race.get("dn", False)))
 
 
 def get_valid_races(driver_races):
@@ -129,12 +135,12 @@ def get_valid_races(driver_races):
 
 def get_dnf_races(driver_races):
     """Get all DNF races. Returns races where dnf=True."""
-    return [race for race in driver_races if race.get("dnf", False)]
+    return [race for race in driver_races if race.get("dnf", race.get("dn", False))]
 
 
 def get_clean_races(driver_races):
     """Get finished races (not DNF). Returns races where dnf=False."""
-    return [race for race in driver_races if not race.get("dnf", False)]
+    return [race for race in driver_races if not race.get("dnf", race.get("dn", False))]
 
 
 if __name__ == "__main__":
@@ -149,7 +155,7 @@ if __name__ == "__main__":
     driver_data = extract_season(year)
 
     # Show summary
-    print("\n📊 SUMMARY:")
+    print("\nSUMMARY:")
     print("=" * 70)
 
     for driver in sorted(driver_data.keys())[:5]:

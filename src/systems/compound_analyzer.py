@@ -117,7 +117,7 @@ def extract_compound_metrics(
     compound_metrics = {}
 
     # Filter to valid, clean laps with compound info
-    # CRITICAL: Remove pit laps, inaccurate laps, and outliers
+    # Remove pit laps, inaccurate laps, and outliers
     valid_mask = team_laps["LapTime"].notna() & team_laps["Compound"].notna()
 
     # Add FastF1 quality filters if available

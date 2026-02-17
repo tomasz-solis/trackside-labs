@@ -77,11 +77,13 @@ Current sprint adjustments in baseline predictor:
 
 ## Prediction Tracking Integration
 
-When tracking is enabled in the **⚙️ Settings** expander:
+When tracking is enabled in the **Settings** expander:
 
-- one prediction file is saved per detected completed session,
-- max one file per race/session key,
+- one prediction artifact is saved per detected completed session,
+- dashboard flow enforces max one save per race/session key,
 - sprint weekends save the main qualifying + main race outputs for scoring.
+
+Storage backend depends on `USE_DB_STORAGE` (`file_only`, `db_only`, `fallback`, `dual_write`).
 
 See `docs/PREDICTION_TRACKING.md` for file structure and update workflow.
 

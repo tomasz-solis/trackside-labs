@@ -38,6 +38,31 @@ Used by `src/utils/config.py` (`ProductionConfig`) for strategy metadata and exp
 
 It is not the main parameter source for `Baseline2026Predictor` scoring in the dashboard path.
 
+## 3. Persistence Environment Configuration
+
+Artifact storage mode is controlled by environment variables in `src/persistence/config.py`.
+
+### Storage mode
+
+- `USE_DB_STORAGE=file_only` (default): file-backed artifacts only.
+- `USE_DB_STORAGE=db_only`: Supabase-backed artifacts only.
+- `USE_DB_STORAGE=fallback`: read DB first, fall back to file; writes DB.
+- `USE_DB_STORAGE=dual_write`: write both DB and file (recommended migration mode).
+
+### Supabase credentials
+
+When `USE_DB_STORAGE` is not `file_only`, both are required:
+
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+
+Related docs/scripts:
+
+- `docs/PERSISTENCE_SUPABASE.md`
+- `migrations/001_create_artifacts_table.sql`
+- `scripts/test_supabase_connection.py`
+- `scripts/backfill_to_db.py`
+
 ## Common Changes
 
 ### Change qualifying team vs driver weighting
@@ -109,15 +134,32 @@ The race predictor now uses lap-by-lap simulation with tire degradation and pit 
 **Lap time modeling:**
 - `baseline_predictor.race.lap_time.reference_base` - Reference lap time in seconds (default 90.0)
 - `baseline_predictor.race.lap_time.team_pace_penalty_range` - Max penalty for slowest team (default 5.0s)
-- `baseline_predictor.race.lap_time.skill_improvement_max` - Max driver skill advantage (default 0.5s)
+- `baseline_predictor.race.lap_time.skill_improvement_max` - Max driver skill advantage (config currently 0.35; code fallback 0.5 if key missing)
 - `baseline_predictor.race.lap_time.bounds` - Min/max lap time clipping (default [70.0, 120.0])
+
+### Change persistence mode
+
+Examples:
+
+```bash
+# conservative local mode (default)
+export USE_DB_STORAGE=file_only
+
+# migration mode: keep local files + write Supabase
+export USE_DB_STORAGE=dual_write
+export SUPABASE_URL=https://<project>.supabase.co
+export SUPABASE_KEY=<key>
+```
 
 ### Change FastF1/cache paths
 
 Edit:
 
 - `paths.*` in `config/default.yaml`
-- env vars (for example `F1_CONFIG`, `F1_DATA_DIR`, `F1_CACHE_DIR`) where supported by the relevant modules
+- env vars where supported by modules:
+  - `F1_CONFIG` (alternate config file path),
+  - `F1_DATA_DIR` (baseline predictor data root),
+  - `F1_CACHE_DIR` (auto-updater FastF1 cache path)
 
 ## Validation Rules
 
@@ -141,12 +183,15 @@ pace_weight = config_loader.get("baseline_predictor.race.pace_weight_base", 0.40
 ## Safe Workflow For Config Changes
 
 1. Edit `config/default.yaml`.
-2. Run targeted tests:
+2. If persistence mode is DB-backed, verify connectivity first:
+   - `python scripts/test_supabase_connection.py`
+3. Run targeted tests:
    - `pytest tests/test_baseline_2026_integration.py`
    - `pytest tests/test_dashboard_smoke.py`
-3. Run a dry prediction in the app/CLI and confirm behavior.
+4. Run a dry prediction in the app/CLI and confirm behavior.
 
 ## Notes
 
 - The baseline predictor currently uses a fixed 70/30 practice blend inside predictor logic for qualifying.
 - `src/predictors/qualifying.py` and `src/predictors/race.py` preserve legacy method signatures and delegate to baseline logic.
+- Supabase connection hardening is still in progress; prefer `file_only` or `dual_write` for dashboard runs unless you are explicitly validating `db_only`.

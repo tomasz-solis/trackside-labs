@@ -1,10 +1,10 @@
 # Compound Performance Analysis System
 
-This system collects, normalizes, and applies tire compound-specific performance data to improve race predictions.
+This guide describes how tire compound-specific performance data is collected, normalized, and applied to improve race predictions.
 
 ## Overview
 
-F1 teams have varying performance characteristics on different tire compounds (SOFT, MEDIUM, HARD). Some teams excel on softer compounds with high grip but struggle with degradation, while others perform consistently across all compounds. This system captures these differences from session data and applies them during race predictions.
+F1 teams have varying performance characteristics on different tire compounds (SOFT, MEDIUM, HARD). Some teams excel on softer compounds with high grip but struggle with degradation, while others perform consistently across all compounds. The implementation captures these differences from session data and applies them during race predictions.
 
 ## What Compound Data Is Collected
 
@@ -76,7 +76,9 @@ Process ([src/systems/compound_analyzer.py:196-274](../src/systems/compound_anal
 
 **New in this update:** Races now select compounds based on tire stress data.
 
-Function: [src/predictors/baseline_2026.py:237-284](../src/predictors/baseline_2026.py#L237-L284)
+Implemented in:
+- [src/utils/track_data_loader.py](../src/utils/track_data_loader.py) (`get_tire_stress_score`)
+- [src/utils/pit_strategy.py](../src/utils/pit_strategy.py) (`_sample_compound_sequence`)
 
 Uses [data/2025_pirelli_info.json](../data/2025_pirelli_info.json) (fallback for 2026):
 - Calculate average stress: (traction + braking + lateral + abrasion) / 4
@@ -112,10 +114,14 @@ Example:
 
 ### 3. Race Prediction Integration
 
-Applied in [src/predictors/baseline_2026.py:926-936](../src/predictors/baseline_2026.py#L926-L936):
-1. Determine race compound (tire stress based)
-2. Get compound-adjusted team strength for each driver
-3. Use adjusted strength in Monte Carlo race simulation
+Applied in:
+- [src/predictors/baseline/race/prediction_mixin.py](../src/predictors/baseline/race/prediction_mixin.py)
+- [src/predictors/baseline/race/preparation_mixin.py](../src/predictors/baseline/race/preparation_mixin.py)
+
+Flow:
+1. Determine tire stress score for the race.
+2. Generate per-driver pit strategy + compound sequence.
+3. Use per-compound team strength and degradation slopes in lap-by-lap Monte Carlo simulation.
 
 ## When Compound Adjustments Are Used
 
@@ -165,11 +171,11 @@ When new session data arrives ([src/systems/compound_analyzer.py:277-351](../src
 
 This ensures Monaco SOFT data doesn't pollute Monza SOFT data.
 
-## Multi-Stint Race Strategy System (NEW)
+## Multi-Stint Race Strategy System
 
 ### Lap-by-Lap Simulation
 
-**Status: ✅ Implemented**
+Status: Implemented
 
 The race predictor now uses full lap-by-lap simulation with multi-compound pit stop strategies:
 
@@ -202,12 +208,12 @@ The race predictor now uses full lap-by-lap simulation with multi-compound pit s
 
 **Example Output:**
 ```
-🏎️ Tire Compound Strategies
+Tire Compound Strategies
 SOFT→MEDIUM: 62.5%
 MEDIUM→HARD: 28.3%
 SOFT→HARD: 9.2%
 
-⏱️ Pit Stop Windows
+Pit Stop Windows
 L25-30: 35 stops
 L30-35: 28 stops
 L20-25: 12 stops

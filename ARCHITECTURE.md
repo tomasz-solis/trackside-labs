@@ -11,8 +11,12 @@ Streamlit UI (app.py)
        -> src/dashboard/update_flow.py
        -> src/dashboard/prediction_flow.py
        -> Baseline2026Predictor
+            -> baseline/data_mixin.py
+            -> baseline/qualifying_mixin.py
+            -> baseline/race/*.py
             -> weight_schedule.py
             -> fp_blending.py (qualifying only)
+       -> ArtifactStore (file/db mode by USE_DB_STORAGE)
        -> src/dashboard/rendering.py
   -> qualifying + race outputs
 ```
@@ -21,7 +25,7 @@ Streamlit UI (app.py)
 
 ## Dashboard Modules
 
-- `src/dashboard/cache.py`: FastF1 cache setup, file timestamp tracking, cached predictor loading.
+- `src/dashboard/cache.py`: FastF1 cache setup, artifact version tracking, cached predictor loading.
 - `src/dashboard/layout.py`: page config, CSS/theme injection, header, sidebar controls.
 - `src/dashboard/pages.py`: per-page orchestration (live prediction, insights, accuracy, about).
 - `src/dashboard/prediction_flow.py`: cached weekend prediction cascade + ACTUAL/PREDICTED grid switching.
@@ -32,14 +36,20 @@ Streamlit UI (app.py)
 
 ### 1. Baseline Predictor
 
-File: `src/predictors/baseline_2026.py`
+Entry file: `src/predictors/baseline_2026.py`  
+Composed implementation:
+- `src/predictors/baseline/data_mixin.py`
+- `src/predictors/baseline/qualifying_mixin.py`
+- `src/predictors/baseline/race/params_mixin.py`
+- `src/predictors/baseline/race/preparation_mixin.py`
+- `src/predictors/baseline/race/prediction_mixin.py`
 
 Responsibilities:
 
 - Load team, driver, and track data.
 - Build blended team strength (baseline/testing/current).
 - Predict qualifying (Monte Carlo, median position output).
-- Predict race (Monte Carlo with stochastic race factors).
+- Predict race (lap-by-lap Monte Carlo with pit strategy + degradation model).
 
 ### 2. Weight Schedule
 
@@ -78,6 +88,7 @@ Responsibilities:
 - Detect completed races.
 - Update `current_season_performance` and related metadata.
 - Keep baseline and testing directionality separate from in-season updates.
+- Persist updates through `ArtifactStore` (with mode-dependent DB/file behavior).
 
 ### 5. Testing/Practice Directionality Updater
 
@@ -85,14 +96,33 @@ Files:
 
 - `src/systems/testing_updater.py`
 - `scripts/update_from_testing.py`
+- `src/dashboard/update_flow.py` (FP auto-capture entry)
 
 Responsibilities:
 
-- Explicit/manual extraction of directional car metrics.
+- Explicit/manual extraction of directional car metrics from testing and practice data.
 - Supports testing and practice sessions.
 - Writes updated directionality fields to car characteristics.
+- Also used automatically for completed FP sessions via dashboard practice-capture flow.
 
-This updater does not run automatically.
+### 6. Persistence Layer
+
+Files:
+
+- `src/persistence/artifact_store.py`
+- `src/persistence/config.py`
+- `src/persistence/db.py`
+- `migrations/001_create_artifacts_table.sql`
+
+Responsibilities:
+
+- Provide unified artifact load/save interface.
+- Support storage modes controlled by `USE_DB_STORAGE`:
+  - `file_only` (default),
+  - `db_only`,
+  - `fallback`,
+  - `dual_write`.
+- Allow Supabase rollout while keeping local-file fallback paths.
 
 ## Data Model
 
@@ -134,10 +164,11 @@ load lineups
 
 ```text
 input grid (predicted or actual)
-  -> prepare driver/team context
-  -> compute stochastic race scores per simulation
+  -> prepare driver/team context (including per-compound strengths)
+  -> generate Monte Carlo pit strategies
+  -> simulate lap-by-lap race dynamics
   -> include DNF, lap1 chaos, strategy, safety car effects
-  -> aggregate positions across simulations
+  -> aggregate positions and strategy distributions across simulations
   -> final finish order + confidence + podium probability
 ```
 
@@ -152,16 +183,9 @@ File: `src/utils/weekend.py`
 
 - Primary FastF1 cache: `data/raw/.fastf1_cache`
 - Testing updater cache (default): `data/raw/.fastf1_cache_testing`
-- Streamlit cache is invalidated when relevant data file timestamps change.
+- Streamlit cache is invalidated when tracked artifact versions or key file timestamps change.
 
 ## Notes On Legacy Components
 
 - Bayesian ranking and learning modules still exist and are testable.
 - They are not the direct scoring path used by the dashboard’s baseline predictor flow.
-
-## Modularization Candidates (Next)
-
-To continue reducing file size without changing outputs:
-
-- `src/predictors/baseline_2026.py` (1495 lines)
-- `src/systems/testing_updater.py` (1260 lines)

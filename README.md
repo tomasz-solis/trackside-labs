@@ -19,6 +19,15 @@ The Streamlit app and the main weekend flow use:
 
 `src/predictors/qualifying.py` and `src/predictors/race.py` are compatibility wrappers that delegate to `Baseline2026Predictor`.
 
+## Predictor Structure (Current)
+
+`Baseline2026Predictor` is now a composed class, not a single monolithic implementation file.
+
+- `src/predictors/baseline/data_mixin.py`: artifact loading, blended team strength, compound selection helpers
+- `src/predictors/baseline/qualifying_mixin.py`: qualifying and sprint-quali flow
+- `src/predictors/baseline/race/`: race prep, params, and lap-by-lap prediction mixins
+- `src/predictors/baseline_2026.py`: thin composition/entrypoint
+
 ## Quick Start
 
 ```bash
@@ -72,13 +81,13 @@ python scripts/update_from_race.py "Bahrain Grand Prix" --year 2026
 ### 3. Manual testing/practice directionality update
 
 ```bash
-python scripts/update_from_testing.py "Testing 1" --year 2026 --sessions "Day 1"
+python scripts/update_from_testing.py "Testing 1" --year 2026 --sessions "Day 1" --apply
 ```
 
 To combine all available testing days, omit `--sessions`:
 
 ```bash
-python scripts/update_from_testing.py "Testing 1" --year 2026
+python scripts/update_from_testing.py "Testing 1" --year 2026 --apply
 ```
 
 Useful flags:
@@ -94,6 +103,8 @@ python scripts/update_from_testing.py "Testing 1" \
   --dry-run
 ```
 
+Note: this script now defaults to dry-run mode; use `--apply` to persist changes.
+
 Testing cache defaults to `data/raw/.fastf1_cache_testing`.
 
 ## Important Data Files
@@ -102,6 +113,37 @@ Testing cache defaults to `data/raw/.fastf1_cache_testing`.
 - `data/processed/track_characteristics/2026_track_characteristics.json`
 - `data/processed/driver_characteristics.json`
 
+## Persistence and Supabase Status (Current)
+
+Artifact persistence is already wired through `ArtifactStore` in active runtime code paths:
+
+- `src/predictors/baseline/data_mixin.py`
+- `src/systems/updater.py`
+- `src/utils/prediction_logger.py`
+- `src/dashboard/cache.py`
+
+Storage mode is controlled by `USE_DB_STORAGE`:
+
+- `file_only` (default)
+- `db_only`
+- `fallback`
+- `dual_write`
+
+When mode is not `file_only`, both `SUPABASE_URL` and `SUPABASE_KEY` are required.
+
+Supabase assets currently in repo:
+
+- Migration: `migrations/001_create_artifacts_table.sql`
+- Connectivity check: `scripts/test_supabase_connection.py`
+- Backfill utility: `scripts/backfill_to_db.py`
+- Predictor/storage smoke test: `scripts/test_predictor_with_db.py`
+
+Current rollout state:
+
+- Supabase connectivity and migration hardening are in progress.
+- `file_only` remains the safest default.
+- `dual_write` is the safest migration mode for dashboard workflows that still rely on local prediction files.
+
 ## What Exists But Is Not The Main Dashboard Path
 
 - Bayesian ranking components (`src/models/bayesian.py`)
@@ -109,13 +151,6 @@ Testing cache defaults to `data/raw/.fastf1_cache_testing`.
 - Additional scripts and legacy-compatible interfaces
 
 These remain useful for experiments and extensions, but the app runtime path is the baseline predictor stack listed above.
-
-## Modularization Candidates (Next)
-
-Largest files still worth splitting while preserving behavior:
-
-- `src/predictors/baseline_2026.py` (prediction orchestration + race simulation assembly in one file)
-- `src/systems/testing_updater.py` (session loading, metrics extraction, and persistence combined)
 
 ## Documentation
 
@@ -128,7 +163,7 @@ Largest files still worth splitting while preserving behavior:
 - `docs/PREDICTION_TRACKING.md`
 - `docs/WEIGHT_SCHEDULE_GUIDE.md`
 - `docs/COMPOUND_ANALYSIS.md` - Tire compound performance system
-- `docs/ERROR_HANDLING_PATTERNS.md` - Error handling conventions
+- `docs/PERSISTENCE_SUPABASE.md` - ArtifactStore modes, migration flow, and current rollout status
 
 ## Tests
 

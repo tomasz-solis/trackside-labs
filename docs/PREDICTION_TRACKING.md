@@ -1,6 +1,6 @@
 # Prediction Tracking
 
-This system stores predictions by session and lets you attach actual results later for accuracy analysis.
+This guide describes how predictions are stored by session and how actual results are attached later for accuracy analysis.
 
 ## Where It Lives
 
@@ -12,12 +12,23 @@ This system stores predictions by session and lets you attach actual results lat
 
 ## How Saving Works
 
-1. Enable **Save Predictions for Accuracy Tracking** in the **⚙️ Settings** expander on the main page.
+1. Enable **Save Predictions for Accuracy Tracking** in the **Settings** expander on the main page.
 2. Click **Generate Prediction**.
 3. App detects the latest completed session for the weekend type.
-4. If no prediction exists yet for that race/session key, it writes one JSON file.
+4. If no prediction exists yet for that race/session key, it writes one prediction artifact through `ArtifactStore`.
 
-File root:
+In dashboard flow, this is still max one saved prediction per race/session key.
+
+## Storage Backend Behavior
+
+Persistence mode is controlled by `USE_DB_STORAGE`:
+
+- `file_only`: writes JSON files only.
+- `db_only`: writes Supabase only.
+- `fallback`: reads DB first and falls back to file; writes Supabase only.
+- `dual_write`: writes both Supabase and files.
+
+File root (when files are written):
 
 - `data/predictions/<year>/<race_slug>/`
 
@@ -45,7 +56,7 @@ The detector uses scheduled session time plus buffer duration to decide whether 
 
 Each file contains:
 
-- `metadata` (year, race, session, timestamp, weather, optional blend info)
+- `metadata` (year, race, session, timestamp, weather, optional blend info, run_id)
 - `qualifying.predicted_grid`
 - `race.predicted_results`
 - `actuals` placeholder (`qualifying`, `race`)
@@ -72,6 +83,7 @@ Typical metrics shown:
 
 ## Known Limits
 
-1. Session labels must match saved filenames (`FP1`, `FP2`, `FP3`, `SQ`, `Sprint`).
+1. Session labels must match saved keys (`FP1`, `FP2`, `FP3`, `SQ`, `Sprint`).
 2. Actuals update depends on FastF1 availability for qualifying and race sessions.
 3. If no session has completed yet, nothing is saved.
+4. Dashboard accuracy history currently scans local files, so pure `db_only`/`fallback` mode may not show saved history unless files also exist.

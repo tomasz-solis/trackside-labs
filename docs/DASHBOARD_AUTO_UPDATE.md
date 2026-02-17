@@ -30,7 +30,7 @@ Behavior can be tuned in `config/default.yaml` under:
 Qualifying prediction also auto-fetches the best available session data through `src/utils/fp_blending.py`.
 
 - Normal: `FP3 > FP2 > FP1`
-- Sprint: `Sprint > Sprint Qualifying > FP1`
+- Sprint: `Sprint Qualifying > Sprint > FP1`
 
 ## Manual / Explicit Workflows
 
@@ -43,10 +43,15 @@ python scripts/update_from_race.py "Bahrain Grand Prix" --year 2026
 ### 2. Update testing/practice directionality
 
 ```bash
-python scripts/update_from_testing.py "Testing 1" --year 2026 --sessions "Day 1"
+python scripts/update_from_testing.py "Testing 1" --year 2026 --sessions "Day 1" --apply
 ```
 
-This updater is intentionally manual.
+This updater is manual.
+By default it runs as dry-run; pass `--apply` to write updates.
+
+Clarification: dashboard FP auto-capture uses the same underlying testing updater logic for
+completed race-weekend FP sessions, but explicit testing-event runs (for example pre-season testing)
+still require manual script execution.
 
 ## Cache Locations
 
@@ -59,12 +64,13 @@ If cache corruption is suspected for testing pulls, run with:
 python scripts/update_from_testing.py "Testing 1" \
   --year 2026 \
   --sessions "Day 1" \
-  --force-renew-cache
+  --force-renew-cache \
+  --apply
 ```
 
 ## What Is Not Automatic
 
-- Testing directionality extraction.
+- Pre-season testing directionality extraction.
 - Historical notebook validation runs.
 - Manual backfill decisions for special analysis workflows.
 

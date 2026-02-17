@@ -28,8 +28,8 @@ Session-based prediction storage, attaching actual results, and accuracy metrics
 ### `COMPOUND_ANALYSIS.md`
 Tire compound performance collection, dynamic selection, and race prediction adjustments.
 
-### `ERROR_HANDLING_PATTERNS.md`
-Error handling conventions and when to return None vs raise exceptions.
+### `PERSISTENCE_SUPABASE.md`
+ArtifactStore modes, Supabase migration workflow, and current rollout status.
 
 ## Validation Notebooks
 

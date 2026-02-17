@@ -25,7 +25,7 @@ In the active baseline path, this 70/30 split is fixed in predictor logic.
 
 ### Sprint weekend
 
-`Sprint > Sprint Qualifying > FP1`
+`Sprint Qualifying > Sprint > FP1`
 
 The first session that returns usable data is used.
 

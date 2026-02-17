@@ -1,7 +1,7 @@
 """
-Weekend Type Utilities - NO HARDCODING!
+Weekend Type Utilities
 
-ALWAYS uses FastF1's EventFormat - never hardcoded sprint lists.
+Uses FastF1 EventFormat and avoids hardcoded sprint lists.
 Falls back to local track characteristics data if FastF1 schedule is unavailable.
 
 EventFormat values:
@@ -11,8 +11,7 @@ EventFormat values:
 Usage:
     from src.utils.weekend import get_weekend_type, is_sprint_weekend
 
-    weekend_type = get_weekend_type(2025, 'Chinese Grand Prix')
-    # Returns: 'sprint' or 'conventional'
+    weekend_type = get_weekend_type(2025, 'Chinese Grand Prix')  # 'sprint' or 'conventional'
 
     if is_sprint_weekend(2025, race_name):
         session = 'Sprint Qualifying'
@@ -79,6 +78,11 @@ def _get_schedule_rows(year: int) -> tuple[tuple[str, str], ...]:
     return tuple(rows)
 
 
+def refresh_schedule_cache() -> None:
+    """Clear cached schedule rows so next lookup fetches fresh FastF1 metadata."""
+    _get_schedule_rows.cache_clear()
+
+
 def _find_event_format(year: int, race_name: str) -> str | None:
     """Return EventFormat string for race_name, or None if not found."""
     race_name_lower = race_name.lower()
@@ -91,6 +95,11 @@ def _find_event_format(year: int, race_name: str) -> str | None:
 def get_weekend_type(year: int, race_name: str) -> Literal["sprint", "conventional"]:
     """Get weekend type from FastF1 EventFormat. Raises ValueError if race not found."""
     event_format = _find_event_format(year, race_name)
+    if event_format is None:
+        # Retry once with a fresh schedule snapshot to avoid stale in-process cache.
+        refresh_schedule_cache()
+        event_format = _find_event_format(year, race_name)
+
     if event_format is None:
         available_races = [event_name for event_name, _ in _get_schedule_rows(year)]
         raise ValueError(
@@ -156,7 +165,7 @@ def get_best_qualifying_session(year: int, race_name: str) -> str:
 
 # Testing
 if __name__ == "__main__":
-    logger.info("Weekend Type Utilities - NO HARDCODING!")
+    logger.info("Weekend type utility check")
 
     year = 2025
 
@@ -193,4 +202,4 @@ if __name__ == "__main__":
         except ValueError as e:
             logger.error(f"  {race}: ERROR - {e}")
 
-    logger.info("All data from FastF1 - NO HARDCODED LISTS!")
+    logger.info("Sprint and conventional races loaded from FastF1 metadata")

@@ -19,8 +19,13 @@ class PredictionLogger:
         self.predictions_dir = Path(predictions_dir)
         self.predictions_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize ArtifactStore (data_root is parent of predictions_dir)
-        self.artifact_store = ArtifactStore(data_root=self.predictions_dir.parent)
+        # Initialize ArtifactStore
+        # Note: ArtifactStore expects data_root, and will append "/predictions" internally
+        # So if predictions_dir is "data/predictions", data_root should be "data"
+        # For temp dirs in tests, we need to point to parent so ArtifactStore creates
+        # the predictions subdirectory in the right place
+        data_root = self.predictions_dir.parent
+        self.artifact_store = ArtifactStore(data_root=data_root)
 
     def save_prediction(
         self,

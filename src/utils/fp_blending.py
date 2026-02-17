@@ -1,42 +1,150 @@
-"""
-FP Practice Session Blending
-
-Extracts team session performance and blends it with model team strength.
-Also extracts compound-specific performance during FP sessions.
-
-Current active usage:
-- called by `Baseline2026Predictor.predict_qualifying`
-- uses the best single available session by priority
-- applies a 70/30 session/model blend in baseline predictor logic
-"""
+"""Extract and blend FP session performance with model predictions."""
 
 import logging
+import time
+from collections.abc import Callable
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any
 
 import fastf1 as ff1
 import numpy as np
 import pandas as pd
 
+from src.utils import config_loader
 from src.utils.team_mapping import map_team_to_characteristics
 
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 
+class CircuitBreaker:
+    """Circuit breaker for FastF1 API rate limiting protection."""
+
+    def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 60.0):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failure_count = 0
+        self.last_failure_time: float | None = None
+        self.state = "closed"  # closed, open, half_open
+
+    def reset(self) -> None:
+        """Reset circuit breaker to closed state (for testing)."""
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = "closed"
+
+    def call(self, fn: Callable[[], Any]) -> Any:
+        """Execute function with circuit breaker protection."""
+        if self.state == "open":
+            if (
+                self.last_failure_time
+                and (time.time() - self.last_failure_time) > self.recovery_timeout
+            ):
+                logger.info("Circuit breaker transitioning to half-open state")
+                self.state = "half_open"
+            else:
+                raise RuntimeError(
+                    "Circuit breaker is open; FastF1 requests are temporarily blocked"
+                )
+
+        try:
+            result = fn()
+            if self.state == "half_open":
+                logger.info("Circuit breaker recovered, transitioning to closed state")
+                self.failure_count = 0
+                self.state = "closed"
+            return result
+        except Exception:
+            self.failure_count += 1
+            self.last_failure_time = time.time()
+
+            if self.failure_count >= self.failure_threshold:
+                logger.error(f"Circuit breaker opened after {self.failure_count} failures")
+                self.state = "open"
+            raise
+
+
+# Global circuit breaker instance (shared across all FastF1 calls)
+_circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60.0)
+
+
+def _fastf1_with_retry(
+    fn: Callable[[], Any], max_retries: int = 3, initial_delay: float = 1.0
+) -> Any:
+    """Execute FastF1 API call with exponential backoff retry logic and circuit breaker protection."""
+    for attempt in range(max_retries):
+        try:
+            return _circuit_breaker.call(fn)
+        except RuntimeError as e:
+            if "Circuit breaker is open" in str(e):
+                raise
+            raise
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise
+            delay = initial_delay * (2**attempt)
+            logger.warning(
+                f"FastF1 API error (attempt {attempt + 1}/{max_retries}): {e.__class__.__name__}: {e}. Retrying in {delay:.1f}s..."
+            )
+            time.sleep(delay)
+
+
+class FPDataError(Enum):
+    """Error codes for FP data extraction failures."""
+
+    NOT_COMPLETED = "not_completed"
+    API_FAILURE = "api_failure"
+    STALE_DATA = "stale_data"
+    INSUFFICIENT_LAPS = "insufficient_laps"
+
+
 def get_fp_team_performance(
-    year: int, race_name: str, session_type: str
-) -> tuple[dict[str, float] | None, pd.DataFrame | None]:
-    """
-    Extract team performance and session laps from practice/qualifying session.
-    Returns (team_performance, session_laps) or (None, None) if unavailable.
-    """
+    year: int,
+    race_name: str,
+    session_type: str,
+    max_data_age_hours: float | None = None,
+) -> tuple[dict[str, float] | None, pd.DataFrame | None, FPDataError | None]:
+    """Extract team performance from practice session with staleness and lap count validation."""
     try:
-        session = ff1.get_session(year, race_name, session_type)
-        session.load(laps=True, telemetry=False, weather=False)
+        session = _fastf1_with_retry(lambda: ff1.get_session(year, race_name, session_type))
+        if session is None:
+            return None, None, FPDataError.API_FAILURE
+
+        load_result = _fastf1_with_retry(
+            lambda: session.load(laps=True, telemetry=False, weather=False)
+        )
+        if load_result is None:
+            logger.warning(f"session.load() returned None for {session_type} at {race_name}")
+            return None, None, FPDataError.API_FAILURE
 
         if not hasattr(session, "laps") or session.laps is None or session.laps.empty:
-            return None, None
+            return None, None, FPDataError.NOT_COMPLETED
+
+        # Enforce data freshness via config (default one week).
+        if max_data_age_hours is None:
+            max_data_age_hours = float(
+                config_loader.get("baseline_predictor.qualifying.max_session_age_hours", 168.0)
+            )
+
+        if hasattr(session, "date") and session.date:
+            session_age = datetime.now(tz=session.date.tzinfo) - session.date
+            if session_age > timedelta(hours=max_data_age_hours):
+                logger.warning(
+                    f"{session_type} for {race_name} is "
+                    f"{session_age.total_seconds() / 3600:.1f}h old "
+                    f"(max {max_data_age_hours:.1f}h) - rejecting stale data"
+                )
+                return None, None, FPDataError.STALE_DATA
 
         laps = session.laps
+
+        # Reject red-flagged/truncated sessions (<10 total laps)
+        if len(laps) < 10:
+            logger.warning(
+                f"{session_type} for {race_name} has only {len(laps)} laps - likely red-flagged, rejecting"
+            )
+            return None, None, FPDataError.INSUFFICIENT_LAPS
 
         # Get best lap per driver (excluding outliers)
         best_times = []
@@ -63,7 +171,7 @@ def get_fp_team_performance(
             best_times.append({"driver": driver, "team": team, "time": best_lap.total_seconds()})
 
         if not best_times:
-            return None, None
+            return None, None, FPDataError.INSUFFICIENT_LAPS
 
         # Get median time per team (robust to one driver having issues)
         team_times = {}
@@ -82,21 +190,20 @@ def get_fp_team_performance(
         slowest = max(team_medians.values())
 
         if fastest == slowest:
-            # All teams same pace (unlikely)
-            return {team: 0.5 for team in team_medians}, laps
+            return {team: 0.5 for team in team_medians}, laps, None
 
         team_performance = {
             team: 1.0 - (time - fastest) / (slowest - fastest)
             for team, time in team_medians.items()
         }
 
-        return team_performance, laps
+        return team_performance, laps, None
 
     except Exception as e:
-        logger.debug(
-            f"Could not extract team performance from {session_type} for {race_name} ({year}): {e}"
+        logger.warning(
+            f"FastF1 API failure for {session_type} at {race_name} ({year}): {e.__class__.__name__}: {e}"
         )
-        return None, None
+        return None, None, FPDataError.API_FAILURE
 
 
 def get_best_fp_performance(
@@ -105,17 +212,7 @@ def get_best_fp_performance(
     is_sprint: bool = False,
     qualifying_stage: str = "auto",
 ) -> tuple[str | None, dict[str, float] | None, pd.DataFrame | None]:
-    """
-    Get the best available practice session data for blending.
-    Returns (session_label, team_performance, session_laps).
-
-    Normal weekend priority: FP3 > FP2 > FP1
-
-    Sprint weekend priorities depend on qualifying stage:
-    - stage="sprint": FP1 only (pre-SQ context)
-    - stage="main": Sprint Race > Sprint Qualifying > FP1
-    - stage="auto": Sprint Race > Sprint Qualifying > FP1 (legacy behavior)
-    """
+    """Get best available practice session with staleness checks and error reporting."""
     stage = (qualifying_stage or "auto").strip().lower()
     if stage not in {"auto", "sprint", "main"}:
         raise ValueError("qualifying_stage must be one of: 'auto', 'sprint', 'main'")
@@ -125,10 +222,10 @@ def get_best_fp_performance(
             # Sprint Qualifying prediction should be anchored to pre-SQ context.
             sessions = [("FP1", "FP1 times")]
         else:
-            # Main qualifying on sprint weekends can use sprint/SQ evidence.
+            # Main qualifying should prioritize one-lap session evidence.
             sessions = [
-                ("Sprint", "Sprint Race times"),
                 ("Sprint Qualifying", "Sprint Qualifying times"),
+                ("Sprint", "Sprint Race times"),
                 ("FP1", "FP1 times"),
             ]
     else:
@@ -139,13 +236,22 @@ def get_best_fp_performance(
             ("FP1", "FP1 times"),
         ]
 
+    errors_encountered = []
     for session_code, session_label in sessions:
-        fp_data, session_laps = get_fp_team_performance(year, race_name, session_code)
+        fp_data, session_laps, error = get_fp_team_performance(year, race_name, session_code)
         if fp_data is not None:
             logger.info(f"Using {session_label} for blending")
             return session_label, fp_data, session_laps
+        if error:
+            errors_encountered.append((session_code, error))
 
-    logger.info("No practice data available - using model-only predictions")
+    # Log why we're falling back to model-only
+    if errors_encountered:
+        error_summary = ", ".join([f"{s}: {e.value}" for s, e in errors_encountered])
+        logger.info(f"No valid practice data ({error_summary}) - using model-only predictions")
+    else:
+        logger.info("No practice data available - using model-only predictions")
+
     return None, None, None
 
 
@@ -154,7 +260,7 @@ def blend_team_strength(
     fp_performance: dict[str, float] | None,
     blend_weight: float = 0.7,
 ) -> dict[str, float]:
-    """Blend model predictions with FP data (default: 70% practice + 30% model). Validates team name matches."""
+    """Blend model predictions with FP data (70% practice + 30% model)."""
     if fp_performance is None:
         return model_strength
 

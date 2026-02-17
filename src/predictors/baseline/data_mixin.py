@@ -27,10 +27,15 @@ logger = logging.getLogger("src.predictors.baseline_2026")
 class BaselineDataMixin:
     """Shared data and team-strength methods for Baseline2026Predictor."""
 
+    def __init__(self):
+        """Initialize data mixin with compound extraction cache."""
+        if not hasattr(self, "_compound_cache"):
+            self._compound_cache = {}
+
     def load_data(self) -> None:
         """Load 2026 team data and driver characteristics with schema validation."""
-        # Initialize artifact store
-        store = ArtifactStore(data_root=self.data_dir)
+        # Use injected artifact store or create new one
+        store = getattr(self, "artifact_store", None) or ArtifactStore(data_root=self.data_dir)
 
         # Load and validate 2026 car characteristics
         data = store.load_artifact(
@@ -60,15 +65,13 @@ class BaselineDataMixin:
 
         if data_freshness == "BASELINE_PRESEASON":
             logger.warning(
-                "⚠️  Using PRE-SEASON BASELINE data - team performance highly uncertain until races complete!"
+                "Using pre-season baseline data; team performance remains uncertain until races complete."
             )
         elif data_freshness == "LIVE_UPDATED":
-            logger.info(
-                f"✓ Using LIVE data updated from {races_completed} race(s) - confidence increasing"
-            )
+            logger.info(f"Using live-updated data from {races_completed} race(s)")
         else:
             logger.warning(
-                f"⚠️  Data freshness unknown ({data_freshness}) - predictions may be outdated"
+                f"Data freshness unknown ({data_freshness}); predictions may be outdated"
             )
 
         # Load and validate driver characteristics
@@ -96,7 +99,7 @@ class BaselineDataMixin:
         errors = validate_driver_data(driver_data["drivers"])
         if errors:
             logger.warning(
-                f"⚠️  Driver data has {len(errors)} validation errors. "
+                f"Driver data has {len(errors)} validation errors. "
                 "Consider re-running extraction: python scripts/extract_driver_characteristics.py --years 2023,2024,2025"
             )
 
@@ -115,12 +118,12 @@ class BaselineDataMixin:
                 with open(track_file) as f:
                     track_data = json.load(f)
             except FileNotFoundError:
-                logger.warning("⚠️  Track characteristics not found")
+                logger.warning("Track characteristics not found")
                 track_data = {}
 
         self.tracks = track_data.get("tracks", {})
         if self.tracks:
-            logger.info(f"✓ Loaded track characteristics for {len(self.tracks)} circuits")
+            logger.info(f"Loaded track characteristics for {len(self.tracks)} circuits")
 
         # Store races completed and year for weight schedule (from car characteristics)
         self.races_completed = data.get("races_completed", 0)
@@ -354,10 +357,19 @@ class BaselineDataMixin:
         year: int,
         is_sprint: bool,
     ) -> None:
-        """
-        Extract compound characteristics from session laps and update in-memory team data.
-        This runs on every "Generate Prediction" click to use fresh FastF1 data.
-        """
+        """Extract compound characteristics with session-level caching."""
+        # Check cache first (keyed by race + session lap count as freshness indicator)
+        cache_key = (race_name, year, len(session_laps))
+        if cache_key in self._compound_cache:
+            logger.debug(
+                f"Using cached compound metrics for {race_name} ({len(session_laps)} laps)"
+            )
+            cached_compounds = self._compound_cache[cache_key]
+            for team_name, compounds in cached_compounds.items():
+                if team_name in self.teams:
+                    self.teams[team_name]["compound_characteristics"] = compounds
+            return
+
         from src.systems.compound_analyzer import (
             aggregate_compound_samples,
             extract_compound_metrics,
@@ -419,11 +431,43 @@ class BaselineDataMixin:
                     race_name=race_name,
                 )
 
-                # Update in-memory (not saved to JSON - that happens in updater)
                 self.teams[team_name]["compound_characteristics"] = blended_compounds
 
+            # Cache the blended results
+            self._compound_cache[cache_key] = {
+                team: self.teams[team].get("compound_characteristics", {})
+                for team in normalized_compound_metrics
+                if team in self.teams
+            }
+
+            # Persist updated compound characteristics to DB if using artifact store
+            store = getattr(self, "artifact_store", None)
+            storage_mode = getattr(store, "storage_mode", "file_only") if store else "file_only"
+            if store and storage_mode in {"db_only", "fallback", "dual_write"}:
+                try:
+                    car_data = store.load_artifact(
+                        "car_characteristics", "2026::car_characteristics"
+                    )
+                    if car_data:
+                        for team_name in normalized_compound_metrics:
+                            if team_name in car_data.get("teams", {}):
+                                car_data["teams"][team_name]["compound_characteristics"] = (
+                                    self.teams[team_name].get("compound_characteristics", {})
+                                )
+                        store.save_artifact(
+                            "car_characteristics", "2026::car_characteristics", car_data
+                        )
+                        logger.debug(
+                            "Persisted compound characteristics for "
+                            f"{len(normalized_compound_metrics)} teams to DB"
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to persist compound characteristics to DB: {e}")
+            else:
+                logger.debug("Skipping DB persistence (file-only mode or no artifact store)")
+
             logger.info(
-                f"✓ Updated compound characteristics for {len(normalized_compound_metrics)} teams "
+                f"Updated and cached compound characteristics for {len(normalized_compound_metrics)} teams "
                 f"(blend_weight={blend_weight:.0%})"
             )
         else:

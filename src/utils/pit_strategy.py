@@ -18,6 +18,7 @@ def generate_pit_strategy(
     available_compounds: list[str],
     rng: np.random.Generator,
     driver_risk_profile: float | None = None,
+    enforce_two_compound_rule: bool = True,
 ) -> dict:
     """Generate Monte Carlo pit strategy for one driver in one simulation.
 
@@ -68,9 +69,13 @@ def generate_pit_strategy(
     # Generate pit laps based on number of stops
     pit_laps = _sample_pit_laps(race_distance, num_stops, rng)
 
-    # Generate compound sequence (must use ≥2 different compounds)
+    # Generate compound sequence (dry races enforce >=2 compounds, wet does not).
     compound_sequence = _sample_compound_sequence(
-        available_compounds, num_stops, tire_stress_score, rng
+        available_compounds,
+        num_stops,
+        tire_stress_score,
+        rng,
+        enforce_two_compound_rule=enforce_two_compound_rule,
     )
 
     # Calculate stint lengths
@@ -84,9 +89,18 @@ def generate_pit_strategy(
     }
 
     # Validate strategy
-    if not validate_strategy(strategy, race_distance, available_compounds):
+    if not validate_strategy(
+        strategy,
+        race_distance,
+        available_compounds,
+        enforce_two_compound_rule=enforce_two_compound_rule,
+    ):
         logger.warning(f"Invalid strategy generated: {strategy}. Falling back to default.")
-        strategy = _get_default_strategy(race_distance, available_compounds)
+        strategy = _get_default_strategy(
+            race_distance,
+            available_compounds,
+            enforce_two_compound_rule=enforce_two_compound_rule,
+        )
 
     return strategy
 
@@ -188,10 +202,11 @@ def _sample_compound_sequence(
     num_stops: int,
     tire_stress_score: float,
     rng: np.random.Generator,
+    enforce_two_compound_rule: bool = True,
 ) -> list[str]:
     """Sample compound sequence (starting + post-pit compounds).
 
-    Must satisfy FIA rule: ≥2 different compounds used.
+    Dry races must satisfy FIA rule: >=2 different compounds used.
     """
     num_compounds_needed = num_stops + 1  # Starting compound + 1 per stop
 
@@ -204,7 +219,7 @@ def _sample_compound_sequence(
     # Filter available compounds
     available = [c for c in COMPOUND_DEG_ORDER if c in available_compounds]
 
-    if len(available) < 2:
+    if enforce_two_compound_rule and len(available) < 2:
         logger.warning(f"Insufficient compounds available: {available}. Cannot satisfy FIA rule.")
         # Fallback: repeat available compound (will fail validation)
         available = available_compounds
@@ -230,6 +245,21 @@ def _sample_compound_sequence(
     # Filter preferences to available compounds
     ordered_compounds = [c for c in preference_order if c in available]
 
+    if not ordered_compounds:
+        ordered_compounds = list(available_compounds)
+
+    # Wet races can legally run one compound throughout.
+    if not enforce_two_compound_rule:
+        if rng.random() < 0.75:
+            return [ordered_compounds[0]] * num_compounds_needed
+
+        shuffled = list(ordered_compounds)
+        rng.shuffle(shuffled)
+        sequence = shuffled[:num_compounds_needed]
+        while len(sequence) < num_compounds_needed:
+            sequence.append(sequence[-1])
+        return sequence
+
     # Monte Carlo: configurable optimality ratio (for realism)
     optimality_ratio = config_loader.get(
         "baseline_predictor.race.strategy_constraints.strategy_optimality", 0.60
@@ -249,7 +279,7 @@ def _sample_compound_sequence(
             rng.shuffle(shuffled)
             compound_sequence = shuffled[:num_compounds_needed]
 
-    # Pad if insufficient unique compounds (edge case)
+    # Pad if insufficient compounds (edge case)
     while len(compound_sequence) < num_compounds_needed:
         compound_sequence.append(compound_sequence[-1])
 
@@ -279,7 +309,12 @@ def _calculate_stint_lengths(race_distance: int, pit_laps: list[int]) -> list[in
     return stint_lengths
 
 
-def validate_strategy(strategy: dict, race_distance: int, available_compounds: list[str]) -> bool:
+def validate_strategy(
+    strategy: dict,
+    race_distance: int,
+    available_compounds: list[str],
+    enforce_two_compound_rule: bool = True,
+) -> bool:
     """Validate strategy satisfies FIA rules and physical constraints."""
     # Load safety margins
     min_pit_lap = config_loader.get("baseline_predictor.race.strategy_constraints.min_pit_lap", 5)
@@ -317,11 +352,12 @@ def validate_strategy(strategy: dict, race_distance: int, available_compounds: l
         )
         return False
 
-    # FIA Rule: ≥2 unique compounds used (dry race)
-    unique_compounds = set(compound_sequence)
-    if len(unique_compounds) < 2:
-        logger.warning(f"FIA rule violation: <2 unique compounds ({unique_compounds})")
-        return False
+    if enforce_two_compound_rule:
+        # FIA dry-race rule: >=2 unique compounds.
+        unique_compounds = set(compound_sequence)
+        if len(unique_compounds) < 2:
+            logger.warning(f"FIA rule violation: <2 unique compounds ({unique_compounds})")
+            return False
 
     # Check: all compounds available
     for compound in compound_sequence:
@@ -344,19 +380,31 @@ def validate_strategy(strategy: dict, race_distance: int, available_compounds: l
     return True
 
 
-def _get_default_strategy(race_distance: int, available_compounds: list[str]) -> dict:
+def _get_default_strategy(
+    race_distance: int,
+    available_compounds: list[str],
+    enforce_two_compound_rule: bool = True,
+) -> dict:
     """Return safe default 1-stop strategy as fallback."""
     # Default: 1-stop at ~50% race distance
     pit_lap = race_distance // 2
 
-    # Use first two available compounds
+    # Use first two available compounds for dry-race fallback.
     available = [c for c in COMPOUND_DEG_ORDER if c in available_compounds]
     if len(available) < 2:
-        available = (
-            available_compounds[:2] if len(available_compounds) >= 2 else available_compounds * 2
-        )
+        available = available_compounds[:]
 
-    compound_sequence = available[:2]
+    if enforce_two_compound_rule:
+        if len(available) < 2:
+            available = (
+                available_compounds[:2]
+                if len(available_compounds) >= 2
+                else available_compounds * 2
+            )
+        compound_sequence = available[:2]
+    else:
+        fallback_compound = available[0] if available else "INTERMEDIATE"
+        compound_sequence = [fallback_compound, fallback_compound]
 
     stint_lengths = [pit_lap, race_distance - pit_lap]
 

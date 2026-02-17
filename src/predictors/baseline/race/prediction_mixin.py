@@ -16,6 +16,7 @@ from src.utils.track_data_loader import (
     get_available_compounds,
     get_tire_stress_score,
     load_track_specific_params,
+    resolve_race_distance_laps,
 )
 from src.utils.validation_helpers import validate_enum, validate_positive_int
 
@@ -141,12 +142,17 @@ class BaselineRacePredictionMixin:
             qualifying_grid, race_name
         )
 
-        # Determine race distance
-        race_distance = 20 if is_sprint else 60  # Simplified; could be track-specific
+        # Determine race distance from FastF1 metadata, with safe fallback defaults.
+        race_distance = resolve_race_distance_laps(
+            year=2026,
+            race_name=race_name,
+            is_sprint=is_sprint,
+        )
 
         # Get tire stress and available compounds
         tire_stress_score = get_tire_stress_score(race_name)
-        available_compounds = get_available_compounds(race_name)
+        available_compounds = get_available_compounds(race_name, weather=weather)
+        enforce_two_compound_rule = weather == "dry"
 
         # Restructure race_params for lap_by_lap_simulator (expects nested dicts)
         race_params["base_chaos"] = {
@@ -181,7 +187,7 @@ class BaselineRacePredictionMixin:
 
         # Run lap-by-lap simulations
         simulation_results = []
-        base_seed = 42  # For reproducibility
+        base_seed = int(getattr(self, "seed", 42))
 
         for sim_idx in range(n_simulations):
             rng = np.random.default_rng(base_seed + sim_idx)
@@ -208,6 +214,7 @@ class BaselineRacePredictionMixin:
                         tire_stress_score=tire_stress_score,
                         available_compounds=available_compounds,
                         rng=rng,
+                        enforce_two_compound_rule=enforce_two_compound_rule,
                     )
 
             # Simulate race lap-by-lap
@@ -274,6 +281,12 @@ class BaselineRacePredictionMixin:
                 0.9,
             )
         )
+        confidence_floor = float(config_loader.get("baseline_predictor.race.confidence.min", 40.0))
+        weather_confidence_penalty = float(
+            config_loader.get("baseline_predictor.race.confidence.weather_penalty_wet", 4.0)
+            if weather in ("rain", "mixed")
+            else 0.0
+        )
 
         # Build finish order from blended position scores
         finish_order = []
@@ -281,9 +294,12 @@ class BaselineRacePredictionMixin:
             info = driver_info_map[driver_code]
             positions = aggregated["position_distributions"][driver_code]
 
-            # Confidence based on consistency (keep as-is)
+            # Confidence based on consistency; wet/mixed runs receive an uncertainty penalty.
             position_std = np.std(positions)
-            confidence = max(40, min(60, 60 - (position_std * 3)))
+            confidence = max(
+                confidence_floor,
+                min(60.0, 60.0 - (position_std * 3.0) - weather_confidence_penalty),
+            )
 
             overtake_ease = 1.0 - track_overtaking
             racecraft_adjustment = (
@@ -329,7 +345,6 @@ class BaselineRacePredictionMixin:
                 - racecraft_adjustment
             )
 
-            # >>> THIS is the key: use blended samples for p5/p95 too
             blended_position_samples = [
                 ((1.0 - grid_anchor_weight) * p)
                 + (grid_anchor_weight * info["grid_pos"])

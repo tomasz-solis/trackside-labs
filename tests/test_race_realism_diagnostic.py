@@ -47,7 +47,7 @@ class TestRaceRealismDiagnostic:
         print("\n=== Grid-to-Race Correlation Diagnostic ===")
         print(f"Spearman correlation: {correlation:.3f} (p={p_value:.4f})")
         print("Target: >= 0.75")
-        print(f"Status: {'✓ PASS' if correlation >= 0.75 else '✗ FAIL'}")
+        print(f"Status: {'PASS' if correlation >= 0.75 else 'FAIL'}")
 
         # Show position changes
         changes = [abs(grid_positions[d] - race_positions[d]) for d in drivers]
@@ -83,7 +83,7 @@ class TestRaceRealismDiagnostic:
         print("\n=== Mean Position Change Diagnostic ===")
         print(f"Mean absolute position change: {mean_change:.2f}")
         print("Target: <= 3.0")
-        print(f"Status: {'✓ PASS' if mean_change <= 3.0 else '✗ FAIL'}")
+        print(f"Status: {'PASS' if mean_change <= 3.0 else 'FAIL'}")
 
         # Show distribution
         print(f"Median: {np.median(position_changes):.1f}")
@@ -116,7 +116,7 @@ class TestRaceRealismDiagnostic:
         print(f"Driver: {pole_driver}")
         print(f"Podium probability: {top3_prob:.1f}%")
         print("Target: >= 45%")
-        print(f"Status: {'✓ PASS' if top3_prob >= 45.0 else '✗ FAIL'}")
+        print(f"Status: {'PASS' if top3_prob >= 45.0 else 'FAIL'}")
         print(f"Predicted finish position: P{pole_finish['position']}")
 
         # Uncomment after fixes:
@@ -154,7 +154,7 @@ class TestRaceRealismDiagnostic:
         print("\n=== Top-5 Starters Podium Dominance Diagnostic ===")
         print(f"Top-5 starters' share of podium probability: {top5_fraction:.1f}%")
         print("Target: >= 50%")
-        print(f"Status: {'✓ PASS' if top5_fraction >= 50.0 else '✗ FAIL'}")
+        print(f"Status: {'PASS' if top5_fraction >= 50.0 else 'FAIL'}")
 
         # Show individual top-5 podium probs
         print("\nTop-5 starter podium probabilities:")
@@ -198,7 +198,7 @@ class TestRaceRealismDiagnostic:
 
         print(f"\nTop-3 drivers with P95 >= 10: {falloff_count}/3")
         print("Target: 0-1 drivers (rare falloffs)")
-        print(f"Status: {'✓ PASS' if falloff_count <= 1 else '✗ FAIL'}")
+        print(f"Status: {'PASS' if falloff_count <= 1 else 'FAIL'}")
 
         # Uncomment after fixes:
         # assert falloff_count <= 1, f"Too many top-3 falloffs: {falloff_count}/3"
@@ -233,7 +233,7 @@ class TestRaceRealismDiagnostic:
 
         print(f"\nInversions (podium% increases): {inversions}")
         print("Target: <= 2 (mostly monotonic decrease)")
-        print(f"Status: {'✓ PASS' if inversions <= 2 else '✗ FAIL'}")
+        print(f"Status: {'PASS' if inversions <= 2 else 'FAIL'}")
 
         # Uncomment after fixes:
         # assert inversions <= 2, f"Too many podium probability inversions: {inversions}"

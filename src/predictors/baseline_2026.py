@@ -1,19 +1,10 @@
-"""
-2026 Baseline Predictor
-
-Primary runtime predictor for 2026 qualifying and race simulations.
-
-Combines:
-- weight-scheduled team strength (baseline/testing/current season),
-- optional session blending for qualifying,
-- dynamic tire compound selection and performance adjustments,
-- Monte Carlo race scoring with uncertainty and DNF modeling.
-"""
+"""2026 Baseline Predictor - Monte Carlo qualifying/race simulation with weight-scheduled team strength."""
 
 import logging
 import os
 from pathlib import Path
 
+from src.persistence.artifact_store import ArtifactStore
 from src.predictors.baseline import (
     BaselineDataMixin,
     BaselineQualifyingMixin,
@@ -30,24 +21,20 @@ class Baseline2026Predictor(
     BaselineQualifyingMixin,
     BaselineRaceMixin,
 ):
-    """
-    Primary 2026 predictor used by the dashboard and compatibility wrappers.
+    """Primary 2026 predictor with weight-scheduled team strength and Monte Carlo simulation."""
 
-    Uses:
-    - Team strength from car characteristics (baseline + directionality + current season)
-    - Driver skill and risk inputs from driver characteristics
-    - Session blending for qualifying when data is available
-    - Monte Carlo simulation for qualifying and race predictions
-    """
-
-    def __init__(self, data_dir: str = "data/processed", seed: int = 42):
-        """Initialize baseline 2026 predictor with team/driver data from data_dir."""
+    def __init__(
+        self,
+        data_dir: str = "data/processed",
+        seed: int = 42,
+        artifact_store: ArtifactStore | None = None,
+    ):
+        """Initialize predictor with team/driver data. Optional artifact_store injection for testing."""
+        BaselineDataMixin.__init__(self)
         self.seed = seed
 
-        # Resolve data directory using env var or relative to cwd
         data_dir_path = Path(data_dir)
         if not data_dir_path.is_absolute():
-            # Try environment variable first
             env_data_dir = os.getenv("F1_DATA_DIR")
             if env_data_dir:
                 self.data_dir = (
@@ -56,15 +43,15 @@ class Baseline2026Predictor(
                     else Path(env_data_dir)
                 )
             else:
-                # Fall back to current working directory
                 self.data_dir = Path.cwd() / data_dir
         else:
             self.data_dir = data_dir_path
 
-        # Ensure baseline data exists (auto-generate if missing/outdated)
         logger.info("Ensuring baseline data is ready...")
         ensure_baseline_exists(self.data_dir)
 
-        # Load configuration
+        self.artifact_store = artifact_store or ArtifactStore(
+            data_root=self.data_dir.parent if self.data_dir.name == "processed" else self.data_dir
+        )
         self.config = config_loader.get_section("baseline_predictor")
         self.load_data()

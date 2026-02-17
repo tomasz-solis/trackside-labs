@@ -29,22 +29,22 @@ def test_weight_schedule_integration():
     assert weights["baseline"] == 0.30
     assert weights["testing"] == 0.20
     assert weights["current"] == 0.50
-    print("   ✓ Weight schedule module working")
+    print("   OK: Weight schedule module working")
     print()
 
     # 2. Test predictor initialization
     print("2. Initializing Baseline2026Predictor...")
     predictor = Baseline2026Predictor()
-    print(f"   ✓ Predictor loaded with {len(predictor.teams)} teams")
-    print(f"   ✓ Loaded {len(predictor.tracks)} track profiles")
-    print(f"   ✓ Races completed: {predictor.races_completed}")
+    print(f"   OK: Predictor loaded with {len(predictor.teams)} teams")
+    print(f"   OK: Loaded {len(predictor.tracks)} track profiles")
+    print(f"   OK: Races completed: {predictor.races_completed}")
     print()
 
     # 3. Test track suitability calculation
     print("3. Testing track suitability calculation...")
     suitability = predictor.calculate_track_suitability("McLaren", "Bahrain Grand Prix")
     print(f"   McLaren at Bahrain: {suitability:+.4f}")
-    print("   ✓ Track suitability calculation working")
+    print("   OK: Track suitability calculation working")
     print()
 
     # 4. Test blended team strength
@@ -55,7 +55,7 @@ def test_weight_schedule_integration():
 
         print(f"   {team:25s} Baseline: {baseline:.3f} → Blended: {blended:.3f}")
 
-    print("   ✓ Blended team strength calculation working")
+    print("   OK: Blended team strength calculation working")
     print()
 
     # 5. Test qualifying prediction (full integration test)
@@ -66,7 +66,7 @@ def test_weight_schedule_integration():
         n_simulations=10,  # Fast test
     )
 
-    print(f"   ✓ Generated grid with {len(result['grid'])} drivers")
+    print(f"   OK: Generated grid with {len(result['grid'])} drivers")
     print("   Top 3:")
     for i, driver in enumerate(result["grid"][:3], 1):
         print(
@@ -76,14 +76,14 @@ def test_weight_schedule_integration():
     print()
 
     print("=" * 70)
-    print("✅ ALL TESTS PASSED - WEIGHT SCHEDULE INTEGRATED SUCCESSFULLY!")
+    print("ALL TESTS PASSED - WEIGHT SCHEDULE INTEGRATED SUCCESSFULLY")
     print("=" * 70)
     print()
     print("Summary:")
-    print("- Weight schedule system: ✓ Working")
-    print("- Track suitability calculation: ✓ Working")
-    print("- Blended team strength: ✓ Working")
-    print("- Qualifying predictions: ✓ Using weight schedule")
+    print("- Weight schedule system: OK")
+    print("- Track suitability calculation: OK")
+    print("- Blended team strength: OK")
+    print("- Qualifying predictions: OK (using weight schedule)")
     print()
     print("Next steps:")
     print("1. Run predictions from dashboard")

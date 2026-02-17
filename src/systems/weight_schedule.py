@@ -14,7 +14,7 @@ Usage:
     from src.systems.weight_schedule import get_schedule_weights
 
     weights = get_schedule_weights(race_number=1, schedule='extreme')
-    # Returns: {'baseline': 0.30, 'testing': 0.20, 'current': 0.50}
+    # {'baseline': 0.30, 'testing': 0.20, 'current': 0.50}
 """
 
 import logging
@@ -184,7 +184,7 @@ def format_schedule_summary(schedule: ScheduleType) -> str:
     return "\n".join(lines)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     # Demo: Show progression of weights throughout season
     print("\nRECOMMENDED SCHEDULE FOR 2026 (Regulation Change)")
     print("=" * 70)

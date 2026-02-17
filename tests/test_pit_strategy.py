@@ -219,6 +219,25 @@ class TestValidateStrategy:
         result = validate_strategy(strategy, 60, ["SOFT", "MEDIUM", "HARD"])
         assert result is False
 
+    def test_single_compound_allowed_when_rule_disabled(self):
+        """Wet-race validation can allow one compound throughout."""
+        strategy = {
+            "num_stops": 1,
+            "pit_laps": [30],
+            "compound_sequence": ["INTERMEDIATE", "INTERMEDIATE"],
+            "stint_lengths": [30, 30],
+        }
+
+        assert (
+            validate_strategy(
+                strategy,
+                race_distance=60,
+                available_compounds=["INTERMEDIATE", "WET"],
+                enforce_two_compound_rule=False,
+            )
+            is True
+        )
+
 
 class TestSampleCompoundSequence:
     """Test compound sequence sampling."""
@@ -338,3 +357,21 @@ class TestEdgeCases:
         )
 
         assert strategy1 == strategy2
+
+    def test_wet_strategy_generation_allows_single_compound(self):
+        """Wet strategy generation should not enforce dry FIA two-compound rule."""
+        rng = np.random.default_rng(seed=42)
+        strategy = generate_pit_strategy(
+            race_distance=60,
+            tire_stress_score=3.0,
+            available_compounds=["INTERMEDIATE", "WET"],
+            rng=rng,
+            enforce_two_compound_rule=False,
+        )
+
+        assert validate_strategy(
+            strategy,
+            race_distance=60,
+            available_compounds=["INTERMEDIATE", "WET"],
+            enforce_two_compound_rule=False,
+        )

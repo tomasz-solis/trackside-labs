@@ -5,7 +5,15 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from src.utils.fp_blending import get_best_fp_performance
+from src.utils.fp_blending import _circuit_breaker, get_best_fp_performance
+
+
+@pytest.fixture(autouse=True)
+def reset_circuit_breaker():
+    """Reset circuit breaker before each test to avoid cross-test contamination."""
+    _circuit_breaker.reset()
+    yield
+    _circuit_breaker.reset()
 
 
 def test_sprint_qualifying_stage_uses_fp1_only():
@@ -15,8 +23,8 @@ def test_sprint_qualifying_stage_uses_fp1_only():
     def _mock_get_fp_team_performance(year, race_name, session_type):
         calls.append(session_type)
         if session_type == "FP1":
-            return {"McLaren": 0.9}, pd.DataFrame({"Driver": ["NOR"]})
-        return None, None
+            return {"McLaren": 0.9}, pd.DataFrame({"Driver": ["NOR"]}), None
+        return None, None, None
 
     with patch(
         "src.utils.fp_blending.get_fp_team_performance",
@@ -35,15 +43,15 @@ def test_sprint_qualifying_stage_uses_fp1_only():
     assert laps is not None
 
 
-def test_main_qualifying_stage_prefers_sprint_then_sq_then_fp1():
-    """Main-qualifying context should prioritize Sprint, then SQ, then FP1."""
+def test_main_qualifying_stage_prefers_sq_then_sprint_then_fp1():
+    """Main-qualifying context should prioritize SQ, then Sprint, then FP1."""
     calls = []
 
     def _mock_get_fp_team_performance(year, race_name, session_type):
         calls.append(session_type)
         if session_type == "Sprint Qualifying":
-            return {"Mercedes": 0.8}, pd.DataFrame({"Driver": ["RUS"]})
-        return None, None
+            return {"Mercedes": 0.8}, pd.DataFrame({"Driver": ["RUS"]}), None
+        return None, None, None
 
     with patch(
         "src.utils.fp_blending.get_fp_team_performance",
@@ -56,7 +64,7 @@ def test_main_qualifying_stage_prefers_sprint_then_sq_then_fp1():
             qualifying_stage="main",
         )
 
-    assert calls == ["Sprint", "Sprint Qualifying"]
+    assert calls == ["Sprint Qualifying"]
     assert session_label == "Sprint Qualifying times"
     assert perf == {"Mercedes": 0.8}
     assert laps is not None

@@ -6,6 +6,8 @@ from src.dashboard import pages
 
 
 def test_load_race_options_filters_testing_and_tags_sprint(monkeypatch):
+    pages._load_race_options_cached.clear()
+
     schedule = pd.DataFrame(
         {
             "EventName": [
@@ -26,6 +28,8 @@ def test_load_race_options_filters_testing_and_tags_sprint(monkeypatch):
 
 
 def test_load_race_options_uses_fallback_when_schedule_fails(monkeypatch):
+    pages._load_race_options_cached.clear()
+
     errors: list[str] = []
     monkeypatch.setattr(
         pages.fastf1,

@@ -180,3 +180,48 @@ def test_execute_live_prediction_pipeline_raises_when_sprint_lookup_fails(monkey
 
     with pytest.raises(ValueError, match="bad race"):
         pages.execute_live_prediction_pipeline("Unknown GP", "dry", year=2026)
+
+
+def test_execute_live_prediction_pipeline_emits_progress_and_timing(monkeypatch):
+    progress_messages: list[str] = []
+
+    monkeypatch.setattr(pages, "auto_update_if_needed", lambda: None)
+    monkeypatch.setattr(pages, "is_sprint_weekend", lambda year, race_name: False)
+    monkeypatch.setattr(
+        pages,
+        "auto_update_practice_characteristics_if_needed",
+        lambda year, race_name, is_sprint: {"updated": False, "completed_fp_sessions": []},
+    )
+    monkeypatch.setattr(pages, "get_artifact_versions", lambda: {"k": (1, "ts")})
+    monkeypatch.setattr(
+        pages,
+        "run_prediction",
+        lambda race_name, weather, _versions, is_sprint, year: {
+            "qualifying": {"grid": []},
+            "race": {"finish_order": []},
+        },
+    )
+
+    output = pages.execute_live_prediction_pipeline(
+        race_name="Bahrain Grand Prix",
+        weather="dry",
+        year=2026,
+        progress_callback=progress_messages.append,
+    )
+
+    assert progress_messages == [
+        "Checking completed races and model updates...",
+        "Resolving weekend format...",
+        "Checking completed practice sessions...",
+        "Running qualifying and race simulations...",
+    ]
+
+    timing = output["pipeline_timing"]
+    assert set(timing) == {
+        "race_update_check",
+        "weekend_lookup",
+        "practice_update_check",
+        "prediction_run",
+        "total",
+    }
+    assert timing["total"] >= 0.0

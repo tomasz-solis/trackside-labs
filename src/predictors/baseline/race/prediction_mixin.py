@@ -152,7 +152,9 @@ class BaselineRacePredictionMixin:
         # Get tire stress and available compounds
         tire_stress_score = get_tire_stress_score(race_name)
         available_compounds = get_available_compounds(race_name, weather=weather)
-        enforce_two_compound_rule = weather == "dry"
+        # If no full-wet race is modeled, enforce FIA dry-compound diversity.
+        # This keeps mixed forecasts from degenerating into illegal SOFT→SOFT plans.
+        enforce_two_compound_rule = weather in {"dry", "mixed"}
 
         # Restructure race_params for lap_by_lap_simulator (expects nested dicts)
         race_params["base_chaos"] = {

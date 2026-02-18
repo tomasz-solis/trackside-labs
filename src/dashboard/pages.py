@@ -1,6 +1,8 @@
 """Dashboard pages and page-level orchestration."""
 
 import logging
+import time
+from collections.abc import Callable
 
 import fastf1
 import streamlit as st
@@ -16,10 +18,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_SEASON = 2026
 
 
-def _load_race_options() -> list[str]:
-    """Load race options from FastF1 schedule with sprint labels."""
+@st.cache_data(ttl=3600, show_spinner=False)
+def _load_race_options_cached(year: int) -> tuple[list[str], str | None]:
+    """Load race options and cache schedule fetches for responsiveness."""
     try:
-        schedule = fastf1.get_event_schedule(DEFAULT_SEASON)
+        schedule = fastf1.get_event_schedule(year)
         race_events = schedule[
             (schedule["EventFormat"].notna())
             & (~schedule["EventName"].str.contains("Testing", case=False, na=False))
@@ -34,17 +37,27 @@ def _load_race_options() -> list[str]:
             else:
                 race_options.append(race_name)
 
-        return race_options
-    except Exception as e:
-        st.error(f"Failed to load {DEFAULT_SEASON} calendar: {e}")
-        return [
-            "Bahrain Grand Prix",
-            "Saudi Arabian Grand Prix",
-            "Australian Grand Prix",
-            "Japanese Grand Prix",
-            "Chinese Grand Prix",
-            "Miami Grand Prix",
-        ]
+        return race_options, None
+    except Exception as exc:
+        return (
+            [
+                "Bahrain Grand Prix",
+                "Saudi Arabian Grand Prix",
+                "Australian Grand Prix",
+                "Japanese Grand Prix",
+                "Chinese Grand Prix",
+                "Miami Grand Prix",
+            ],
+            str(exc),
+        )
+
+
+def _load_race_options() -> list[str]:
+    """Load race options from FastF1 schedule with sprint labels."""
+    race_options, error = _load_race_options_cached(DEFAULT_SEASON)
+    if error:
+        st.error(f"Failed to load {DEFAULT_SEASON} calendar: {error}")
+    return race_options
 
 
 def _save_prediction_if_enabled(
@@ -154,28 +167,48 @@ def execute_live_prediction_pipeline(
     race_name: str,
     weather: str,
     year: int = DEFAULT_SEASON,
+    progress_callback: Callable[[str], None] | None = None,
 ) -> dict:
     """
     Refresh input data and execute a prediction run.
 
     Kept separate from Streamlit rendering so tests can assert refresh call order.
     """
+    pipeline_timing: dict[str, float] = {}
+    pipeline_start = time.time()
+
+    def _notify(message: str) -> None:
+        if progress_callback is not None:
+            progress_callback(message)
+
+    update_start = time.time()
+    _notify("Checking completed races and model updates...")
     auto_update_if_needed()
+    pipeline_timing["race_update_check"] = time.time() - update_start
 
+    weekend_start = time.time()
+    _notify("Resolving weekend format...")
     is_sprint = is_sprint_weekend(year, race_name)
+    pipeline_timing["weekend_lookup"] = time.time() - weekend_start
 
+    practice_start = time.time()
+    _notify("Checking completed practice sessions...")
     practice_update = auto_update_practice_characteristics_if_needed(
         year=year,
         race_name=race_name,
         is_sprint=is_sprint,
     )
+    pipeline_timing["practice_update_check"] = time.time() - practice_start
 
     # Ensure same-click freshness when practice updates write new characteristics.
     if practice_update.get("updated"):
+        _notify("Refreshing local caches after practice updates...")
         st.cache_resource.clear()
         st.cache_data.clear()
 
     # Capture versions after updates so cache invalidation keys include latest writes.
+    prediction_start = time.time()
+    _notify("Running qualifying and race simulations...")
     artifact_versions = get_artifact_versions()
     prediction_results = run_prediction(
         race_name,
@@ -184,11 +217,14 @@ def execute_live_prediction_pipeline(
         is_sprint=is_sprint,
         year=year,
     )
+    pipeline_timing["prediction_run"] = time.time() - prediction_start
+    pipeline_timing["total"] = time.time() - pipeline_start
 
     return {
         "prediction_results": prediction_results,
         "is_sprint": is_sprint,
         "practice_update": practice_update,
+        "pipeline_timing": pipeline_timing,
         "practice_update_error": None,
     }
 
@@ -209,16 +245,21 @@ def render_live_prediction_page(enable_logging: bool) -> None:
         weather = st.selectbox("Weather Forecast", ["dry", "rain", "mixed"])
 
     if st.button("Generate Prediction", type="primary"):
+        status_placeholder = st.empty()
+
         with st.spinner("Running simulation..."):
             try:
                 pipeline_output = execute_live_prediction_pipeline(
                     race_name=race_name,
                     weather=weather,
                     year=DEFAULT_SEASON,
+                    progress_callback=lambda message: status_placeholder.info(message),
                 )
                 prediction_results = pipeline_output["prediction_results"]
                 is_sprint = bool(pipeline_output["is_sprint"])
                 practice_update = pipeline_output["practice_update"]
+                pipeline_timing = pipeline_output.get("pipeline_timing", {})
+                status_placeholder.empty()
 
                 st.warning("2026 regulation reset: predictions are uncertain until races complete.")
 
@@ -242,7 +283,15 @@ def render_live_prediction_page(enable_logging: bool) -> None:
                         f"{', '.join(practice_update['completed_fp_sessions'])}"
                     )
 
-                st.info("Running simulation with fresh session checks...")
+                if pipeline_timing:
+                    timing_parts = [
+                        f"updates {pipeline_timing.get('race_update_check', 0.0):.1f}s",
+                        f"weekend lookup {pipeline_timing.get('weekend_lookup', 0.0):.1f}s",
+                        f"practice check {pipeline_timing.get('practice_update_check', 0.0):.1f}s",
+                        f"prediction {pipeline_timing.get('prediction_run', 0.0):.1f}s",
+                        f"total {pipeline_timing.get('total', 0.0):.1f}s",
+                    ]
+                    st.caption("Pipeline timing: " + " | ".join(timing_parts))
 
                 _save_prediction_if_enabled(
                     enable_logging=enable_logging,

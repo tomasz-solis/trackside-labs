@@ -173,7 +173,7 @@ def test_display_prediction_result_routes_qualifying_sections(monkeypatch):
     rendering.display_prediction_result(
         result={
             "grid_source": "PREDICTED",
-            "data_source": "FP3 times",
+            "data_source": "Short-stint blend (FP3 + FP2 + FP1)",
             "blend_used": True,
             "grid": [{"position": 1, "driver": "VER", "team": "Red Bull Racing"}],
         },
@@ -183,4 +183,7 @@ def test_display_prediction_result_routes_qualifying_sections(monkeypatch):
 
     assert routed == ["quali"]
     assert ("info", "Using PREDICTED grid") in calls
-    assert ("success", "Using FP3 times (70% practice data + 30% model)") in calls
+    assert (
+        "success",
+        "Using Short-stint blend (FP3 + FP2 + FP1) (70% practice data + 30% model)",
+    ) in calls

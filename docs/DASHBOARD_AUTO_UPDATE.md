@@ -29,8 +29,8 @@ Behavior can be tuned in `config/default.yaml` under:
 
 Qualifying prediction also auto-fetches the best available session data through `src/utils/fp_blending.py`.
 
-- Normal: `FP3 > FP2 > FP1`
-- Sprint: `Sprint Qualifying > Sprint > FP1`
+- Normal: short-stint blend of `FP3 + FP2 + FP1` (FP3-weighted)
+- Sprint (main qualifying): short-stint blend of `Sprint Qualifying + FP1 + Sprint`
 
 ## Manual / Explicit Workflows
 

@@ -327,14 +327,15 @@ def render_model_insights_page() -> None:
     - Applies a race-by-race weight schedule that quickly shifts toward current-season data
 
     **2. Qualifying**
-    - Pulls the best available session data (normal weekend: FP3 > FP2 > FP1)
+    - Builds qualifying signal from short-stint pace across available sessions
     - Blends session pace with model strength (fixed 70/30 in the active predictor)
     - Applies a small short-run characteristics modifier when profile data exists
     - Runs Monte Carlo simulations and reports the median grid with confidence ranges
 
     **3. Race**
     - Uses either predicted qualifying grid or actual qualifying results when available
-    - Scores drivers with grid position, team pace, driver skill, overtaking context, and stochastic effects
+    - Uses long-run race signals plus grid position, team pace, and driver skill
+    - Overtaking model considers pace delta, track overtaking ease, attacking/defending skill, and position zone (front passes hardest)
     - Applies a small long-run characteristics modifier when profile data exists
     - Includes lap-one chaos, strategy variance, safety car luck, and DNF probability
 

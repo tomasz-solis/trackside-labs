@@ -46,9 +46,9 @@ streamlit run app.py --server.port 8502
 ### Qualifying
 
 - Builds team strength from baseline + testing directionality + current season performance (weight schedule).
-- Pulls the best available session data:
-  - Normal weekend: `FP3 > FP2 > FP1`
-  - Sprint weekend: `Sprint > Sprint Qualifying > FP1`
+- Builds a short-stint qualifying signal from available sessions (weighted by session relevance and recency).
+  - Normal weekend: blends `FP3`, `FP2`, `FP1` (FP3-weighted)
+  - Sprint weekend (main qualifying): blends `Sprint Qualifying`, `FP1`, `Sprint`
 - Blends session pace with model strength using a fixed `70/30` split in the active predictor.
 - Runs Monte Carlo and returns median position with confidence bands.
 
@@ -60,6 +60,7 @@ Lap-by-lap Monte Carlo simulation (50 runs) with:
 - Traffic effect (P1-5: 5% better tire life, P16+: 5% worse)
 - Track-specific pit loss (Monaco: 19s, Singapore: 24s)
 - Grid influence, driver skill, lap-1 chaos, safety car luck, DNF probability
+- Overtaking realism by zone (back/mid easier, front harder) with capped total position gains
 
 Outputs: Finish order + compound strategy distribution + pit window histogram.
 

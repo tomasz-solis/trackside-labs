@@ -7,7 +7,7 @@ This file describes the current blending behavior implemented in `src/utils/fp_b
 Qualifying prediction combines:
 
 - model team strength (from weight schedule), and
-- team pace extracted from one selected session.
+- team pace extracted from short-stint session signals.
 
 Active formula:
 
@@ -17,31 +17,25 @@ blended_strength = 0.7 * session_strength + 0.3 * model_strength
 
 In the active baseline path, this 70/30 split is fixed in predictor logic.
 
-## Session Selection Priority
+## Session Inputs
 
 ### Normal weekend
 
-`FP3 > FP2 > FP1`
+`FP3 + FP2 + FP1` (weighted blend, FP3-heavy)
 
 ### Sprint weekend
 
-`Sprint Qualifying > Sprint > FP1`
-
-The first session that returns usable data is used.
-
-## Important Behavior Detail
-
-The current implementation uses **one best session**.
-It does **not** merge multiple sessions together (for example FP1+FP2+FP3).
+`Sprint Qualifying + FP1 + Sprint` (weighted blend for main qualifying)
 
 ## How Session Strength Is Built
 
-For each selected session:
+For each available session:
 
 1. Load laps.
-2. Take each driver's best valid lap.
-3. Compute median best lap per team.
+2. Build representative short-stint pace per driver (push-lap focused, TireLife-aware when available).
+3. Compute median representative lap per team.
 4. Scale teams to a 0-1 performance band (fastest = 1.0).
+5. Combine sessions with fixed weights into one blended session-strength map.
 
 ## Fallbacks
 

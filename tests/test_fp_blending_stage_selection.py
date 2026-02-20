@@ -38,19 +38,44 @@ def test_sprint_qualifying_stage_uses_fp1_only():
         )
 
     assert calls == ["FP1"]
-    assert session_label == "FP1 times"
+    assert session_label == "FP1 short-stint"
     assert perf == {"McLaren": 0.9}
     assert laps is not None
 
 
-def test_main_qualifying_stage_prefers_sq_then_sprint_then_fp1():
-    """Main-qualifying context should prioritize SQ, then Sprint, then FP1."""
+def test_main_qualifying_stage_blends_sq_sprint_and_fp1():
+    """Main-qualifying context should blend all available short-stint signals."""
     calls = []
 
     def _mock_get_fp_team_performance(year, race_name, session_type):
         calls.append(session_type)
         if session_type == "Sprint Qualifying":
-            return {"Mercedes": 0.8}, pd.DataFrame({"Driver": ["RUS"]}), None
+            return (
+                {
+                    "Mercedes": 1.0,
+                    "Ferrari": 0.6,
+                },
+                pd.DataFrame({"Driver": ["RUS"]}),
+                None,
+            )
+        if session_type == "Sprint":
+            return (
+                {
+                    "Mercedes": 0.6,
+                    "Ferrari": 0.9,
+                },
+                pd.DataFrame({"Driver": ["HAM"]}),
+                None,
+            )
+        if session_type == "FP1":
+            return (
+                {
+                    "Mercedes": 0.8,
+                    "Ferrari": 0.7,
+                },
+                pd.DataFrame({"Driver": ["ANT"]}),
+                None,
+            )
         return None, None, None
 
     with patch(
@@ -64,9 +89,10 @@ def test_main_qualifying_stage_prefers_sq_then_sprint_then_fp1():
             qualifying_stage="main",
         )
 
-    assert calls == ["Sprint Qualifying"]
-    assert session_label == "Sprint Qualifying times"
-    assert perf == {"Mercedes": 0.8}
+    assert calls == ["Sprint Qualifying", "Sprint", "FP1"]
+    assert session_label == "Short-stint blend (Sprint Qualifying + Sprint + FP1)"
+    assert perf["Mercedes"] == pytest.approx((1.0 + (0.6 * 0.55) + (0.8 * 0.70)) / 2.25)
+    assert perf["Ferrari"] == pytest.approx((0.6 + (0.9 * 0.55) + (0.7 * 0.70)) / 2.25)
     assert laps is not None
 
 

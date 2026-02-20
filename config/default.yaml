@@ -217,6 +217,26 @@ baseline_predictor:
     # Program-aware testing/practice modifier
     # Uses long-run profile characteristics to make a small team-strength adjustment.
     testing_long_run_modifier_scale: 0.05
+    weekend_long_run_min_laps: 8      # Minimum stint length to treat laps as race-sim long run
+
+    # Lap-by-lap overtaking model
+    overtake_model:
+      # Position-zone scaling (target car position) for pass realism:
+      # harder at the front, easier in midfield/backfield.
+      zone_front_threshold_boost: 0.22
+      zone_upper_threshold_boost: 0.10
+      zone_mid_threshold_boost: 0.02
+      zone_back_threshold_boost: -0.03
+
+      zone_front_probability_scale: 0.55
+      zone_upper_probability_scale: 0.75
+      zone_mid_probability_scale: 0.92
+      zone_back_probability_scale: 1.08
+
+      zone_front_bonus_scale: 0.55
+      zone_upper_bonus_scale: 0.78
+      zone_mid_bonus_scale: 0.93
+      zone_back_bonus_scale: 1.05
 
     # Pit stop configuration
     pit_stops:
@@ -293,6 +313,14 @@ baseline_predictor:
       elite_driver_scale: 1.2           # Down from 1.6 - less extreme elite advantage
       elite_driver_exponent: 1.35
       max_driver_adjustment_positions: 1.5  # Down from 2.0 - cap position swings
+      # Hard cap on total gains from starting position.
+      # Prevents unrealistic outcomes such as P22 -> P1 in a normal race.
+      max_gain_base: 6.0
+      max_gain_track_scale: 4.0
+      max_gain_overtaking_skill_scale: 2.0
+      max_gain_race_advantage_scale: 2.5
+      max_gain_floor: 4.0
+      max_gain_ceiling: 11.0
 
     # Pit strategy constraints
     strategy_constraints:

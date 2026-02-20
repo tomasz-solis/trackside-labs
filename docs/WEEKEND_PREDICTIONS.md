@@ -58,13 +58,12 @@ Practice/session blending is used in qualifying prediction through `Baseline2026
 
 Important detail:
 
-- The predictor uses the **best single available session** by priority.
-- It does **not** average FP1+FP2+FP3 together in the active implementation.
+- The predictor builds a **short-stint weighted blend** from available sessions.
 
-Priority from `src/utils/fp_blending.py`:
+Session blend inputs from `src/utils/fp_blending.py`:
 
-- Normal weekend: `FP3 > FP2 > FP1`
-- Sprint weekend: `Sprint > Sprint Qualifying > FP1`
+- Normal weekend: `FP3 + FP2 + FP1` (FP3-weighted)
+- Sprint weekend (main qualifying): `Sprint Qualifying + FP1 + Sprint`
 
 ## Sprint Race Adjustments
 

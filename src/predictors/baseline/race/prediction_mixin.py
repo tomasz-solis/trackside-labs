@@ -135,6 +135,42 @@ class BaselineRacePredictionMixin:
             "track_ease_scale": config_loader.get(
                 "baseline_predictor.race.overtake_model.track_ease_scale", 0.18
             ),
+            "zone_front_threshold_boost": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_front_threshold_boost", 0.22
+            ),
+            "zone_upper_threshold_boost": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_upper_threshold_boost", 0.10
+            ),
+            "zone_mid_threshold_boost": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_mid_threshold_boost", 0.02
+            ),
+            "zone_back_threshold_boost": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_back_threshold_boost", -0.03
+            ),
+            "zone_front_probability_scale": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_front_probability_scale", 0.55
+            ),
+            "zone_upper_probability_scale": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_upper_probability_scale", 0.75
+            ),
+            "zone_mid_probability_scale": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_mid_probability_scale", 0.92
+            ),
+            "zone_back_probability_scale": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_back_probability_scale", 1.08
+            ),
+            "zone_front_bonus_scale": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_front_bonus_scale", 0.55
+            ),
+            "zone_upper_bonus_scale": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_upper_bonus_scale", 0.78
+            ),
+            "zone_mid_bonus_scale": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_mid_bonus_scale", 0.93
+            ),
+            "zone_back_bonus_scale": config_loader.get(
+                "baseline_predictor.race.overtake_model.zone_back_bonus_scale", 1.05
+            ),
         }
 
         # Prepare driver info with per-compound strengths
@@ -283,6 +319,28 @@ class BaselineRacePredictionMixin:
                 0.9,
             )
         )
+        max_gain_base = float(
+            config_loader.get("baseline_predictor.race.final_blend.max_gain_base", 6.0)
+        )
+        max_gain_track_scale = float(
+            config_loader.get("baseline_predictor.race.final_blend.max_gain_track_scale", 4.0)
+        )
+        max_gain_overtaking_skill_scale = float(
+            config_loader.get(
+                "baseline_predictor.race.final_blend.max_gain_overtaking_skill_scale", 2.0
+            )
+        )
+        max_gain_race_advantage_scale = float(
+            config_loader.get(
+                "baseline_predictor.race.final_blend.max_gain_race_advantage_scale", 2.5
+            )
+        )
+        max_gain_floor = float(
+            config_loader.get("baseline_predictor.race.final_blend.max_gain_floor", 4.0)
+        )
+        max_gain_ceiling = float(
+            config_loader.get("baseline_predictor.race.final_blend.max_gain_ceiling", 11.0)
+        )
         confidence_floor = float(config_loader.get("baseline_predictor.race.confidence.min", 40.0))
         weather_confidence_penalty = float(
             config_loader.get("baseline_predictor.race.confidence.weather_penalty_wet", 4.0)
@@ -341,17 +399,31 @@ class BaselineRacePredictionMixin:
                     )
                 )
 
+            max_gain = (
+                max_gain_base
+                + (overtake_ease * max_gain_track_scale)
+                + ((info["overtaking_skill"] - 0.5) * max_gain_overtaking_skill_scale)
+                + (max(0.0, info["race_advantage"]) * max_gain_race_advantage_scale)
+            )
+            max_gain = float(np.clip(max_gain, max_gain_floor, max_gain_ceiling))
+            min_position_score = max(1.0, info["grid_pos"] - max_gain)
+
             position_blend_score = (
                 ((1.0 - grid_anchor_weight) * median_pos)
                 + (grid_anchor_weight * info["grid_pos"])
                 - racecraft_adjustment
             )
+            position_blend_score = max(position_blend_score, min_position_score)
 
             blended_position_samples = [
                 ((1.0 - grid_anchor_weight) * p)
                 + (grid_anchor_weight * info["grid_pos"])
                 - racecraft_adjustment
                 for p in positions
+            ]
+            blended_position_samples = [
+                max(sample_position, min_position_score)
+                for sample_position in blended_position_samples
             ]
 
             p5 = int(np.percentile(blended_position_samples, 5))

@@ -173,13 +173,13 @@ def test_strong_defender_reduces_overtake_success():
 
     driver_states = {
         "A": {
-            "position": 1,
+            "position": 12,
             "cumulative_time": 100.0,
             "base_pace": 90.0,
             "has_dnf": False,
         },
         "B": {
-            "position": 2,
+            "position": 13,
             "cumulative_time": 100.6,
             "base_pace": 89.95,
             "has_dnf": False,
@@ -196,7 +196,7 @@ def test_strong_defender_reduces_overtake_success():
         "B": {"skill": 0.60, "race_advantage": 0.0, "overtaking_skill": 0.90},
     }
 
-    rng_weak = np.random.default_rng(seed=4)
+    rng_weak = np.random.default_rng(seed=1)
     weak_effect = _get_traffic_overtake_effect(
         driver="B",
         driver_states=driver_states,
@@ -206,7 +206,7 @@ def test_strong_defender_reduces_overtake_success():
         rng=rng_weak,
     )
 
-    rng_strong = np.random.default_rng(seed=4)
+    rng_strong = np.random.default_rng(seed=1)
     strong_effect = _get_traffic_overtake_effect(
         driver="B",
         driver_states=driver_states,
@@ -218,6 +218,64 @@ def test_strong_defender_reduces_overtake_success():
 
     # Lower effect is better for attacker (negative = pass gain).
     assert weak_effect < strong_effect
+
+
+def test_front_overtakes_are_harder_than_backfield_overtakes():
+    """Overtakes near the front should be lower-yield than backfield passes."""
+    race_params = _base_race_params()
+    race_params["track_overtaking"] = 0.10
+    race_params["overtake_model"]["pass_threshold_base"] = -1.0
+    race_params["overtake_model"]["pass_threshold_track_scale"] = 0.0
+    race_params["overtake_model"]["pass_probability_base"] = 1.5
+    race_params["overtake_model"]["pass_probability_scale"] = 0.0
+    race_params["overtake_model"]["pass_time_bonus_range"] = [0.20, 0.20]
+    race_params["overtake_model"]["dirty_air_penalty_base"] = 0.0
+    race_params["overtake_model"]["dirty_air_penalty_track_scale"] = 0.0
+
+    front_states = {
+        "A": {"position": 2, "cumulative_time": 100.0, "base_pace": 90.0, "has_dnf": False},
+        "B": {"position": 3, "cumulative_time": 100.5, "base_pace": 89.9, "has_dnf": False},
+    }
+    back_states = {
+        "C": {"position": 18, "cumulative_time": 100.0, "base_pace": 90.0, "has_dnf": False},
+        "D": {"position": 19, "cumulative_time": 100.5, "base_pace": 89.9, "has_dnf": False},
+    }
+    front_ahead_map = {"B": "A"}
+    back_ahead_map = {"D": "C"}
+
+    info_map = {
+        "A": {"skill": 0.6, "defensive_skill": 0.8, "overtaking_skill": 0.5},
+        "B": {"skill": 0.7, "race_advantage": 0.05, "overtaking_skill": 0.9},
+        "C": {"skill": 0.6, "defensive_skill": 0.8, "overtaking_skill": 0.5},
+        "D": {"skill": 0.7, "race_advantage": 0.05, "overtaking_skill": 0.9},
+    }
+
+    front_effects = []
+    back_effects = []
+    for seed in range(100):
+        front_effects.append(
+            _get_traffic_overtake_effect(
+                driver="B",
+                driver_states=front_states,
+                driver_info_map=info_map,
+                driver_ahead_map=front_ahead_map,
+                race_params=race_params,
+                rng=np.random.default_rng(seed),
+            )
+        )
+        back_effects.append(
+            _get_traffic_overtake_effect(
+                driver="D",
+                driver_states=back_states,
+                driver_info_map=info_map,
+                driver_ahead_map=back_ahead_map,
+                race_params=race_params,
+                rng=np.random.default_rng(seed),
+            )
+        )
+
+    # Lower effect is better for attacker (negative = pass gain).
+    assert np.mean(back_effects) < np.mean(front_effects)
 
 
 def test_elite_skill_lap_bonus_improves_finishing_position():

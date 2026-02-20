@@ -305,25 +305,69 @@ def _get_traffic_overtake_effect(
         + ((1.0 - track_overtaking) * track_ease_scale)
     )
 
+    target_position = int(ahead_state.get("position", 22))
+    (
+        zone_threshold_boost,
+        zone_probability_scale,
+        zone_bonus_scale,
+    ) = _get_overtake_zone_adjustments(
+        target_position=target_position,
+        overtake_cfg=overtake_cfg,
+    )
+
     pass_threshold = float(overtake_cfg.get("pass_threshold_base", 0.06)) + (
         track_overtaking * float(overtake_cfg.get("pass_threshold_track_scale", 0.16))
     )
+    pass_threshold += zone_threshold_boost
     if overtake_score <= pass_threshold:
         return effect
 
     pass_probability = float(overtake_cfg.get("pass_probability_base", 0.30)) + (
         (overtake_score - pass_threshold) * float(overtake_cfg.get("pass_probability_scale", 0.45))
     )
+    pass_probability *= zone_probability_scale
     pass_probability = float(np.clip(pass_probability, 0.05, 0.95))
 
     if rng.random() < pass_probability:
         bonus_range = overtake_cfg.get("pass_time_bonus_range", [0.08, 0.35])
         if not isinstance(bonus_range, list) or len(bonus_range) != 2:
             bonus_range = [0.08, 0.35]
-        pass_bonus = rng.uniform(float(bonus_range[0]), float(bonus_range[1]))
+        pass_bonus = rng.uniform(float(bonus_range[0]), float(bonus_range[1])) * zone_bonus_scale
         effect -= pass_bonus
 
     return effect
+
+
+def _get_overtake_zone_adjustments(
+    target_position: int, overtake_cfg: dict
+) -> tuple[float, float, float]:
+    """Scale overtake threshold/probability/benefit by target's position zone.
+
+    Overtakes at the front are harder and lower reward; backfield passes are easier.
+    """
+    if target_position <= 3:
+        return (
+            float(overtake_cfg.get("zone_front_threshold_boost", 0.22)),
+            float(overtake_cfg.get("zone_front_probability_scale", 0.55)),
+            float(overtake_cfg.get("zone_front_bonus_scale", 0.55)),
+        )
+    if target_position <= 10:
+        return (
+            float(overtake_cfg.get("zone_upper_threshold_boost", 0.10)),
+            float(overtake_cfg.get("zone_upper_probability_scale", 0.75)),
+            float(overtake_cfg.get("zone_upper_bonus_scale", 0.78)),
+        )
+    if target_position <= 15:
+        return (
+            float(overtake_cfg.get("zone_mid_threshold_boost", 0.02)),
+            float(overtake_cfg.get("zone_mid_probability_scale", 0.92)),
+            float(overtake_cfg.get("zone_mid_bonus_scale", 0.93)),
+        )
+    return (
+        float(overtake_cfg.get("zone_back_threshold_boost", -0.03)),
+        float(overtake_cfg.get("zone_back_probability_scale", 1.08)),
+        float(overtake_cfg.get("zone_back_bonus_scale", 1.05)),
+    )
 
 
 def _get_lap1_chaos(position: int, race_params: dict, rng: np.random.Generator) -> float:

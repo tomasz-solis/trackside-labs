@@ -99,13 +99,98 @@ class FPDataError(Enum):
     INSUFFICIENT_LAPS = "insufficient_laps"
 
 
+def _extract_short_run_lap_time(valid_laps: pd.DataFrame) -> float | None:
+    """Return a representative short-stint lap time (seconds) for a driver."""
+    laps = valid_laps.copy()
+
+    # Exclude in/out laps when available; short-run pace should reflect push laps.
+    for pit_col in ("PitOutTime", "PitInTime"):
+        if pit_col in laps.columns:
+            laps = laps[laps[pit_col].isna()]
+
+    if laps.empty:
+        return None
+
+    short_laps = pd.DataFrame()
+    if "TyreLife" in laps.columns:
+        tyre_life = pd.to_numeric(laps["TyreLife"], errors="coerce")
+        short_laps = laps[(tyre_life >= 1) & (tyre_life <= 5)]
+
+    candidates = short_laps if not short_laps.empty else laps
+    lap_seconds = candidates["LapTime"].dt.total_seconds().dropna()
+    if lap_seconds.empty:
+        return None
+
+    top_n = max(1, min(3, len(lap_seconds)))
+    return float(lap_seconds.nsmallest(top_n).median())
+
+
+def _extract_long_run_lap_time(valid_laps: pd.DataFrame, min_long_run_laps: int) -> float | None:
+    """Return a representative long-stint lap time (seconds) for a driver."""
+    laps = valid_laps.copy()
+    if laps.empty:
+        return None
+
+    if "Stint" in laps.columns and laps["Stint"].notna().any():
+        group_cols = ["Stint"]
+        if "Compound" in laps.columns:
+            group_cols.append("Compound")
+        stints = [stint for _key, stint in laps.groupby(group_cols)]
+    else:
+        # Fallback when explicit stint numbering is unavailable.
+        if "Compound" in laps.columns:
+            laps = laps.sort_index()
+            stint_ids = (laps["Compound"] != laps["Compound"].shift()).cumsum()
+            stints = [stint for _key, stint in laps.groupby(stint_ids)]
+        else:
+            stints = [laps]
+
+    best_time = None
+    best_len = 0
+
+    for stint in stints:
+        if len(stint) < min_long_run_laps:
+            continue
+
+        lap_seconds = stint["LapTime"].dt.total_seconds().dropna().sort_values()
+        if len(lap_seconds) < min_long_run_laps:
+            continue
+
+        # Trim one lap from each end to reduce out/in-lap contamination.
+        if len(lap_seconds) > 4:
+            lap_seconds = lap_seconds.iloc[1:-1]
+
+        rep_time = float(lap_seconds.mean())
+
+        if len(stint) > best_len:
+            best_len = len(stint)
+            best_time = rep_time
+
+    return best_time
+
+
+def _extract_representative_lap_time(
+    valid_laps: pd.DataFrame,
+    run_focus: str,
+    min_long_run_laps: int,
+) -> float | None:
+    """Extract representative lap time for short-run or long-run focus."""
+    if run_focus == "long":
+        return _extract_long_run_lap_time(valid_laps, min_long_run_laps=min_long_run_laps)
+    return _extract_short_run_lap_time(valid_laps)
+
+
 def get_fp_team_performance(
     year: int,
     race_name: str,
     session_type: str,
     max_data_age_hours: float | None = None,
+    run_focus: str = "short",
 ) -> tuple[dict[str, float] | None, pd.DataFrame | None, FPDataError | None]:
     """Extract team performance from practice session with staleness and lap count validation."""
+    if run_focus not in {"short", "long"}:
+        raise ValueError("run_focus must be one of: 'short', 'long'")
+
     try:
         session = _fastf1_with_retry(lambda: ff1.get_session(year, race_name, session_type))
         if session is None:
@@ -138,6 +223,9 @@ def get_fp_team_performance(
                 return None, None, FPDataError.STALE_DATA
 
         laps = session.laps
+        min_long_run_laps = int(
+            config_loader.get("baseline_predictor.race.weekend_long_run_min_laps", 8)
+        )
 
         # Reject red-flagged/truncated sessions (<10 total laps)
         if len(laps) < 10:
@@ -146,7 +234,7 @@ def get_fp_team_performance(
             )
             return None, None, FPDataError.INSUFFICIENT_LAPS
 
-        # Get best lap per driver (excluding outliers)
+        # Build representative per-driver pace signal for requested run focus.
         best_times = []
 
         for driver in laps["Driver"].unique():
@@ -161,14 +249,20 @@ def get_fp_team_performance(
             if len(valid_laps) == 0:
                 continue
 
-            # Get best lap time
-            best_lap = valid_laps["LapTime"].min()
+            representative_time = _extract_representative_lap_time(
+                valid_laps,
+                run_focus=run_focus,
+                min_long_run_laps=min_long_run_laps,
+            )
+            if representative_time is None:
+                continue
+
             team_raw = driver_laps["Team"].iloc[0]
             if pd.isna(team_raw):
                 continue
             team = map_team_to_characteristics(team_raw) or str(team_raw)
 
-            best_times.append({"driver": driver, "team": team, "time": best_lap.total_seconds()})
+            best_times.append({"driver": driver, "team": team, "time": representative_time})
 
         if not best_times:
             return None, None, FPDataError.INSUFFICIENT_LAPS
@@ -217,33 +311,69 @@ def get_best_fp_performance(
     if stage not in {"auto", "sprint", "main"}:
         raise ValueError("qualifying_stage must be one of: 'auto', 'sprint', 'main'")
 
+    session_priority: list[tuple[str, str, float]]
     if is_sprint:
         if stage == "sprint":
             # Sprint Qualifying prediction should be anchored to pre-SQ context.
-            sessions = [("FP1", "FP1 times")]
+            session_priority = [("FP1", "FP1 short-stint", 1.0)]
         else:
-            # Main qualifying should prioritize one-lap session evidence.
-            sessions = [
-                ("Sprint Qualifying", "Sprint Qualifying times"),
-                ("Sprint", "Sprint Race times"),
-                ("FP1", "FP1 times"),
+            # Main qualifying: blend all available short-run signals.
+            session_priority = [
+                ("Sprint Qualifying", "Sprint Qualifying short-stint", 1.00),
+                ("Sprint", "Sprint pace signal", 0.55),
+                ("FP1", "FP1 short-stint", 0.70),
             ]
     else:
-        # Normal weekend: Try FP3 > FP2 > FP1
-        sessions = [
-            ("FP3", "FP3 times"),
-            ("FP2", "FP2 times"),
-            ("FP1", "FP1 times"),
+        # Normal weekend: blend short-stint signals instead of hard FP3 fallback.
+        session_priority = [
+            ("FP3", "FP3 short-stint", 1.00),
+            ("FP2", "FP2 short-stint", 0.82),
+            ("FP1", "FP1 short-stint", 0.68),
         ]
 
     errors_encountered = []
-    for session_code, session_label in sessions:
+    available_sessions: list[dict[str, Any]] = []
+    for session_code, session_label, session_weight in session_priority:
         fp_data, session_laps, error = get_fp_team_performance(year, race_name, session_code)
         if fp_data is not None:
-            logger.info(f"Using {session_label} for blending")
-            return session_label, fp_data, session_laps
+            available_sessions.append(
+                {
+                    "code": session_code,
+                    "label": session_label,
+                    "weight": float(session_weight),
+                    "data": fp_data,
+                    "laps": session_laps,
+                }
+            )
+            continue
         if error:
             errors_encountered.append((session_code, error))
+
+    if available_sessions:
+        if len(available_sessions) == 1:
+            selected = available_sessions[0]
+            logger.info(f"Using {selected['label']} for blending")
+            return selected["label"], selected["data"], selected["laps"]
+
+        weighted_totals: dict[str, float] = {}
+        weighted_counts: dict[str, float] = {}
+        for session_info in available_sessions:
+            weight = float(session_info["weight"])
+            for team, score in session_info["data"].items():
+                weighted_totals[team] = weighted_totals.get(team, 0.0) + (score * weight)
+                weighted_counts[team] = weighted_counts.get(team, 0.0) + weight
+
+        blended = {
+            team: weighted_totals[team] / weighted_counts[team]
+            for team in weighted_totals
+            if weighted_counts.get(team, 0.0) > 0.0
+        }
+        if blended:
+            included = " + ".join([item["code"] for item in available_sessions])
+            primary = max(available_sessions, key=lambda item: item["weight"])
+            session_label = f"Short-stint blend ({included})"
+            logger.info(f"Using {session_label} for blending")
+            return session_label, blended, primary["laps"]
 
     # Log why we're falling back to model-only
     if errors_encountered:

@@ -6,7 +6,9 @@ from typing import Any
 
 import numpy as np
 
+from src.types.prediction_types import PitStrategy, QualifyingGridEntry
 from src.utils import config_loader
+from src.utils.grid_validation import validate_qualifying_grid
 from src.utils.lap_by_lap_simulator import (
     aggregate_simulation_results,
     simulate_race_lap_by_lap,
@@ -26,7 +28,7 @@ class BaselineRacePredictionMixin:
 
     def predict_race(
         self,
-        qualifying_grid: list[dict],
+        qualifying_grid: list[QualifyingGridEntry],
         weather: str = "dry",
         race_name: str | None = None,
         n_simulations: int = 50,
@@ -36,6 +38,8 @@ class BaselineRacePredictionMixin:
         """Predict race result using lap-by-lap Monte Carlo simulation with tire deg and pit stops."""
         validate_enum(weather, "weather", ["dry", "rain", "mixed"])
         validate_positive_int(n_simulations, "n_simulations", min_val=1)
+        cfg = getattr(self, "config", config_loader)
+        validated_grid = validate_qualifying_grid(qualifying_grid)
 
         # Load track-specific parameters (pit loss, safety car prob, overtaking)
         track_params = load_track_specific_params(race_name)
@@ -48,134 +52,125 @@ class BaselineRacePredictionMixin:
 
         # Load additional params for lap-by-lap simulation
         race_params["fuel"] = {
-            "initial_load_kg": config_loader.get(
-                "baseline_predictor.race.fuel.initial_load_kg", 110.0
-            ),
-            "effect_per_lap": config_loader.get(
-                "baseline_predictor.race.fuel.effect_per_lap", 0.035
-            ),
-            "burn_rate_kg_per_lap": config_loader.get(
+            "initial_load_kg": cfg.get("baseline_predictor.race.fuel.initial_load_kg", 110.0),
+            "effect_per_lap": cfg.get("baseline_predictor.race.fuel.effect_per_lap", 0.035),
+            "burn_rate_kg_per_lap": cfg.get(
                 "baseline_predictor.race.fuel.burn_rate_kg_per_lap", 1.5
             ),
         }
 
         race_params["lap_time"] = {
-            "reference_base": config_loader.get(
-                "baseline_predictor.race.lap_time.reference_base", 90.0
-            ),
-            "team_pace_penalty_range": config_loader.get(
+            "reference_base": cfg.get("baseline_predictor.race.lap_time.reference_base", 90.0),
+            "team_pace_penalty_range": cfg.get(
                 "baseline_predictor.race.lap_time.team_pace_penalty_range", 5.0
             ),
-            "skill_improvement_max": config_loader.get(
+            "skill_improvement_max": cfg.get(
                 "baseline_predictor.race.lap_time.skill_improvement_max", 0.5
             ),
-            "bounds": config_loader.get("baseline_predictor.race.lap_time.bounds", [70.0, 120.0]),
-            "elite_skill_threshold": config_loader.get(
+            "bounds": cfg.get("baseline_predictor.race.lap_time.bounds", [70.0, 120.0]),
+            "elite_skill_threshold": cfg.get(
                 "baseline_predictor.race.lap_time.elite_skill_threshold", 0.88
             ),
-            "elite_skill_lap_bonus_max": config_loader.get(
+            "elite_skill_lap_bonus_max": cfg.get(
                 "baseline_predictor.race.lap_time.elite_skill_lap_bonus_max", 0.09
             ),
-            "elite_skill_exponent": config_loader.get(
+            "elite_skill_exponent": cfg.get(
                 "baseline_predictor.race.lap_time.elite_skill_exponent", 1.3
             ),
         }
-        race_params["team_strength_compression"] = config_loader.get(
+        race_params["team_strength_compression"] = cfg.get(
             "baseline_predictor.race.lap_time.team_strength_compression", 0.35
         )
-        race_params["start_grid_gap_seconds"] = config_loader.get(
+        race_params["start_grid_gap_seconds"] = cfg.get(
             "baseline_predictor.race.start_grid_gap_seconds", 0.32
         )
-        race_params["race_advantage_lap_impact"] = config_loader.get(
+        race_params["race_advantage_lap_impact"] = cfg.get(
             "baseline_predictor.race.race_advantage_lap_impact", 0.35
         )
+        race_params["safety_car_trigger_lap"] = cfg.get(
+            "baseline_predictor.race.safety_car_trigger_lap", 10
+        )
         race_params["overtake_model"] = {
-            "dirty_air_window_s": config_loader.get(
+            "dirty_air_window_s": cfg.get(
                 "baseline_predictor.race.overtake_model.dirty_air_window_s", 1.8
             ),
-            "dirty_air_penalty_base": config_loader.get(
+            "dirty_air_penalty_base": cfg.get(
                 "baseline_predictor.race.overtake_model.dirty_air_penalty_base", 0.05
             ),
-            "dirty_air_penalty_track_scale": config_loader.get(
+            "dirty_air_penalty_track_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.dirty_air_penalty_track_scale",
                 0.12,
             ),
-            "pass_window_s": config_loader.get(
-                "baseline_predictor.race.overtake_model.pass_window_s", 1.2
-            ),
-            "pass_threshold_base": config_loader.get(
+            "pass_window_s": cfg.get("baseline_predictor.race.overtake_model.pass_window_s", 1.2),
+            "pass_threshold_base": cfg.get(
                 "baseline_predictor.race.overtake_model.pass_threshold_base", 0.06
             ),
-            "pass_threshold_track_scale": config_loader.get(
+            "pass_threshold_track_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.pass_threshold_track_scale",
                 0.16,
             ),
-            "pass_probability_base": config_loader.get(
+            "pass_probability_base": cfg.get(
                 "baseline_predictor.race.overtake_model.pass_probability_base", 0.30
             ),
-            "pass_probability_scale": config_loader.get(
+            "pass_probability_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.pass_probability_scale", 0.45
             ),
-            "pass_time_bonus_range": config_loader.get(
+            "pass_time_bonus_range": cfg.get(
                 "baseline_predictor.race.overtake_model.pass_time_bonus_range",
                 [0.08, 0.35],
             ),
-            "pace_diff_scale": config_loader.get(
+            "pace_diff_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.pace_diff_scale", 0.55
             ),
-            "skill_scale": config_loader.get(
-                "baseline_predictor.race.overtake_model.skill_scale", 0.25
-            ),
-            "defense_scale": config_loader.get(
-                "baseline_predictor.race.overtake_model.defense_scale", 0.28
-            ),
-            "race_adv_scale": config_loader.get(
+            "skill_scale": cfg.get("baseline_predictor.race.overtake_model.skill_scale", 0.25),
+            "defense_scale": cfg.get("baseline_predictor.race.overtake_model.defense_scale", 0.28),
+            "race_adv_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.race_adv_scale", 0.20
             ),
-            "track_ease_scale": config_loader.get(
+            "track_ease_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.track_ease_scale", 0.18
             ),
-            "zone_front_threshold_boost": config_loader.get(
+            "zone_front_threshold_boost": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_front_threshold_boost", 0.22
             ),
-            "zone_upper_threshold_boost": config_loader.get(
+            "zone_upper_threshold_boost": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_upper_threshold_boost", 0.10
             ),
-            "zone_mid_threshold_boost": config_loader.get(
+            "zone_mid_threshold_boost": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_mid_threshold_boost", 0.02
             ),
-            "zone_back_threshold_boost": config_loader.get(
+            "zone_back_threshold_boost": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_back_threshold_boost", -0.03
             ),
-            "zone_front_probability_scale": config_loader.get(
+            "zone_front_probability_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_front_probability_scale", 0.55
             ),
-            "zone_upper_probability_scale": config_loader.get(
+            "zone_upper_probability_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_upper_probability_scale", 0.75
             ),
-            "zone_mid_probability_scale": config_loader.get(
+            "zone_mid_probability_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_mid_probability_scale", 0.92
             ),
-            "zone_back_probability_scale": config_loader.get(
+            "zone_back_probability_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_back_probability_scale", 1.08
             ),
-            "zone_front_bonus_scale": config_loader.get(
+            "zone_front_bonus_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_front_bonus_scale", 0.55
             ),
-            "zone_upper_bonus_scale": config_loader.get(
+            "zone_upper_bonus_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_upper_bonus_scale", 0.78
             ),
-            "zone_mid_bonus_scale": config_loader.get(
+            "zone_mid_bonus_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_mid_bonus_scale", 0.93
             ),
-            "zone_back_bonus_scale": config_loader.get(
+            "zone_back_bonus_scale": cfg.get(
                 "baseline_predictor.race.overtake_model.zone_back_bonus_scale", 1.05
             ),
         }
 
         # Prepare driver info with per-compound strengths
         driver_info_map, teams_with_long_profile = self._prepare_driver_info_with_compounds(
-            qualifying_grid, race_name
+            validated_grid, race_name
         )
 
         # Determine race distance from FastF1 metadata, with safe fallback defaults.
@@ -204,23 +199,24 @@ class BaselineRacePredictionMixin:
             "back_field": race_params.get("lap1_back_field_chaos", 0.28),
         }
         if "track_overtaking" not in race_params:
-            race_params["track_overtaking"] = config_loader.get(
-                "track_defaults.overtaking_difficulty", 0.5
-            )
+            race_params["track_overtaking"] = cfg.get("track_defaults.overtaking_difficulty", 0.5)
 
         sc_weather_key = "sc_base_prob_wet" if weather in ["rain", "mixed"] else "sc_base_prob_dry"
         default_sc_probability = race_params.get(sc_weather_key, 0.45) + (
             race_params["track_overtaking"] * race_params.get("sc_track_modifier", 0.25)
         )
         race_params["sc_probability"] = race_params.get(
-            "sc_probability", float(np.clip(default_sc_probability, 0.0, 1.0))
+            "sc_probability", np.clip(default_sc_probability, 0.0, 1.0)
         )
 
-        # Ensure pit_stops key exists (may come from track_params or need default)
+        # Provide pit-stop defaults when track params do not override them.
         if "pit_stops" not in race_params:
             race_params["pit_stops"] = {
-                "loss_duration": 22.0,  # Default average
-                "overtake_loss_range": [0, 3],
+                "loss_duration": cfg.get("baseline_predictor.race.pit_stops.loss_duration", 22.0),
+                "overtake_loss_range": cfg.get(
+                    "baseline_predictor.race.pit_stops.overtake_loss_range",
+                    [0, 3],
+                ),
             }
 
         # Run lap-by-lap simulations
@@ -231,7 +227,7 @@ class BaselineRacePredictionMixin:
             rng = np.random.default_rng(base_seed + sim_idx)
 
             # Generate pit strategies for all drivers (Monte Carlo)
-            strategies = {}
+            strategies: dict[str, PitStrategy] = {}
             sprint_compound = (
                 "SOFT"
                 if "SOFT" in available_compounds
@@ -273,77 +269,54 @@ class BaselineRacePredictionMixin:
         # Blend race simulation output with grid anchoring based on overtaking difficulty.
         # Hard-to-pass tracks preserve more of qualifying order, while easy tracks let
         # pace and racecraft dominate more.
-        track_overtaking = float(race_params.get("track_overtaking", 0.5))
-        grid_anchor_weight = float(
-            np.clip(
-                config_loader.get("baseline_predictor.race.grid_anchor.base", 0.30)
-                + (
-                    track_overtaking
-                    * config_loader.get("baseline_predictor.race.grid_anchor.track_scale", 0.35)
-                ),
-                0.20,
-                0.85,
-            )
+        track_overtaking = race_params.get("track_overtaking", 0.5)
+        grid_anchor_weight = np.clip(
+            cfg.get("baseline_predictor.race.grid_anchor.base", 0.30)
+            + (track_overtaking * cfg.get("baseline_predictor.race.grid_anchor.track_scale", 0.35)),
+            0.20,
+            0.85,
         )
-        grid_anchor_min = config_loader.get("baseline_predictor.race.grid_anchor.min", 0.62)
-        sprint_grid_anchor_min = config_loader.get(
-            "baseline_predictor.race.grid_anchor.sprint_min", 0.78
-        )
+        grid_anchor_min = cfg.get("baseline_predictor.race.grid_anchor.min", 0.62)
+        sprint_grid_anchor_min = cfg.get("baseline_predictor.race.grid_anchor.sprint_min", 0.78)
         grid_anchor_weight = max(
             grid_anchor_weight,
             sprint_grid_anchor_min if is_sprint else grid_anchor_min,
         )
-        overtaking_skill_blend_scale = config_loader.get(
+        overtake_blend_scale = cfg.get(
             "baseline_predictor.race.final_blend.overtaking_skill_scale", 1.6
         )
-        race_advantage_blend_scale = config_loader.get(
+        race_adv_blend_scale = cfg.get(
             "baseline_predictor.race.final_blend.race_advantage_scale", 1.3
         )
-        driver_skill_blend_scale = config_loader.get(
-            "baseline_predictor.race.final_blend.driver_skill_scale", 1.1
+        skill_blend_scale = cfg.get("baseline_predictor.race.final_blend.driver_skill_scale", 1.1)
+        elite_skill_threshold = cfg.get(
+            "baseline_predictor.race.final_blend.elite_driver_skill_threshold", 0.88
         )
-        elite_driver_skill_threshold = float(
-            config_loader.get(
-                "baseline_predictor.race.final_blend.elite_driver_skill_threshold", 0.88
-            )
+        elite_driver_scale = cfg.get("baseline_predictor.race.final_blend.elite_driver_scale", 0.80)
+        elite_driver_exponent = cfg.get(
+            "baseline_predictor.race.final_blend.elite_driver_exponent", 1.35
         )
-        elite_driver_scale = float(
-            config_loader.get("baseline_predictor.race.final_blend.elite_driver_scale", 0.80)
+        max_driver_adjustment = cfg.get(
+            "baseline_predictor.race.final_blend.max_driver_adjustment_positions",
+            0.9,
         )
-        elite_driver_exponent = float(
-            config_loader.get("baseline_predictor.race.final_blend.elite_driver_exponent", 1.35)
+        max_gain_base = cfg.get("baseline_predictor.race.final_blend.max_gain_base", 6.0)
+        max_gain_track_scale = cfg.get(
+            "baseline_predictor.race.final_blend.max_gain_track_scale",
+            4.0,
         )
-        max_driver_adjustment_positions = float(
-            config_loader.get(
-                "baseline_predictor.race.final_blend.max_driver_adjustment_positions",
-                0.9,
-            )
+        skill_gain_scale = cfg.get(
+            "baseline_predictor.race.final_blend.max_gain_overtaking_skill_scale", 2.0
         )
-        max_gain_base = float(
-            config_loader.get("baseline_predictor.race.final_blend.max_gain_base", 6.0)
+        race_adv_gain_scale = cfg.get(
+            "baseline_predictor.race.final_blend.max_gain_race_advantage_scale", 2.5
         )
-        max_gain_track_scale = float(
-            config_loader.get("baseline_predictor.race.final_blend.max_gain_track_scale", 4.0)
-        )
-        max_gain_overtaking_skill_scale = float(
-            config_loader.get(
-                "baseline_predictor.race.final_blend.max_gain_overtaking_skill_scale", 2.0
-            )
-        )
-        max_gain_race_advantage_scale = float(
-            config_loader.get(
-                "baseline_predictor.race.final_blend.max_gain_race_advantage_scale", 2.5
-            )
-        )
-        max_gain_floor = float(
-            config_loader.get("baseline_predictor.race.final_blend.max_gain_floor", 4.0)
-        )
-        max_gain_ceiling = float(
-            config_loader.get("baseline_predictor.race.final_blend.max_gain_ceiling", 11.0)
-        )
-        confidence_floor = float(config_loader.get("baseline_predictor.race.confidence.min", 40.0))
-        weather_confidence_penalty = float(
-            config_loader.get("baseline_predictor.race.confidence.weather_penalty_wet", 4.0)
+        max_gain_floor = cfg.get("baseline_predictor.race.final_blend.max_gain_floor", 4.0)
+        max_gain_ceiling = cfg.get("baseline_predictor.race.final_blend.max_gain_ceiling", 11.0)
+        confidence_floor = cfg.get("baseline_predictor.race.confidence.min", 40.0)
+        confidence_cap = cfg.get("baseline_predictor.race.confidence.max", 60.0)
+        weather_penalty = (
+            cfg.get("baseline_predictor.race.confidence.weather_penalty_wet", 4.0)
             if weather in ("rain", "mixed")
             else 0.0
         )
@@ -358,19 +331,19 @@ class BaselineRacePredictionMixin:
             position_std = np.std(positions)
             confidence = max(
                 confidence_floor,
-                min(60.0, 60.0 - (position_std * 3.0) - weather_confidence_penalty),
+                min(confidence_cap, confidence_cap - (position_std * 3.0) - weather_penalty),
             )
 
             overtake_ease = 1.0 - track_overtaking
             racecraft_adjustment = (
-                ((info["overtaking_skill"] - 0.5) * overtake_ease * overtaking_skill_blend_scale)
-                + (info["race_advantage"] * race_advantage_blend_scale)
-                + ((info["skill"] - 0.5) * driver_skill_blend_scale)
+                ((info["overtaking_skill"] - 0.5) * overtake_ease * overtake_blend_scale)
+                + (info["race_advantage"] * race_adv_blend_scale)
+                + ((info["skill"] - 0.5) * skill_blend_scale)
             )
 
-            elite_denominator = max(1e-6, 1.0 - elite_driver_skill_threshold)
+            elite_denominator = max(1e-6, 1.0 - elite_skill_threshold)
             elite_driver_normalized = max(
-                0.0, (info["skill"] - elite_driver_skill_threshold) / elite_denominator
+                0.0, (info["skill"] - elite_skill_threshold) / elite_denominator
             )
             elite_driver_adjustment = (
                 (elite_driver_normalized**elite_driver_exponent)
@@ -379,33 +352,29 @@ class BaselineRacePredictionMixin:
             )
             racecraft_adjustment += elite_driver_adjustment
 
-            is_elite_driver = info["skill"] >= elite_driver_skill_threshold
+            is_elite_driver = info["skill"] >= elite_skill_threshold
             if info["grid_pos"] <= 3 and not is_elite_driver:
-                adjustment_cap_negative = max_driver_adjustment_positions * 0.5
-                adjustment_cap_positive = max_driver_adjustment_positions
-                racecraft_adjustment = float(
-                    np.clip(
-                        racecraft_adjustment,
-                        -adjustment_cap_negative,
-                        adjustment_cap_positive,
-                    )
+                adjustment_cap_negative = max_driver_adjustment * 0.5
+                adjustment_cap_positive = max_driver_adjustment
+                racecraft_adjustment = np.clip(
+                    racecraft_adjustment,
+                    -adjustment_cap_negative,
+                    adjustment_cap_positive,
                 )
             else:
-                racecraft_adjustment = float(
-                    np.clip(
-                        racecraft_adjustment,
-                        -max_driver_adjustment_positions,
-                        max_driver_adjustment_positions,
-                    )
+                racecraft_adjustment = np.clip(
+                    racecraft_adjustment,
+                    -max_driver_adjustment,
+                    max_driver_adjustment,
                 )
 
             max_gain = (
                 max_gain_base
                 + (overtake_ease * max_gain_track_scale)
-                + ((info["overtaking_skill"] - 0.5) * max_gain_overtaking_skill_scale)
-                + (max(0.0, info["race_advantage"]) * max_gain_race_advantage_scale)
+                + ((info["overtaking_skill"] - 0.5) * skill_gain_scale)
+                + (max(0.0, info["race_advantage"]) * race_adv_gain_scale)
             )
-            max_gain = float(np.clip(max_gain, max_gain_floor, max_gain_ceiling))
+            max_gain = np.clip(max_gain, max_gain_floor, max_gain_ceiling)
             min_position_score = max(1.0, info["grid_pos"] - max_gain)
 
             position_blend_score = (

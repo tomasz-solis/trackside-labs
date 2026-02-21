@@ -28,6 +28,14 @@ def _base_params() -> dict:
         "pace_weight_base": 0.5,
         "pace_weight_track_modifier": 0.1,
         "teammate_variance_std": 0.0,
+        "grid_divisor": 21,
+        "position_scaling_front_threshold": 3,
+        "position_scaling_front_scale": 0.1,
+        "position_scaling_upper_threshold": 7,
+        "position_scaling_upper_scale": 0.3,
+        "position_scaling_mid_threshold": 12,
+        "position_scaling_mid_scale": 0.6,
+        "position_scaling_back_scale": 1.0,
         "base_chaos": {"dry": 0.0, "wet": 0.0},
     }
 
@@ -121,10 +129,13 @@ def test_load_race_params_reads_expected_config_keys(monkeypatch):
 
     params = helper._load_race_params()
 
-    assert len(params) == 22
+    assert len(params) == 30
     assert "base_chaos_dry" in params
     assert "base_chaos_wet" in params
     assert "teammate_variance_std" in params
+    assert "grid_divisor" in params
+    assert "position_scaling_front_threshold" in params
     assert "baseline_predictor.race.base_chaos.dry" in calls
     assert "baseline_predictor.race.overtaking_skill_multiplier" in calls
     assert "baseline_predictor.race.teammate_variance_std" in calls
+    assert "baseline_predictor.race.grid_divisor" in calls

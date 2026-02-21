@@ -20,19 +20,28 @@ class BaselineRaceParamsMixin:
         rng: np.random.Generator,
     ) -> tuple[float, bool]:
         """Calculate single driver's race score for one simulation."""
+        grid_divisor = params.get("grid_divisor", 21)
+        front_threshold = params.get("position_scaling_front_threshold", 3)
+        front_scale = params.get("position_scaling_front_scale", 0.1)
+        upper_threshold = params.get("position_scaling_upper_threshold", 7)
+        upper_scale = params.get("position_scaling_upper_scale", 0.3)
+        mid_threshold = params.get("position_scaling_mid_threshold", 12)
+        mid_scale = params.get("position_scaling_mid_scale", 0.6)
+        back_scale = params.get("position_scaling_back_scale", 1.0)
+
         grid_weight = params["grid_weight_min"] + (
             track_overtaking * params["grid_weight_multiplier"]
         )
-        grid_advantage = 1.0 - ((info["grid_pos"] - 1) / 21.0)
+        grid_advantage = 1.0 - ((info["grid_pos"] - 1) / grid_divisor)
 
-        if info["grid_pos"] <= 3:
-            position_scaling = 0.1
-        elif info["grid_pos"] <= 7:
-            position_scaling = 0.3
-        elif info["grid_pos"] <= 12:
-            position_scaling = 0.6
+        if info["grid_pos"] <= front_threshold:
+            position_scaling = front_scale
+        elif info["grid_pos"] <= upper_threshold:
+            position_scaling = upper_scale
+        elif info["grid_pos"] <= mid_threshold:
+            position_scaling = mid_scale
         else:
-            position_scaling = 1.0
+            position_scaling = back_scale
 
         race_pace_boost = (
             info["race_advantage"] * params["race_advantage_multiplier"] * position_scaling
@@ -114,63 +123,70 @@ class BaselineRaceParamsMixin:
 
     def _load_race_params(self) -> dict:
         """Load all race parameters from config once."""
+        cfg = getattr(self, "config", config_loader)
         return {
-            "base_chaos_dry": config_loader.get("baseline_predictor.race.base_chaos.dry", 0.35),
-            "base_chaos_wet": config_loader.get("baseline_predictor.race.base_chaos.wet", 0.45),
-            "track_chaos_multiplier": config_loader.get(
+            "base_chaos_dry": cfg.get("baseline_predictor.race.base_chaos.dry", 0.35),
+            "base_chaos_wet": cfg.get("baseline_predictor.race.base_chaos.wet", 0.45),
+            "track_chaos_multiplier": cfg.get(
                 "baseline_predictor.race.track_chaos_multiplier", 0.4
             ),
-            "sc_base_prob_dry": config_loader.get(
-                "baseline_predictor.race.sc_base_probability.dry", 0.45
-            ),
-            "sc_base_prob_wet": config_loader.get(
-                "baseline_predictor.race.sc_base_probability.wet", 0.70
-            ),
-            "sc_track_modifier": config_loader.get(
-                "baseline_predictor.race.sc_track_modifier", 0.25
-            ),
-            "grid_weight_min": config_loader.get("baseline_predictor.race.grid_weight_min", 0.15),
-            "grid_weight_multiplier": config_loader.get(
+            "sc_base_prob_dry": cfg.get("baseline_predictor.race.sc_base_probability.dry", 0.45),
+            "sc_base_prob_wet": cfg.get("baseline_predictor.race.sc_base_probability.wet", 0.70),
+            "sc_track_modifier": cfg.get("baseline_predictor.race.sc_track_modifier", 0.25),
+            "grid_weight_min": cfg.get("baseline_predictor.race.grid_weight_min", 0.15),
+            "grid_weight_multiplier": cfg.get(
                 "baseline_predictor.race.grid_weight_multiplier", 0.35
             ),
-            "race_advantage_multiplier": config_loader.get(
+            "race_advantage_multiplier": cfg.get(
                 "baseline_predictor.race.race_advantage_multiplier", 0.5
             ),
-            "overtaking_skill_multiplier": config_loader.get(
+            "overtaking_skill_multiplier": cfg.get(
                 "baseline_predictor.race.overtaking_skill_multiplier", 0.25
             ),
-            "overtaking_grid_threshold": config_loader.get(
+            "overtaking_grid_threshold": cfg.get(
                 "baseline_predictor.race.overtaking_grid_threshold", 5
             ),
-            "overtaking_track_threshold": config_loader.get(
+            "overtaking_track_threshold": cfg.get(
                 "baseline_predictor.race.overtaking_track_threshold", 0.5
             ),
-            "lap1_front_row_chaos": config_loader.get(
-                "baseline_predictor.race.lap1_chaos.front_row", 0.15
-            ),
-            "lap1_upper_midfield_chaos": config_loader.get(
+            "lap1_front_row_chaos": cfg.get("baseline_predictor.race.lap1_chaos.front_row", 0.15),
+            "lap1_upper_midfield_chaos": cfg.get(
                 "baseline_predictor.race.lap1_chaos.upper_midfield", 0.32
             ),
-            "lap1_midfield_chaos": config_loader.get(
-                "baseline_predictor.race.lap1_chaos.midfield", 0.38
-            ),
-            "lap1_back_field_chaos": config_loader.get(
-                "baseline_predictor.race.lap1_chaos.back_field", 0.28
-            ),
-            "strategy_variance_base": config_loader.get(
+            "lap1_midfield_chaos": cfg.get("baseline_predictor.race.lap1_chaos.midfield", 0.38),
+            "lap1_back_field_chaos": cfg.get("baseline_predictor.race.lap1_chaos.back_field", 0.28),
+            "strategy_variance_base": cfg.get(
                 "baseline_predictor.race.strategy_variance_base", 0.30
             ),
-            "strategy_track_modifier": config_loader.get(
+            "strategy_track_modifier": cfg.get(
                 "baseline_predictor.race.strategy_track_modifier", 0.5
             ),
-            "safety_car_luck_range": config_loader.get(
-                "baseline_predictor.race.safety_car_luck_range", 0.25
-            ),
-            "pace_weight_base": config_loader.get("baseline_predictor.race.pace_weight_base", 0.40),
-            "pace_weight_track_modifier": config_loader.get(
+            "safety_car_luck_range": cfg.get("baseline_predictor.race.safety_car_luck_range", 0.25),
+            "pace_weight_base": cfg.get("baseline_predictor.race.pace_weight_base", 0.40),
+            "pace_weight_track_modifier": cfg.get(
                 "baseline_predictor.race.pace_weight_track_modifier", 0.10
             ),
-            "teammate_variance_std": config_loader.get(
-                "baseline_predictor.race.teammate_variance_std", 0.15
+            "teammate_variance_std": cfg.get("baseline_predictor.race.teammate_variance_std", 0.15),
+            "grid_divisor": cfg.get("baseline_predictor.race.grid_divisor", 21),
+            "position_scaling_front_threshold": cfg.get(
+                "baseline_predictor.race.position_scaling.front_threshold", 3
+            ),
+            "position_scaling_front_scale": cfg.get(
+                "baseline_predictor.race.position_scaling.front_scale", 0.1
+            ),
+            "position_scaling_upper_threshold": cfg.get(
+                "baseline_predictor.race.position_scaling.upper_threshold", 7
+            ),
+            "position_scaling_upper_scale": cfg.get(
+                "baseline_predictor.race.position_scaling.upper_scale", 0.3
+            ),
+            "position_scaling_mid_threshold": cfg.get(
+                "baseline_predictor.race.position_scaling.mid_threshold", 12
+            ),
+            "position_scaling_mid_scale": cfg.get(
+                "baseline_predictor.race.position_scaling.mid_scale", 0.6
+            ),
+            "position_scaling_back_scale": cfg.get(
+                "baseline_predictor.race.position_scaling.back_scale", 1.0
             ),
         }

@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.predictors.baseline_2026 import Baseline2026Predictor
+from src.types.prediction_types import QualifyingGridEntry
 
 
 class RacePredictor:
@@ -31,7 +32,7 @@ class RacePredictor:
         self,
         year: int,
         race_name: str,
-        qualifying_grid: list[dict[str, Any]],
+        qualifying_grid: list[QualifyingGridEntry],
         fp2_pace: Any = None,
         weather_forecast: str = "dry",
         verbose: bool = False,

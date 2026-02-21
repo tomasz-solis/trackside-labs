@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 
+from src.types.prediction_types import PitStrategy, RaceSimulationResult
 from src.utils.tire_degradation import (
     calculate_fuel_delta,
     calculate_tire_deg_delta,
@@ -16,13 +17,13 @@ logger = logging.getLogger(__name__)
 
 
 def simulate_race_lap_by_lap(
-    driver_info_map: dict[str, dict],
-    strategies: dict[str, dict],
+    driver_info_map: dict[str, dict[str, Any]],
+    strategies: dict[str, PitStrategy],
     race_params: dict,
     race_distance: int,
     weather: str,
     rng: np.random.Generator,
-) -> dict[str, Any]:
+) -> RaceSimulationResult:
     """Simulate one race iteration lap-by-lap, return finish order and metadata.
 
     Returns dict with:
@@ -31,7 +32,8 @@ def simulate_race_lap_by_lap(
         - strategies_used: Dict[str, Dict] (strategy per driver)
     """
     # Initialize driver states
-    start_grid_gap_seconds = float(race_params.get("start_grid_gap_seconds", 0.32))
+    start_grid_gap_seconds = race_params.get("start_grid_gap_seconds", 0.32)
+    safety_car_trigger_lap = race_params.get("safety_car_trigger_lap", 10)
     driver_states = {}
     for driver, info in driver_info_map.items():
         driver_states[driver] = {
@@ -61,10 +63,12 @@ def simulate_race_lap_by_lap(
         }
         # Treat safety-car probability as a race-level likelihood; convert to
         # per-lap trigger chance to avoid over-applying random swings.
-        sc_probability_race = float(np.clip(race_params.get("sc_probability", 0.0), 0.0, 1.0))
-        sc_laps_remaining = max(1, race_distance - 10)
+        sc_probability_race = np.clip(race_params.get("sc_probability", 0.0), 0.0, 1.0)
+        sc_laps_remaining = max(1, race_distance - safety_car_trigger_lap)
         sc_lap_probability = sc_probability_race / sc_laps_remaining
-        sc_deployed_this_lap = lap_num > 10 and rng.random() < sc_lap_probability
+        sc_deployed_this_lap = (
+            lap_num > safety_car_trigger_lap and rng.random() < sc_lap_probability
+        )
 
         for driver in list(driver_states.keys()):
             state = driver_states[driver]
@@ -99,10 +103,10 @@ def simulate_race_lap_by_lap(
             skill_improvement_max = race_params.get("lap_time", {}).get(
                 "skill_improvement_max", 0.5
             )
-            team_strength_compression = float(race_params.get("team_strength_compression", 0.45))
+            team_strength_compression = race_params.get("team_strength_compression", 0.45)
 
             compressed_team_strength = 0.5 + ((team_strength - 0.5) * team_strength_compression)
-            compressed_team_strength = float(np.clip(compressed_team_strength, 0.0, 1.0))
+            compressed_team_strength = np.clip(compressed_team_strength, 0.0, 1.0)
 
             team_pace_penalty = (1.0 - compressed_team_strength) * team_pace_penalty_range
             skill_improvement = skill * skill_improvement_max
@@ -113,12 +117,10 @@ def simulate_race_lap_by_lap(
                 "elite_skill_lap_bonus_max", 0.09
             )
             elite_skill_exponent = race_params.get("lap_time", {}).get("elite_skill_exponent", 1.3)
-            elite_denominator = max(1e-6, 1.0 - float(elite_skill_threshold))
-            elite_skill_normalized = max(
-                0.0, (float(skill) - float(elite_skill_threshold)) / elite_denominator
-            )
-            elite_skill_bonus = float(elite_skill_lap_bonus_max) * (
-                elite_skill_normalized ** float(elite_skill_exponent)
+            elite_denominator = max(1e-6, 1.0 - elite_skill_threshold)
+            elite_skill_normalized = max(0.0, (skill - elite_skill_threshold) / elite_denominator)
+            elite_skill_bonus = elite_skill_lap_bonus_max * (
+                elite_skill_normalized**elite_skill_exponent
             )
 
             # Reference lap time (track-specific if available in race_params)
@@ -214,7 +216,7 @@ def simulate_race_lap_by_lap(
                 + traffic_overtake_effect
             )
 
-            # Ensure lap time is reasonable (no negative or absurdly high)
+            # Keep lap time within plausible bounds.
             lap_time_bounds = race_params.get("lap_time", {}).get("bounds", [70.0, 120.0])
             lap_time = max(lap_time_bounds[0], min(lap_time_bounds[1], lap_time))
 
@@ -261,39 +263,37 @@ def _get_traffic_overtake_effect(
         return 0.0
 
     gap_to_ahead = max(0.0, state["cumulative_time"] - ahead_state["cumulative_time"])
-    track_overtaking = float(race_params.get("track_overtaking", 0.5))
+    track_overtaking = race_params.get("track_overtaking", 0.5)
     overtake_cfg = race_params.get("overtake_model", {})
 
-    dirty_air_window = float(overtake_cfg.get("dirty_air_window_s", 1.8))
+    dirty_air_window = overtake_cfg.get("dirty_air_window_s", 1.8)
     if gap_to_ahead > dirty_air_window:
         return 0.0
 
     info = driver_info_map[driver]
     ahead_info = driver_info_map.get(ahead_driver, {})
-    dirty_air_penalty_base = float(overtake_cfg.get("dirty_air_penalty_base", 0.05))
-    dirty_air_penalty_track_scale = float(overtake_cfg.get("dirty_air_penalty_track_scale", 0.12))
-    dirty_air_relief = float(np.clip(info.get("overtaking_skill", 0.5), 0.0, 1.0)) * 0.5
+    dirty_air_penalty_base = overtake_cfg.get("dirty_air_penalty_base", 0.05)
+    dirty_air_penalty_track_scale = overtake_cfg.get("dirty_air_penalty_track_scale", 0.12)
+    dirty_air_relief = np.clip(info.get("overtaking_skill", 0.5), 0.0, 1.0) * 0.5
     dirty_air_penalty = (
         dirty_air_penalty_base + (track_overtaking * dirty_air_penalty_track_scale)
     ) * (1.0 - dirty_air_relief)
 
     effect = dirty_air_penalty
 
-    pass_window = float(overtake_cfg.get("pass_window_s", 1.2))
+    pass_window = overtake_cfg.get("pass_window_s", 1.2)
     if gap_to_ahead > pass_window:
         return effect
 
-    pace_diff_scale = float(overtake_cfg.get("pace_diff_scale", 0.55))
-    skill_scale = float(overtake_cfg.get("skill_scale", 0.25))
-    defense_scale = float(overtake_cfg.get("defense_scale", 0.28))
-    race_adv_scale = float(overtake_cfg.get("race_adv_scale", 0.20))
-    track_ease_scale = float(overtake_cfg.get("track_ease_scale", 0.18))
-    defender_skill = float(
-        np.clip(
-            ahead_info.get("defensive_skill", ahead_info.get("skill", 0.5)),
-            0.0,
-            1.0,
-        )
+    pace_diff_scale = overtake_cfg.get("pace_diff_scale", 0.55)
+    skill_scale = overtake_cfg.get("skill_scale", 0.25)
+    defense_scale = overtake_cfg.get("defense_scale", 0.28)
+    race_adv_scale = overtake_cfg.get("race_adv_scale", 0.20)
+    track_ease_scale = overtake_cfg.get("track_ease_scale", 0.18)
+    defender_skill = np.clip(
+        ahead_info.get("defensive_skill", ahead_info.get("skill", 0.5)),
+        0.0,
+        1.0,
     )
 
     pace_delta_to_ahead = ahead_state.get("base_pace", 90.0) - state.get("base_pace", 90.0)
@@ -315,24 +315,24 @@ def _get_traffic_overtake_effect(
         overtake_cfg=overtake_cfg,
     )
 
-    pass_threshold = float(overtake_cfg.get("pass_threshold_base", 0.06)) + (
-        track_overtaking * float(overtake_cfg.get("pass_threshold_track_scale", 0.16))
+    pass_threshold = overtake_cfg.get("pass_threshold_base", 0.06) + (
+        track_overtaking * overtake_cfg.get("pass_threshold_track_scale", 0.16)
     )
     pass_threshold += zone_threshold_boost
     if overtake_score <= pass_threshold:
         return effect
 
-    pass_probability = float(overtake_cfg.get("pass_probability_base", 0.30)) + (
-        (overtake_score - pass_threshold) * float(overtake_cfg.get("pass_probability_scale", 0.45))
+    pass_probability = overtake_cfg.get("pass_probability_base", 0.30) + (
+        (overtake_score - pass_threshold) * overtake_cfg.get("pass_probability_scale", 0.45)
     )
     pass_probability *= zone_probability_scale
-    pass_probability = float(np.clip(pass_probability, 0.05, 0.95))
+    pass_probability = np.clip(pass_probability, 0.05, 0.95)
 
     if rng.random() < pass_probability:
         bonus_range = overtake_cfg.get("pass_time_bonus_range", [0.08, 0.35])
         if not isinstance(bonus_range, list) or len(bonus_range) != 2:
             bonus_range = [0.08, 0.35]
-        pass_bonus = rng.uniform(float(bonus_range[0]), float(bonus_range[1])) * zone_bonus_scale
+        pass_bonus = rng.uniform(bonus_range[0], bonus_range[1]) * zone_bonus_scale
         effect -= pass_bonus
 
     return effect
@@ -347,26 +347,26 @@ def _get_overtake_zone_adjustments(
     """
     if target_position <= 3:
         return (
-            float(overtake_cfg.get("zone_front_threshold_boost", 0.22)),
-            float(overtake_cfg.get("zone_front_probability_scale", 0.55)),
-            float(overtake_cfg.get("zone_front_bonus_scale", 0.55)),
+            overtake_cfg.get("zone_front_threshold_boost", 0.22),
+            overtake_cfg.get("zone_front_probability_scale", 0.55),
+            overtake_cfg.get("zone_front_bonus_scale", 0.55),
         )
     if target_position <= 10:
         return (
-            float(overtake_cfg.get("zone_upper_threshold_boost", 0.10)),
-            float(overtake_cfg.get("zone_upper_probability_scale", 0.75)),
-            float(overtake_cfg.get("zone_upper_bonus_scale", 0.78)),
+            overtake_cfg.get("zone_upper_threshold_boost", 0.10),
+            overtake_cfg.get("zone_upper_probability_scale", 0.75),
+            overtake_cfg.get("zone_upper_bonus_scale", 0.78),
         )
     if target_position <= 15:
         return (
-            float(overtake_cfg.get("zone_mid_threshold_boost", 0.02)),
-            float(overtake_cfg.get("zone_mid_probability_scale", 0.92)),
-            float(overtake_cfg.get("zone_mid_bonus_scale", 0.93)),
+            overtake_cfg.get("zone_mid_threshold_boost", 0.02),
+            overtake_cfg.get("zone_mid_probability_scale", 0.92),
+            overtake_cfg.get("zone_mid_bonus_scale", 0.93),
         )
     return (
-        float(overtake_cfg.get("zone_back_threshold_boost", -0.03)),
-        float(overtake_cfg.get("zone_back_probability_scale", 1.08)),
-        float(overtake_cfg.get("zone_back_bonus_scale", 1.05)),
+        overtake_cfg.get("zone_back_threshold_boost", -0.03),
+        overtake_cfg.get("zone_back_probability_scale", 1.08),
+        overtake_cfg.get("zone_back_bonus_scale", 1.05),
     )
 
 
@@ -388,7 +388,7 @@ def _get_lap1_chaos(position: int, race_params: dict, rng: np.random.Generator) 
 
 def _apply_pit_stop(
     state: dict,
-    strategy: dict,
+    strategy: PitStrategy,
     race_params: dict,
     rng: np.random.Generator,
 ) -> None:
@@ -459,8 +459,8 @@ def _update_positions_from_times(driver_states: dict[str, dict]) -> None:
 
 def _generate_race_result(
     driver_states: dict[str, dict],
-    strategies: dict[str, dict],
-) -> dict:
+    strategies: dict[str, PitStrategy],
+) -> RaceSimulationResult:
     """Generate final race result dict from driver states."""
     # Sort drivers by position
     sorted_drivers = sorted(driver_states.items(), key=lambda x: x[1]["position"])
@@ -476,7 +476,7 @@ def _generate_race_result(
 
 
 def aggregate_simulation_results(
-    simulation_results: list[dict],
+    simulation_results: list[RaceSimulationResult],
 ) -> dict:
     """Aggregate results from multiple simulations.
 

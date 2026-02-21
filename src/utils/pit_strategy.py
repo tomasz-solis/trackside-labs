@@ -4,6 +4,7 @@ import logging
 
 import numpy as np
 
+from src.types.prediction_types import PitStrategy
 from src.utils import config_loader
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ def generate_pit_strategy(
     rng: np.random.Generator,
     driver_risk_profile: float | None = None,
     enforce_two_compound_rule: bool = True,
-) -> dict:
+) -> PitStrategy:
     """Generate Monte Carlo pit strategy for one driver in one simulation.
 
     Returns dict with:
@@ -81,7 +82,7 @@ def generate_pit_strategy(
     # Calculate stint lengths
     stint_lengths = _calculate_stint_lengths(race_distance, pit_laps)
 
-    strategy = {
+    strategy: PitStrategy = {
         "num_stops": num_stops,
         "pit_laps": pit_laps,
         "compound_sequence": compound_sequence,
@@ -310,7 +311,7 @@ def _calculate_stint_lengths(race_distance: int, pit_laps: list[int]) -> list[in
 
 
 def validate_strategy(
-    strategy: dict,
+    strategy: PitStrategy,
     race_distance: int,
     available_compounds: list[str],
     enforce_two_compound_rule: bool = True,
@@ -384,7 +385,7 @@ def _get_default_strategy(
     race_distance: int,
     available_compounds: list[str],
     enforce_two_compound_rule: bool = True,
-) -> dict:
+) -> PitStrategy:
     """Return safe default 1-stop strategy as fallback."""
     # Default: 1-stop at ~50% race distance
     pit_lap = race_distance // 2
@@ -416,7 +417,7 @@ def _get_default_strategy(
     }
 
 
-def analyze_strategy_distribution(strategies: dict[str, dict]) -> dict:
+def analyze_strategy_distribution(strategies: dict[str, PitStrategy]) -> dict:
     """Analyze compound strategy distribution across all drivers in simulation."""
     strategy_counts = {}
 
@@ -435,7 +436,7 @@ def analyze_strategy_distribution(strategies: dict[str, dict]) -> dict:
     return strategy_distribution
 
 
-def analyze_pit_lap_distribution(strategies: dict[str, dict]) -> dict:
+def analyze_pit_lap_distribution(strategies: dict[str, PitStrategy]) -> dict:
     """Analyze pit lap timing distribution across all drivers."""
     pit_lap_bins = {}
 

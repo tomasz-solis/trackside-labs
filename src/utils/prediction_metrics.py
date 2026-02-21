@@ -224,7 +224,7 @@ class PredictionMetrics:
         quali_metrics = [m["qualifying"] for m in all_metrics if "qualifying" in m]
         race_metrics = [m["race"] for m in all_metrics if "race" in m]
 
-        aggregated = {}
+        aggregated: dict[str, Any] = {}
 
         if quali_metrics:
             aggregated["qualifying"] = {

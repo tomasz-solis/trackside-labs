@@ -185,7 +185,7 @@ def select_best_session(
 
     # Find best available session
     best_session = None
-    best_score = 0
+    best_score = 0.0
     best_session_name = None
 
     for session_name in available:

@@ -10,7 +10,7 @@ from src.predictors.baseline import (
     BaselineQualifyingMixin,
     BaselineRaceMixin,
 )
-from src.utils import config_loader
+from src.utils.config_loader import Config
 from src.utils.data_generator import ensure_baseline_exists
 
 logger = logging.getLogger(__name__)
@@ -27,9 +27,10 @@ class Baseline2026Predictor(
         self,
         data_dir: str = "data/processed",
         seed: int = 42,
+        config: Config | None = None,
         artifact_store: ArtifactStore | None = None,
     ):
-        """Initialize predictor with team/driver data. Optional artifact_store injection for testing."""
+        """Initialize predictor with optional injectable config/artifact store."""
         BaselineDataMixin.__init__(self)
         self.seed = seed
 
@@ -53,5 +54,5 @@ class Baseline2026Predictor(
         self.artifact_store = artifact_store or ArtifactStore(
             data_root=self.data_dir.parent if self.data_dir.name == "processed" else self.data_dir
         )
-        self.config = config_loader.get_section("baseline_predictor")
+        self.config = config or Config()
         self.load_data()

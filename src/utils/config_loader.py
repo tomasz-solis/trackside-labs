@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 class Config:
     """Central configuration manager."""
 
-    _instance = None
-    _config = None
+    _instance: "Config | None" = None
+    _config: dict[str, Any] | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -89,6 +89,11 @@ class Config:
             ("baseline_predictor.qualifying.noise_std_normal", float, 0.0, 0.5),
             ("baseline_predictor.qualifying.team_weight", float, 0.0, 1.0),
             ("baseline_predictor.qualifying.skill_weight", float, 0.0, 1.0),
+            ("baseline_predictor.qualifying.fp_blend_weight", float, 0.0, 1.0),
+            ("baseline_predictor.qualifying.confidence_cap", int, 1, 100),
+            ("baseline_predictor.qualifying.confidence_min", int, 1, 100),
+            ("baseline_predictor.qualifying.default_skill", float, 0.0, 1.0),
+            ("baseline_predictor.qualifying.default_team_strength", float, 0.0, 1.0),
             # Race parameters - base chaos
             ("baseline_predictor.race.base_chaos.dry", float, 0.0, 1.0),
             ("baseline_predictor.race.base_chaos.wet", float, 0.0, 1.0),
@@ -97,14 +102,23 @@ class Config:
             ("baseline_predictor.race.sc_base_probability.dry", float, 0.0, 1.0),
             ("baseline_predictor.race.sc_base_probability.wet", float, 0.0, 1.0),
             ("baseline_predictor.race.sc_track_modifier", float, 0.0, 1.0),
+            ("baseline_predictor.race.safety_car_trigger_lap", int, 1, 70),
             # Race parameters - grid and pace
             ("baseline_predictor.race.grid_weight_min", float, 0.0, 1.0),
             ("baseline_predictor.race.grid_weight_multiplier", float, 0.0, 1.0),
+            ("baseline_predictor.race.grid_divisor", int, 18, 22),
             ("baseline_predictor.race.pace_weight_base", float, 0.0, 1.0),
             ("baseline_predictor.race.pace_weight_track_modifier", float, 0.0, 1.0),
             # Race parameters - DNF caps
             ("baseline_predictor.race.dnf_rate_historical_cap", float, 0.0, 1.0),
             ("baseline_predictor.race.dnf_rate_final_cap", float, 0.0, 1.0),
+            ("baseline_predictor.race.team_uncertainty_dnf_multiplier", float, 0.0, 1.0),
+            ("baseline_predictor.race.missing_driver_teammate_weight", float, 0.0, 1.0),
+            ("baseline_predictor.race.missing_driver_default_dnf_rate", float, 0.0, 1.0),
+            ("baseline_predictor.race.missing_driver_rookie_dnf_penalty", float, 0.0, 0.5),
+            ("baseline_predictor.race.min_laps_for_compound_data", int, 1, 500),
+            ("baseline_predictor.race.weekend_long_run_min_laps", int, 1, 70),
+            ("baseline_predictor.race.long_run_outlier_threshold", float, 0.1, 5.0),
         ]
 
         errors = []
@@ -118,8 +132,12 @@ class Config:
 
             # Check type
             if not isinstance(value, expected_type):
+                if isinstance(expected_type, tuple):
+                    expected_type_name = " or ".join(t.__name__ for t in expected_type)
+                else:
+                    expected_type_name = expected_type.__name__
                 errors.append(
-                    f"Invalid type for {key}: expected {expected_type.__name__}, "
+                    f"Invalid type for {key}: expected {expected_type_name}, "
                     f"got {type(value).__name__}"
                 )
                 continue
@@ -135,7 +153,42 @@ class Config:
             error_msg = "Config validation failed:\n  - " + "\n  - ".join(errors)
             raise ValueError(error_msg)
 
-        # 4. Validate weight sums (qualifying)
+        # 4. Validate dependent parameter relationships.
+        confidence_cap = self.get("baseline_predictor.qualifying.confidence_cap", 60)
+        confidence_min = self.get("baseline_predictor.qualifying.confidence_min", 40)
+        if confidence_min > confidence_cap:
+            raise ValueError(
+                "baseline_predictor.qualifying.confidence_min must be <= confidence_cap"
+            )
+
+        fallback_tier = self.get("baseline_predictor.race.default_experience_tier", "developing")
+        if fallback_tier not in {"rookie", "developing", "established", "veteran"}:
+            raise ValueError(
+                "baseline_predictor.race.default_experience_tier must be one of: "
+                "rookie, developing, established, veteran"
+            )
+
+        clip_range = self.get("baseline_predictor.race.testing_modifier_clip_range", [-0.04, 0.04])
+        if not isinstance(clip_range, list) or len(clip_range) != 2:
+            raise ValueError(
+                "baseline_predictor.race.testing_modifier_clip_range must be a 2-item list"
+            )
+        if clip_range[0] >= clip_range[1]:
+            raise ValueError(
+                "baseline_predictor.race.testing_modifier_clip_range lower bound must be < upper bound"
+            )
+
+        position_scaling = self.get("baseline_predictor.race.position_scaling", {})
+        front_threshold = position_scaling.get("front_threshold", 3)
+        upper_threshold = position_scaling.get("upper_threshold", 7)
+        mid_threshold = position_scaling.get("mid_threshold", 12)
+        if not (front_threshold < upper_threshold < mid_threshold):
+            raise ValueError(
+                "baseline_predictor.race.position_scaling thresholds must satisfy "
+                "front_threshold < upper_threshold < mid_threshold"
+            )
+
+        # 5. Validate weight sums (qualifying)
         team_weight = self.get("baseline_predictor.qualifying.team_weight", 0.7)
         skill_weight = self.get("baseline_predictor.qualifying.skill_weight", 0.3)
         weight_sum = team_weight + skill_weight
@@ -163,7 +216,10 @@ class Config:
 
     def get_section(self, section: str) -> dict:
         """Get entire config section."""
-        return self._config.get(section, {})
+        if self._config is None:
+            return {}
+        value = self._config.get(section, {})
+        return value if isinstance(value, dict) else {}
 
     def reload(self):
         """Force reload config from file."""

@@ -136,10 +136,40 @@ baseline_predictor:
     # Extra teammate divergence for setup/execution differences
     teammate_setup_std: 0.018
     driver_offset_cap: 0.12
+    driver_signal_softness: 0.20
+    weekend_form_std: 0.0
+    model_only_team_weight_multiplier: 0.82
+    model_only_skill_weight_multiplier: 1.35
+    model_only_team_compression_multiplier: 0.87
+    model_only_driver_offset_cap_multiplier: 1.33
+    model_only_driver_signal_shrink: 0.35
+    model_only_experience_shrink:
+      rookie: 0.45
+      developing: 0.20
+      unknown: 0.30
+    model_only_noise_multiplier: 1.12
+    model_only_teammate_setup_multiplier: 1.10
+    model_only_weekend_form_multiplier: 1.0
 
     # Program-aware testing/practice modifier
     # Uses short-run profile characteristics to make a small team-strength adjustment.
     testing_short_run_modifier_scale: 0.04
+    preferred_short_run_compound: "SOFT"
+
+    # FP blend controls
+    fp_blend_weight: 0.70
+    fp_blend_weight_testing: true
+
+    # Confidence / fallback defaults
+    confidence_cap: 60
+    confidence_min: 40
+    default_skill: 0.5
+    default_team_strength: 0.5
+
+    # Track-specific FP driver adjustment
+    enable_driver_fp_adjustment: true
+    driver_fp_adjustment_scale: 0.10
+    driver_fp_adjustment_smoothing: 0.5
 
   # Compound selection parameters
   compound_selection:
@@ -150,6 +180,16 @@ baseline_predictor:
 
   # Race simulation parameters
   race:
+    # Defaults when an active-lineup driver is missing from characteristics
+    default_experience_tier: developing
+    missing_driver_teammate_weight: 0.75
+    missing_driver_default_dnf_rate: 0.10
+    missing_driver_rookie_dnf_penalty: 0.02
+    missing_driver_rookie_quali_penalty: 0.08
+    missing_driver_rookie_race_penalty: 0.07
+    missing_driver_rookie_skill_penalty: 0.08
+    missing_driver_rookie_overtaking_penalty: 0.06
+
     # Weather-based base chaos (unpredictability)
     # Reduced from 0.35 to improve realism and reduce tail variance
     base_chaos:
@@ -171,6 +211,17 @@ baseline_predictor:
     grid_weight_min: 0.15      # Minimum grid weight (even on overtaking tracks)
     grid_weight_multiplier: 0.35  # Additional weight per track overtaking difficulty
                                   # Range: 0.15 (Monza) to 0.50 (Monaco)
+    grid_divisor: 21           # Total grid size for normalization
+
+    # Position scaling by grid slot (race-pace/overtake boost dampening)
+    position_scaling:
+      front_threshold: 3
+      front_scale: 0.10
+      upper_threshold: 7
+      upper_scale: 0.30
+      mid_threshold: 12
+      mid_scale: 0.60
+      back_scale: 1.00
 
     # Systematic race pace advantage
     # Drivers better in races (Alonso, Hamilton) vs quali specialists
@@ -217,7 +268,38 @@ baseline_predictor:
     # Program-aware testing/practice modifier
     # Uses long-run profile characteristics to make a small team-strength adjustment.
     testing_long_run_modifier_scale: 0.05
-    weekend_long_run_min_laps: 8      # Minimum stint length to treat laps as race-sim long run
+    weekend_long_run_min_laps: 12     # Minimum stint length to treat laps as race-sim long run
+    long_run_outlier_threshold: 1.5
+    long_run_trim_ends: true
+
+    # Shared testing profile configuration
+    testing_profile_weights:
+      short_run:
+        overall_pace: 0.55
+        top_speed: 0.20
+        medium_corner_performance: 0.15
+        fast_corner_performance: 0.10
+      long_run:
+        overall_pace: 0.50
+        tire_deg_performance: 0.35
+        consistency: 0.15
+      balanced:
+        overall_pace: 0.65
+        tire_deg_performance: 0.20
+        top_speed: 0.15
+
+    # Bounds and thresholds for testing/profile modifiers and compound data reliability
+    testing_modifier_clip_range: [-0.04, 0.04]
+    min_laps_for_compound_data: 10
+
+    # DNF and defensive-skill calibration
+    team_uncertainty_dnf_multiplier: 0.20
+    defensive_skill_weights:
+      overtaking_component: 0.65
+      skill_component: 0.35
+
+    # Lap-by-lap simulation controls
+    safety_car_trigger_lap: 10
 
     # Lap-by-lap overtaking model
     overtake_model:

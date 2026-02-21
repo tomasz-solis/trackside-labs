@@ -46,7 +46,7 @@ def _is_competitive_race_event(event: pd.Series) -> bool:
 def get_completed_races(year: int = 2026) -> list[str]:
     """Get list of completed races for the given year."""
     try:
-        # Ensure cache directory exists
+        # Create cache directory if missing.
         import os
 
         cache_dir = Path(os.getenv("F1_CACHE_DIR", "data/raw/.fastf1_cache"))

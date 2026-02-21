@@ -9,13 +9,14 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 def ensure_baseline_exists(data_dir: Path) -> None:
     """
-    Ensure baseline data exists. Generate if missing or outdated.
+    Create baseline data when files are missing or outdated.
 
     This is called automatically when Baseline2026Predictor is initialized.
     No manual script running required!
@@ -109,7 +110,7 @@ def generate_neutral_team_characteristics(data_dir: Path) -> None:
         },  # New team - lowest estimate
     }
 
-    team_characteristics = {
+    team_characteristics: dict[str, Any] = {
         "year": 2026,
         "version": 1,
         "note": "Initialized from 2025 standings with high uncertainty for the regulation reset. Teams are re-ranked as 2026 races complete.",
@@ -296,7 +297,7 @@ def generate_default_track_characteristics(data_dir: Path) -> None:
 
 
 def ensure_driver_characteristics(data_dir: Path) -> None:
-    """Ensure driver characteristics exist with proper metadata."""
+    """Add driver-characteristics metadata when it is missing."""
     driver_file = data_dir / "driver_characteristics.json"
 
     if not driver_file.exists():

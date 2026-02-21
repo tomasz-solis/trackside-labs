@@ -211,6 +211,7 @@ class BaselineDataMixin:
 
     def _select_race_compound(self, race_name: str) -> str:
         """Select primary race compound based on track tire stress characteristics."""
+        cfg = getattr(self, "config", config_loader)
         try:
             # Try 2026 pirelli info first
             pirelli_file_2026 = Path("data/2026_pirelli_info.json")
@@ -234,13 +235,13 @@ class BaselineDataMixin:
             tyre_stress = track_info["tyre_stress"]
 
             # Load thresholds from config
-            high_threshold = config_loader.get(
+            high_threshold = cfg.get(
                 "baseline_predictor.compound_selection.high_stress_threshold", 3.5
             )
-            low_threshold = config_loader.get(
+            low_threshold = cfg.get(
                 "baseline_predictor.compound_selection.low_stress_threshold", 2.5
             )
-            default_stress = config_loader.get(
+            default_stress = cfg.get(
                 "baseline_predictor.compound_selection.default_stress_fallback", 3.0
             )
 
@@ -268,6 +269,7 @@ class BaselineDataMixin:
         self, team: str, race_name: str, compound: str = "MEDIUM"
     ) -> float:
         """Get team strength (0-1) adjusted for tire compound performance."""
+        cfg = getattr(self, "config", config_loader)
         # Get base blended team strength
         base_strength = self.get_blended_team_strength(team, race_name)
 
@@ -276,14 +278,17 @@ class BaselineDataMixin:
         compound_chars = team_data.get("compound_characteristics", {})
 
         # Check if we have reliable compound data
-        if not should_use_compound_adjustments(compound_chars, min_laps_threshold=10):
+        min_laps_threshold = cfg.get("baseline_predictor.race.min_laps_for_compound_data", 10)
+        if not should_use_compound_adjustments(
+            compound_chars, min_laps_threshold=min_laps_threshold
+        ):
             return base_strength
 
         # Calculate compound modifier
         compound_modifier = get_compound_performance_modifier(compound_chars, compound)
 
         # Apply modifier and clip to valid range
-        adjusted_strength = float(np.clip(base_strength + compound_modifier, 0.0, 1.0))
+        adjusted_strength = np.clip(base_strength + compound_modifier, 0.0, 1.0)
 
         logger.debug(
             f"  {team} on {compound}: base={base_strength:.3f} + "
@@ -329,6 +334,7 @@ class BaselineDataMixin:
         Returns (modifier, has_profile_data). Modifier is bounded to avoid overpowering
         the existing baseline + track-suitability + season-performance logic.
         """
+        cfg = getattr(self, "config", config_loader)
         profile_metrics = self._get_testing_characteristics_for_profile(team, profile)
         if not profile_metrics:
             return 0.0, False
@@ -339,15 +345,20 @@ class BaselineDataMixin:
             value = profile_metrics.get(metric_name)
             if value is None:
                 continue
-            centered = float(value) - 0.5
-            weighted_sum += centered * float(weight)
-            total_weight += float(weight)
+            centered = value - 0.5
+            weighted_sum += centered * weight
+            total_weight += weight
 
         if total_weight <= 0:
             return 0.0, False
 
         normalized_centered = weighted_sum / total_weight
-        modifier = float(np.clip(normalized_centered * float(scale), -0.04, 0.04))
+        clip_range = cfg.get("baseline_predictor.race.testing_modifier_clip_range", [-0.04, 0.04])
+        if isinstance(clip_range, list) and len(clip_range) == 2 and clip_range[0] < clip_range[1]:
+            min_clip, max_clip = clip_range
+        else:
+            min_clip, max_clip = -0.04, 0.04
+        modifier = np.clip(normalized_centered * scale, min_clip, max_clip)
         return modifier, True
 
     def _update_compound_characteristics_from_session(
@@ -358,6 +369,7 @@ class BaselineDataMixin:
         is_sprint: bool,
     ) -> None:
         """Extract compound characteristics with session-level caching."""
+        cfg = getattr(self, "config", config_loader)
         # Check cache first (keyed by race + session lap count as freshness indicator)
         cache_key = (race_name, year, len(session_laps))
         if cache_key in self._compound_cache:
@@ -406,13 +418,9 @@ class BaselineDataMixin:
             # Get blend weight from config based on session type
             # Practice sessions are exploratory (lower weight), sprint/race are competitive (higher weight)
             if is_sprint:
-                blend_weight = config_loader.get(
-                    "baseline_predictor.compound_blend_weights.sprint", 0.50
-                )
+                blend_weight = cfg.get("baseline_predictor.compound_blend_weights.sprint", 0.50)
             else:
-                blend_weight = config_loader.get(
-                    "baseline_predictor.compound_blend_weights.practice", 0.30
-                )
+                blend_weight = cfg.get("baseline_predictor.compound_blend_weights.practice", 0.30)
 
             # Update in-memory team data with blended compound characteristics
             for team_name, new_compounds in normalized_compound_metrics.items():

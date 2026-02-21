@@ -39,14 +39,14 @@
   "history": [
     {
       "date": "2026-01-02",
-      "change": "Initial config based on 2025 comprehensive testing",
+      "change": "Initial config based on 2025 full-season testing",
       "sprint_method": "session_order",
       "conventional_method": "blend_90_10"
     }
   ],
   
   "notes": {
-    "source": "Based on 2025 season comprehensive testing (24 races)",
+    "source": "Based on 2025 season testing results (24 races)",
     "update_strategy": "Review after races 1, 3, 5, 8. Adjust if PerformanceTracker shows better methods.",
     "performance_ranking_2025": {
       "1": "Sprint Qualifying order (3.22 MAE, 6 races)",

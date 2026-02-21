@@ -1,7 +1,7 @@
 """
 Production Config Helper
 
-Uses comprehensive testing results to select best method.
+Uses historical testing results to select best method.
 NO hardcoded performance values!
 """
 
@@ -17,7 +17,7 @@ class ProductionConfig:
     """
     Load and use production configuration.
 
-    Based on comprehensive testing (Notebook 21B, 24 races).
+    Based on historical testing (Notebook 21B, 24 races).
     """
 
     def __init__(self, config_path="config/production_config.json"):
@@ -27,7 +27,7 @@ class ProductionConfig:
         if not config_file.exists():
             raise FileNotFoundError(
                 f"Production config not found at {config_path}\n"
-                "Run comprehensive testing (Notebook 21B) to generate it."
+                "Run historical testing (Notebook 21B) to generate it."
             )
 
         with open(config_file) as f:
@@ -45,8 +45,8 @@ class ProductionConfig:
     def get_expected_mae(
         self,
         prediction_type: Literal["qualifying", "race"],
-        method: str = None,
-        weekend_type: str = None,
+        method: str | None = None,
+        weekend_type: Literal["sprint", "conventional"] | None = None,
     ) -> float:
         """Get expected MAE from config for the given prediction type."""
         if prediction_type == "qualifying":
@@ -74,11 +74,16 @@ class ProductionConfig:
     def __str__(self):
         """Display config summary."""
         lines = []
+        notes = self.config.get("notes", {})
+        source_notebook = next(
+            (value for key, value in notes.items() if "testing_notebook" in key),
+            "N/A",
+        )
         lines.append("PRODUCTION CONFIGURATION")
         lines.append("=" * 70)
-        lines.append(f"Source: {self.config['notes']['comprehensive_testing_notebook']}")
-        lines.append(f"Races analyzed: {self.config['notes']['total_races_analyzed']}")
-        lines.append(f"Last updated: {self.config['notes']['last_updated']}")
+        lines.append(f"Source: {source_notebook}")
+        lines.append(f"Races analyzed: {notes.get('total_races_analyzed', 'N/A')}")
+        lines.append(f"Last updated: {notes.get('last_updated', 'N/A')}")
         lines.append("")
 
         lines.append("QUALIFYING STRATEGY:")
@@ -99,7 +104,7 @@ class ProductionConfig:
 
         lines.append("")
         lines.append("PERFORMANCE RANKING (2025):")
-        for rank, info in self.config["notes"]["performance_ranking_2025"].items():
+        for rank, info in notes.get("performance_ranking_2025", {}).items():
             lines.append(f"  {rank}. {info}")
 
         return "\n".join(lines)

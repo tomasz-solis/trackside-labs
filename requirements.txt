@@ -9,3 +9,5 @@ PyYAML>=6,<7
 plotly>=5.24,<7
 requests>=2.31,<3
 supabase>=2.0,<3
+hypothesis>=6.120,<7
+watchdog==6.0.0

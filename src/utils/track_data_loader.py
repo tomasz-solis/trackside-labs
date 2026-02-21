@@ -70,7 +70,7 @@ def load_track_specific_params(race_name: str | None = None) -> dict:
 
     Falls back to config defaults if track_name not found or data missing.
     """
-    track_params = {}
+    track_params: dict[str, float | dict[str, float]] = {}
 
     if race_name:
         # Load track characteristics

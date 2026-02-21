@@ -2,7 +2,7 @@
 Shared Race Data Extraction
 
 Unified extraction logic used by both racecraft and DNF risk scripts.
-Ensures consistency across all metrics.
+Keeps extraction logic consistent across all metrics.
 """
 
 import logging

@@ -70,9 +70,7 @@ def test_check_connection_success(monkeypatch):
 
     monkeypatch.setattr(db_module, "get_supabase_client", lambda: client)
 
-    success, message = db_module.check_connection()
-
-    assert success is True
+    message = db_module.check_connection()
     assert "healthy" in message
 
 
@@ -83,10 +81,8 @@ def test_check_connection_failure(monkeypatch):
         lambda: (_ for _ in ()).throw(RuntimeError("auth failed")),
     )
 
-    success, message = db_module.check_connection()
-
-    assert success is False
-    assert "auth failed" in message
+    with pytest.raises(RuntimeError, match="auth failed"):
+        db_module.check_connection()
 
 
 def test_close_client_resets_singleton(monkeypatch):

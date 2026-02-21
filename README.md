@@ -114,14 +114,15 @@ Testing cache defaults to `data/raw/.fastf1_cache_testing`.
 - `data/processed/track_characteristics/2026_track_characteristics.json`
 - `data/processed/driver_characteristics.json`
 
-## Persistence and Supabase Status (Current)
+## Persistence and Supabase
 
-Artifact persistence is already wired through `ArtifactStore` in active runtime code paths:
+Artifact persistence is wired through `ArtifactStore` in active runtime code paths:
 
 - `src/predictors/baseline/data_mixin.py`
 - `src/systems/updater.py`
 - `src/utils/prediction_logger.py`
 - `src/dashboard/cache.py`
+- `src/predictors/baseline/race/preparation_mixin.py` (driver debut lookup for missing-driver fallback)
 
 Storage mode is controlled by `USE_DB_STORAGE`:
 
@@ -132,18 +133,25 @@ Storage mode is controlled by `USE_DB_STORAGE`:
 
 When mode is not `file_only`, both `SUPABASE_URL` and `SUPABASE_KEY` are required.
 
-Supabase assets currently in repo:
+Artifacts used in the baseline path include:
+
+- `car_characteristics` (`2026::car_characteristics`)
+- `driver_characteristics` (`2026::driver_characteristics`)
+- `track_characteristics` (`2026::track_characteristics`)
+- `driver_debuts` (`driver_debuts`)
+
+Supabase assets in the repo:
 
 - Migration: `migrations/001_create_artifacts_table.sql`
 - Connectivity check: `scripts/test_supabase_connection.py`
-- Backfill utility: `scripts/backfill_to_db.py`
+- Backfill utility: `scripts/backfill_to_db.py` (includes `driver_debuts.csv` migration)
 - Predictor/storage smoke test: `scripts/test_predictor_with_db.py`
 
-Current rollout state:
+Rollout guidance:
 
-- Supabase connectivity and migration hardening are in progress.
-- `file_only` remains the safest default.
-- `dual_write` is the safest migration mode for dashboard workflows that still rely on local prediction files.
+- `file_only`: default local mode.
+- `fallback`: DB-first reads with file fallback (recommended when validating Supabase reads).
+- `dual_write`: safest migration mode if you still rely on local prediction-history files.
 
 ## What Exists But Is Not The Main Dashboard Path
 

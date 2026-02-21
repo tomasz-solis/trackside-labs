@@ -1,6 +1,6 @@
-# Persistence and Supabase Status
+# Persistence and Supabase
 
-This guide documents the current persistence state in code, including what is already integrated and what is still being stabilized.
+This guide describes the current persistence behavior in runtime code.
 
 ## Current Runtime Integration
 
@@ -10,6 +10,7 @@ Artifact persistence is already used in active runtime paths:
 - `src/systems/updater.py` (save updated car characteristics)
 - `src/utils/prediction_logger.py` (save/load prediction tracking payloads)
 - `src/dashboard/cache.py` (artifact version checks for cache invalidation)
+- `src/predictors/baseline/race/preparation_mixin.py` (missing-driver debut-year lookup)
 
 Core layer:
 
@@ -35,29 +36,39 @@ If mode is not `file_only`, these env vars are required:
 
 - SQL migration: `migrations/001_create_artifacts_table.sql`
 - Connection test: `scripts/test_supabase_connection.py`
-- Backfill utility: `scripts/backfill_to_db.py`
+- Backfill utility: `scripts/backfill_to_db.py` (migrates `driver_debuts.csv` too)
 - Predictor + storage smoke test: `scripts/test_predictor_with_db.py`
+
+## Baseline Artifacts
+
+These keys are relevant for the baseline predictor stack:
+
+- `car_characteristics` -> `2026::car_characteristics`
+- `driver_characteristics` -> `2026::driver_characteristics`
+- `track_characteristics` -> `2026::track_characteristics`
+- `driver_debuts` -> `driver_debuts`
 
 ## Recommended Rollout Path
 
 1. Run the migration in Supabase SQL Editor using `migrations/001_create_artifacts_table.sql`.
 2. Validate credentials and table access:
-   - `python scripts/test_supabase_connection.py`
+   - `uv run --active python scripts/test_supabase_connection.py`
 3. Dry-run data migration:
-   - `python scripts/backfill_to_db.py --dry-run`
+   - `uv run --active python scripts/backfill_to_db.py --dry-run`
 4. Run backfill with DB writes enabled:
    - set `USE_DB_STORAGE=dual_write` (or `db_only` for isolated testing)
-   - `python scripts/backfill_to_db.py`
+   - `uv run --active python scripts/backfill_to_db.py`
 5. Run predictor smoke test:
-   - `python scripts/test_predictor_with_db.py`
+   - `uv run --active python scripts/test_predictor_with_db.py`
+
+6. Verify debut artifact:
+   - `driver_debuts::driver_debuts` should be present and readable via `ArtifactStore`.
 
 ## Current Caveats
 
 - Prediction tracking UI currently loads historical predictions from local files (`PredictionLogger.get_all_predictions()` scans `data/predictions/`).
 - In pure `db_only` or `fallback`, prediction writes can succeed while the dashboard accuracy history appears empty if no local files exist.
 - For dashboard usage during migration, `dual_write` is the safest mode.
-- File-based `list_artifacts()` fallback is intentionally minimal (`_list_files` is not fully implemented).
+- File-based `list_artifacts()` fallback is intentionally minimal outside mapped artifact types.
 
-## Status Note
-
-Supabase connection hardening and migration safety work are currently in progress. Keep `file_only` as the default for conservative runs, or use `dual_write` when validating DB integration without losing file-based dashboard behavior.
+Keep `file_only` as the default for local-only usage. Use `fallback` or `db_only` when you need DB-first reads, and `dual_write` when migrating while preserving local history files.

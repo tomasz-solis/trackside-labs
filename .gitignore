@@ -59,4 +59,4 @@ changes.txt
 *.ipynb_checkpoints/
 archive/
 .uv-cache/
-migrations/
+fix_plan.md

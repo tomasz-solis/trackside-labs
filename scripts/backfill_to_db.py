@@ -28,6 +28,7 @@ from typing import Any
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from features.driver_experience import load_driver_debuts_from_csv
 from persistence.artifact_store import ArtifactStore
 from persistence.config import USE_DB_STORAGE
 
@@ -94,7 +95,31 @@ def discover_artifacts(data_root: Path) -> list[dict[str, Any]]:
         except Exception as e:
             print(f"  ⚠️  Failed to load {driver_file}: {e}")
 
-    # 3. Track characteristics (multiple years)
+    # 3. Driver debut years (CSV -> JSON artifact)
+    debut_file = data_root / "driver_debuts.csv"
+    if debut_file.exists():
+        try:
+            debuts = load_driver_debuts_from_csv(debut_file)
+            data = {
+                "driver_debuts": debuts,
+                "source_file": "driver_debuts.csv",
+                "total_drivers": len(debuts),
+            }
+            artifacts.append(
+                {
+                    "file_path": debut_file,
+                    "artifact_type": "driver_debuts",
+                    "artifact_key": "driver_debuts",
+                    "data": data,
+                    "version": 1,
+                    "checksum": compute_checksum(data),
+                }
+            )
+            print(f"  Found: {debut_file.relative_to(data_root)}")
+        except Exception as e:
+            print(f"  ⚠️  Failed to load {debut_file}: {e}")
+
+    # 4. Track characteristics (multiple years)
     track_chars_dir = data_root / "processed" / "track_characteristics"
     if track_chars_dir.exists():
         for file in track_chars_dir.glob("*_track_characteristics.json"):
@@ -116,7 +141,7 @@ def discover_artifacts(data_root: Path) -> list[dict[str, Any]]:
             except Exception as e:
                 print(f"  ⚠️  Failed to load {file}: {e}")
 
-    # 4. Learning state
+    # 5. Learning state
     learning_file = data_root / "learning_state.json"
     if learning_file.exists():
         try:
@@ -136,7 +161,7 @@ def discover_artifacts(data_root: Path) -> list[dict[str, Any]]:
         except Exception as e:
             print(f"  ⚠️  Failed to load {learning_file}: {e}")
 
-    # 5. Practice state
+    # 6. Practice state
     practice_file = data_root / "systems" / "practice_characteristics_state.json"
     if practice_file.exists():
         try:
@@ -156,7 +181,7 @@ def discover_artifacts(data_root: Path) -> list[dict[str, Any]]:
         except Exception as e:
             print(f"  ⚠️  Failed to load {practice_file}: {e}")
 
-    # 6. Predictions (scan all years/races)
+    # 7. Predictions (scan all years/races)
     predictions_dir = data_root / "predictions"
     if predictions_dir.exists():
         for pred_file in predictions_dir.rglob("*.json"):

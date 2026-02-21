@@ -15,12 +15,14 @@ def test_get_file_path_mappings(tmp_path):
 
     car_path = store._get_file_path("car_characteristics", "2026::car_characteristics")
     driver_path = store._get_file_path("driver_characteristics", "2026::driver_characteristics")
+    debuts_path = store._get_file_path("driver_debuts", "driver_debuts")
     track_path = store._get_file_path("track_characteristics", "2026::track_characteristics")
     prediction_path = store._get_file_path("prediction", "2026::Bahrain Grand Prix::qualifying")
     default_path = store._get_file_path("custom", "a::b")
 
     assert str(car_path).endswith("processed/car_characteristics/2026_car_characteristics.json")
     assert str(driver_path).endswith("processed/driver_characteristics.json")
+    assert str(debuts_path).endswith("driver_debuts.json")
     assert str(track_path).endswith(
         "processed/track_characteristics/2026_track_characteristics.json"
     )
@@ -240,3 +242,15 @@ def test_list_files_prediction_supports_key_prefix_filter(tmp_path):
     assert len(rows) == 1
     assert rows[0]["artifact_key"] == "2026::bahrain_grand_prix::qualifying"
     assert rows[0]["version"] == 3
+
+
+def test_list_files_driver_debuts_supports_single_json(tmp_path):
+    store = ArtifactStore(data_root=tmp_path)
+    debuts_file = tmp_path / "driver_debuts.json"
+    debuts_file.write_text('{"driver_debuts": {"HAM": 2007}, "version": 1}')
+
+    rows = store._list_files("driver_debuts", key_prefix="driver", limit=5)
+
+    assert len(rows) == 1
+    assert rows[0]["artifact_key"] == "driver_debuts"
+    assert rows[0]["version"] == 1

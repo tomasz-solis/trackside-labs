@@ -14,7 +14,7 @@ import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .config import (
     get_storage_mode,
@@ -184,7 +184,8 @@ class ArtifactStore:
                     .execute()
                 )
                 if result.data:
-                    return result.data[0]["version"]
+                    row = cast(list[dict[str, Any]], result.data)[0]
+                    return int(row.get("version", 0))
             except Exception as e:
                 logger.warning(f"DB version check failed: {e}")
 
@@ -213,6 +214,8 @@ class ArtifactStore:
             )
         elif artifact_type == "driver_characteristics":
             return self.data_root / "processed" / "driver_characteristics.json"
+        elif artifact_type == "driver_debuts":
+            return self.data_root / "driver_debuts.json"
         elif artifact_type == "track_characteristics":
             year = artifact_key.split("::")[0] if "::" in artifact_key else "2026"
             return (
@@ -307,6 +310,8 @@ class ArtifactStore:
             return self.data_root / "processed" / "car_characteristics"
         if artifact_type == "driver_characteristics":
             return self.data_root / "processed"
+        if artifact_type == "driver_debuts":
+            return self.data_root
         if artifact_type == "track_characteristics":
             return self.data_root / "processed" / "track_characteristics"
         if artifact_type == "learning_state":
@@ -321,6 +326,8 @@ class ArtifactStore:
         """Return candidate files for fallback listing."""
         if artifact_type == "driver_characteristics":
             return [base_path / "driver_characteristics.json"]
+        if artifact_type == "driver_debuts":
+            return [base_path / "driver_debuts.json"]
         if artifact_type == "learning_state":
             return [base_path / "learning_state.json"]
         if artifact_type == "practice_state":
@@ -347,6 +354,9 @@ class ArtifactStore:
 
         if artifact_type == "driver_characteristics":
             return "driver_characteristics"
+
+        if artifact_type == "driver_debuts":
+            return "driver_debuts"
 
         if artifact_type == "track_characteristics":
             year = file_path.stem.split("_")[0]
@@ -398,14 +408,14 @@ class ArtifactStore:
         # Insert or update (upsert on conflict)
         result = (
             supabase.table("artifacts")
-            .upsert(row, on_conflict="artifact_type,artifact_key,version")
+            .upsert(cast(Any, row), on_conflict="artifact_type,artifact_key,version")
             .execute()
         )
 
         if not result.data:
             raise RuntimeError("DB insert returned no data")
 
-        return result.data[0]
+        return cast(list[dict[str, Any]], result.data)[0]
 
     def _read_db(
         self,
@@ -436,7 +446,9 @@ class ArtifactStore:
         result = query.execute()
 
         if result.data:
-            return result.data[0]["data"]
+            row = cast(list[dict[str, Any]], result.data)[0]
+            payload = row.get("data")
+            return payload if isinstance(payload, dict) else None
 
         return None
 
@@ -457,4 +469,4 @@ class ArtifactStore:
         query = query.order("created_at", desc=True).limit(limit)
 
         result = query.execute()
-        return result.data if result.data else []
+        return cast(list[dict[str, Any]], result.data) if result.data else []

@@ -43,15 +43,19 @@ def get_supabase_client() -> Client:
     return _supabase_client
 
 
-def check_connection() -> tuple[bool, str]:
-    """Health check: Verify Supabase connection is working. Returns (success, message)."""
+def check_connection() -> str:
+    """Health check: Verify Supabase connection is working.
+
+    Raises:
+        RuntimeError: If the connection health check fails.
+    """
     try:
         client = get_supabase_client()
         # Quick health check: query for any artifact (limit 1)
         result = client.table("artifacts").select("id").limit(1).execute()
-        return True, f"Supabase connection healthy ({len(result.data)} row(s) accessible)"
+        return f"Supabase connection healthy ({len(result.data)} row(s) accessible)"
     except Exception as e:
-        return False, f"Supabase connection failed: {e}"
+        raise RuntimeError(f"Supabase connection failed: {e}") from e
 
 
 def close_client() -> None:

@@ -29,7 +29,7 @@ Session-based prediction storage, attaching actual results, and accuracy metrics
 Tire compound performance collection, dynamic selection, and race prediction adjustments.
 
 ### `PERSISTENCE_SUPABASE.md`
-ArtifactStore modes, Supabase migration workflow, and current rollout status.
+ArtifactStore modes, Supabase migration workflow, and active artifact keys.
 
 ## Validation Notebooks
 

@@ -11,6 +11,7 @@ Detects first F1 season, calculates experience, and assigns tiers:
 import csv
 import json
 from pathlib import Path
+from typing import Any
 
 
 def load_driver_debuts_from_csv(csv_path: Path) -> dict[str, int]:
@@ -61,7 +62,7 @@ def load_driver_debuts_from_csv(csv_path: Path) -> dict[str, int]:
     return debuts
 
 
-def detect_first_season(driver_data: dict) -> int:
+def detect_first_season(driver_data: dict[str, Any]) -> int | None:
     """Detect driver's first F1 season from their by_year data."""
     if "by_year" not in driver_data:
         return None
@@ -72,10 +73,10 @@ def detect_first_season(driver_data: dict) -> int:
 
 def calculate_experience(
     driver_abbr: str,
-    driver_data: dict,
+    driver_data: dict[str, Any],
     current_year: int = 2025,
-    driver_debuts: dict[str, int] = None,
-) -> int:
+    driver_debuts: dict[str, int] | None = None,
+) -> int | None:
     """Calculate years of F1 experience using debut year from provided dict or auto-detection."""
     debut_year = None
 
@@ -93,7 +94,7 @@ def calculate_experience(
     return current_year - debut_year
 
 
-def assign_experience_tier(years_experience: int) -> str:
+def assign_experience_tier(years_experience: int | None) -> str:
     """Assign experience tier (rookie/developing/established/veteran) based on years in F1."""
     if years_experience is None:
         return "unknown"
@@ -141,11 +142,11 @@ def determine_confidence_flag(
 
 
 def enrich_driver_characteristics(
-    quali_data: dict,
-    race_data: dict,
+    quali_data: dict[str, Any],
+    race_data: dict[str, Any],
     current_year: int = 2025,
-    debuts_csv_path: str = None,
-) -> dict:
+    debuts_csv_path: str | None = None,
+) -> dict[str, Any]:
     """Add experience metadata and confidence flags to driver characteristics data."""
     # Load debuts from CSV if provided
     driver_debuts = {}

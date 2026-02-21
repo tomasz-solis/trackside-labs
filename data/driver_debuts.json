@@ -1,0 +1,33 @@
+{
+  "driver_debuts": {
+    "ALO": 2001,
+    "HAM": 2007,
+    "HUL": 2010,
+    "PER": 2011,
+    "RIC": 2011,
+    "BOT": 2013,
+    "MAG": 2014,
+    "VER": 2015,
+    "SAI": 2015,
+    "OCO": 2016,
+    "GAS": 2017,
+    "STR": 2017,
+    "LEC": 2018,
+    "ALB": 2019,
+    "NOR": 2019,
+    "RUS": 2019,
+    "TSU": 2021,
+    "ZHO": 2022,
+    "PIA": 2023,
+    "SAR": 2023,
+    "COL": 2024,
+    "BEA": 2024,
+    "HAD": 2025,
+    "ANT": 2025,
+    "BOR": 2025,
+    "DOO": 2025,
+    "LIN": 2026
+  },
+  "source_file": "driver_debuts.csv",
+  "total_drivers": 27
+}

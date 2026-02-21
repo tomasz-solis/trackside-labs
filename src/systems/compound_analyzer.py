@@ -21,6 +21,13 @@ STANDARD_COMPOUNDS = ("SOFT", "MEDIUM", "HARD")
 MIN_LAPS_PER_COMPOUND = 8
 
 
+def _as_numeric_metric(value: float | str | None) -> float | None:
+    """Safely coerce numeric metric values while ignoring labels/unknowns."""
+    if isinstance(value, int | float):
+        return float(value)
+    return None
+
+
 def _normalize_compound_name(compound: str | None) -> str | None:
     """Normalize compound names to standard format (SOFT/MEDIUM/HARD)."""
     if compound is None or pd.isna(compound):
@@ -109,12 +116,12 @@ def extract_compound_metrics(
     team_laps: pd.DataFrame,
     canonical_team: str,
     track_name: str,
-) -> dict[str, dict[str, float]]:
+) -> dict[str, dict[str, float | str | None]]:
     """Extract compound-specific metrics for a team at a specific track."""
     if team_laps.empty or "Compound" not in team_laps.columns:
         return {}
 
-    compound_metrics = {}
+    compound_metrics: dict[str, dict[str, float | str | None]] = {}
 
     # Filter to valid, clean laps with compound info
     # Remove pit laps, inaccurate laps, and outliers
@@ -153,7 +160,7 @@ def extract_compound_metrics(
             continue
 
         # CONSISTENT SCHEMA: Always output same fields (None if unavailable)
-        metrics = {
+        metrics: dict[str, float | str | None] = {
             "laps_count": float(laps_count),
             "track_name": track_name,
         }
@@ -193,14 +200,16 @@ def extract_compound_metrics(
 
 
 def normalize_compound_metrics_across_teams(
-    all_team_compound_metrics: dict[str, dict[str, dict[str, float]]],
+    all_team_compound_metrics: dict[str, dict[str, dict[str, float | str | None]]],
     track_name: str,
-) -> dict[str, dict[str, dict[str, float]]]:
+) -> dict[str, dict[str, dict[str, float | str | None]]]:
     """Normalize compound metrics to 0-1 scale (track-specific, avoids cross-track comparison)."""
-    normalized_output = {}
+    normalized_output: dict[str, dict[str, dict[str, float | str | None]]] = {}
 
     # Collect all values per compound+metric for normalization (within same track)
-    compound_metric_values = defaultdict(lambda: defaultdict(list))
+    compound_metric_values: dict[str, dict[str, list[tuple[str, float]]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
 
     for team_name, compounds in all_team_compound_metrics.items():
         for compound, metrics in compounds.items():
@@ -211,7 +220,10 @@ def normalize_compound_metrics_across_teams(
                         "laps_count",
                         "track_name",
                     ):  # Skip non-performance metrics
-                        compound_metric_values[compound][metric_name].append((team_name, value))
+                        if isinstance(value, int | float):
+                            compound_metric_values[compound][metric_name].append(
+                                (team_name, float(value))
+                            )
 
     # Normalize each compound+metric independently (within track)
     for team_name, compounds in all_team_compound_metrics.items():
@@ -221,7 +233,8 @@ def normalize_compound_metrics_across_teams(
             normalized_metrics = metrics.copy()
 
             # Normalize median_lap_time (lower is better)
-            if metrics.get("median_lap_time") is not None:
+            median_lap_time = _as_numeric_metric(metrics.get("median_lap_time"))
+            if median_lap_time is not None:
                 all_values = [
                     v
                     for _, v in compound_metric_values[compound].get("median_lap_time", [])
@@ -231,8 +244,7 @@ def normalize_compound_metrics_across_teams(
                     best = min(all_values)
                     worst = max(all_values)
                     if worst > best:
-                        raw_value = metrics["median_lap_time"]
-                        normalized = 1.0 - ((raw_value - best) / (worst - best))
+                        normalized = 1.0 - ((median_lap_time - best) / (worst - best))
                         normalized_metrics["pace_performance"] = float(
                             np.clip(normalized, 0.0, 1.0)
                         )
@@ -244,7 +256,8 @@ def normalize_compound_metrics_across_teams(
                 normalized_metrics["pace_performance"] = None
 
             # Normalize tire_deg_slope (lower is better - less degradation)
-            if metrics.get("tire_deg_slope") is not None:
+            tire_deg_slope = _as_numeric_metric(metrics.get("tire_deg_slope"))
+            if tire_deg_slope is not None:
                 all_values = [
                     v
                     for _, v in compound_metric_values[compound].get("tire_deg_slope", [])
@@ -254,8 +267,7 @@ def normalize_compound_metrics_across_teams(
                     best = min(all_values)
                     worst = max(all_values)
                     if worst > best:
-                        raw_value = metrics["tire_deg_slope"]
-                        normalized = 1.0 - ((raw_value - best) / (worst - best))
+                        normalized = 1.0 - ((tire_deg_slope - best) / (worst - best))
                         normalized_metrics["tire_deg_performance"] = float(
                             np.clip(normalized, 0.0, 1.0)
                         )
@@ -267,7 +279,8 @@ def normalize_compound_metrics_across_teams(
                 normalized_metrics["tire_deg_performance"] = None
 
             # Normalize consistency (lower is better - more consistent)
-            if metrics.get("consistency") is not None:
+            consistency = _as_numeric_metric(metrics.get("consistency"))
+            if consistency is not None:
                 all_values = [
                     v
                     for _, v in compound_metric_values[compound].get("consistency", [])
@@ -277,8 +290,7 @@ def normalize_compound_metrics_across_teams(
                     best = min(all_values)
                     worst = max(all_values)
                     if worst > best:
-                        raw_value = metrics["consistency"]
-                        normalized = 1.0 - ((raw_value - best) / (worst - best))
+                        normalized = 1.0 - ((consistency - best) / (worst - best))
                         normalized_metrics["consistency_performance"] = float(
                             np.clip(normalized, 0.0, 1.0)
                         )
@@ -295,13 +307,13 @@ def normalize_compound_metrics_across_teams(
 
 
 def aggregate_compound_samples(
-    existing_compound_chars: dict[str, dict[str, float]],
-    new_compound_metrics: dict[str, dict[str, float]],
+    existing_compound_chars: dict[str, dict[str, float | str | None]],
+    new_compound_metrics: dict[str, dict[str, float | str | None]],
     blend_weight: float = 0.5,
-    race_name: str = None,
-) -> dict[str, dict[str, float]]:
+    race_name: str | None = None,
+) -> dict[str, dict[str, float | str | None]]:
     """Blend existing compound data with new session data (track-aware, only blends same track)."""
-    blended = {}
+    blended: dict[str, dict[str, float | str | None]] = {}
 
     # Process all compounds (existing + new)
     all_compounds = set(existing_compound_chars.keys()) | set(new_compound_metrics.keys())
@@ -340,7 +352,9 @@ def aggregate_compound_samples(
             continue
 
         # Blend metrics (same track)
-        blended_metrics = {"track_name": new_track} if new_track else {}
+        blended_metrics: dict[str, float | str | None] = (
+            {"track_name": new_track} if new_track else {}
+        )
 
         # Metrics to blend (handle None values)
         blend_metrics = [
@@ -355,7 +369,7 @@ def aggregate_compound_samples(
             old_val = existing.get(metric)
             new_val = new.get(metric)
 
-            if old_val is not None and new_val is not None:
+            if isinstance(old_val, int | float) and isinstance(new_val, int | float):
                 blended_metrics[metric] = (1 - blend_weight) * old_val + blend_weight * new_val
             elif new_val is not None:
                 blended_metrics[metric] = new_val
@@ -367,10 +381,13 @@ def aggregate_compound_samples(
         # Update session counts
         old_laps = existing.get("laps_sampled", 0)
         new_laps = new.get("laps_count", 0)
-        blended_metrics["laps_sampled"] = old_laps + new_laps
+        old_laps_num = float(old_laps) if isinstance(old_laps, int | float) else 0.0
+        new_laps_num = float(new_laps) if isinstance(new_laps, int | float) else 0.0
+        blended_metrics["laps_sampled"] = old_laps_num + new_laps_num
 
         old_sessions = existing.get("sessions_used", 0)
-        blended_metrics["sessions_used"] = old_sessions + 1
+        old_sessions_num = float(old_sessions) if isinstance(old_sessions, int | float) else 0.0
+        blended_metrics["sessions_used"] = old_sessions_num + 1.0
 
         blended[compound] = blended_metrics
 

@@ -9,6 +9,15 @@ from src.utils.compound_validator import (
 )
 
 
+def _errors_from_validation(validator, data: dict) -> list[str]:
+    """Return validation errors from exception-based validators."""
+    try:
+        validator(data)
+    except ValueError as exc:
+        return str(exc).split("; ")
+    return []
+
+
 class TestValidateCompoundData:
     """Tests for validate_compound_data function."""
 
@@ -32,13 +41,13 @@ class TestValidateCompoundData:
             },
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert errors == []
 
     def test_validate_compound_data_invalid_structure(self):
         """Invalid structure fails validation."""
         data = "not a dict"
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "must be a dictionary" in errors[0]
 
@@ -50,7 +59,7 @@ class TestValidateCompoundData:
             }
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "missing fields" in errors[0]
@@ -67,7 +76,7 @@ class TestValidateCompoundData:
             }
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "degradation_rate cannot be negative" in errors[0]
@@ -82,7 +91,7 @@ class TestValidateCompoundData:
             }
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "unusually high" in errors[0]
@@ -97,7 +106,7 @@ class TestValidateCompoundData:
             }
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "optimal_stint_length must be positive" in errors[0]
@@ -112,7 +121,7 @@ class TestValidateCompoundData:
             }
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "unusually high (>100 laps)" in errors[0]
@@ -127,7 +136,7 @@ class TestValidateCompoundData:
             }
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "pace_advantage must be numeric" in errors[0]
@@ -145,7 +154,7 @@ class TestValidateCompoundData:
             },
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 3
         assert any("SOFT" in e and "degradation_rate" in e for e in errors)
         assert any("SOFT" in e and "optimal_stint_length" in e for e in errors)
@@ -162,7 +171,7 @@ class TestValidateCompoundData:
             },
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "must be a dictionary" in errors[0]
@@ -177,7 +186,7 @@ class TestValidateCompoundData:
             }
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "optimal_stint_length must be integer" in errors[0]
@@ -192,7 +201,7 @@ class TestValidateCompoundData:
             }
         }
 
-        errors = validate_compound_data(data)
+        errors = _errors_from_validation(validate_compound_data, data)
         assert len(errors) == 1
         assert "SOFT" in errors[0]
         assert "degradation_rate must be numeric" in errors[0]
@@ -222,13 +231,13 @@ class TestValidatePirelliInfo:
             },
         }
 
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert errors == []
 
     def test_validate_pirelli_info_invalid_structure(self):
         """Invalid structure fails validation."""
         data = "not a dict"
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert len(errors) == 1
         assert "must be a dictionary" in errors[0]
 
@@ -240,7 +249,7 @@ class TestValidatePirelliInfo:
             }
         }
 
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert len(errors) == 1
         assert "Bahrain Grand Prix" in errors[0]
         assert "missing tyre_stress" in errors[0]
@@ -256,7 +265,7 @@ class TestValidatePirelliInfo:
             }
         }
 
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert len(errors) == 1
         assert "Bahrain Grand Prix" in errors[0]
         assert "tyre_stress.traction" in errors[0]
@@ -273,7 +282,7 @@ class TestValidatePirelliInfo:
             }
         }
 
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert len(errors) == 1
         assert "Bahrain Grand Prix" in errors[0]
         assert "tyre_stress.traction" in errors[0]
@@ -290,7 +299,7 @@ class TestValidatePirelliInfo:
             }
         }
 
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert len(errors) == 1
         assert "Bahrain Grand Prix" in errors[0]
         assert "tyre_stress.traction" in errors[0]
@@ -309,7 +318,7 @@ class TestValidatePirelliInfo:
             },
         }
 
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert len(errors) == 2
         assert any("Bahrain" in e and "traction" in e for e in errors)
         assert any("Saudi" in e and "missing tyre_stress" in e for e in errors)
@@ -325,7 +334,7 @@ class TestValidatePirelliInfo:
             },
         }
 
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert len(errors) == 1
         assert "Bahrain" in errors[0]
         assert "must be a dictionary" in errors[0]
@@ -336,7 +345,7 @@ class TestValidatePirelliInfo:
             "Bahrain Grand Prix": {"tyre_stress": "not a dict"},
         }
 
-        errors = validate_pirelli_info(data)
+        errors = _errors_from_validation(validate_pirelli_info, data)
         assert len(errors) == 1
         assert "Bahrain" in errors[0]
         assert "tyre_stress must be a dictionary" in errors[0]

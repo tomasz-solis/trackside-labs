@@ -6,8 +6,8 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def validate_compound_data(compound_data: dict) -> list[str]:
-    """Validate compound characteristics structure and values."""
+def _collect_compound_data_errors(compound_data: dict) -> list[str]:
+    """Collect validation errors for compound characteristics data."""
     errors = []
 
     if not isinstance(compound_data, dict):
@@ -61,8 +61,24 @@ def validate_compound_data(compound_data: dict) -> list[str]:
     return errors
 
 
-def validate_pirelli_info(pirelli_data: dict) -> list[str]:
-    """Validate Pirelli track tire stress data structure."""
+def validate_compound_data(compound_data: dict) -> None:
+    """Validate compound characteristics data.
+
+    Raises:
+        ValueError: If validation fails.
+    """
+    errors = _collect_compound_data_errors(compound_data)
+    if errors:
+        raise ValueError("; ".join(errors))
+
+
+def validate_compound_data_or_raise(compound_data: dict) -> None:
+    """Backward-compatible wrapper for exception-based validation."""
+    validate_compound_data(compound_data)
+
+
+def _collect_pirelli_info_errors(pirelli_data: dict) -> list[str]:
+    """Collect validation errors for Pirelli track tire stress data."""
     errors = []
 
     if not isinstance(pirelli_data, dict):
@@ -99,6 +115,22 @@ def validate_pirelli_info(pirelli_data: dict) -> list[str]:
     return errors
 
 
+def validate_pirelli_info(pirelli_data: dict) -> None:
+    """Validate Pirelli track tire stress dataset.
+
+    Raises:
+        ValueError: If validation fails.
+    """
+    errors = _collect_pirelli_info_errors(pirelli_data)
+    if errors:
+        raise ValueError("; ".join(errors))
+
+
+def validate_pirelli_info_or_raise(pirelli_data: dict) -> None:
+    """Backward-compatible wrapper for exception-based validation."""
+    validate_pirelli_info(pirelli_data)
+
+
 def load_and_validate_compound_data(file_path: Path) -> dict | None:
     """Load and validate compound data."""
     import json
@@ -114,17 +146,13 @@ def load_and_validate_compound_data(file_path: Path) -> dict | None:
         return None
 
     # Determine validation type based on structure
-    if any("tyre_stress" in v for v in data.values() if isinstance(v, dict)):
-        errors = validate_pirelli_info(data)
-        data_type = "Pirelli info"
-    else:
-        errors = validate_compound_data(data)
-        data_type = "Compound characteristics"
-
-    if errors:
-        logger.error(f"{data_type} validation failed for {file_path}:")
-        for error in errors:
-            logger.error(f"  - {error}")
+    try:
+        if any("tyre_stress" in v for v in data.values() if isinstance(v, dict)):
+            validate_pirelli_info(data)
+        else:
+            validate_compound_data(data)
+    except ValueError as e:
+        logger.error(f"Validation failed for {file_path}: {e}")
         return None
 
     return data

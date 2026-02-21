@@ -169,7 +169,7 @@ When new session data arrives ([src/systems/compound_analyzer.py:277-351](../src
 - **Same track:** Blend old + new (default 50/50 weight)
 - **Different track:** Replace entirely (no cross-track contamination)
 
-This ensures Monaco SOFT data doesn't pollute Monza SOFT data.
+This prevents Monaco SOFT data from contaminating Monza SOFT data.
 
 ## Multi-Stint Race Strategy System
 

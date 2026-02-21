@@ -93,7 +93,7 @@ def should_use_compound_adjustments(
     compounds_with_data = 0
 
     for compound_data in team_compound_chars.values():
-        laps = compound_data.get("laps_sampled", 0)
+        laps = int(compound_data.get("laps_sampled", 0))
         total_laps += laps
         if laps >= 3:  # At least 3 laps per compound
             compounds_with_data += 1

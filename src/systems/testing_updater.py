@@ -937,7 +937,9 @@ def update_from_testing_sessions(
     discovered_sessions = []
     load_errors: list[str] = []
     extraction_diagnostics: list[str] = []
-    compound_metrics_by_session: dict[str, tuple[str, dict[str, dict[str, dict[str, float]]]]] = {}
+    compound_metrics_by_session: dict[
+        str, tuple[str, dict[str, dict[str, dict[str, float | str | None]]]]
+    ] = {}
 
     for event_name in events:
         event_sessions = _load_sessions_for_event(

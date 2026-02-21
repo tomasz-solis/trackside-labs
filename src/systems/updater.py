@@ -258,8 +258,8 @@ def update_team_characteristics(
                         )
 
                         # Update timestamps
-                        for compound_data in blended_compounds.values():
-                            compound_data["last_updated"] = now_iso
+                        for compound_payload in blended_compounds.values():
+                            compound_payload["last_updated"] = now_iso
 
                         team_data["compound_characteristics"] = blended_compounds
 

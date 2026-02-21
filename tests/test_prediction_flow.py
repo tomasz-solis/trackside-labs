@@ -119,14 +119,16 @@ def test_fetch_grid_if_available_uses_actual_grid_for_completed_session(monkeypa
     monkeypatch.setattr(
         actual_results_fetcher,
         "fetch_actual_session_results",
-        lambda year, race_name, session_name: [{"driver": "VER", "position": 1}],
+        lambda year, race_name, session_name: [
+            {"driver": "VER", "team": "Red Bull Racing", "position": 1}
+        ],
     )
 
     grid, source = prediction_flow.fetch_grid_if_available(
         year=2026,
         race_name="Bahrain Grand Prix",
         session_name="Q",
-        predicted_grid=[{"driver": "NOR", "position": 1}],
+        predicted_grid=[{"driver": "NOR", "team": "McLaren", "position": 1}],
     )
 
     assert source == "ACTUAL"
@@ -152,5 +154,5 @@ def test_fetch_grid_if_available_fails_closed_when_completed_results_missing(mon
             year=2026,
             race_name="Bahrain Grand Prix",
             session_name="Q",
-            predicted_grid=[{"driver": "NOR", "position": 1}],
+            predicted_grid=[{"driver": "NOR", "team": "McLaren", "position": 1}],
         )

@@ -19,6 +19,7 @@ def fetch_grid_if_available(
         fetch_actual_session_results,
         is_competitive_session_completed,
     )
+    from src.utils.grid_validation import validate_qualifying_grid
 
     logger.info(f"Checking grid for {session_name} at {race_name} ({year})")
 
@@ -26,17 +27,19 @@ def fetch_grid_if_available(
         logger.info(f"{session_name} is completed, fetching actual grid from FastF1")
         actual_grid = fetch_actual_session_results(year, race_name, session_name)
         if actual_grid:
+            validated_grid = validate_qualifying_grid(actual_grid)
             logger.info(
-                f"Using actual {session_name} grid from FastF1 ({len(actual_grid)} drivers)"
+                f"Using actual {session_name} grid from FastF1 ({len(validated_grid)} drivers)"
             )
-            return actual_grid, "ACTUAL"
+            return validated_grid, "ACTUAL"
         raise RuntimeError(
             f"FastF1 returned no {session_name} results for completed session at "
             f"{race_name} {year}; refusing to fall back to predicted grid."
         )
     else:
+        validated_grid = validate_qualifying_grid(predicted_grid)
         logger.info(f"{session_name} not completed yet, using predicted grid")
-        return predicted_grid, "PREDICTED"
+        return validated_grid, "PREDICTED"
 
 
 def run_prediction(

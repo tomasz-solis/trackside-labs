@@ -27,7 +27,7 @@ def fetch_actual_session_results(
             return None
 
         # Extract relevant data
-        grid = []
+        grid: list[dict[str, int | str]] = []
         for fallback_position, (_, row) in enumerate(results.iterrows(), start=1):
             try:
                 driver = row.get("Abbreviation", row.get("DriverNumber", "UNK"))
@@ -53,7 +53,7 @@ def fetch_actual_session_results(
                 continue
 
         # Sort by position
-        grid.sort(key=lambda x: x["position"])
+        grid.sort(key=lambda item: int(item["position"]))
 
         logger.info(f"Fetched {len(grid)} results from {race_name} {session_name}")
         return grid

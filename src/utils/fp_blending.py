@@ -99,9 +99,44 @@ class FPDataError(Enum):
     INSUFFICIENT_LAPS = "insufficient_laps"
 
 
-def _extract_short_run_lap_time(valid_laps: pd.DataFrame) -> float | None:
+def _remove_outlier_laps(laps: pd.DataFrame, threshold: float = 1.5) -> pd.DataFrame:
+    """Remove lap-time outliers using the IQR method."""
+    if laps.empty:
+        return laps
+
+    lap_seconds = laps["LapTime"].dt.total_seconds().dropna()
+    if lap_seconds.empty:
+        return laps
+
+    q1 = lap_seconds.quantile(0.25)
+    q3 = lap_seconds.quantile(0.75)
+    iqr = q3 - q1
+
+    if iqr <= 0:
+        return laps
+
+    lower_bound = q1 - (threshold * iqr)
+    upper_bound = q3 + (threshold * iqr)
+
+    mask = laps["LapTime"].dt.total_seconds().between(lower_bound, upper_bound, inclusive="both")
+    removed = int((~mask).sum())
+    if removed > 0:
+        logger.debug(f"Removed {removed} outlier laps (IQR threshold={threshold})")
+
+    return laps[mask]
+
+
+def _extract_short_run_lap_time(
+    valid_laps: pd.DataFrame,
+    target_compound: str | None = "SOFT",
+) -> float | None:
     """Return a representative short-stint lap time (seconds) for a driver."""
     laps = valid_laps.copy()
+
+    if "Compound" in laps.columns and target_compound:
+        compound_laps = laps[laps["Compound"] == target_compound]
+        if not compound_laps.empty:
+            laps = compound_laps
 
     # Exclude in/out laps when available; short-run pace should reflect push laps.
     for pit_col in ("PitOutTime", "PitInTime"):
@@ -117,6 +152,7 @@ def _extract_short_run_lap_time(valid_laps: pd.DataFrame) -> float | None:
         short_laps = laps[(tyre_life >= 1) & (tyre_life <= 5)]
 
     candidates = short_laps if not short_laps.empty else laps
+    candidates = _remove_outlier_laps(candidates)
     lap_seconds = candidates["LapTime"].dt.total_seconds().dropna()
     if lap_seconds.empty:
         return None
@@ -125,7 +161,12 @@ def _extract_short_run_lap_time(valid_laps: pd.DataFrame) -> float | None:
     return float(lap_seconds.nsmallest(top_n).median())
 
 
-def _extract_long_run_lap_time(valid_laps: pd.DataFrame, min_long_run_laps: int) -> float | None:
+def _extract_long_run_lap_time(
+    valid_laps: pd.DataFrame,
+    min_long_run_laps: int,
+    outlier_threshold: float,
+    trim_ends: bool,
+) -> float | None:
     """Return a representative long-stint lap time (seconds) for a driver."""
     laps = valid_laps.copy()
     if laps.empty:
@@ -152,12 +193,13 @@ def _extract_long_run_lap_time(valid_laps: pd.DataFrame, min_long_run_laps: int)
         if len(stint) < min_long_run_laps:
             continue
 
+        stint = _remove_outlier_laps(stint, threshold=outlier_threshold)
         lap_seconds = stint["LapTime"].dt.total_seconds().dropna().sort_values()
         if len(lap_seconds) < min_long_run_laps:
             continue
 
         # Trim one lap from each end to reduce out/in-lap contamination.
-        if len(lap_seconds) > 4:
+        if trim_ends and len(lap_seconds) > 4:
             lap_seconds = lap_seconds.iloc[1:-1]
 
         rep_time = float(lap_seconds.mean())
@@ -173,11 +215,22 @@ def _extract_representative_lap_time(
     valid_laps: pd.DataFrame,
     run_focus: str,
     min_long_run_laps: int,
+    preferred_short_run_compound: str | None,
+    long_run_outlier_threshold: float,
+    long_run_trim_ends: bool,
 ) -> float | None:
     """Extract representative lap time for short-run or long-run focus."""
     if run_focus == "long":
-        return _extract_long_run_lap_time(valid_laps, min_long_run_laps=min_long_run_laps)
-    return _extract_short_run_lap_time(valid_laps)
+        return _extract_long_run_lap_time(
+            valid_laps,
+            min_long_run_laps=min_long_run_laps,
+            outlier_threshold=long_run_outlier_threshold,
+            trim_ends=long_run_trim_ends,
+        )
+    return _extract_short_run_lap_time(
+        valid_laps,
+        target_compound=preferred_short_run_compound,
+    )
 
 
 def get_fp_team_performance(
@@ -200,7 +253,7 @@ def get_fp_team_performance(
             lambda: session.load(laps=True, telemetry=False, weather=False)
         )
         if load_result is None:
-            logger.warning(f"session.load() returned None for {session_type} at {race_name}")
+            logger.debug(f"session.load() returned None for {session_type} at {race_name}")
             return None, None, FPDataError.API_FAILURE
 
         if not hasattr(session, "laps") or session.laps is None or session.laps.empty:
@@ -224,7 +277,16 @@ def get_fp_team_performance(
 
         laps = session.laps
         min_long_run_laps = int(
-            config_loader.get("baseline_predictor.race.weekend_long_run_min_laps", 8)
+            config_loader.get("baseline_predictor.race.weekend_long_run_min_laps", 12)
+        )
+        preferred_short_run_compound = config_loader.get(
+            "baseline_predictor.qualifying.preferred_short_run_compound", "SOFT"
+        )
+        long_run_outlier_threshold = config_loader.get(
+            "baseline_predictor.race.long_run_outlier_threshold", 1.5
+        )
+        long_run_trim_ends = bool(
+            config_loader.get("baseline_predictor.race.long_run_trim_ends", True)
         )
 
         # Reject red-flagged/truncated sessions (<10 total laps)
@@ -253,6 +315,9 @@ def get_fp_team_performance(
                 valid_laps,
                 run_focus=run_focus,
                 min_long_run_laps=min_long_run_laps,
+                preferred_short_run_compound=preferred_short_run_compound,
+                long_run_outlier_threshold=long_run_outlier_threshold,
+                long_run_trim_ends=long_run_trim_ends,
             )
             if representative_time is None:
                 continue
@@ -300,11 +365,46 @@ def get_fp_team_performance(
         return None, None, FPDataError.API_FAILURE
 
 
+def get_fp_session_weather(year: int, race_name: str, session_type: str) -> str | None:
+    """Infer FP session weather context from compound usage."""
+    try:
+        session = _fastf1_with_retry(lambda: ff1.get_session(year, race_name, session_type))
+        if session is None:
+            return None
+
+        load_result = _fastf1_with_retry(
+            lambda: session.load(laps=True, telemetry=False, weather=True)
+        )
+        if load_result is None or not hasattr(session, "laps"):
+            return None
+
+        laps = session.laps
+        if laps is None or laps.empty or "Compound" not in laps.columns:
+            return None
+
+        wet_compounds = {"INTERMEDIATE", "WET"}
+        wet_laps = laps[laps["Compound"].isin(wet_compounds)]
+        total_laps = len(laps)
+        if total_laps == 0:
+            return None
+
+        wet_ratio = len(wet_laps) / total_laps
+        if wet_ratio == 0:
+            return "dry"
+        if wet_ratio > 0.5:
+            return "wet"
+        return "mixed"
+    except Exception as e:
+        logger.warning(f"Could not determine weather for {session_type}: {e}")
+        return None
+
+
 def get_best_fp_performance(
     year: int,
     race_name: str,
     is_sprint: bool = False,
     qualifying_stage: str = "auto",
+    predicted_race_weather: str | None = None,
 ) -> tuple[str | None, dict[str, float] | None, pd.DataFrame | None]:
     """Get best available practice session with staleness checks and error reporting."""
     stage = (qualifying_stage or "auto").strip().lower()
@@ -352,6 +452,13 @@ def get_best_fp_performance(
     if available_sessions:
         if len(available_sessions) == 1:
             selected = available_sessions[0]
+            if predicted_race_weather is not None:
+                fp_weather = get_fp_session_weather(year, race_name, selected["code"])
+                if fp_weather and fp_weather != predicted_race_weather:
+                    logger.warning(
+                        f"{selected['code']} weather was {fp_weather} but race prediction uses "
+                        f"{predicted_race_weather}; FP blend confidence may be reduced"
+                    )
             logger.info(f"Using {selected['label']} for blending")
             return selected["label"], selected["data"], selected["laps"]
 
@@ -372,6 +479,13 @@ def get_best_fp_performance(
             included = " + ".join([item["code"] for item in available_sessions])
             primary = max(available_sessions, key=lambda item: item["weight"])
             session_label = f"Short-stint blend ({included})"
+            if predicted_race_weather is not None:
+                fp_weather = get_fp_session_weather(year, race_name, primary["code"])
+                if fp_weather and fp_weather != predicted_race_weather:
+                    logger.warning(
+                        f"Primary FP weather ({primary['code']}: {fp_weather}) differs from "
+                        f"race prediction weather ({predicted_race_weather})"
+                    )
             logger.info(f"Using {session_label} for blending")
             return session_label, blended, primary["laps"]
 

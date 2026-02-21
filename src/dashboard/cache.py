@@ -66,6 +66,7 @@ def _get_file_timestamps() -> dict[str, tuple[int, str]]:
         "data/2026_pirelli_info.json",
         "config/default.yaml",
         "src/predictors/baseline_2026.py",
+        "src/predictors/baseline/qualifying_mixin.py",
     ]
 
     timestamps = {}
@@ -84,9 +85,17 @@ def _get_file_timestamps() -> dict[str, tuple[int, str]]:
 def get_predictor(_artifact_versions: dict[str, tuple[int, str]]):
     """Load and cache predictor (invalidates when artifacts change)."""
     from src.predictors.baseline_2026 import Baseline2026Predictor
+    from src.utils.config_loader import Config
 
     original_level = logging.getLogger("src.utils.data_generator").level
     logging.getLogger("src.utils.data_generator").setLevel(logging.WARNING)
+
+    # Refresh singleton config so cache invalidation on config/default.yaml
+    # actually propagates into newly created predictors.
+    try:
+        Config().reload()
+    except Exception as exc:
+        logger.warning(f"Failed to reload config before predictor bootstrap: {exc}")
 
     predictor = Baseline2026Predictor()
 

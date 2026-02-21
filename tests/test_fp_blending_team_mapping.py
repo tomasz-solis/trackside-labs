@@ -1,12 +1,13 @@
 """Tests for FP blending team-name canonicalization."""
 
+import logging
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
-from src.utils.fp_blending import _circuit_breaker, get_fp_team_performance
+from src.utils.fp_blending import FPDataError, _circuit_breaker, get_fp_team_performance
 
 
 @pytest.fixture(autouse=True)
@@ -63,3 +64,20 @@ def test_get_fp_team_performance_maps_fastf1_team_names():
     assert session_laps is not None
     assert "Red Bull Racing" in perf
     assert "Ferrari" in perf
+
+
+def test_get_fp_team_performance_load_none_does_not_emit_warning(caplog):
+    """load(None) should quietly return API failure (warning is emitted upstream once)."""
+    mock_session = MagicMock()
+    mock_session.load.return_value = None
+
+    with patch("src.utils.fp_blending.ff1.get_session", return_value=mock_session):
+        with caplog.at_level(logging.WARNING):
+            perf, session_laps, error = get_fp_team_performance(
+                2026, "Australian Grand Prix", "FP1"
+            )
+
+    assert perf is None
+    assert session_laps is None
+    assert error == FPDataError.API_FAILURE
+    assert "session.load() returned None" not in caplog.text

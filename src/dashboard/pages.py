@@ -200,7 +200,7 @@ def execute_live_prediction_pipeline(
     )
     pipeline_timing["practice_update_check"] = time.time() - practice_start
 
-    # Ensure same-click freshness when practice updates write new characteristics.
+    # Refresh cache on the same click after practice updates write new characteristics.
     if practice_update.get("updated"):
         _notify("Refreshing local caches after practice updates...")
         st.cache_resource.clear()
@@ -249,11 +249,15 @@ def render_live_prediction_page(enable_logging: bool) -> None:
 
         with st.spinner("Running simulation..."):
             try:
+
+                def update_status(message: str) -> None:
+                    status_placeholder.info(message)
+
                 pipeline_output = execute_live_prediction_pipeline(
                     race_name=race_name,
                     weather=weather,
                     year=DEFAULT_SEASON,
-                    progress_callback=lambda message: status_placeholder.info(message),
+                    progress_callback=update_status,
                 )
                 prediction_results = pipeline_output["prediction_results"]
                 is_sprint = bool(pipeline_output["is_sprint"])

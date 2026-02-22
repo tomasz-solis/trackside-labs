@@ -59,4 +59,5 @@ changes.txt
 *.ipynb_checkpoints/
 archive/
 .uv-cache/
-fix_plan.md
+PROGRESS_REPORT.md
+FIXME.md

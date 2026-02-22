@@ -19,7 +19,9 @@
       "braking_zones": 8.0,
       "braking_pct": 19.0,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 405
     },
     "Saudi Arabian Grand Prix": {
       "pit_stop_loss": 21.5,
@@ -35,7 +37,9 @@
       "braking_zones": 8.8,
       "braking_pct": 14.4,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 445
     },
     "Australian Grand Prix": {
       "pit_stop_loss": 23.0,
@@ -51,7 +55,9 @@
       "braking_zones": 8.0,
       "braking_pct": 15.2,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 310
     },
     "Japanese Grand Prix": {
       "pit_stop_loss": 21.0,
@@ -67,7 +73,9 @@
       "braking_zones": 9.3,
       "braking_pct": 16.6,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 390
     },
     "Chinese Grand Prix": {
       "pit_stop_loss": 22.0,
@@ -84,7 +92,9 @@
       "braking_zones": 9.8,
       "braking_pct": 19.6,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 425
     },
     "Miami Grand Prix": {
       "pit_stop_loss": 22.5,
@@ -101,7 +111,9 @@
       "braking_zones": 7.8,
       "braking_pct": 15.8,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 362
     },
     "Monaco Grand Prix": {
       "pit_stop_loss": 19.0,
@@ -117,7 +129,9 @@
       "braking_zones": 12.0,
       "braking_pct": 24.6,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 60,
+      "pit_lane_length_m": 305
     },
     "Barcelona Grand Prix": {
       "pit_stop_loss": 22.0,
@@ -133,7 +147,9 @@
       "braking_zones": 7.0,
       "braking_pct": 17.2,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 380
     },
     "Canadian Grand Prix": {
       "pit_stop_loss": 20.0,
@@ -150,7 +166,9 @@
       "braking_zones": 8.0,
       "braking_pct": 19.9,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 60,
+      "pit_lane_length_m": 340
     },
     "Austrian Grand Prix": {
       "pit_stop_loss": 20.5,
@@ -166,7 +184,9 @@
       "braking_zones": 7.2,
       "braking_pct": 17.1,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 285
     },
     "British Grand Prix": {
       "pit_stop_loss": 21.5,
@@ -183,7 +203,9 @@
       "braking_zones": 8.7,
       "braking_pct": 13.9,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 385
     },
     "Belgian Grand Prix": {
       "pit_stop_loss": 22.0,
@@ -199,7 +221,9 @@
       "braking_zones": 8.2,
       "braking_pct": 13.5,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 5
+      "years_sampled": 5,
+      "pit_lane_speed_limit_kph": 60,
+      "pit_lane_length_m": 485
     },
     "Hungarian Grand Prix": {
       "pit_stop_loss": 21.5,
@@ -215,7 +239,9 @@
       "braking_zones": 11.0,
       "braking_pct": 21.3,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 350
     },
     "Dutch Grand Prix": {
       "pit_stop_loss": 21.0,
@@ -232,7 +258,9 @@
       "braking_zones": 10.2,
       "braking_pct": 17.7,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 330
     },
     "Italian Grand Prix": {
       "pit_stop_loss": 21.0,
@@ -248,7 +276,9 @@
       "braking_zones": 6.5,
       "braking_pct": 12.8,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 620
     },
     "Azerbaijan Grand Prix": {
       "pit_stop_loss": 22.0,
@@ -264,7 +294,9 @@
       "braking_zones": 11.0,
       "braking_pct": 19.6,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 345
     },
     "Singapore Grand Prix": {
       "pit_stop_loss": 24.0,
@@ -281,7 +313,9 @@
       "braking_zones": 11.8,
       "braking_pct": 21.9,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 60,
+      "pit_lane_length_m": 395
     },
     "United States Grand Prix": {
       "pit_stop_loss": 22.5,
@@ -297,7 +331,9 @@
       "braking_zones": 10.7,
       "braking_pct": 19.2,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 355
     },
     "Mexico City Grand Prix": {
       "pit_stop_loss": 22.0,
@@ -313,9 +349,11 @@
       "braking_zones": 10.2,
       "braking_pct": 21.7,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 380
     },
-    "São Paulo Grand Prix": {
+    "S\u00e3o Paulo Grand Prix": {
       "pit_stop_loss": 21.5,
       "safety_car_prob": 0.5,
       "overtaking_difficulty": 0.4,
@@ -329,7 +367,9 @@
       "braking_zones": 7.3,
       "braking_pct": 18.5,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 330
     },
     "Las Vegas Grand Prix": {
       "pit_stop_loss": 21.0,
@@ -345,7 +385,9 @@
       "braking_zones": 8.2,
       "braking_pct": 15.4,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 410
     },
     "Qatar Grand Prix": {
       "pit_stop_loss": 21.5,
@@ -361,7 +403,9 @@
       "braking_zones": 8.0,
       "braking_pct": 15.3,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 385
     },
     "Abu Dhabi Grand Prix": {
       "pit_stop_loss": 22.0,
@@ -377,7 +421,9 @@
       "braking_zones": 7.7,
       "braking_pct": 16.4,
       "avg_brake_intensity": 1.0,
-      "years_sampled": 6
+      "years_sampled": 6,
+      "pit_lane_speed_limit_kph": 80,
+      "pit_lane_length_m": 360
     }
   }
 }

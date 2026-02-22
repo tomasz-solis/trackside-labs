@@ -52,6 +52,22 @@ class Config:
 
     def _validate_config(self):
         """Validate that required config sections exist, with correct structure and value ranges."""
+        # Fast-fail validation using Pydantic schema (if available)
+        try:
+            from src.utils.config_schema import validate_config
+
+            # Validate against Pydantic schema for structured validation
+            try:
+                validate_config(self._config)
+                logger.info("Config passed Pydantic schema validation")
+            except Exception as pydantic_error:
+                logger.warning(
+                    f"Pydantic validation failed (falling back to legacy): {pydantic_error}"
+                )
+                # Continue with legacy validation below
+        except ImportError:
+            logger.debug("Pydantic schemas not available, using legacy validation")
+
         # 1. Check required sections exist
         required_sections = [
             "paths",

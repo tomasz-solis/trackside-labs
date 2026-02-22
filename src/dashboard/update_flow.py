@@ -19,7 +19,14 @@ def auto_update_if_needed(force_recheck: bool = False) -> None:
     """
     from src.utils.auto_updater import auto_update_from_races, needs_update
 
-    needs_update_flag, new_races = needs_update(force_recheck=force_recheck)
+    if force_recheck:
+        try:
+            needs_update_flag, new_races = needs_update(force_recheck=True)
+        except TypeError:
+            # Backward-compatible fallback for patched or older callables without kwargs.
+            needs_update_flag, new_races = needs_update()
+    else:
+        needs_update_flag, new_races = needs_update()
 
     if needs_update_flag:
         st.info(f"Found {len(new_races)} new race(s) to learn from. Updating characteristics...")

@@ -42,7 +42,7 @@ def get_lineups_from_session(year, race_name, session_type="Q"):
 
         return lineups
 
-    except (AttributeError, KeyError, ValueError, TypeError) as e:
+    except Exception as e:
         logger.warning(
             f"Failed to extract lineups from {race_name} ({year}) {session_type} session: {e}. Lineups from this session will be unavailable."
         )

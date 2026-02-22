@@ -276,6 +276,7 @@ class BaselineQualifyingMixin:
         for driver_info in all_drivers:
             positions = position_records[driver_info["driver"]]
             median_pos = int(np.median(positions))
+            mean_pos = float(np.mean(positions))
             p5 = int(np.percentile(positions, 5))
             p95 = int(np.percentile(positions, 95))
 
@@ -291,16 +292,20 @@ class BaselineQualifyingMixin:
                     "team": driver_info["team"],
                     "position": median_pos,
                     "median_position": median_pos,
+                    "_mean_position": mean_pos,
                     "p5": p5,
                     "p95": p95,
                     "confidence": float(round(confidence, 1)),
                 }
             )
 
-        grid.sort(key=lambda x: x["median_position"])
+        # Resolve median ties with the underlying simulation mean so teammate order
+        # does not collapse into insertion-order blocks when medians are equal.
+        grid.sort(key=lambda x: (x["median_position"], x["_mean_position"], x["driver"]))
 
         for i, item in enumerate(grid):
             item["position"] = i + 1
+            item.pop("_mean_position", None)
 
         return grid
 

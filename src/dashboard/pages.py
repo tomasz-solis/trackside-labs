@@ -18,6 +18,42 @@ logger = logging.getLogger(__name__)
 DEFAULT_SEASON = 2026
 
 
+def _clear_fastf1_race_cache(year: int, race_name: str) -> None:
+    """
+    Clear FastF1 cache for a specific race to force fresh data fetch.
+
+    This invalidates all cached session data for the race, including practice sessions,
+    qualifying, and race results. The next FastF1 call will fetch fresh data from the API.
+    """
+    import shutil
+    from pathlib import Path
+
+    cache_dirs = [
+        Path("data/raw/.fastf1_cache"),
+        Path("data/raw/.fastf1_cache_testing"),
+    ]
+
+    for cache_dir in cache_dirs:
+        if not cache_dir.exists():
+            continue
+
+        try:
+            # FastF1 cache structure: {cache_dir}/{year}/{race_name}/...
+            race_cache_path = cache_dir / str(year) / race_name.replace(" ", "_")
+            if race_cache_path.exists():
+                shutil.rmtree(race_cache_path)
+                logger.info(f"Cleared FastF1 cache for {race_name} {year} at {race_cache_path}")
+
+            # Also try with spaces removed completely
+            race_cache_path_alt = cache_dir / str(year) / race_name.replace(" ", "")
+            if race_cache_path_alt.exists():
+                shutil.rmtree(race_cache_path_alt)
+                logger.info(f"Cleared alternate FastF1 cache at {race_cache_path_alt}")
+
+        except Exception as e:
+            logger.warning(f"Could not clear FastF1 cache at {cache_dir}: {e}")
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def _load_race_options_cached(year: int) -> tuple[list[str], str | None]:
     """Load race options and cache schedule fetches for responsiveness."""
@@ -167,12 +203,20 @@ def execute_live_prediction_pipeline(
     race_name: str,
     weather: str,
     year: int = DEFAULT_SEASON,
+    force_refresh: bool = True,
     progress_callback: Callable[[str], None] | None = None,
 ) -> dict:
     """
     Refresh input data and execute a prediction run.
 
     Kept separate from Streamlit rendering so tests can assert refresh call order.
+
+    Args:
+        race_name: The name of the race
+        weather: Weather forecast for the race
+        year: Season year
+        force_refresh: If True, clears FastF1 cache and forces re-check of session completion
+        progress_callback: Optional callback for progress updates
     """
     pipeline_timing: dict[str, float] = {}
     pipeline_start = time.time()
@@ -181,9 +225,16 @@ def execute_live_prediction_pipeline(
         if progress_callback is not None:
             progress_callback(message)
 
+    # Clear FastF1 cache to force fresh data fetch if force_refresh enabled
+    if force_refresh:
+        _notify("Clearing FastF1 cache for fresh data...")
+        clear_start = time.time()
+        _clear_fastf1_race_cache(year, race_name)
+        pipeline_timing["cache_clear"] = time.time() - clear_start
+
     update_start = time.time()
     _notify("Checking completed races and model updates...")
-    auto_update_if_needed()
+    auto_update_if_needed(force_recheck=force_refresh)
     pipeline_timing["race_update_check"] = time.time() - update_start
 
     weekend_start = time.time()
@@ -197,12 +248,13 @@ def execute_live_prediction_pipeline(
         year=year,
         race_name=race_name,
         is_sprint=is_sprint,
+        force_recheck=force_refresh,
     )
     pipeline_timing["practice_update_check"] = time.time() - practice_start
 
     # Refresh cache on the same click after practice updates write new characteristics.
-    if practice_update.get("updated"):
-        _notify("Refreshing local caches after practice updates...")
+    if practice_update.get("updated") or force_refresh:
+        _notify("Refreshing local caches after updates...")
         st.cache_resource.clear()
         st.cache_data.clear()
 
@@ -244,6 +296,16 @@ def render_live_prediction_page(enable_logging: bool) -> None:
     with col2:
         weather = st.selectbox("Weather Forecast", ["dry", "rain", "mixed"])
 
+    # Add force refresh toggle in sidebar
+    with st.sidebar:
+        st.markdown("### Data Refresh Options")
+        force_refresh = st.checkbox(
+            "Force Data Refresh",
+            value=True,
+            help="Re-fetch session data from FastF1 on every click. "
+            "Disable to use cached data (faster but may be stale).",
+        )
+
     if st.button("Generate Prediction", type="primary"):
         status_placeholder = st.empty()
 
@@ -257,6 +319,7 @@ def render_live_prediction_page(enable_logging: bool) -> None:
                     race_name=race_name,
                     weather=weather,
                     year=DEFAULT_SEASON,
+                    force_refresh=force_refresh,
                     progress_callback=update_status,
                 )
                 prediction_results = pipeline_output["prediction_results"]

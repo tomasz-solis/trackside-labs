@@ -9,14 +9,17 @@ import streamlit as st
 _PRACTICE_UPDATE_STATE_FILE = Path("data/systems/practice_characteristics_state.json")
 
 
-def auto_update_if_needed() -> None:
+def auto_update_if_needed(force_recheck: bool = False) -> None:
     """
     Check for and apply updates from completed races.
     Also refreshes predictor if characteristic files were manually updated.
+
+    Args:
+        force_recheck: If True, clears learned races cache to force re-check
     """
     from src.utils.auto_updater import auto_update_from_races, needs_update
 
-    needs_update_flag, new_races = needs_update()
+    needs_update_flag, new_races = needs_update(force_recheck=force_recheck)
 
     if needs_update_flag:
         st.info(f"Found {len(new_races)} new race(s) to learn from. Updating characteristics...")
@@ -77,11 +80,18 @@ def auto_update_practice_characteristics_if_needed(
     year: int,
     race_name: str,
     is_sprint: bool,
+    force_recheck: bool = False,
 ) -> dict:
     """
     Update car characteristics from completed free-practice sessions (FP1/FP2/FP3).
 
     This is conservative and only runs when new FP sessions are completed for a race.
+
+    Args:
+        year: Season year
+        race_name: Name of the race
+        is_sprint: Whether this is a sprint weekend
+        force_recheck: If True, ignores cached state and re-checks session completion
     """
     from src.systems.testing_updater import update_from_testing_sessions
     from src.utils import config_loader
@@ -103,7 +113,9 @@ def auto_update_practice_characteristics_if_needed(
     state = _load_practice_update_state()
     processed_sessions = set(state["races"].get(race_key, {}).get("sessions", []))
     latest_processed = set(completed_fp_sessions).issubset(processed_sessions)
-    if latest_processed:
+
+    # Skip if already processed (unless force_recheck enabled)
+    if latest_processed and not force_recheck:
         return {"updated": False, "completed_fp_sessions": completed_fp_sessions}
 
     practice_new_weight = config_loader.get("baseline_predictor.practice_capture.new_weight", 0.35)

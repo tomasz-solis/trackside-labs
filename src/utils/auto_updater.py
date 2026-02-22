@@ -123,11 +123,21 @@ def get_learned_races() -> list[str]:
         return []
 
 
-def needs_update() -> tuple[bool, list[str]]:
-    """Check if there are new races to learn from."""
-    completed = get_completed_races()
-    learned = get_learned_races()
+def needs_update(force_recheck: bool = False) -> tuple[bool, list[str]]:
+    """
+    Check if there are new races to learn from.
 
+    Args:
+        force_recheck: If True, re-check all completed races regardless of learned state
+    """
+    completed = get_completed_races()
+
+    if force_recheck:
+        # Force re-check: treat all completed races as potentially new
+        logger.info(f"Force recheck enabled: found {len(completed)} completed race(s)")
+        return len(completed) > 0, completed
+
+    learned = get_learned_races()
     new_races = [race for race in completed if race not in learned]
 
     return len(new_races) > 0, new_races

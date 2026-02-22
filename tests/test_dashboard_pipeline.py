@@ -8,14 +8,16 @@ from src.dashboard import pages
 def test_execute_live_prediction_pipeline_refresh_call_order(monkeypatch):
     call_order: list[str] = []
 
-    monkeypatch.setattr(pages, "auto_update_if_needed", lambda: call_order.append("race_update"))
+    monkeypatch.setattr(
+        pages, "auto_update_if_needed", lambda force_recheck=False: call_order.append("race_update")
+    )
     monkeypatch.setattr(
         pages,
         "is_sprint_weekend",
         lambda year, race_name: (call_order.append("sprint_check"), True)[1],
     )
 
-    def _practice_update(year: int, race_name: str, is_sprint: bool):
+    def _practice_update(year: int, race_name: str, is_sprint: bool, force_recheck: bool = False):
         call_order.append("practice_update")
         assert year == 2026
         assert race_name == "Chinese Grand Prix"
@@ -23,6 +25,9 @@ def test_execute_live_prediction_pipeline_refresh_call_order(monkeypatch):
         return {"updated": False, "completed_fp_sessions": []}
 
     monkeypatch.setattr(pages, "auto_update_practice_characteristics_if_needed", _practice_update)
+    monkeypatch.setattr(
+        pages, "_clear_fastf1_race_cache", lambda year, race_name: call_order.append("cache_clear")
+    )
     monkeypatch.setattr(
         pages,
         "get_artifact_versions",
@@ -50,6 +55,7 @@ def test_execute_live_prediction_pipeline_refresh_call_order(monkeypatch):
         race_name="Chinese Grand Prix",
         weather="dry",
         year=2026,
+        force_refresh=False,  # Don't clear cache for this test
     )
 
     assert call_order == [
@@ -67,7 +73,9 @@ def test_execute_live_prediction_pipeline_clears_cache_before_prediction_when_pr
 ):
     call_order: list[str] = []
 
-    monkeypatch.setattr(pages, "auto_update_if_needed", lambda: call_order.append("race_update"))
+    monkeypatch.setattr(
+        pages, "auto_update_if_needed", lambda force_recheck=False: call_order.append("race_update")
+    )
     monkeypatch.setattr(
         pages,
         "is_sprint_weekend",
@@ -76,10 +84,13 @@ def test_execute_live_prediction_pipeline_clears_cache_before_prediction_when_pr
     monkeypatch.setattr(
         pages,
         "auto_update_practice_characteristics_if_needed",
-        lambda year, race_name, is_sprint: (
+        lambda year, race_name, is_sprint, force_recheck=False: (
             call_order.append("practice_update"),
             {"updated": True, "completed_fp_sessions": ["FP1"], "teams_updated": 2},
         )[1],
+    )
+    monkeypatch.setattr(
+        pages, "_clear_fastf1_race_cache", lambda year, race_name: call_order.append("cache_clear")
     )
     monkeypatch.setattr(
         pages,
@@ -116,7 +127,9 @@ def test_execute_live_prediction_pipeline_clears_cache_before_prediction_when_pr
 
     monkeypatch.setattr(pages, "run_prediction", _run_prediction)
 
-    pages.execute_live_prediction_pipeline("Bahrain Grand Prix", "dry", year=2026)
+    pages.execute_live_prediction_pipeline(
+        "Bahrain Grand Prix", "dry", year=2026, force_refresh=False
+    )
 
     assert call_order == [
         "race_update",
@@ -130,13 +143,16 @@ def test_execute_live_prediction_pipeline_clears_cache_before_prediction_when_pr
 
 
 def test_execute_live_prediction_pipeline_raises_when_practice_update_fails(monkeypatch):
-    monkeypatch.setattr(pages, "auto_update_if_needed", lambda: None)
+    monkeypatch.setattr(pages, "auto_update_if_needed", lambda force_recheck=False: None)
     monkeypatch.setattr(pages, "is_sprint_weekend", lambda year, race_name: False)
     monkeypatch.setattr(
         pages,
         "auto_update_practice_characteristics_if_needed",
-        lambda year, race_name, is_sprint: (_ for _ in ()).throw(RuntimeError("refresh failed")),
+        lambda year, race_name, is_sprint, force_recheck=False: (_ for _ in ()).throw(
+            RuntimeError("refresh failed")
+        ),
     )
+    monkeypatch.setattr(pages, "_clear_fastf1_race_cache", lambda year, race_name: None)
 
     run_called = {"value": False}
 
@@ -153,13 +169,16 @@ def test_execute_live_prediction_pipeline_raises_when_practice_update_fails(monk
     monkeypatch.setattr(pages, "run_prediction", _run_prediction)
 
     with pytest.raises(RuntimeError, match="refresh failed"):
-        pages.execute_live_prediction_pipeline("Bahrain Grand Prix", "dry", year=2026)
+        pages.execute_live_prediction_pipeline(
+            "Bahrain Grand Prix", "dry", year=2026, force_refresh=False
+        )
 
     assert run_called["value"] is False
 
 
 def test_execute_live_prediction_pipeline_raises_when_sprint_lookup_fails(monkeypatch):
-    monkeypatch.setattr(pages, "auto_update_if_needed", lambda: None)
+    monkeypatch.setattr(pages, "auto_update_if_needed", lambda force_recheck=False: None)
+    monkeypatch.setattr(pages, "_clear_fastf1_race_cache", lambda year, race_name: None)
     monkeypatch.setattr(
         pages,
         "is_sprint_weekend",
@@ -168,7 +187,10 @@ def test_execute_live_prediction_pipeline_raises_when_sprint_lookup_fails(monkey
     monkeypatch.setattr(
         pages,
         "auto_update_practice_characteristics_if_needed",
-        lambda year, race_name, is_sprint: {"updated": False, "completed_fp_sessions": []},
+        lambda year, race_name, is_sprint, force_recheck=False: {
+            "updated": False,
+            "completed_fp_sessions": [],
+        },
     )
     monkeypatch.setattr(pages, "get_artifact_versions", lambda: {"k": (3, "ts3")})
 
@@ -179,18 +201,22 @@ def test_execute_live_prediction_pipeline_raises_when_sprint_lookup_fails(monkey
     )
 
     with pytest.raises(ValueError, match="bad race"):
-        pages.execute_live_prediction_pipeline("Unknown GP", "dry", year=2026)
+        pages.execute_live_prediction_pipeline("Unknown GP", "dry", year=2026, force_refresh=False)
 
 
 def test_execute_live_prediction_pipeline_emits_progress_and_timing(monkeypatch):
     progress_messages: list[str] = []
 
-    monkeypatch.setattr(pages, "auto_update_if_needed", lambda: None)
+    monkeypatch.setattr(pages, "auto_update_if_needed", lambda force_recheck=False: None)
+    monkeypatch.setattr(pages, "_clear_fastf1_race_cache", lambda year, race_name: None)
     monkeypatch.setattr(pages, "is_sprint_weekend", lambda year, race_name: False)
     monkeypatch.setattr(
         pages,
         "auto_update_practice_characteristics_if_needed",
-        lambda year, race_name, is_sprint: {"updated": False, "completed_fp_sessions": []},
+        lambda year, race_name, is_sprint, force_recheck=False: {
+            "updated": False,
+            "completed_fp_sessions": [],
+        },
     )
     monkeypatch.setattr(pages, "get_artifact_versions", lambda: {"k": (1, "ts")})
     monkeypatch.setattr(
@@ -206,6 +232,7 @@ def test_execute_live_prediction_pipeline_emits_progress_and_timing(monkeypatch)
         race_name="Bahrain Grand Prix",
         weather="dry",
         year=2026,
+        force_refresh=False,
         progress_callback=progress_messages.append,
     )
 
@@ -225,3 +252,66 @@ def test_execute_live_prediction_pipeline_emits_progress_and_timing(monkeypatch)
         "total",
     }
     assert timing["total"] >= 0.0
+
+
+def test_execute_live_prediction_pipeline_with_force_refresh_clears_cache_and_rechecks(monkeypatch):
+    """Test that force_refresh=True clears FastF1 cache and forces session recheck."""
+    call_order: list[str] = []
+    force_recheck_calls = {"race_update": False, "practice_update": False}
+
+    def mock_race_update(force_recheck=False):
+        call_order.append("race_update")
+        force_recheck_calls["race_update"] = force_recheck
+
+    def mock_practice_update(year, race_name, is_sprint, force_recheck=False):
+        call_order.append("practice_update")
+        force_recheck_calls["practice_update"] = force_recheck
+        return {"updated": False, "completed_fp_sessions": []}
+
+    monkeypatch.setattr(pages, "auto_update_if_needed", mock_race_update)
+    monkeypatch.setattr(pages, "is_sprint_weekend", lambda year, race_name: False)
+    monkeypatch.setattr(
+        pages, "auto_update_practice_characteristics_if_needed", mock_practice_update
+    )
+    monkeypatch.setattr(
+        pages, "_clear_fastf1_race_cache", lambda year, race_name: call_order.append("cache_clear")
+    )
+    monkeypatch.setattr(pages, "get_artifact_versions", lambda: {"k": (1, "ts")})
+    monkeypatch.setattr(
+        pages,
+        "run_prediction",
+        lambda race_name, weather, _versions, is_sprint, year: {
+            "qualifying": {"grid": []},
+            "race": {"finish_order": []},
+        },
+    )
+    monkeypatch.setattr(
+        pages.st,
+        "cache_resource",
+        type(
+            "_CacheResource",
+            (),
+            {"clear": staticmethod(lambda: call_order.append("clear_resource"))},
+        ),
+    )
+    monkeypatch.setattr(
+        pages.st,
+        "cache_data",
+        type("_CacheData", (), {"clear": staticmethod(lambda: call_order.append("clear_data"))}),
+    )
+
+    pages.execute_live_prediction_pipeline(
+        race_name="Bahrain Grand Prix",
+        weather="dry",
+        year=2026,
+        force_refresh=True,
+    )
+
+    # Verify cache was cleared first
+    assert call_order[0] == "cache_clear"
+    # Verify force_recheck was passed to update functions
+    assert force_recheck_calls["race_update"] is True
+    assert force_recheck_calls["practice_update"] is True
+    # Verify caches were cleared (since force_refresh=True)
+    assert "clear_resource" in call_order
+    assert "clear_data" in call_order

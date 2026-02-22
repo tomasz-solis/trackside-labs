@@ -68,10 +68,12 @@ Outputs: Finish order + compound strategy distribution + pit window histogram.
 
 ### 1. Automatic in dashboard
 
-When you click **Generate Prediction**, the app can:
+When you click **Generate Prediction**, the app:
 
-- learn from newly completed races, and
-- capture completed FP sessions (FP1/FP2/FP3) into car characteristics.
+- optionally clears FastF1 race cache first (`Force Data Refresh`, default ON),
+- checks for race-result learning updates,
+- checks completed FP sessions (FP1/FP2/FP3) for practice-based characteristic updates,
+- clears Streamlit caches when refresh/update steps run so the same click uses fresh artifacts.
 
 ### 2. Manual race update
 

@@ -6,18 +6,20 @@ This guide explains what the app updates automatically and what still requires a
 
 When the user clicks **Generate Prediction** in `src/dashboard/pages.py` (called by `app.py`):
 
-1. `auto_update_if_needed()` (in `src/dashboard/update_flow.py`) checks for completed races not yet marked as learned.
-2. If new races are found, it runs `auto_update_from_races()`.
-3. Characteristics are updated through `src/systems/updater.py`.
-4. Streamlit caches are cleared so the new data is used immediately.
+1. If **Force Data Refresh** is enabled (default), the app clears FastF1 cache entries for the selected race.
+2. `auto_update_if_needed(force_recheck=...)` checks for race-result learning updates.
+3. If new races are found, it runs `auto_update_from_races()`.
+4. `auto_update_practice_characteristics_if_needed(force_recheck=...)` checks/update FP-derived characteristics.
+5. Streamlit caches are cleared so the prediction run in the same click uses fresh artifacts.
 
 This block is race-result ingestion.
 
 ### Practice-characteristics auto capture
 
 During weekend predictions, the app also checks completed FP sessions and can update
-car characteristics from FP telemetry (FP1/FP2/FP3). It only runs when a new FP session
-is detected for that race, then stores an update state in:
+car characteristics from FP telemetry (FP1/FP2/FP3). By default, the update step
+uses cached session-state checks. With **Force Data Refresh** enabled, it re-checks
+session completion even when the race was already processed. Update state is stored in:
 
 - `data/systems/practice_characteristics_state.json`
 

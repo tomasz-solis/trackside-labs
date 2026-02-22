@@ -23,7 +23,7 @@ def atomic_json_write(file_path: Path, data: dict[str, Any], create_backup: bool
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Create temp file in same directory (ensures same filesystem for atomic move)
+    # Create temp file in same directory for atomic move
     temp_fd, temp_path = tempfile.mkstemp(
         suffix=".tmp", prefix=f".{file_path.name}.", dir=file_path.parent
     )

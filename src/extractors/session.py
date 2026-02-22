@@ -156,7 +156,7 @@ def extract_quali_order_from_positions(year, race_name, session_type):
     return None
 
 
-def extract_session_order_robust(year, race_name, session_type):
+def extract_session_order_safe(year, race_name, session_type):
     """
     Extract team order from any session, auto-detecting FP (lap times) vs Quali (positions).
     """
@@ -205,7 +205,7 @@ def test_session_as_predictor_fixed(
     Test prediction accuracy of a session against qualifying/race results.
     """
     # Get predictor session order
-    predictor_order = extract_session_order_robust(year, race_name, predictor_session)
+    predictor_order = extract_session_order_safe(year, race_name, predictor_session)
 
     if predictor_order is None:
         return {
@@ -215,7 +215,7 @@ def test_session_as_predictor_fixed(
         }
 
     # Get actual qualifying order
-    actual_order = extract_session_order_robust(year, race_name, target_session)
+    actual_order = extract_session_order_safe(year, race_name, target_session)
 
     if actual_order is None:
         return {
@@ -280,7 +280,7 @@ if __name__ == "__main__":
 
     # Test FP3 (should use lap times)
     print("\nTesting FP3 (uses lap times):")
-    fp3_order = extract_session_order_robust(2025, "Bahrain Grand Prix", "FP3")
+    fp3_order = extract_session_order_safe(2025, "Bahrain Grand Prix", "FP3")
     if fp3_order:
         print(f"FP3 extracted: {len(fp3_order)} teams")
         sorted_teams = sorted(fp3_order.items(), key=lambda x: x[1])
@@ -291,7 +291,7 @@ if __name__ == "__main__":
 
     # Test Qualifying (should use positions)
     print("\nTesting Qualifying (uses positions):")
-    quali_order = extract_session_order_robust(2025, "Bahrain Grand Prix", "Q")
+    quali_order = extract_session_order_safe(2025, "Bahrain Grand Prix", "Q")
     if quali_order:
         print(f"Qualifying extracted: {len(quali_order)} teams")
         sorted_teams = sorted(quali_order.items(), key=lambda x: x[1])

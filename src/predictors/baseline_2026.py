@@ -11,7 +11,7 @@ from src.predictors.baseline import (
     BaselineRaceMixin,
 )
 from src.utils.config_loader import Config
-from src.utils.data_generator import ensure_baseline_exists
+from src.utils.data_generator import create_baseline_if_missing
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class Baseline2026Predictor(
             self.data_dir = data_dir_path
 
         logger.info("Ensuring baseline data is ready...")
-        ensure_baseline_exists(self.data_dir)
+        create_baseline_if_missing(self.data_dir)
 
         self.artifact_store = artifact_store or ArtifactStore(
             data_root=self.data_dir.parent if self.data_dir.name == "processed" else self.data_dir

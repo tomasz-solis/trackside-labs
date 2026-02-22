@@ -116,7 +116,7 @@ def test_extract_quali_order_from_positions(monkeypatch):
     assert order["Williams"] == 5
 
 
-def test_extract_session_order_robust_switches_methods(monkeypatch):
+def test_extract_session_order_safe_switches_methods(monkeypatch):
     monkeypatch.setattr(session_extractor, "extract_fp_order_from_laps", lambda *_args: {"FP": 1})
     monkeypatch.setattr(
         session_extractor,
@@ -124,12 +124,10 @@ def test_extract_session_order_robust_switches_methods(monkeypatch):
         lambda *_args: {"Q": 1},
     )
 
-    assert session_extractor.extract_session_order_robust(2026, "Bahrain Grand Prix", "FP2") == {
+    assert session_extractor.extract_session_order_safe(2026, "Bahrain Grand Prix", "FP2") == {
         "FP": 1
     }
-    assert session_extractor.extract_session_order_robust(2026, "Bahrain Grand Prix", "Q") == {
-        "Q": 1
-    }
+    assert session_extractor.extract_session_order_safe(2026, "Bahrain Grand Prix", "Q") == {"Q": 1}
 
 
 def test_calculate_order_mae():
@@ -141,7 +139,7 @@ def test_calculate_order_mae():
 
 
 def test_test_session_as_predictor_fixed_failure_path(monkeypatch):
-    monkeypatch.setattr(session_extractor, "extract_session_order_robust", lambda *_args: None)
+    monkeypatch.setattr(session_extractor, "extract_session_order_safe", lambda *_args: None)
 
     result = session_extractor.test_session_as_predictor_fixed(
         2026, "Bahrain Grand Prix", "FP2", target_session="Q"
@@ -157,7 +155,7 @@ def test_test_session_as_predictor_fixed_with_driver_metrics(monkeypatch):
             return {"McLaren": 1, "Ferrari": 2}
         return {"McLaren": 2, "Ferrari": 1}
 
-    monkeypatch.setattr(session_extractor, "extract_session_order_robust", _extract)
+    monkeypatch.setattr(session_extractor, "extract_session_order_safe", _extract)
 
     class _Ranker:
         def predict_positions(self, team_predictions, team_lineups, session_type):

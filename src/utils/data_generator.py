@@ -14,7 +14,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def ensure_baseline_exists(data_dir: Path) -> None:
+def create_baseline_if_missing(data_dir: Path) -> None:
     """
     Create baseline data when files are missing or outdated.
 
@@ -78,7 +78,7 @@ def generate_quick_baseline(data_dir: Path) -> None:
     generate_default_track_characteristics(data_dir)
 
     logger.info("Checking driver characteristics...")
-    ensure_driver_characteristics(data_dir)
+    create_driver_characteristics_if_missing(data_dir)
 
     logger.info("Resetting learning state...")
     reset_learning_state()
@@ -296,7 +296,7 @@ def generate_default_track_characteristics(data_dir: Path) -> None:
     logger.info(f"  Generated {len(tracks)} track characteristics")
 
 
-def ensure_driver_characteristics(data_dir: Path) -> None:
+def create_driver_characteristics_if_missing(data_dir: Path) -> None:
     """Add driver-characteristics metadata when it is missing."""
     driver_file = data_dir / "driver_characteristics.json"
 

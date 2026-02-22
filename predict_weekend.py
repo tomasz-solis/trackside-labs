@@ -1,13 +1,18 @@
 import argparse
+import importlib
 import logging
 from datetime import UTC, datetime
 
 import fastf1 as ff1
 import pandas as pd
-from tabulate import tabulate
+
+try:
+    _tabulate = importlib.import_module("tabulate").tabulate
+except ModuleNotFoundError:
+    _tabulate = None
 
 from src.extractors.race_pace import extract_fp2_pace
-from src.extractors.session import extract_session_order_robust
+from src.extractors.session import extract_session_order_safe
 from src.models.priors_factory import PriorsFactory
 from src.models.regulations import apply_2026_regulations
 from src.predictors.qualifying import QualifyingPredictor
@@ -20,6 +25,23 @@ from src.utils.weekend import get_weekend_type
 # Logging Setup
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("LivePredictor")
+
+
+def _print_table(df: pd.DataFrame, columns: list[str]) -> None:
+    """Render a table in CLI output, with fallback when tabulate is unavailable."""
+    table_data = df[columns].head(10)
+    if _tabulate is None:
+        print(table_data.to_string(index=False))
+        return
+
+    print(
+        _tabulate(
+            table_data,
+            headers="keys",
+            tablefmt="simple",
+            floatfmt=".1f",
+        )
+    )
 
 
 def auto_catchup_history(year, learner):
@@ -59,7 +81,7 @@ def _run_post_race_analysis(year, race_name, learner):
             return
 
         # Backtest Strategies (Compare FP3 vs Reality)
-        fp3_ranks = extract_session_order_robust(year, race_name, "FP3")
+        fp3_ranks = extract_session_order_safe(year, race_name, "FP3")
         if not fp3_ranks:
             return
 
@@ -80,14 +102,14 @@ def get_available_data(year, race_name, weekend_type):
     logger.info(f"📡 Scanning data for {race_name}...")
 
     # Always check FP1
-    data["fp1"] = extract_session_order_robust(year, race_name, "FP1")
+    data["fp1"] = extract_session_order_safe(year, race_name, "FP1")
 
     if weekend_type == "conventional":
-        data["fp2"] = extract_session_order_robust(year, race_name, "FP2")
-        data["fp3"] = extract_session_order_robust(year, race_name, "FP3")
-        data["quali"] = extract_session_order_robust(year, race_name, "Q")
+        data["fp2"] = extract_session_order_safe(year, race_name, "FP2")
+        data["fp3"] = extract_session_order_safe(year, race_name, "FP3")
+        data["quali"] = extract_session_order_safe(year, race_name, "Q")
     elif weekend_type == "sprint":
-        data["sprint_quali"] = extract_session_order_robust(year, race_name, "Sprint Qualifying")
+        data["sprint_quali"] = extract_session_order_safe(year, race_name, "Sprint Qualifying")
 
     found = [k.upper() for k, v in data.items() if v is not None]
     if found:
@@ -162,14 +184,7 @@ def run_weekend_predictions(year, race_name, weather="dry"):
     )
 
     q_df = pd.DataFrame(q_result["grid"])
-    print(
-        tabulate(
-            q_df[["position", "driver", "team", "confidence"]].head(10),
-            headers="keys",
-            tablefmt="simple",
-            floatfmt=".1f",
-        )
-    )
+    _print_table(q_df, ["position", "driver", "team", "confidence"])
 
     # =========================================================
     # PART B: PREDICT RACE (ALWAYS RUNS)
@@ -203,14 +218,7 @@ def run_weekend_predictions(year, race_name, weather="dry"):
     )
 
     r_df = pd.DataFrame(r_result["finish_order"])
-    print(
-        tabulate(
-            r_df[["position", "driver", "team", "confidence", "podium_probability"]].head(10),
-            headers="keys",
-            tablefmt="simple",
-            floatfmt=".1f",
-        )
-    )
+    _print_table(r_df, ["position", "driver", "team", "confidence", "podium_probability"])
 
 
 def _convert_team_ranks_to_grid(team_ranks, year, race_name):

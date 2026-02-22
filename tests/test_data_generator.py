@@ -19,7 +19,7 @@ def _write_baseline_artifacts(data_dir: Path, team_freshness: str, track_freshne
     )
 
 
-def test_ensure_baseline_exists_triggers_generation_when_files_missing(tmp_path, monkeypatch):
+def test_create_baseline_if_missing_triggers_generation_when_files_missing(tmp_path, monkeypatch):
     data_dir = tmp_path / "processed"
     calls: list[Path] = []
     monkeypatch.setattr(
@@ -28,12 +28,14 @@ def test_ensure_baseline_exists_triggers_generation_when_files_missing(tmp_path,
         lambda path: calls.append(Path(path)),
     )
 
-    data_generator.ensure_baseline_exists(data_dir)
+    data_generator.create_baseline_if_missing(data_dir)
 
     assert calls == [data_dir]
 
 
-def test_ensure_baseline_exists_triggers_generation_for_unknown_freshness(tmp_path, monkeypatch):
+def test_create_baseline_if_missing_triggers_generation_for_unknown_freshness(
+    tmp_path, monkeypatch
+):
     data_dir = tmp_path / "processed"
     _write_baseline_artifacts(
         data_dir, team_freshness="UNKNOWN", track_freshness="BASELINE_PRESEASON"
@@ -46,12 +48,12 @@ def test_ensure_baseline_exists_triggers_generation_for_unknown_freshness(tmp_pa
         lambda path: calls.append(Path(path)),
     )
 
-    data_generator.ensure_baseline_exists(data_dir)
+    data_generator.create_baseline_if_missing(data_dir)
 
     assert calls == [data_dir]
 
 
-def test_ensure_baseline_exists_skips_generation_when_metadata_is_fresh(tmp_path, monkeypatch):
+def test_create_baseline_if_missing_skips_generation_when_metadata_is_fresh(tmp_path, monkeypatch):
     data_dir = tmp_path / "processed"
     _write_baseline_artifacts(
         data_dir,
@@ -65,7 +67,7 @@ def test_ensure_baseline_exists_skips_generation_when_metadata_is_fresh(tmp_path
         lambda path: calls.append(Path(path)),
     )
 
-    data_generator.ensure_baseline_exists(data_dir)
+    data_generator.create_baseline_if_missing(data_dir)
 
     assert calls == []
 
@@ -84,7 +86,7 @@ def test_generate_quick_baseline_runs_all_generation_steps_in_order(tmp_path, mo
     )
     monkeypatch.setattr(
         data_generator,
-        "ensure_driver_characteristics",
+        "create_driver_characteristics_if_missing",
         lambda _data_dir: calls.append("drivers"),
     )
     monkeypatch.setattr(data_generator, "reset_learning_state", lambda: calls.append("learning"))
@@ -124,13 +126,13 @@ def test_generate_default_track_characteristics_writes_calendar_baseline(tmp_pat
     assert payload["tracks"]["Chinese Grand Prix"]["has_sprint"] is True
 
 
-def test_ensure_driver_characteristics_adds_metadata_when_missing(tmp_path):
+def test_create_driver_characteristics_if_missing_adds_metadata_when_missing(tmp_path):
     data_dir = tmp_path / "processed"
     data_dir.mkdir(parents=True)
     driver_file = data_dir / "driver_characteristics.json"
     driver_file.write_text(json.dumps({"drivers": {"NOR": {}}}))
 
-    data_generator.ensure_driver_characteristics(data_dir)
+    data_generator.create_driver_characteristics_if_missing(data_dir)
 
     payload = json.loads(driver_file.read_text())
     assert payload["carried_over_from"] == 2025
@@ -138,7 +140,7 @@ def test_ensure_driver_characteristics_adds_metadata_when_missing(tmp_path):
     assert "last_updated" in payload
 
 
-def test_ensure_driver_characteristics_keeps_existing_metadata(tmp_path):
+def test_create_driver_characteristics_if_missing_keeps_existing_metadata(tmp_path):
     data_dir = tmp_path / "processed"
     data_dir.mkdir(parents=True)
     driver_file = data_dir / "driver_characteristics.json"
@@ -149,7 +151,7 @@ def test_ensure_driver_characteristics_keeps_existing_metadata(tmp_path):
     }
     driver_file.write_text(json.dumps(original))
 
-    data_generator.ensure_driver_characteristics(data_dir)
+    data_generator.create_driver_characteristics_if_missing(data_dir)
 
     payload = json.loads(driver_file.read_text())
     assert payload["data_freshness"] == "CARRIED_FORWARD"

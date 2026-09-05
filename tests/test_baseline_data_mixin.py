@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -733,13 +734,13 @@ def test_get_blended_team_strength_recovers_legacy_2026_seed_anchor(tmp_path, pa
     assert captured["current_score"] == pytest.approx(0.6833333333)
 
 
-def test_get_blended_team_strength_converts_track_modifier_to_absolute_testing_score(
-    tmp_path, patcher
-):
+def test_get_blended_team_strength_testing_slot_ignores_track_suitability(tmp_path, patcher):
+    """Track suitability no longer feeds the blend; the testing slot mirrors baseline."""
     predictor = DummyPredictor(data_dir=tmp_path)
     predictor.teams = {"McLaren": {"overall_performance": 0.80, "current_season_performance": []}}
     predictor.races_completed = 1
 
+    # Even a nonzero track-suitability modifier must not reach the blend.
     patcher.setattr(predictor, "calculate_track_suitability", lambda team, race_name: 0.05)
 
     captured = {}
@@ -756,7 +757,7 @@ def test_get_blended_team_strength_converts_track_modifier_to_absolute_testing_s
     predictor.get_blended_team_strength("McLaren", "Bahrain Grand Prix")
 
     assert captured["baseline_score"] == 0.80
-    assert captured["testing_modifier"] == pytest.approx(0.85)
+    assert captured["testing_modifier"] == 0.80
 
 
 def test_get_blended_team_strength_prefers_configured_schedule(tmp_path, patcher):
@@ -886,6 +887,12 @@ def test_get_current_season_observations_prefers_full_saved_actual_history_over_
     car["data_freshness"] = "LIVE_UPDATED"
     car["races_completed"] = 2
     car["teams"]["McLaren"]["current_season_performance"] = [0.86]
+    car["teams"]["Mercedes"] = {
+        "overall_performance": 0.65,
+        "current_season_performance": [],
+        "testing_characteristics": {"run_profile": "balanced", "overall_pace": 0.60},
+        "compound_characteristics": {},
+    }
     data_dir = tmp_path / "processed"
     _write_baseline_files(data_dir, car, drivers, tracks)
 
@@ -949,6 +956,12 @@ def test_get_current_season_observations_prefers_equally_complete_saved_actual_h
     car["data_freshness"] = "LIVE_UPDATED"
     car["races_completed"] = 2
     car["teams"]["McLaren"]["current_season_performance"] = [0.86, 0.14]
+    car["teams"]["Mercedes"] = {
+        "overall_performance": 0.65,
+        "current_season_performance": [],
+        "testing_characteristics": {"run_profile": "balanced", "overall_pace": 0.60},
+        "compound_characteristics": {},
+    }
     data_dir = tmp_path / "processed"
     _write_baseline_files(data_dir, car, drivers, tracks)
 
@@ -1012,6 +1025,12 @@ def test_get_current_season_observations_blends_saved_qualifying_and_race_actual
     car["data_freshness"] = "BASELINE_PRESEASON"
     car["races_completed"] = 0
     car["teams"]["McLaren"]["current_season_performance"] = []
+    car["teams"]["Mercedes"] = {
+        "overall_performance": 0.65,
+        "current_season_performance": [],
+        "testing_characteristics": {"run_profile": "balanced", "overall_pace": 0.60},
+        "compound_characteristics": {},
+    }
     data_dir = tmp_path / "processed"
     _write_baseline_files(data_dir, car, drivers, tracks)
 
@@ -1087,6 +1106,177 @@ def test_get_current_season_observations_blends_saved_qualifying_and_race_actual
         team_data=predictor.teams["McLaren"],
         race_name="Japanese Grand Prix",
     ) == pytest.approx([0.25, 0.75])
+
+
+def test_current_season_observation_source_is_resolved_once_for_whole_field(tmp_path, patcher):
+    """Two teams whose own live/saved list lengths differ must resolve to the SAME
+    field-wide source, and a team absent from that source must fall back to the
+    preseason baseline rather than silently reading a different source."""
+    predictor = DummyPredictor(data_dir=tmp_path)
+    predictor.teams = {
+        "McLaren": {"overall_performance": 0.60, "current_season_performance": [0.70]},
+        "Ferrari": {"overall_performance": 0.55, "current_season_performance": [0.90, 0.85]},
+        "Williams": {"overall_performance": 0.30, "current_season_performance": []},
+    }
+    # Only one saved race is on record. McLaren's own live (len 1) and saved (len 1)
+    # lists tie, which the old per-team tie-break resolved toward saved for McLaren
+    # alone, while Ferrari's longer live list (len 2) won on its own. That split the
+    # field across two different 0-1 scales in the same race.
+    predictor._saved_actual_race_scores_cache = {
+        2026: [
+            {
+                "race_name": "Australian Grand Prix",
+                "team_scores": {"McLaren": 1.0, "Ferrari": 0.0},
+            },
+        ]
+    }
+    _patch_schedule_rows(
+        patcher,
+        [
+            ("Australian Grand Prix", "conventional"),
+            ("Chinese Grand Prix", "conventional"),
+            ("Japanese Grand Prix", "conventional"),
+        ],
+    )
+
+    # Field-wide live coverage (1 + 2 + 0 = 3) beats saved coverage (1 + 1 + 0 = 2),
+    # so both McLaren and Ferrari read live - not McLaren-on-saved/Ferrari-on-live.
+    assert predictor._get_current_season_observations(
+        team_name="McLaren",
+        team_data=predictor.teams["McLaren"],
+        race_name="Japanese Grand Prix",
+    ) == pytest.approx([0.70])
+    assert predictor._get_current_season_observations(
+        team_name="Ferrari",
+        team_data=predictor.teams["Ferrari"],
+        race_name="Japanese Grand Prix",
+    ) == pytest.approx([0.90, 0.85])
+
+    # Williams has no live observations at all. The chosen source (live) has
+    # nothing for it, so it gets no observations here and the caller falls back
+    # to the preseason baseline instead of reading saved actuals for Williams only.
+    assert (
+        predictor._get_current_season_observations(
+            team_name="Williams",
+            team_data=predictor.teams["Williams"],
+            race_name="Japanese Grand Prix",
+        )
+        == []
+    )
+    assert predictor._get_current_season_score(
+        "Williams",
+        predictor.teams["Williams"],
+        fallback=0.30,
+        race_name="Japanese Grand Prix",
+    ) == pytest.approx(0.30)
+
+
+def test_get_current_season_score_weights_saved_observations_by_race_ordinal(tmp_path, patcher):
+    """A team that missed one race must get the same recency weight for a shared
+    race as a team that missed none, instead of being weighted as one race earlier."""
+    predictor = DummyPredictor(data_dir=tmp_path)
+    predictor.teams = {
+        "McLaren": {"overall_performance": 0.50, "current_season_performance": []},
+        "Ferrari": {"overall_performance": 0.50, "current_season_performance": []},
+    }
+    predictor._saved_actual_race_scores_cache = {
+        2026: [
+            {
+                "race_name": "Australian Grand Prix",
+                "team_scores": {"McLaren": 0.20, "Ferrari": 0.20},
+            },
+            {
+                # Ferrari missed this race entirely.
+                "race_name": "Chinese Grand Prix",
+                "team_scores": {"McLaren": 0.20},
+            },
+            {
+                "race_name": "Japanese Grand Prix",
+                "team_scores": {"McLaren": 0.80, "Ferrari": 0.80},
+            },
+        ]
+    }
+    _patch_schedule_rows(
+        patcher,
+        [
+            ("Australian Grand Prix", "conventional"),
+            ("Chinese Grand Prix", "conventional"),
+            ("Japanese Grand Prix", "conventional"),
+            ("Bahrain Grand Prix", "conventional"),
+        ],
+    )
+
+    _, mclaren_ordinals = predictor._get_current_season_observations_with_ordinals(
+        team_name="McLaren",
+        team_data=predictor.teams["McLaren"],
+        race_name="Bahrain Grand Prix",
+    )
+    _, ferrari_ordinals = predictor._get_current_season_observations_with_ordinals(
+        team_name="Ferrari",
+        team_data=predictor.teams["Ferrari"],
+        race_name="Bahrain Grand Prix",
+    )
+
+    assert mclaren_ordinals == [1, 2, 3]
+    # Ferrari's Japanese Grand Prix observation must carry ordinal 3 (its real race
+    # number), the same weight McLaren's does - not ordinal 2 (its list position),
+    # which is what index-based weighting would give it after skipping Chinese.
+    assert ferrari_ordinals == [1, 3]
+
+
+def test_get_saved_actual_observations_keeps_race_ordinals_strictly_increasing_when_a_race_is_unmapped(
+    tmp_path, patcher
+):
+    """A race missing from the schedule order map (e.g. an accented-key mismatch,
+    a local-fallback race, or a genuinely new venue) must not produce a non-monotonic
+    ordinal - that would invert the recency weighting Fix D exists to correct."""
+    # Newest race unmapped: the team's first scored race (R5) already has a high
+    # ordinal (mid-season join), and its most recent race (R7) is missing from the
+    # schedule entirely. The buggy fallback (`len(observations) + 1`) would give R7
+    # ordinal 3 here, making the newest race the LEAST weighted of the three.
+    newest_unmapped = DummyPredictor(data_dir=tmp_path)
+    _patch_schedule_rows(
+        patcher,
+        [(f"R{n}", "conventional") for n in range(1, 7)],  # R1..R6; R7 is not scheduled
+    )
+    newest_unmapped._saved_actual_race_scores_cache = {
+        2026: [
+            {"race_name": "R5", "team_scores": {"McLaren": 0.20}},
+            {"race_name": "R6", "team_scores": {"McLaren": 0.40}},
+            {"race_name": "R7", "team_scores": {"McLaren": 0.90}},
+        ]
+    }
+    observations = newest_unmapped._get_saved_actual_observations(
+        team_name="McLaren", target_year=2026, race_name=None
+    )
+    ordinals = [ordinal for _score, ordinal in observations]
+    assert ordinals == [5, 6, 7]
+    assert ordinals == sorted(ordinals)
+    weights = np.power(np.array(ordinals, dtype=float), 0.3)
+    assert list(weights) == sorted(weights), "newest race must never end up least-weighted"
+
+    # Mid-season-join case with an earlier unmapped race scrambling the middle: the
+    # team's second scored race is missing from the schedule. The buggy fallback
+    # would give it ordinal 2 (its list position), landing BEFORE the first race's
+    # real ordinal of 5.
+    mid_season_unmapped = DummyPredictor(data_dir=tmp_path)
+    _patch_schedule_rows(
+        patcher,
+        [(f"R{n}", "conventional") for n in range(1, 8) if n != 6],  # R1-R5, R7; no R6
+    )
+    mid_season_unmapped._saved_actual_race_scores_cache = {
+        2026: [
+            {"race_name": "R5", "team_scores": {"Ferrari": 0.20}},
+            {"race_name": "R6 (unmapped)", "team_scores": {"Ferrari": 0.40}},
+            {"race_name": "R7", "team_scores": {"Ferrari": 0.90}},
+        ]
+    }
+    observations = mid_season_unmapped._get_saved_actual_observations(
+        team_name="Ferrari", target_year=2026, race_name=None
+    )
+    ordinals = [ordinal for _score, ordinal in observations]
+    assert ordinals == [5, 6, 7]
+    assert ordinals == sorted(ordinals)
 
 
 def test_get_blended_team_strength_stabilizes_current_score_for_tiny_samples(tmp_path, patcher):

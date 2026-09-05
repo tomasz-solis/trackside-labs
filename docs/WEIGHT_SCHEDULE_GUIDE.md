@@ -46,8 +46,16 @@ weekends act like the whole 2026 order is settled.
 For a given team:
 
 - `baseline`: `overall_performance` from car characteristics
-- `testing_modifier`: track suitability derived from team directionality vs track profile
-- `current`: mean of `current_season_performance` if race results exist, otherwise falls back to `baseline`
+- `testing_modifier`: **also `baseline`.** This slot used to carry
+  `baseline + track_suitability`, but track suitability no longer feeds the blend -
+  an out-of-sample check across 2022-2026 found the term negative in 9 of 10
+  season x session cells. Because the slot now receives `baseline` too, its weight
+  folds into the baseline weight. The column is kept in `SCHEDULES` rather than
+  removed, so the shared table and its other schedules stay untouched.
+- `current`: **recency-weighted and stabilized** mean of `current_season_performance`
+  if race results exist, otherwise falls back to `baseline`. Race `i` is weighted
+  `i ** recency_exponent` and the result is pulled toward `baseline` by
+  `stabilization_strength`; it is not a plain mean.
 
 The pre-season fallback matters: before any races, `current` is not zero. It inherits the baseline value so the blended output stays sensible even at the first race.
 
@@ -58,7 +66,7 @@ from src.systems.weight_schedule import calculate_blended_performance
 
 score = calculate_blended_performance(
     baseline_score=0.85,
-    testing_modifier=0.02,
+    testing_modifier=0.85,  # the caller passes baseline here; see above
     current_score=0.85,   # pre-season: inherits baseline
     race_number=1,
     schedule="rapid_adaptive",
@@ -67,9 +75,9 @@ score = calculate_blended_performance(
 
 ## Where Race Updates Feed In
 
-`update_from_race` appends new values to `current_season_performance`, which
-shifts the running mean used as `current` in future predictions. Baseline and
-testing directionality remain separate and are not overwritten by in-season data.
+`update_from_race` appends new values to `current_season_performance`, which shifts
+the recency-weighted mean used as `current` in future predictions. The pre-season
+baseline is not overwritten by in-season data.
 
 ## Related
 

@@ -58,6 +58,31 @@ _EVENT_BOUNDARY_STATE_PATH = resolve_repo_data_path(
 )
 
 
+_DNF_STATUS_MARKERS = ("dnf", "retired", "did not finish", "disqualified", "dns", "dnq", "dsq")
+
+
+def row_is_dnf(row: dict[str, Any]) -> bool:
+    """Return whether one result row represents a did-not-finish outcome.
+
+    Tolerant of the several shapes actuals can take: an explicit ``dnf`` flag, a
+    FastF1-style ``status`` string, or a ``classified``/``finished`` boolean.
+    Returns ``False`` when no DNF signal is present, so position-only actuals
+    (older artifacts) are simply treated as all-finished.
+    """
+    if not isinstance(row, dict):
+        return False
+    if "dnf" in row:
+        return bool(row.get("dnf"))
+    if "classified" in row and row.get("classified") is not None:
+        return not bool(row.get("classified"))
+    if "finished" in row and row.get("finished") is not None:
+        return not bool(row.get("finished"))
+    status = str(row.get("status", "")).strip().lower()
+    if status:
+        return any(marker in status for marker in _DNF_STATUS_MARKERS)
+    return False
+
+
 def normalize_checkpoint_session(session_name: str | None) -> str:
     """Normalize a checkpoint label into the stored uppercase form."""
     return str(session_name or "").strip().upper()

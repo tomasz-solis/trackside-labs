@@ -6,7 +6,7 @@ MODEL_INSIGHTS_MARKDOWN = """
 The dashboard uses one predictor (`Baseline2026Predictor`) for both qualifying and race forecasts.
 
 **1. Team baseline**
-- Builds team strength from preseason baseline, testing directionality, and current-season performance.
+- Builds team strength from preseason baseline and current-season performance.
 - Uses the `rapid_adaptive` reset-year schedule so trust shifts toward current-season evidence.
 
 **2. Qualifying forecast**

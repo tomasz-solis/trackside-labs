@@ -112,15 +112,6 @@ class BaselineDataMixin:
         records = getattr(self, "_replayed_actual_race_scores", {}).get(target_year, [])
         return list(records) if isinstance(records, list) else []
 
-    @staticmethod
-    def _prefer_longest_observations(*candidates: list[float]) -> list[float]:
-        """Prefer the most complete observation series, breaking ties toward later inputs."""
-        preferred: list[float] = []
-        for candidate in candidates:
-            if len(candidate) >= len(preferred):
-                preferred = candidate
-        return preferred
-
     def _get_race_order_map(self, target_year: int) -> dict[str, int]:
         """Return season race order for contextual current-form cutoffs."""
         cache = getattr(self, "_race_order_map_cache", {})
@@ -379,9 +370,20 @@ class BaselineDataMixin:
         team_name: str,
         target_year: int,
         race_name: str | None,
-    ) -> list[float]:
-        """Return saved-actual observations for one team before the target race."""
-        observations: list[float] = []
+    ) -> list[tuple[float, int]]:
+        """Return (score, race_ordinal) saved-actual observations for one team before the target race.
+
+        The race ordinal comes from `_get_race_order_map`, so a team that missed a
+        race is not weighted by `_get_current_season_score` as if its later
+        observations were one race earlier than they are. A race missing from the
+        order map (or one that maps to an ordinal not after the previous
+        observation - e.g. an accented-key mismatch like the recorded Sao Paulo
+        defect) falls back to `previous_ordinal + 1`, so ordinals stay strictly
+        increasing and the recency weighting can never treat an older race as more
+        recent than a newer one.
+        """
+        race_order_map = self._get_race_order_map(target_year)
+        observations: list[tuple[float, int]] = []
         for race_record in self._load_saved_actual_race_scores(target_year):
             candidate_race_name = str(race_record.get("race_name", "")).strip()
             if not self._race_precedes_target(
@@ -396,7 +398,11 @@ class BaselineDataMixin:
             score = team_scores.get(team_name)
             if score is None:
                 continue
-            observations.append(float(np.clip(float(score), 0.0, 1.0)))
+            previous_ordinal = observations[-1][1] if observations else 0
+            race_ordinal = race_order_map.get(candidate_race_name, previous_ordinal + 1)
+            if race_ordinal <= previous_ordinal:
+                race_ordinal = previous_ordinal + 1
+            observations.append((float(np.clip(float(score), 0.0, 1.0)), race_ordinal))
         return observations
 
     def _get_replayed_actual_observations(
@@ -405,9 +411,13 @@ class BaselineDataMixin:
         team_name: str,
         target_year: int,
         race_name: str | None,
-    ) -> list[float]:
-        """Return per-team observations recorded during the active historical replay."""
-        observations: list[float] = []
+    ) -> list[tuple[float, int]]:
+        """Return (score, race_ordinal) observations recorded during the active historical replay.
+
+        See `_get_saved_actual_observations` for the race-ordinal fallback rule.
+        """
+        race_order_map = self._get_race_order_map(target_year)
+        observations: list[tuple[float, int]] = []
         for race_record in self._get_replayed_actual_race_scores(target_year):
             candidate_race_name = str(race_record.get("race_name", "")).strip()
             if not self._race_precedes_target(
@@ -422,7 +432,11 @@ class BaselineDataMixin:
             score = team_scores.get(team_name)
             if score is None:
                 continue
-            observations.append(float(np.clip(float(score), 0.0, 1.0)))
+            previous_ordinal = observations[-1][1] if observations else 0
+            race_ordinal = race_order_map.get(candidate_race_name, previous_ordinal + 1)
+            if race_ordinal <= previous_ordinal:
+                race_ordinal = previous_ordinal + 1
+            observations.append((float(np.clip(float(score), 0.0, 1.0)), race_ordinal))
         return observations
 
     def record_completed_weekend_actuals(
@@ -479,6 +493,125 @@ class BaselineDataMixin:
             "races_recorded": len(year_records),
         }
 
+    def _resolve_field_observation_source(
+        self,
+        target_year: int,
+        race_name: str | None,
+    ) -> str:
+        """Resolve and memoize which observation source the whole field reads from.
+
+        `live_observations` (telemetry/position-derived pace), `saved_actual_observations`
+        (rank scores from saved predictions), and `replayed_actual_observations` (rank
+        scores from an active historical replay) share one 0-1 scale but are different
+        constructs. Choosing a source per team lets teams in the same race be ranked
+        against each other on different scales, so the source is chosen once for the
+        whole field here, by total observation coverage summed across every team in
+        `self.teams` - not by any single team's list length. Ties break toward
+        replayed > saved > live, the same order the previous per-team tie-break used.
+        `live` is dropped from the candidate set entirely when `target_year` is not the
+        loaded season, mirroring the previous branch's intent.
+        """
+        cache = getattr(self, "_field_observation_source_cache", {})
+        cache_key = (int(target_year), str(race_name or ""))
+        if cache_key in cache:
+            return cache[cache_key]
+
+        loaded_season_year = int(getattr(self, "season_year", getattr(self, "year", 2026)))
+        prior_race_limit = coerce_non_negative_int(
+            self._count_known_prior_races(target_year, race_name)
+        )
+
+        totals = {"live": 0, "saved": 0, "replayed": 0}
+        for field_team_name, field_team_data in self.teams.items():
+            live_observations = sanitize_performance_observations(
+                field_team_data.get("current_season_performance")
+            )
+            saved_observations = self._get_saved_actual_observations(
+                team_name=field_team_name, target_year=target_year, race_name=race_name
+            )
+            replayed_observations = self._get_replayed_actual_observations(
+                team_name=field_team_name, target_year=target_year, race_name=race_name
+            )
+            if prior_race_limit is not None:
+                live_observations = live_observations[:prior_race_limit]
+                saved_observations = saved_observations[:prior_race_limit]
+                replayed_observations = replayed_observations[:prior_race_limit]
+            totals["live"] += len(live_observations)
+            totals["saved"] += len(saved_observations)
+            totals["replayed"] += len(replayed_observations)
+
+        candidate_sources = (
+            ("live", "saved", "replayed")
+            if target_year == loaded_season_year
+            else ("saved", "replayed")
+        )
+        chosen_source = candidate_sources[0]
+        for source in candidate_sources[1:]:
+            if totals[source] >= totals[chosen_source]:
+                chosen_source = source
+
+        logger.info(
+            "Current-season observation source for %s race %r: %s (coverage=%s across %s team(s))",
+            target_year,
+            race_name,
+            chosen_source,
+            totals[chosen_source],
+            len(self.teams),
+        )
+
+        cache[cache_key] = chosen_source
+        self._field_observation_source_cache = cache
+        return chosen_source
+
+    def _get_current_season_observations_with_ordinals(
+        self,
+        *,
+        team_name: str,
+        team_data: dict[str, object],
+        race_name: str | None,
+    ) -> tuple[list[float], list[int] | None]:
+        """Return one team's current-season scores alongside a per-observation race ordinal.
+
+        The field-wide source resolved by `_resolve_field_observation_source` is the
+        only source this team is read from; a team absent from that source returns no
+        observations here; `_get_current_season_score` then falls back to the preseason
+        baseline rather than silently reading a different source for that one team.
+
+        Saved and replayed observations carry a race ordinal (see
+        `_get_saved_actual_observations`), so `_get_current_season_score` can weight by
+        actual race number instead of list position. `live_observations` are bare floats
+        from the updater with no race labels, so the second element is `None` for that
+        source and callers keep index-based weighting.
+        """
+        target_year = self._resolve_prediction_target_year()
+        chosen_source = self._resolve_field_observation_source(target_year, race_name)
+        prior_race_limit = coerce_non_negative_int(
+            self._count_known_prior_races(target_year, race_name)
+        )
+
+        if chosen_source == "live":
+            observations = sanitize_performance_observations(
+                team_data.get("current_season_performance")
+            )
+            if prior_race_limit is not None:
+                observations = observations[:prior_race_limit]
+            return observations, None
+
+        if chosen_source == "saved":
+            scored_observations = self._get_saved_actual_observations(
+                team_name=team_name, target_year=target_year, race_name=race_name
+            )
+        else:
+            scored_observations = self._get_replayed_actual_observations(
+                team_name=team_name, target_year=target_year, race_name=race_name
+            )
+        if prior_race_limit is not None:
+            scored_observations = scored_observations[:prior_race_limit]
+
+        observations = [score for score, _race_ordinal in scored_observations]
+        race_ordinals = [race_ordinal for _score, race_ordinal in scored_observations]
+        return observations, race_ordinals
+
     def _get_current_season_observations(
         self,
         *,
@@ -488,52 +621,16 @@ class BaselineDataMixin:
     ) -> list[float]:
         """Return race-context-aware current-season observations for one team.
 
-        When canonical saved actuals cover the same number of prior races as the
-        live-updated series, prefer the saved actuals. They are reconstructed
-        from classified results and qualifying/race targets, so they are less
-        brittle than the telemetry-derived live team series for early-season
-        snapshots.
+        See `_resolve_field_observation_source` for how the source (live telemetry
+        pace, saved-actual rank scores, or replayed-actual rank scores) is chosen once
+        for the whole field rather than per team.
         """
-        target_year = self._resolve_prediction_target_year()
-        loaded_season_year = int(getattr(self, "season_year", getattr(self, "year", 2026)))
-        live_observations = sanitize_performance_observations(
-            team_data.get("current_season_performance")
-        )
-        prior_race_limit = coerce_non_negative_int(
-            self._count_known_prior_races(target_year, race_name)
-        )
-        saved_actual_observations = self._get_saved_actual_observations(
+        observations, _race_ordinals = self._get_current_season_observations_with_ordinals(
             team_name=team_name,
-            target_year=target_year,
+            team_data=team_data,
             race_name=race_name,
         )
-        replayed_actual_observations = self._get_replayed_actual_observations(
-            team_name=team_name,
-            target_year=target_year,
-            race_name=race_name,
-        )
-        if prior_race_limit is not None:
-            live_observations = live_observations[:prior_race_limit]
-            saved_actual_observations = saved_actual_observations[:prior_race_limit]
-            replayed_actual_observations = replayed_actual_observations[:prior_race_limit]
-
-        if target_year != loaded_season_year:
-            return self._prefer_longest_observations(
-                saved_actual_observations,
-                replayed_actual_observations,
-            )
-
-        if live_observations:
-            return self._prefer_longest_observations(
-                live_observations,
-                saved_actual_observations,
-                replayed_actual_observations,
-            )
-
-        return self._prefer_longest_observations(
-            saved_actual_observations,
-            replayed_actual_observations,
-        )
+        return observations
 
     def _get_contextual_races_completed(self, race_name: str | None) -> int:
         """Return completed-race count capped to what the target race could have known."""
@@ -562,8 +659,14 @@ class BaselineDataMixin:
         fallback: float,
         race_name: str | None,
     ) -> float:
-        """Return the current-season score using a recency-weighted average."""
-        observations = self._get_current_season_observations(
+        """Return the current-season score using a recency-weighted average.
+
+        Weights use each observation's race ordinal when the resolved source carries
+        one (saved/replayed actuals), so a team that missed a race is not weighted as
+        if its later observations were one race earlier. `live_observations` have no
+        race labels and keep the previous index-based weighting.
+        """
+        observations, race_ordinals = self._get_current_season_observations_with_ordinals(
             team_name=team_name,
             team_data=team_data,
             race_name=race_name,
@@ -573,13 +676,18 @@ class BaselineDataMixin:
 
         cfg = getattr(self, "config", config_loader)
         recency_exponent = float(
-            cfg.get("baseline_predictor.current_season_form.recency_exponent", 1.5)
+            cfg.get("baseline_predictor.current_season_form.recency_exponent", 0.3)
         )
         recency_exponent = max(0.0, recency_exponent)
         if len(observations) == 1 or recency_exponent == 0.0:
             weighted_score = float(np.mean(observations))
         else:
-            weights = np.power(np.arange(1, len(observations) + 1, dtype=float), recency_exponent)
+            recency_positions = (
+                np.array(race_ordinals, dtype=float)
+                if race_ordinals is not None
+                else np.arange(1, len(observations) + 1, dtype=float)
+            )
+            weights = np.power(recency_positions, recency_exponent)
             weighted_score = float(np.average(observations, weights=weights))
 
         stabilization_strength = float(
@@ -1017,7 +1125,7 @@ class BaselineDataMixin:
         )
 
     def get_blended_team_strength(self, team: str, race_name: str) -> float:
-        """Blend baseline, track suitability, and current-season form into one score."""
+        """Blend preseason baseline and current-season form into one score."""
         cfg = getattr(self, "config", config_loader)
         return get_blended_team_strength_helper(
             context=self,

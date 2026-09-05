@@ -36,6 +36,9 @@ _PREDICTION_CODE_FINGERPRINT_FILES = [
     "src/predictors/baseline/race/preparation_flow.py",
     "src/predictors/baseline/race/result_processing.py",
     "src/predictors/baseline/team_strength.py",
+    # row_is_dnf lives here and now gates which rows reach team-form scoring, so an
+    # edit to its markers changes predictions and must move the cache key.
+    "src/utils/accuracy_targets.py",
     "src/predictors/baseline_2026.py",
     "src/systems/testing_updater.py",
     "src/systems/testing_updater_flow.py",

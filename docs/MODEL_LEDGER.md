@@ -1563,6 +1563,251 @@ team-strength refit it did not need. Bucketed by car quality the top-car median 
 four-season maximum +13. Pooling a conditional quantity is the same error class as fitting a
 per-track value to single-race noise.
 
+## 2026-09-04: car x track fit — `rejected`; season-form construct — `candidate`
+
+**Why this was opened.** A user report that the model "overweights recent performance instead of
+getting the characteristics of the car vs track". Two separable claims: that a car x track term is
+missing, and that the recency weighting is too aggressive.
+
+**Car x track fit is not recoverable — do not retry with layout features.** Leave-one-race-out over
+`team_strength_seconds_mapping/calibration_observations.csv`: estimate a team's offset from its
+other races, predict its residual at a held-out race, permutation null that keeps the estimator's
+structure and destroys only the real car-track correspondence.
+
+| season | races | race | qualifying |
+|---|---|---|---|
+| 2022 | 19 | -4.9% (p=0.72) | -6.2% (p=0.76) |
+| 2023 | 21 | -5.1% (p=0.80) | -3.7% (p=0.61) |
+| 2024 | 22 | -4.6% (p=0.73) | -3.5% (p=0.45) |
+| 2025 | 22 | -1.4% (p=0.25) | -9.8% (p=0.96) |
+| 2026 | 10 | **+12.1% (p=0.034)** | -14.7% (p=0.93) |
+
+Negative skill in 9 of 10 cells, including four seasons where round count is not the binding
+constraint. The single positive sits at the smallest sample and was found by sweeping 6 layout axes
+x 4 shrinkage values x 2 session kinds — 48 looks, against a null 95th percentile of +11.4%. It does
+not survive selection. Archetype binning was also tested and was indistinguishable from shuffled
+labels (p = 0.44-0.67).
+
+**Consequence.** `calculate_track_suitability` was retired from `get_blended_team_strength`. Its
+weight was already 0.00 from race 4 onward under `rapid_adaptive`, so the term was annihilated for
+most of every season while the docstring claimed it was blended. The method is kept because
+`qualifying_residual_model` still uses it as a feature. Races 1-3 shift by
+`w_testing * track_suitability`, bounded at about 0.005 at race 1 — the suitability term's
+best-to-worst-track swing is at most 0.023 team-strength units across all 11 teams x 23 track
+profiles, and most of `directionality` is a per-team level offset rather than car shape (Aston
+Martin is negative on all four axes, McLaren positive on all four).
+
+**Recency exponent 1.8 -> 0.3 — `candidate`, directional only.** Walk-forward over 2026, affine map
+fitted on training races, scored in seconds on the held-out race. The response is monotone in both
+session kinds, which is the opposite of the non-monotone jitter that invalidated the
+`grid_anchor_weight` two-arm delta.
+
+| exponent | race MAE | qualifying MAE |
+|---|---|---|
+| 0.0 | 0.6583s | 0.5670s |
+| 0.9 | 0.6676s | 0.5747s |
+| 1.8 (was shipped) | 0.6775s | 0.5851s |
+| 2.5 | 0.6824s | 0.5902s |
+
+0.3 was chosen over the measured-best 0.0 to retain some sensitivity to in-season upgrades. A
+team-clustered bootstrap on the 1.8 -> 0.0 delta includes zero in both session kinds
+(race [-0.0212, +0.0553], qualifying [-0.0113, +0.0481]). **Not scored against a rebuilt baseline
+yet** — this entry records the lever's shape, not an adoption.
+
+**The finding that matters more than either change: team strength is a rank statistic end to end.**
+`score_teams_from_actual_rows` emits `1 - rank_index/(team_count-1)`, so the fastest team scores
+exactly 1.0 and the slowest exactly 0.0 every race regardless of gap size. The same collapse is in
+the calibration dataset the seconds mapping was fitted on: `team_strength_mapping.py:201` computes
+`team_median_s` — a real seconds value — and discards it on the next line by ranking. All 374 2026
+rows carry only 27 distinct values, every one a small fraction k/(n-1). This is why margin scoring
+has lost twice: the slope it gets converted through was never fitted on margin, so the arm measures
+a units error. **Refitting the mapping with a margin-native predictor is the prerequisite**, and
+`scripts/extract_team_race_pace.py` (added 2026-08-29) already produces the per-team green-flag
+median the refit needs. It also explains the car x track null above: rank cannot express "0.3s
+better here", so a track term could not register even if one existed.
+
+**DNF exclusion from season form — `candidate`.** `score_teams_from_actual_rows` had no DNF filter,
+so a car that retired on lap 3 and was classified P19 scored as a slow car; the 2026-08-29 entry
+already noted this construct "conflate[s] pace with reliability, strategy and luck". `row_is_dnf`
+moved to `src/utils/accuracy_targets.py` and now gates the position mean, handling all three row
+shapes the sanitizer emits (`dnf`, `status`, `classified`). Verified byte-identical on all 28 stored
+2026 artifact target-sets while none carried a DNF signal, which is what the fix shipping dormant
+looked like.
+
+**The cutover was done, not deferred.** Shipping dormant would have let one team's observation
+series mix two scoring conventions at the round the first flag appeared, with nothing recording
+which element used which. `scripts/backfill_dnf_data.py --year 2026 --predictions-dir
+supabase_artifacts/predictions` wrote **62 DNF row-labels across 11 files and re-derived zero
+probabilities**, so no current-model state leaked into historical artifacts. Those 11 files are
+checkpoint variants of only **3 distinct races** locally (Australia, China incl. sprint, Japan),
+so 62 is a row-label count, not 62 separate retirements - the distinct figure is about 18. `data/predictions`
+was deliberately NOT backfilled: it holds one qualifying file whose only change would have been
+2 probabilities filled from the modified model. Artifacts are untracked, so they were archived to
+`~/Documents/trackside-labs-archive/predictions_pre_dnf_backfill_20260904_231119.tar.gz` first.
+
+**Size of the contamination, measured.** Re-scoring every artifact before and after, 14 of 28
+target-sets moved and all 14 are race or sprint (qualifying carries no DNF concept and is
+provably untouched). Australian GP, 6 retirements: McLaren 0.5 -> 0.8, Red Bull 0.4 -> 0.7,
+Haas 0.8 -> 0.6, Alpine 0.6 -> 0.3. Moves of 0.3 on a 0-1 scale, on the series that carries 95%
+of team strength from race 4. Retirements were scoring fast cars as slow ones and the recency
+weighting was amplifying it — which is the mechanism behind the original "overweights recent
+performance" report, more than the exponent was. Two known ceilings, both commented in
+source: a team whose cars all retired keeps its unfiltered rows and still scores last, and a team
+scored on one surviving car is not comparable to one scored on two — the telemetry path has an
+entered-field guard for exactly this and the saved-actual path does not.
+
+## 2026-09-04: prediction-path stress pass — three unreported defects, one dominant
+
+Adversarial probes over the team-strength path, run against real 2026 data rather than by reading.
+Scripts were scratch; the numbers are reproducible from
+`data/processed/team_strength_seconds_mapping/calibration_observations.csv` plus the stored artifacts.
+
+**Invariants that hold.** All 8 schedules sum to 1.0 at every race number and never go negative;
+current-season weight is monotone in race number; `score_teams_from_actual_rows` is permutation
+invariant over row order and never scores a worse finish higher; replay observations are instance
+state and cannot leak into production.
+
+**1. Rank quantization costs 0.605s RMS, and it dominates everything else measured.** Round-tripping
+each 2026 session's real per-team gap through the rank score and back out via the fitted slope:
+
+| | race | qualifying |
+|---|---|---|
+| RMS error | **0.605s** | 0.522s |
+| mean absolute error | 0.464s | 0.376s |
+| worst | 2.019s | 1.731s |
+| real median adjacent-team gap | 0.302s | 0.234s |
+| gap the model assigns (constant) | 0.476s | 0.362s |
+| adjacent pairs where model gap > 4x reality | 20/90 (22%) | 19/84 (23%) |
+
+The whole race field spans 3.897s, so the representation error is ~15% of the field per team per
+race. **For scale: the recency-exponent change adopted the same day is worth 0.019s.** Rank costs
+about 25x more than the knob that was tuned. One position swap moves a team 1/(n-1) = 0.100 units =
+**0.390s** at the race slope, regardless of whether the real gap changed by 0.01s or 1.0s. This is
+the quantified form of the "overweights recent performance" report and it is a representation
+defect, not a weighting one.
+
+**2. Two different constructs share one 0-1 scale, and which one a team gets is decided by list
+length, per team.** `_get_current_season_observations` returns whichever of `live_observations`
+(telemetry/position pace) or `saved_actual_observations` (rank) is longer, via
+`_prefer_longest_observations`, and it is called once per team. Measured on the stored 2026 payload
+the two sources disagree by a mean of **0.098 team-strength units (0.38s)**, max **0.308 (1.20s,
+Audi; Williams 1.11s)**. In the current artifact **McLaren is scored on rank while the other ten
+teams are scored on pace**, because its live and saved lists are both length 1 and the `>=` tie-break
+picks the later argument. Teams in the same race are therefore ranked against each other on
+different scales. [Certain] on the mechanism; the specific per-team split depends on which
+predictions root is live.
+
+**3. Malformed rows are dropped silently and can collapse a race to a hardcoded 0.5.** A row with
+position 0, a negative position, a null position, or no `team` key is skipped with no log. If that
+leaves one team, `score_teams_from_actual_rows` returns `{team: 0.5}` — a real race result becomes
+"exactly average" and enters the season-form series. Related: an **unmapped team name is kept as its
+own team**, takes a rank slot, and shifts every real team's score — adding one unknown name moved
+Ferrari 0.667 -> 0.750 and Williams 0.333 -> 0.250 (0.32s). The 2026 alias map resolves 28 of 32
+plausible broadcast/FastF1 name variants; the misses are `Cadillac F1 Team`, `Mercedes-AMG`,
+`McLaren Formula 1 Team`, `General Motors`. `Cadillac F1 Team` is the live risk — Cadillac is the new
+2026 entry and its canonical FastF1 string is not pinned. Same class as the Sao Paulo accented-key
+defect already recorded on 2026-08-01.
+
+**4. Latent, not currently biting: recency weights are indexed by list position, not race number.**
+`_get_saved_actual_observations` skips races where a team has no score, and weights are
+`arange(1, len+1) ** exponent`, so a team that missed a race has every later observation weighted as
+if one race earlier. All 11 teams are scored in every available 2026 race, so it does not fire today;
+at exponent 0.3 the error would be ~1.1 percentage points, and it grows with the exponent.
+
+**5. Reported DNF probability is confined to [0.150, 0.238] and saturates.** With
+`dnf_probability_shrinkage_lambda: 0.25` and `dnf_probability_base_rate: 0.20`, simulated risks of
+0.35, 0.60 and 1.00 all report 0.238 — a car certain to retire and a car at the cap are
+indistinguishable — while a car at zero simulated risk reports 15.0%. The finish order is sampled
+from the unshrunk rates, so the displayed number and the simulation disagree by construction.
+Unchanged in this pass; recorded for the fix.
+
+**Ranking.** Fix 1 and 2 before touching any weighting lever again; both are larger than every knob
+measured to date. 3 is cheap and should log rather than fail silently. 4 is a comment. 5 is a
+separate output-layer decision.
+
+## 2026-09-05: season-form construct defects fixed — `adopted` (mechanism), and lead #1 measured
+
+Follow-up to the 2026-09-04 stress pass. Three of its five findings were correctness defects with no
+calibration judgment in them and are fixed here. The two that are model decisions are recorded below
+with numbers but NOT adopted.
+
+**Fixed 1 — teams in the same race were scored on different constructs.**
+`_get_current_season_observations` returned whichever of `live` (telemetry/position pace), `saved`
+(rank) or `replayed` was longest, and it ran once per team. On the stored 2026 payload the live and
+saved constructs disagree by a mean of 0.098 team-strength units (0.38s) and a max of 0.308 (1.20s,
+Audi; Williams 1.11s), and McLaren resolved to `saved` while the other ten teams resolved to `live`
+because its two lists were both length 1 and the `>=` tie-break picked the later argument. The source
+is now resolved ONCE for the whole field by total coverage summed across every team, memoized per
+`(target_year, race_name)`, ties breaking `replayed > saved > live`. A team absent from the chosen
+source falls back to the preseason baseline rather than silently reading a different scale.
+
+**Fixed 2 — unmapped team names took a rank slot; malformed rows fabricated a score.**
+`score_teams_from_actual_rows` kept any name that failed to resolve, so it consumed a rank position
+and shifted every real team: one unknown name moved Ferrari 0.667 -> 0.750 and Williams 0.333 ->
+0.250 (0.32s at the race slope). Unknown teams are now excluded and logged; if every row fails to
+resolve the call logs ERROR and returns `{}` rather than producing a garbage field. Rows with an
+invalid position are still dropped but counted and logged. The single-resolvable-team path returned
+a fabricated `{team: 0.5}`, turning one real race result into "exactly average" inside the
+season-form series; it now returns `{}`. Verified empirically: adding an unknown team now leaves
+every known team's score bit-identical. Four missing 2026 aliases were added (`Cadillac F1 Team`,
+`Mercedes-AMG`, `McLaren Formula 1 Team`, `General Motors`) — 32 of 32 plausible FastF1/broadcast
+variants now resolve, up from 28. Same class as the Sao Paulo accented-key defect of 2026-08-01.
+
+**Fixed 3 — recency weights were indexed by list position, not race number**, so a team that missed
+a race had every later observation weighted as if one race earlier. Saved and replayed observations
+now carry a race ordinal from `_get_race_order_map`; `live` has no race labels and keeps index
+weighting, documented rather than invented.
+
+**The first attempt at fix 3 inverted the thing it was correcting, and review caught it.** The
+fallback for a race missing from the order map was `len(observations) + 1` — the running count,
+unrelated to the real race number. For a team whose first scored race is R5 when the newest race is
+unmapped, that produced ordinals `[5, 6, 3]` and weights `0.343 / 0.362 / 0.294` at exponent 0.3:
+**the newest race became the least weighted.** A mid-season join with an earlier gap gave `[5, 2, 7]`.
+Reachable here, not theoretical — the schedule loader logs `Supplemented 2026 schedule with local
+fallback races: ['Emilia Romagna Grand Prix']`, and the Sao Paulo accent defect is the same class.
+The fallback is now relative to the last emitted ordinal with a `<=` clamp, which also repairs a
+race that is in the map but arrives out of order. Six adversarial cases pass, including
+all-unmapped and duplicate-accented-slug.
+
+**Lead #1 measured, not adopted: does a TRUE margin construct beat rank?** The earlier attempts were
+invalid because `team_strength_same_session` is itself rank. Using `team_target_s` (real seconds gap
+to field median) as the predictor, walk-forward, recency exponent 0.3, paired bootstrap:
+
+| season | race | qualifying |
+|---|---|---|
+| 2026 | +15.7% (95% CI [+0.005,+0.202], significant) | +23.0% (CI [+0.058,+0.209], significant) |
+| 2025 | -8.8% (significant, margin WORSE) | +1.5% (ns) |
+| 2024 | -0.6% (ns) | +2.0% (ns) |
+
+Blend sweep (w=0 pure rank, w=1 pure margin), best w per season:
+
+| | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|
+| race | 0.0 | 0.0 | 0.25 | 0.0 | **1.0** |
+| qualifying | 1.0 | 0.0 | 0.75 | 0.75 | **1.0** |
+
+**Qualifying margin wins or ties in 4 of 5 seasons — not an era artifact.** Race margin helps only in
+2026 and loses in 2022/2023/2025; the regulation-break rule makes those seasons inadmissible against
+a 2026 calibration, which also means the only support is 11 rounds. Separately, the pure
+representation cost of rank was measured by round-tripping each 2026 session's real gaps through the
+rank score and back: **0.605s RMS race / 0.522s qualifying**, worst 2.019s, against a 3.897s field
+span, with a constant assigned adjacent-team gap of 0.476s versus a real median of 0.302s (p10
+0.058s) — the model's gap exceeds 4x reality in 22% of adjacent pairs. For scale, the recency
+exponent change adopted 2026-09-04 is worth 0.019s.
+
+**These numbers are indicative, not adoption-grade.** They come from a standalone walk-forward
+harness, not a rebuilt baseline over three seeds. They justify opening the margin refit; they do not
+license adopting it. The prerequisite remains refitting `team_strength_seconds_mapping` with a
+margin-native predictor, since the shipped slope was fitted with rank on the x-axis.
+
+**Not changed, deliberately.** The reported DNF probability band `[0.150, 0.238]` and its
+disagreement with the unshrunk simulation are an output-layer calibration decision needing a Brier
+rescore, not a bug fix; `dnf_probability_shrinkage_lambda` and `dnf_probability_base_rate` were left
+alone. Two lower-severity couplings are noted but untouched: the field source cache is keyed on
+`(target_year, race_name)` and does not include `self.teams` or replay state, and
+`_resolve_saved_actual_races_completed` still derives the completed-race count from live payload
+state independently of which source the resolver picked.
+
 ## Adding an entry
 
 Keep it to what a future reader needs to trust or discard the result:

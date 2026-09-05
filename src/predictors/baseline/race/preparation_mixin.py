@@ -44,7 +44,7 @@ class BaselineRacePreparationMixin:
         ) -> tuple[float, bool]: ...
 
         def get_blended_team_strength(self, team: str, race_name: str) -> float:
-            """Return team strength blended with track suitability and form."""
+            """Return preseason-baseline and current-season form blended into one score."""
             ...
 
         def get_compound_adjusted_team_strength(

@@ -165,7 +165,7 @@ def _apply_team_performance_updates(
     )
     recency_exponent = max(
         0.0,
-        float(config_get_fn("baseline_predictor.current_season_form.recency_exponent", 1.5)),
+        float(config_get_fn("baseline_predictor.current_season_form.recency_exponent", 0.3)),
     )
     for team, new_performance in race_pace.items():
         if team in char_data["teams"]:

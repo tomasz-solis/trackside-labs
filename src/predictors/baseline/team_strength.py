@@ -99,7 +99,11 @@ def calculate_track_suitability(
     team_data: Mapping[str, Any],
     track_profile: Mapping[str, Any],
 ) -> float:
-    """Return a small track-suitability modifier from car directionality and layout mix."""
+    """Return a small track-suitability modifier from car directionality and layout mix.
+
+    No longer part of the live team-strength blend (see `get_blended_team_strength`);
+    kept only for `qualifying_residual_model`, which still uses it as a feature.
+    """
     directionality = team_data.get("directionality", {})
     if not isinstance(directionality, dict) or not directionality:
         return 0.0
@@ -137,7 +141,23 @@ def get_blended_team_strength(
     get_recommended_schedule_fn: Any,
     calculate_blended_performance_fn: Any,
 ) -> float:
-    """Blend baseline, track suitability, and current form into one team score."""
+    """Blend baseline and current-season form into one team score.
+
+    The schedule still carries a separate ``testing`` weight (see `SCHEDULES` in
+    `src.systems.weight_schedule`), but it no longer routes track suitability: an
+    out-of-sample skill check across 2022-2026 found the term negative in 9 of 10
+    season x session cells. The testing slot is fed ``baseline`` too, so its weight
+    folds into the baseline weight arithmetically (w_baseline*x + w_testing*x ==
+    (w_baseline+w_testing)*x) without a second, redundant baseline argument and
+    without editing the shared `SCHEDULES` table.
+
+    The fold is only output-neutral where ``w_testing == 0``, which under
+    `rapid_adaptive` means race 4 onward. Races 1-3 carry w_testing of
+    0.20/0.10/0.05 and DO shift, by ``w_testing * track_suitability``. That
+    suitability term was measured across all 11 teams x 23 2026 track profiles at a
+    best-to-worst-track swing of at most 0.023 team-strength units, bounding the
+    race-1 shift at about 0.005 and races 2-3 below it.
+    """
     team_data = context._resolve_team_data(team)
 
     baseline = resolve_preseason_baseline(
@@ -145,8 +165,6 @@ def get_blended_team_strength(
         team_name=team,
         season_year=int(getattr(context, "season_year", getattr(context, "year", 2026))),
     )
-    testing_modifier = context.calculate_track_suitability(team, race_name)
-    testing_score = float(np.clip(baseline + testing_modifier, 0.0, 1.0))
     current = context._get_current_season_score(
         team,
         team_data,
@@ -165,7 +183,7 @@ def get_blended_team_strength(
     return float(
         calculate_blended_performance_fn(
             baseline_score=baseline,
-            testing_modifier=testing_score,
+            testing_modifier=baseline,
             current_score=current,
             race_number=race_number,
             schedule=schedule,

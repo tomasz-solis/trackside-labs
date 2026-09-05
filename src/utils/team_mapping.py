@@ -32,6 +32,7 @@ TEAM_NAME_MAP = {
     # Mercedes (stable identity)
     "Mercedes": "MERCEDES",
     "Mercedes-AMG Petronas F1 Team": "MERCEDES",
+    "Mercedes-AMG": "MERCEDES",
     # Ferrari (stable identity)
     "Ferrari": "FERRARI",
     "Scuderia Ferrari": "FERRARI",
@@ -49,6 +50,7 @@ TEAM_NAME_MAP = {
     # McLaren (stable identity)
     "McLaren": "MCLAREN",
     "McLaren F1 Team": "MCLAREN",
+    "McLaren Formula 1 Team": "MCLAREN",
     # Haas (stable identity)
     "Haas": "HAAS",
     "Haas F1 Team": "HAAS",
@@ -60,6 +62,8 @@ TEAM_NAME_MAP = {
     "Cadillac": "CADILLAC",
     "Cadillac F1": "CADILLAC",
     "Cadillac Racing": "CADILLAC",
+    "Cadillac F1 Team": "CADILLAC",
+    "General Motors": "CADILLAC",
 }
 
 # Team names used in car-characteristics payloads.

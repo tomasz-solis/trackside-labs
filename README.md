@@ -12,11 +12,12 @@ is built around that tradeoff.
 
 ## Current Model Work
 
-Active model version: `2.3`.
+Active model version: `3.0`.
 
-Version `2.3` is a calibrated update to the existing champion model, not a
-promotion of a new model family. It keeps the dashboard-facing predictor
-conservative while adding target-split challenger monitoring in the background.
+Version `3.0` is a mechanism change rather than a recalibration: the finish-order
+blend no longer discards a correct simulation, and the overtaking calibration work
+is complete. See `docs/MODEL_LEDGER.md` for the adoption entry and
+`docs/OVERTAKING_CALIBRATION_PLAN.md` for the shipped scope.
 
 Current release posture:
 

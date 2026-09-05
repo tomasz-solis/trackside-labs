@@ -153,7 +153,13 @@ baseline_predictor:
   baseline_learning_rate: 0.3
   current_season_form:
     infer_from_saved_actuals: true
-    recency_exponent: 1.8
+    # A walk-forward sweep over 2026 (exponents 0.0-2.5) found a monotone curve in
+    # BOTH session kinds with lower exponents better: race MAE 0.6775s at 1.8 vs
+    # 0.6583s at 0.0, qualifying 0.5851s vs 0.5670s. 0.3 is chosen over the
+    # measured-best 0.0 to retain some sensitivity to in-season car upgrades. A
+    # team-clustered bootstrap on the 1.8->0.0 delta includes zero, so this is a
+    # directional improvement, not a proven one.
+    recency_exponent: 0.3
     stabilization_strength: 1.0
     saved_actual_race_weight: 0.75
   driver_form:

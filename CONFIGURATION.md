@@ -48,9 +48,9 @@ sample gates, adjustment scales, and interval widening thresholds used by
 
 Current release posture:
 
-- Active champion metadata is `model.version: "2.3"`.
-- Version `2.3` keeps the calibrated baseline champion conservative while
-  recording target-specific shadow challengers in the background.
+- Active champion metadata is `model.version: "3.0"`.
+- Version `3.0` is a mechanism change rather than a recalibration; the adoption
+  entry is in `docs/MODEL_LEDGER.md`.
 - Candidate/challenger promotion is evidence-gated after races 8, 9, and 10;
   do not promote a new blend solely because it wins a seven-race slice.
 

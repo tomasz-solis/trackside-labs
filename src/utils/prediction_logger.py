@@ -353,7 +353,15 @@ class PredictionLogger:
             session_type="race",
         ):
             actuals["race"] = [
-                {"position": i + 1, "driver": row["driver"], "team": row["team"]}
+                {
+                    "position": i + 1,
+                    "driver": row["driver"],
+                    "team": row["team"],
+                    # Carry the DNF flag from the fetcher through the legacy top-level
+                    # actuals too, so the `synthesize_legacy_actuals` fallback (used when
+                    # `actuals.targets` has no explicit rows) can still see retirements.
+                    **({"dnf": bool(row["dnf"])} if "dnf" in row else {}),
+                }
                 for i, row in enumerate(race_results)
             ]
 

@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
 
-from src.utils.accuracy_targets import explicit_target_actuals, synthesize_legacy_actuals
+from src.utils.accuracy_targets import (
+    explicit_target_actuals,
+    row_is_dnf,
+    synthesize_legacy_actuals,
+)
 from src.utils.team_mapping import map_team_to_characteristics
+
+logger = logging.getLogger("src.predictors.baseline_2026")
 
 
 def driver_characteristics_fallback_paths(data_dir: Path, year: int) -> tuple[Path, ...]:
@@ -122,31 +129,102 @@ def score_teams_from_actual_rows(
     *,
     known_teams: set[str],
 ) -> dict[str, float]:
-    """Convert classified positions into rank-based team-form scores."""
+    """Convert classified positions into rank-based team-form scores.
+
+    Scores are ranks, so excluding a retirement is not monotonically favourable: if a
+    retired car was classified AHEAD of its surviving teammate, dropping it raises the
+    team mean and can cost a rank step. That is rare, because classification normally
+    places non-classified cars behind finishers, but the exclusion is not a guaranteed
+    improvement for every team.
+
+    ponytail: a team scored on one surviving car is not comparable to one scored on
+    two, and unlike the telemetry path in `updater_flow._build_position_fallback_race_pace`
+    there is no entered-field guard here. Shrink a single-car mean toward the field
+    mean if high-attrition races start distorting season form.
+
+    Retirements (per `row_is_dnf`, which reads the `dnf`, `status`, or `classified`
+    shape a row carries) are excluded from a team's position mean, so a mechanical
+    DNF does not score a fast car as if it were a slow one. Rows with no DNF signal
+    of any kind are always kept, so legacy actuals that predate the flag score
+    identically to before. If excluding retirements would leave a team with no rows
+    to score, that team's original (unfiltered) rows are kept instead of dropping the
+    team entirely - mirrors the guard in `updater_flow.extract_dnf_drivers` usage.
+
+    A row whose team does not resolve into `known_teams` is excluded entirely rather
+    than kept under its raw name: an unmapped team taking a rank slot shifts every
+    other team's rank-spaced score. Rows with an invalid `position` (missing,
+    non-integer, or < 1) are also excluded, as before, but now counted and logged.
+    A single resolvable team carries no relative ranking information, so it scores
+    `{}` instead of a fabricated 0.5.
+    """
     team_positions: dict[str, list[int]] = {}
+    team_positions_excluding_dnf: dict[str, list[int]] = {}
+    unresolved_team_names: set[str] = set()
+    unresolved_row_count = 0
+    invalid_position_count = 0
+    rows_with_team = 0
 
     for row in actual_rows:
         raw_team = row.get("team")
         if not isinstance(raw_team, str) or not raw_team.strip():
             continue
+        raw_team_name = raw_team.strip()
+        rows_with_team += 1
 
-        canonical_team = map_team_to_characteristics(raw_team, known_teams=known_teams)
-        team_name = canonical_team if canonical_team else raw_team.strip()
-        position = coerce_non_negative_int(row.get("position"))
-        if position is None or position < 1:
+        canonical_team = map_team_to_characteristics(raw_team_name, known_teams=known_teams)
+        if canonical_team is None:
+            unresolved_team_names.add(raw_team_name)
+            unresolved_row_count += 1
             continue
 
-        team_positions.setdefault(team_name, []).append(position)
+        position = coerce_non_negative_int(row.get("position"))
+        if position is None or position < 1:
+            invalid_position_count += 1
+            continue
+
+        team_positions.setdefault(canonical_team, []).append(position)
+        if not row_is_dnf(row):
+            team_positions_excluding_dnf.setdefault(canonical_team, []).append(position)
+
+    if unresolved_team_names:
+        logger.warning(
+            "score_teams_from_actual_rows: excluded %s row(s) for unresolved team "
+            "name(s) not in known_teams: %s",
+            unresolved_row_count,
+            sorted(unresolved_team_names),
+        )
+
+    if invalid_position_count:
+        logger.warning(
+            "score_teams_from_actual_rows: skipped %s row(s) with an invalid "
+            "position (missing, non-integer, or < 1)",
+            invalid_position_count,
+        )
 
     if not team_positions:
+        if rows_with_team and unresolved_row_count == rows_with_team:
+            logger.error(
+                "score_teams_from_actual_rows: every row's team failed to resolve "
+                "into known_teams; check the alias map. Unresolved name(s): %s",
+                sorted(unresolved_team_names),
+            )
         return {}
-    if len(team_positions) == 1:
-        team_name = next(iter(team_positions))
-        return {team_name: 0.5}
+
+    scored_positions = {
+        team_name: team_positions_excluding_dnf.get(team_name) or positions
+        for team_name, positions in team_positions.items()
+    }
+
+    if len(scored_positions) == 1:
+        logger.warning(
+            "score_teams_from_actual_rows: only one resolvable team in this set of "
+            "rows; a single team carries no relative ranking information"
+        )
+        return {}
 
     team_avg = {
         team_name: float(np.mean(positions))
-        for team_name, positions in team_positions.items()
+        for team_name, positions in scored_positions.items()
         if positions
     }
     if not team_avg:

@@ -7,7 +7,10 @@ from typing import Any
 
 from src.utils import config_loader
 
-_DEFAULT_MODEL_VERSION = "2.3"
+# Keep in sync with `model.version` in config/default.yaml and the ModelConfig
+# schema default in config_schema.py. test_model_version_defaults_agree fails if
+# these three drift apart; this constant is only reached when config fails to load.
+_DEFAULT_MODEL_VERSION = "3.0"
 
 
 def get_model_version() -> str:

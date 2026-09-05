@@ -21,3 +21,11 @@ def test_map_team_to_characteristics_supports_legacy_known_team_aliases():
     known = {"Sauber", "Red Bull Racing"}
     assert map_team_to_characteristics("Kick Sauber", known_teams=known) == "Sauber"
     assert map_team_to_characteristics("Audi F1 Team", known_teams=known) == "Sauber"
+
+
+def test_map_team_to_characteristics_resolves_new_2026_aliases():
+    """New 2026 broadcast/FastF1 name variants should resolve, not fall through as unknown."""
+    assert map_team_to_characteristics("Cadillac F1 Team") == "Cadillac F1"
+    assert map_team_to_characteristics("Mercedes-AMG") == "Mercedes"
+    assert map_team_to_characteristics("McLaren Formula 1 Team") == "McLaren"
+    assert map_team_to_characteristics("General Motors") == "Cadillac F1"

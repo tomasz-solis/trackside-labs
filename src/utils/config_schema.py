@@ -51,7 +51,7 @@ class RegulationEra(StrictConfigModel):
 class ModelConfig(StrictConfigModel):
     """Model release metadata shared across generated artifacts."""
 
-    version: str = Field(default="2.3", min_length=1)
+    version: str = Field(default="3.0", min_length=1)
     # The seconds gap between a fast car and a slow one is a property of the
     # regulations. Fitting a seconds mapping across a regulation boundary averages
     # two different fields and describes neither, so calibration is scoped to an era
@@ -155,7 +155,7 @@ class CurrentSeasonFormConfig(StrictConfigModel):
     """How fast stored actuals can reshape team form."""
 
     infer_from_saved_actuals: bool = True
-    recency_exponent: float = Field(default=1.5, ge=0.0)
+    recency_exponent: float = Field(default=0.3, ge=0.0, le=5.0)
     stabilization_strength: float = Field(default=1.5, ge=0.0)
     saved_actual_race_weight: float = Field(default=0.70, ge=0.0, le=1.0)
 

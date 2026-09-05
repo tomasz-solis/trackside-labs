@@ -316,6 +316,9 @@ def build_feature_frame_from_context(
         team_name = str(driver_info["team"])
         if team_name in team_track_suitability:
             continue
+        # calculate_track_suitability is no longer part of the live team-strength blend
+        # (see team_strength.get_blended_team_strength); this model keeps using it as
+        # an independent feature.
         team_track_suitability[team_name] = float(
             predictor.calculate_track_suitability(team_name, race_name)
         )

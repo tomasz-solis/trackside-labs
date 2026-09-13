@@ -96,6 +96,41 @@ A challenger must pass all of these before it is treated as stackable:
 The gate returns both a boolean and concrete block reasons. Reports should show
 those reasons instead of reducing the result to a vague pass/fail.
 
+### The seed floor, added 2026-09-12 — not yet enforced in code
+
+Every bullet above is a MAE comparison, and **MAE cannot resolve the size of
+change this project usually tests**. Measured on 2026-09-12 by replaying the same
+code at seed 42 and seed 43 over 13 rounds of 2026: qualifying MAE moved -0.0122
+(95% CI [-0.0439, +0.0187]) and race MAE moved +0.0342 (CI [-0.0184, +0.0868])
+with **no model change at all**. So a qualifying MAE gain under ~0.045 positions,
+or a race MAE gain under ~0.087, is indistinguishable from the simulator's own
+randomness.
+
+Two further defects in MAE as a gate metric, both measured the same day: it
+discretises to integer positions, so in one real comparison 7 of 46 checkpoints
+had **different predicted orders and identical MAE**; and it resolves about half
+as finely as `correlation`, which is also seed-stable (its aggregate shifts
+0.0007 across a seed change while still responding on 41 of 46 checkpoints).
+
+**Requirement.** Before a challenger is promoted, measure the seed floor for the
+arms being compared and confirm the improvement exceeds it. Use:
+
+```bash
+uv run python scripts/replay_historical_checkpoints.py --year 2026 --overwrite \
+  --seed 43 --output-root data/historical_replay_seed43
+uv run python scripts/compare_replay_arms.py --baseline <baseline> \
+  --seed-floor <baseline> data/historical_replay_seed43 --candidate <candidate>
+```
+
+`compare_replay_arms.py` reports `correlation` first and labels a sub-floor
+result `unresolvable` rather than `noise`, which are different findings — see
+the verdict table in `docs/MODEL_LEDGER.md`.
+
+**`src/analysis/promotion_gate.py` does not implement this check.** It is a
+documented requirement on the person running the promotion, not an automated
+one, until the gate is taught to take a floor. Treat a promotion whose margin is
+under the floor as unproven no matter what the gate returns.
+
 ## Movement Diagnostics
 
 Implementation: `src/analysis/component_diagnostics.py`.

@@ -58,6 +58,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include sprint qualifying in accuracy scoring instead of saving it as unscored.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Simulator seed passed to Baseline2026Predictor.",
+    )
     return parser
 
 
@@ -75,6 +81,7 @@ def main() -> int:
         weather=str(args.weather).strip().lower(),
         overwrite=bool(args.overwrite),
         excluded_scoring_targets=excluded_targets,
+        seed=int(args.seed),
     )
 
     logger.info("Replay output root: %s", summary.output_root)

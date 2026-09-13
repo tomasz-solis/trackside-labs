@@ -39,6 +39,9 @@ data/validation/
 
 # Replay outputs (hundreds of MB, regenerable, machine-local)
 data/historical_replay/
+# Sidecar replay roots from scripts/replay_historical_checkpoints.py --output-root.
+# Each is ~19MB of regenerable measurement output; the bare pattern above missed them.
+data/historical_replay_*/
 
 # FastF1 Cache
 .fastf1_cache/

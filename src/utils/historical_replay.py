@@ -735,12 +735,14 @@ def _build_race_checkpoint_record(
     excluded_scoring_targets: set[str] | frozenset[str],
     actual_cache: dict[tuple[int, str, str], list[QualifyingGridEntry]],
     predictor_config: ReplayConfigOverride,
+    seed: int = 42,
 ) -> ReplayCheckpointRecord:
     """Generate, save, score, and summarize one replay checkpoint."""
     is_sprint = bool(is_sprint_weekend(year, race_name))
     artifact_store = ArtifactStore(data_root=output_root)
     base_predictor = Baseline2026Predictor(
         data_dir=str(processed_dir),
+        seed=seed,
         season_year=year,
         artifact_store=artifact_store,
         config=cast(Config, predictor_config),
@@ -978,6 +980,7 @@ def run_historical_checkpoint_replay(
     overwrite: bool = False,
     excluded_scoring_targets: set[str] | frozenset[str] | None = None,
     stop_after_race: str | None = None,
+    seed: int = 42,
 ) -> HistoricalReplaySummary:
     """Replay testing and race weekends into sidecar checkpoint forecast files."""
     processed_source = Path(source_processed_dir)
@@ -1049,6 +1052,7 @@ def run_historical_checkpoint_replay(
                     excluded_scoring_targets=scoring_exclusions,
                     actual_cache=actual_cache,
                     predictor_config=predictor_config,
+                    seed=seed,
                 )
             )
 
@@ -1078,6 +1082,7 @@ def run_historical_checkpoint_replay(
                             excluded_scoring_targets=scoring_exclusions,
                             actual_cache=actual_cache,
                             predictor_config=predictor_config,
+                            seed=seed,
                         )
                     )
 

@@ -28,6 +28,7 @@ CALIBRATION_DRIVER_COLUMNS: tuple[str, ...] = (
 
 TEAM_STRENGTH_POLICY_COLUMNS: dict[str, str] = {
     "same_session_construct": "team_strength_same_session",
+    "same_session_margin": "team_strength_same_session_margin",
     "race_event_shared_scalar": "team_strength_race_event",
     "race_season_mean_shared_scalar": "team_strength_race_season_mean",
     "race_trailing_mean_shared_scalar": "team_strength_race_trailing_mean",
@@ -177,6 +178,7 @@ def attach_team_strength_proxies(observations: pd.DataFrame) -> pd.DataFrame:
     required_columns = {
         *CALIBRATION_DRIVER_COLUMNS,
         "driver_median_s",
+        "field_median_s",
     }
     _require_columns(observations, required_columns, "observations")
 
@@ -203,6 +205,16 @@ def attach_team_strength_proxies(observations: pd.DataFrame) -> pd.DataFrame:
         1.0 - ((team_rows["team_rank"] - 1.0) / (team_rows["team_count"] - 1.0)),
         0.5,
     )
+    field_medians = enriched[[*CALIBRATION_SESSION_COLUMNS, "field_median_s"]].drop_duplicates()
+    team_rows = team_rows.merge(
+        field_medians,
+        on=list(CALIBRATION_SESSION_COLUMNS),
+        how="left",
+        validate="many_to_one",
+    )
+    team_rows["team_strength_same_session_margin"] = (
+        team_rows["field_median_s"] - team_rows["team_median_s"]
+    )
     enriched = enriched.merge(
         team_rows[
             [
@@ -210,6 +222,7 @@ def attach_team_strength_proxies(observations: pd.DataFrame) -> pd.DataFrame:
                 "team",
                 "team_median_s",
                 "team_strength_same_session",
+                "team_strength_same_session_margin",
             ]
         ],
         on=[*CALIBRATION_SESSION_COLUMNS, "team"],
@@ -477,6 +490,7 @@ def evaluate_within_season_folds(
                     "slope_s_per_unit": mapping.slope_s_per_unit,
                     "intercept_s": mapping.intercept_s,
                     "prediction_slope": _prediction_slope(observed=observed, predicted=predicted),
+                    "r_squared": _r_squared(observed=observed, predicted=predicted),
                     "rmse_s": float(np.sqrt(np.mean(np.square(observed - predicted)))),
                 }
             )

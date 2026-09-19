@@ -47,10 +47,54 @@ def test_promotion_gate_allows_improvement_without_accuracy_regression():
             "qualifying_worse_count": 1,
             "qualifying_better_count": 2,
         },
+        seed_floor={"race_mae": 0.04, "qualifying_mae": 0.04},
     )
 
     assert result["passed"] is True
     assert result["reasons"] == []
+
+
+_PASSING_DELTAS = {
+    "race_mae_improvement": 0.05,
+    "qualifying_mae_improvement": 0.03,
+    "top3_accuracy_delta": 0.0,
+    "winner_accuracy_delta": 0.0,
+}
+
+
+def test_promotion_gate_blocks_without_seed_floor():
+    """A gain with no measured seed floor cannot be told apart from randomness."""
+    result = evaluate_component_promotion_gate(deltas=_PASSING_DELTAS)
+
+    assert result["passed"] is False
+    assert result["checks"]["improvement_clears_seed_floor"] is False
+    assert "seed floor not supplied; improvement unproven" in result["reasons"]
+
+
+def test_promotion_gate_blocks_gain_below_seed_floor():
+    """The measured 2026 replay floor (~0.087 race, ~0.045 qualifying) swallows this gain."""
+    result = evaluate_component_promotion_gate(
+        deltas=_PASSING_DELTAS,
+        seed_floor={"race_mae": 0.087, "qualifying_mae": 0.045},
+    )
+
+    assert result["passed"] is False
+    assert result["checks"]["improvement_clears_seed_floor"] is False
+    assert any("exceeds its seed floor" in reason for reason in result["reasons"])
+
+
+@pytest.mark.parametrize(
+    "seed_floor",
+    [
+        {"race_mae": 0.05},
+        {"race_mae": -0.01, "qualifying_mae": 0.04},
+        {"race_mae": float("nan"), "qualifying_mae": 0.04},
+        {"race_mae": "wide", "qualifying_mae": 0.04},
+    ],
+)
+def test_promotion_gate_rejects_invalid_seed_floor(seed_floor):
+    with pytest.raises(ValueError, match="seed_floor"):
+        evaluate_component_promotion_gate(deltas=_PASSING_DELTAS, seed_floor=seed_floor)
 
 
 def test_promotion_gate_blocks_broad_weekend_degradation():

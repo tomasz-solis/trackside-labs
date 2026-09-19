@@ -91,12 +91,13 @@ A challenger must pass all of these before it is treated as stackable:
 - winner accuracy does not drop,
 - top-3 accuracy does not drop beyond tolerance,
 - race MAE is not worse on more weekends than it improves,
-- qualifying MAE is not worse on more weekends than it improves.
+- qualifying MAE is not worse on more weekends than it improves,
+- a seed floor is supplied, and at least one target's MAE improvement exceeds it.
 
 The gate returns both a boolean and concrete block reasons. Reports should show
 those reasons instead of reducing the result to a vague pass/fail.
 
-### The seed floor, added 2026-09-12 — not yet enforced in code
+### The seed floor, added 2026-09-12, enforced in code 2026-09-19
 
 Every bullet above is a MAE comparison, and **MAE cannot resolve the size of
 change this project usually tests**. Measured on 2026-09-12 by replaying the same
@@ -126,10 +127,14 @@ uv run python scripts/compare_replay_arms.py --baseline <baseline> \
 result `unresolvable` rather than `noise`, which are different findings — see
 the verdict table in `docs/MODEL_LEDGER.md`.
 
-**`src/analysis/promotion_gate.py` does not implement this check.** It is a
-documented requirement on the person running the promotion, not an automated
-one, until the gate is taught to take a floor. Treat a promotion whose margin is
-under the floor as unproven no matter what the gate returns.
+**`src/analysis/promotion_gate.py` enforces this.** It takes
+`seed_floor={"race_mae": ..., "qualifying_mae": ...}` and fails with "seed floor
+not supplied; improvement unproven" when none is given. The floor must be
+measured for the comparison being gated: the replay floor above belongs to the
+13-round 2026 replay and does not transfer to other seasons or sample sizes.
+`scripts/evaluate_testing_team_seed_model.py` runs its holdouts on one seed and
+passes no floor, so every comparison it reports is blocked until a floor is
+measured for it.
 
 ## Movement Diagnostics
 

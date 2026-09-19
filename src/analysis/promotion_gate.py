@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 
@@ -29,6 +30,7 @@ def evaluate_component_promotion_gate(
     *,
     deltas: dict[str, Any],
     race_delta_summary: dict[str, Any] | None = None,
+    seed_floor: dict[str, Any] | None = None,
     min_total_mae_improvement: float = 0.02,
     central_mae_tolerance: float = 0.02,
     top3_tolerance_pp: float = 2.0,
@@ -37,7 +39,22 @@ def evaluate_component_promotion_gate(
 
     Positive MAE deltas mean the challenger improved against the champion.
     Accuracy deltas are percentage-point deltas where positive is better.
+
+    ``seed_floor`` holds ``race_mae`` and ``qualifying_mae``: how far MAE moves
+    between two seeds of identical code, measured for the same comparison being
+    gated. At least one target's improvement must exceed its floor. Without a
+    floor the gate fails, because a gain cannot be told apart from simulator
+    randomness (see ``docs/MODEL_PROMOTION.md``).
     """
+    floors: dict[str, float] | None = None
+    if seed_floor is not None:
+        floors = {}
+        for key in ("race_mae", "qualifying_mae"):
+            value = _coerce_float(seed_floor.get(key))
+            if value is None or not math.isfinite(value) or value < 0.0:
+                raise ValueError(f"seed_floor[{key!r}] must be a finite non-negative number")
+            floors[key] = value
+
     race_delta = _coerce_float(deltas.get("race_mae_improvement"))
     qualifying_delta = _coerce_float(deltas.get("qualifying_mae_improvement"))
     top3_delta = _coerce_float(deltas.get("top3_accuracy_delta"))
@@ -97,6 +114,16 @@ def evaluate_component_promotion_gate(
     if not checks["qualifying_weekends_not_broadly_worse"]:
         reasons.append("qualifying MAE got worse on more weekends than it improved")
 
+    if floors is None:
+        checks["improvement_clears_seed_floor"] = False
+        reasons.append("seed floor not supplied; improvement unproven")
+    else:
+        checks["improvement_clears_seed_floor"] = (
+            race_mae_delta > floors["race_mae"] or qualifying_mae_delta > floors["qualifying_mae"]
+        )
+        if not checks["improvement_clears_seed_floor"]:
+            reasons.append("no MAE improvement exceeds its seed floor; improvement unproven")
+
     passed = all(checks.values())
     return {
         "passed": bool(passed),
@@ -106,6 +133,7 @@ def evaluate_component_promotion_gate(
             "min_total_mae_improvement": float(min_total_mae_improvement),
             "central_mae_tolerance": float(central_mae_tolerance),
             "top3_tolerance_pp": float(top3_tolerance_pp),
+            "seed_floor": floors,
         },
         "total_mae_improvement": total_mae_improvement,
     }

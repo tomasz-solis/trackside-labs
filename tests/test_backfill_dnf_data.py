@@ -47,6 +47,25 @@ def test_match_session_for_block_picks_best_order_match():
     assert module._match_session_for_block(block, fetched) == "Sprint"
 
 
+def test_match_session_for_block_rejects_zero_match():
+    # GP fetch failed; the Sprint rows share no position with the block, so its
+    # DNF flags must not be merged onto it.
+    module = _load_backfill_module()
+    block = [{"driver": "ANT"}, {"driver": "NOR"}]
+    fetched = {"R": None, "Sprint": [{"driver": "RUS"}, {"driver": "VER"}]}
+    assert module._match_session_for_block(block, fetched) is None
+
+
+def test_match_session_for_block_rejects_tie():
+    module = _load_backfill_module()
+    block = [{"driver": "RUS"}, {"driver": "ANT"}]
+    fetched = {
+        "R": [{"driver": "RUS"}, {"driver": "NOR"}],
+        "Sprint": [{"driver": "RUS"}, {"driver": "VER"}],
+    }
+    assert module._match_session_for_block(block, fetched) is None
+
+
 def test_backfill_actuals_labels_targets_and_legacy_block():
     module = _load_backfill_module()
     prediction = {

@@ -96,11 +96,14 @@ def _match_session_for_block(
     """Pick the fetched session whose ordering best matches an existing block.
 
     Used for the legacy top-level race actuals, which on a sprint weekend hold the
-    sprint classification rather than the Grand Prix.
+    sprint classification rather than the Grand Prix. Returns ``None`` when no
+    session matches any position or two sessions tie, so an unidentifiable block is
+    left unlabelled rather than given another session's DNF flags.
     """
     block_order = [str(row.get("driver", "")) for row in block_rows]
     best_session: str | None = None
-    best_score = -1
+    best_score = 0
+    tied = False
     for session_name, rows in fetched.items():
         if not rows:
             continue
@@ -109,6 +112,14 @@ def _match_session_for_block(
         if score > best_score:
             best_score = score
             best_session = session_name
+            tied = False
+        elif score == best_score and best_session is not None:
+            tied = True
+    if tied:
+        logger.warning("Legacy race block matches several sessions equally; leaving it unlabelled")
+        return None
+    if best_session is None:
+        logger.warning("Legacy race block matches no fetched session; leaving it unlabelled")
     return best_session
 
 

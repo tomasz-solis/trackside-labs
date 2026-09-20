@@ -562,6 +562,15 @@ baseline_predictor:
     # Carlo DNF sampling inputs are untouched). lambda 1.0 = report the simulated
     # rate unchanged; 0.0 = report the base rate.
     #
+    # 2026-09-20: shrinkage turned OFF (lambda 0.25 -> 1.0). At 0.25 the reported
+    # number spanned only [0.150, 0.238] while the simulation sampled the unshrunk
+    # rate, so the dashboard and the finish order disagreed by construction: a car
+    # simulated at 2% was displayed at 15.5%. Reporting the simulated rate costs
+    # pooled Brier (0.16086 -> 0.17622 on the 2026 actuals below) but the displayed
+    # number is now the one the model actually used. Re-enable only as part of the
+    # DNF refit that also calibrates the sampling input, not the display alone.
+    # dnf_probability_base_rate stays recorded below; it is unused while lambda=1.0.
+    #
     # dnf_probability_base_rate is the observed 2026 retirement rate: 42
     # retirements over 264 driver-races across the 12 completed rounds, read
     # from raw FastF1 ClassifiedPosition (0.201 per driver-race, 4.42 per race).
@@ -569,12 +578,12 @@ baseline_predictor:
     # which scored stored predictions against actuals missing 31 of the 42
     # retirements (it recorded 11) and concluded the raw output overforecasts
     # risk. That premise is the reverse of what the complete actuals show: the
-    # model under-forecasts. lambda is kept at 0.25 rather than raised toward
-    # 1.0 — re-scored on the complete 264 driver-race set, pooled Brier is
-    # 0.16045 at lambda 0.00 and 0.16086 at lambda 0.25 (within 0.0004 of the
-    # best value), rising to 0.17622 at lambda 1.00, so a moderate shrink
-    # toward the (now correct) base rate is still the better calibration.
-    dnf_probability_shrinkage_lambda: 0.25
+    # model under-forecasts. Re-scored on the complete 264 driver-race set,
+    # pooled Brier is 0.16045 at lambda 0.00, 0.16086 at lambda 0.25 and 0.17622
+    # at lambda 1.00 — reporting a flat base rate scores best, which says the
+    # per-driver rates carry little skill rather than that the display needs a
+    # shrink. Fix the rates, not the reported number.
+    dnf_probability_shrinkage_lambda: 1.0
     dnf_probability_base_rate: 0.20
 
     # Program-aware testing/practice modifier

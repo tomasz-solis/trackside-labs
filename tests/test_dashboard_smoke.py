@@ -136,20 +136,6 @@ class TestDashboardDataFlow:
         assert formatted == 54.7
         assert isinstance(formatted, int | float)
 
-    def test_dnf_risk_color_logic(self):
-        """Test DNF risk color coding logic"""
-
-        def get_dnf_status(dnf_pct):
-            if dnf_pct > 20:
-                return "High"
-            elif dnf_pct > 10:
-                return "Medium"
-            return "Low"
-
-        assert get_dnf_status(5) == "Low"
-        assert get_dnf_status(15) == "Medium"
-        assert get_dnf_status(25) == "High"
-
 
 class TestDashboardEdgeCases:
     """Test edge cases in dashboard"""

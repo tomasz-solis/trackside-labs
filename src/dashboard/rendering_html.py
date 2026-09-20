@@ -6,6 +6,13 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+# The per-driver DNF rates score worse than a flat season base rate (pooled Brier
+# 0.17622 against 0.16045 on the 2026 actuals), so the number is not worth
+# showing. Predictions still carry dnf_probability and the evaluation report still
+# scores it; only the user-facing surfaces are hidden. Flip this back on once the
+# sampling input is recalibrated. See LIMITATIONS.md.
+SHOW_DNF_RISK = False
+
 
 def _build_surface_header_html(
     *,
@@ -432,7 +439,7 @@ def _build_prediction_highlight_cards(
                     "tone": "neutral",
                 }
             )
-        if "dnf_probability" in ordered.columns:
+        if SHOW_DNF_RISK and "dnf_probability" in ordered.columns:
             dnf_watch = ordered.sort_values("dnf_probability", ascending=False).iloc[0]
             race_cards.append(
                 {

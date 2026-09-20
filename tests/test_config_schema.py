@@ -55,6 +55,27 @@ def test_validate_config_accepts_default_yaml():
     assert validated.dashboard.prediction_precompute.accuracy_reconcile_lookback_days == 14
 
 
+def test_shipped_config_reports_the_simulated_dnf_rate():
+    """Display shrinkage stays off: the reported DNF risk is the one the simulation used.
+
+    Re-enabling it silently would put the dashboard and the finish order back on
+    different distributions (see config/default.yaml and LIMITATIONS.md).
+    """
+    from src.predictors.baseline.race.result_processing import calibrated_dnf_probability
+
+    validated = validate_config(yaml.safe_load(Path("config/default.yaml").read_text()))
+    race_cfg = validated.baseline_predictor.race
+
+    assert race_cfg.dnf_probability_shrinkage_lambda == pytest.approx(1.0)
+    for simulated in (0.02, 0.10, 0.35):
+        assert calibrated_dnf_probability(
+            simulated,
+            output_cap=race_cfg.dnf_rate_final_cap,
+            shrinkage_lambda=race_cfg.dnf_probability_shrinkage_lambda,
+            base_rate=race_cfg.dnf_probability_base_rate,
+        ) == pytest.approx(simulated)
+
+
 def test_validate_config_rejects_unknown_nested_keys():
     """Any YAML key missing from the schema should fail validation."""
     config_dict = yaml.safe_load(Path("config/default.yaml").read_text())

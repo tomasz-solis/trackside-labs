@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.rendering_html import (
+    SHOW_DNF_RISK,
     _build_team_clustering_warning,
     _render_collapsible_warnings,
     render_notice_banner,
@@ -17,6 +18,49 @@ from src.dashboard.rendering_html import (
 )
 
 logger = logging.getLogger(__name__)
+
+# The reported DNF probability is shrunk toward the season base rate, so its range
+# depends on calibration config (0.15-0.24 today, ~0.02-0.35 in older artifacts).
+# Risk is therefore judged against the race's own field, never a fixed percentage.
+_DNF_ELEVATED_RATIO = 1.5
+_DNF_STYLE_HIGH = (
+    "background-color: rgba(198,40,40,0.22); color: rgba(255,255,255,0.92); font-weight: 700;"
+)
+_DNF_STYLE_MID = (
+    "background-color: rgba(245,127,23,0.20); color: rgba(255,255,255,0.92); font-weight: 700;"
+)
+_DNF_STYLE_LOW = (
+    "background-color: rgba(46,125,50,0.18); color: rgba(237,239,243,0.92); font-weight: 700;"
+)
+
+
+def _dnf_risk_styles(values: pd.Series) -> list[str]:
+    """Colour DNF risk by tercile within the race: top third red, bottom third green.
+
+    A field of identical values ranks mid-table and stays amber; missing values are
+    left unstyled.
+    """
+    percentile = pd.to_numeric(values, errors="coerce").rank(pct=True)
+    styles: list[str] = []
+    for pct in percentile:
+        if pd.isna(pct):
+            styles.append("")
+        elif pct > 2 / 3:
+            styles.append(_DNF_STYLE_HIGH)
+        elif pct <= 1 / 3:
+            styles.append(_DNF_STYLE_LOW)
+        else:
+            styles.append(_DNF_STYLE_MID)
+    return styles
+
+
+def _elevated_dnf_drivers(race_df: pd.DataFrame) -> list[str]:
+    """Drivers whose DNF risk is at least ``_DNF_ELEVATED_RATIO`` times the field mean."""
+    risk = pd.to_numeric(race_df["dnf_probability"], errors="coerce")
+    field_mean = float(risk.mean())
+    if not field_mean > 0.0:
+        return []
+    return [str(d) for d in race_df.loc[risk >= _DNF_ELEVATED_RATIO * field_mean, "driver"]]
 
 
 def _position_change_chart_title(prediction_name: str, result: dict) -> str:
@@ -652,13 +696,6 @@ def _style_race_table(df_display: pd.DataFrame):
 
         return "border-left: 4px solid transparent; color: rgba(237,239,243,0.88);"
 
-    def color_dnf_risk(val):
-        if val > 20:
-            return "background-color: rgba(198,40,40,0.22); color: rgba(255,255,255,0.92); font-weight: 700;"
-        if val >= 10:
-            return "background-color: rgba(245,127,23,0.20); color: rgba(255,255,255,0.92); font-weight: 700;"
-        return "background-color: rgba(46,125,50,0.18); color: rgba(237,239,243,0.92); font-weight: 700;"
-
     def highlight_expected_position(val):
         _ = val
         return (
@@ -699,7 +736,7 @@ def _style_race_table(df_display: pd.DataFrame):
         .map(color_position, subset=["Pos"])
     )
     if "DNF Risk %" in df_display.columns:
-        styled_df = styled_df.map(color_dnf_risk, subset=["DNF Risk %"])
+        styled_df = styled_df.apply(_dnf_risk_styles, subset=["DNF Risk %"])
 
     format_map = {
         column: template
@@ -736,8 +773,8 @@ def _render_race_result(df: pd.DataFrame) -> None:
         race_df["confidence"] = order_conf
     has_confidence = "confidence" in race_df.columns
     has_podium_probability = "podium_probability" in race_df.columns
-    has_dnf_probability = "dnf_probability" in race_df.columns
-    if not has_dnf_probability and "dnf_risk" in race_df.columns:
+    has_dnf_probability = SHOW_DNF_RISK and "dnf_probability" in race_df.columns
+    if SHOW_DNF_RISK and not has_dnf_probability and "dnf_risk" in race_df.columns:
         race_df["dnf_probability"] = race_df["dnf_risk"]
         has_dnf_probability = True
     if has_confidence:
@@ -789,10 +826,11 @@ def _render_race_result(df: pd.DataFrame) -> None:
             )
 
     if has_dnf_probability:
-        high_dnf = race_df[race_df["dnf_probability"] > 20]
-        if not high_dnf.empty:
+        high_dnf = _elevated_dnf_drivers(race_df)
+        if high_dnf:
             warnings.append(
-                f"High DNF risk ({len(high_dnf)} drivers): {', '.join(high_dnf['driver'].values)}"
+                f"High DNF risk ({len(high_dnf)} drivers, at least "
+                f"{_DNF_ELEVATED_RATIO:g}x the field average): {', '.join(high_dnf)}"
             )
     team_cluster_warning = _build_team_clustering_warning(
         race_df,
@@ -840,6 +878,11 @@ def _render_race_result(df: pd.DataFrame) -> None:
     if has_dnf_probability:
         display_cols.append("dnf_probability")
         display_names.append("DNF Risk %")
+        st.caption(
+            "`DNF Risk %` is calibrated toward the season retirement rate, so it spans a narrow "
+            "band; colours rank drivers within this race. The simulated finishing order samples "
+            "retirements from the uncalibrated per-driver rates, so the two can differ."
+        )
     if has_confidence:
         display_cols.append("confidence")
         display_names.append("Order Confidence %")

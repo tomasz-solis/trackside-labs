@@ -127,7 +127,8 @@ def test_render_weather_feature_context_shows_practice_source(patcher):
     )
 
 
-def test_render_race_result_warns_on_high_dnf(patcher):
+def test_render_race_result_hides_dnf_surfaces_while_disabled(patcher):
+    """DNF risk is not shown at all while SHOW_DNF_RISK is off, warning included."""
     calls = _stub_streamlit(patcher)
 
     df = pd.DataFrame(
@@ -159,10 +160,54 @@ def test_render_race_result_warns_on_high_dnf(patcher):
         ]
     )
 
+    assert rendering_race.SHOW_DNF_RISK is False
     rendering_race._render_race_result(df)
 
-    markdown_messages = [value for kind, value in calls if kind == "markdown"]
-    assert any("High DNF risk" in msg for msg in markdown_messages)
+    rendered = [str(value) for _, value in calls]
+    assert not any("DNF" in text for text in rendered)
+
+
+def test_highlight_cards_drop_dnf_watch_while_disabled():
+    from src.dashboard import rendering_html
+
+    df = pd.DataFrame(
+        [
+            {"position": 1, "driver": "VER", "team": "Red Bull Racing", "dnf_probability": 0.05},
+            {"position": 2, "driver": "NOR", "team": "McLaren", "dnf_probability": 0.30},
+        ]
+    )
+    cards = rendering_html._build_prediction_highlight_cards(df, {}, is_race=True)
+
+    assert rendering_html.SHOW_DNF_RISK is False
+    assert not any("DNF" in card["label"] for card in cards)
+
+
+def test_elevated_dnf_ignores_calibrated_band():
+    """The shipped calibration reports 15.0-23.8%; none of that is elevated vs the field."""
+    df = pd.DataFrame(
+        {"driver": ["VER", "NOR", "LEC", "HAM"], "dnf_probability": [0.150, 0.180, 0.210, 0.238]}
+    )
+    assert rendering_race._elevated_dnf_drivers(df) == []
+
+
+def test_elevated_dnf_flags_driver_well_above_field():
+    df = pd.DataFrame(
+        {"driver": ["VER", "NOR", "LEC", "HAM"], "dnf_probability": [0.05, 0.05, 0.05, 0.30]}
+    )
+    assert rendering_race._elevated_dnf_drivers(df) == ["HAM"]
+
+
+def test_dnf_risk_styles_rank_within_race():
+    styles = rendering_race._dnf_risk_styles(pd.Series([15.0, 18.0, 21.0, None]))
+    assert styles[0] == rendering_race._DNF_STYLE_LOW
+    assert styles[1] == rendering_race._DNF_STYLE_MID
+    assert styles[2] == rendering_race._DNF_STYLE_HIGH
+    assert styles[3] == ""
+
+
+def test_dnf_risk_styles_uniform_field_stays_neutral():
+    styles = rendering_race._dnf_risk_styles(pd.Series([20.0] * 5))
+    assert styles == [rendering_race._DNF_STYLE_MID] * 5
 
 
 def test_render_race_result_handles_saved_checkpoint_payload_without_optional_columns(patcher):

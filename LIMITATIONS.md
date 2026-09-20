@@ -219,25 +219,31 @@ and team uncertainty, then realised through Monte Carlo DNF sampling. The
 dashboard shows it as a "DNF Risk %" column and the evaluation report scores
 it with a Brier score against actual retirements.
 
-The gap: against the low observed 2026 retirement rate, the raw output
-overforecasts risk. The 2026 probe
-(`data/model_diagnostics/2026/dnf_calibration_probe.md`, 13 race events,
-286 driver observations, 11 DNFs) scores the emitted probabilities at
-Brier 0.046 while shrinking them three-quarters of the way toward the season
-base rate scores 0.037. The sample is small, so per-driver risk ranking may
-still be informative even though the absolute magnitudes run high.
+The gap: the per-driver rates carry little measured skill. On the complete
+2026 actuals (42 retirements over 264 driver-races, 0.201 per driver-race)
+pooled Brier is 0.16045 when every driver is reported at the base rate,
+0.16086 at the shipped shrinkage, and 0.17622 for the unshrunk per-driver
+rate, so differentiating drivers currently scores worse than not doing it.
+(An earlier probe concluded the opposite — that the model overforecasts — from
+actuals that recorded only 11 of the 42 retirements; that premise is retired.)
 
-What partially mitigates it: an output-layer shrinkage knob
-(`baseline_predictor.race.dnf_probability_shrinkage_lambda` with
-`dnf_probability_base_rate`) recalibrates the *reported* probability without
-touching the simulation inputs. It now ships at 0.25 per the probe, shrinking
-the raw output three-quarters of the way toward the season base rate.
-Trade-off: the reported range compresses to roughly [0.03, 0.12], so the
-"DNF Risk %" surface reads as *relative* risk rather than absolute crash odds;
-the sample is still small (11 DNFs), so the value may be revised (0.5 keeps
-more spread at nearly the same Brier).
+What mitigated it, and why it is now off: an output-layer shrinkage knob
+(`baseline_predictor.race.dnf_probability_shrinkage_lambda`, with
+`dnf_probability_base_rate`) recalibrated the *reported* probability without
+touching the simulation inputs. At 0.25 it bought 0.0154 pooled Brier and cost
+coherence — the reported number compressed to [0.150, 0.238] while the finishing
+order kept sampling the unshrunk rate, so a car simulated at 2% was displayed at
+15.5%. As of 2026-09-20 lambda ships at 1.0, so the reported number is the one
+the simulation used.
 
-What would fix it: keep scoring races, and if the overforecast persists,
-recalibrate the simulation-input DNF rates themselves (historical caps,
-floors, and experience modifiers) through the promotion-gate workflow, since
-that changes finish-order predictions.
+The dashboard no longer shows it at all (`SHOW_DNF_RISK` in
+`src/dashboard/rendering_html.py`): a quantity that scores worse than a flat
+season rate is not worth a column. Predictions still carry `dnf_probability`
+and the evaluation report still scores it, so the refit below has its evidence.
+
+What would fix it: move the calibration onto the simulation input so both use
+the same probability, and refit `dnf_probability_shrinkage_lambda`,
+`dnf_probability_base_rate` and `dnf_season_calibration_multiplier` together.
+That changes finish-order predictions, so it goes through a rebuilt replay with
+the seed floor and the promotion gate, after production DNF labels are uniformly
+backfilled.

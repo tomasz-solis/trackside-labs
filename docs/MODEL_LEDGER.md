@@ -125,6 +125,10 @@ measuring that noise. The floor threshold is the widest absolute bound of the se
 pair's confidence interval, not its point estimate: one seed pair's shift is a single
 draw, and gating on it alone lets noise-sized effects through as real.
 
+**Current floor: use the 2026-09-21 re-measurement over 14 rounds** (entry at the bottom of
+this file). The 13-round table immediately below is kept because entries dated before
+2026-09-21 were gated against it; it is not the floor to gate new work with.
+
 **Seed floor measured 2026-09-12** (identical code, seed 42 vs 43, 13 rounds):
 
 | target | metric | mean delta | 95% CI |
@@ -2275,6 +2279,71 @@ requirement added to `MODEL_PROMOTION.md` is enforced by the person running the 
 not by code. `scripts/generate_evaluation_report.py` and the dashboard were deliberately
 left on MAE: changing the primary metric there reaches the live product, and the verdicts
 that matter are made in the comparison tool.
+
+## 2026-09-21: 2026 baseline rebuilt over 14 rounds, seed floor re-measured, pipeline determinism proven
+
+**No model change was measured.** This entry records the instrument, not a result.
+
+**Code identity.** `54810683` (`master`), clean tree. `config/default.yaml` changed earlier the
+same day (`dnf_probability_shrinkage_lambda` 0.25 -> 1.0), which moves the reported DNF number
+only; finish order, qualifying order and every metric below are untouched by it.
+
+**Protocol.** `scripts/replay_historical_checkpoints.py --year 2026` into three fresh roots, no
+`--overwrite` of any existing measurement. Pre-season reset from the committed flat
+`data/processed/driver_characteristics.json` (sha256 `62ea9300…`, extracted 2026-03-30 from
+2023-25, `sessions_observed=0` for all 29 drivers, identical to the blob at `ff9197a0^`). 14 of
+25 events complete, last being the Spanish Grand Prix on 2026-09-13. 51 paired checkpoints on
+qualifying and race, 15 on sprint race.
+
+| root | seed | purpose |
+|---|---|---|
+| `data/historical_replay_base42_r14` | 42 | first run; **inputs differ, see below** |
+| `data/historical_replay_base42_r14_check` | 42 | the baseline to reuse |
+| `data/historical_replay_base43_r14` | 43 | floor partner |
+
+**Determinism, established rather than assumed.** The two seed-42 runs produced byte-identical
+`metrics` blocks in all 117 accuracy snapshots, and all 51 prediction files matched apart from
+`predicted_at` and `run_id`. So the replay is reproducible at a fixed seed and the floor below
+measures seed randomness alone.
+
+**One input difference, and it decides which roots pair.** Run 1 replayed 68 weekend sessions;
+runs 2 and 3 replayed 69, the extra one being `Spanish Grand Prix::R`. It reached
+`2026_car_characteristics.json` (Alpine HARD laps sampled 93 -> 186) but changed no checkpoint,
+because it lands after the last scored prediction. Most plausibly run 1 failed to load that
+session and populated the FastF1 cache as a side effect. **Pair the floor and any future arm with
+`base42_r14_check`, not `base42_r14`**, so a comparison never mixes an input difference with the
+thing being tested.
+
+**Seed floor, 14 rounds, identical code, seed 42 vs 43:**
+
+| target | metric | mean delta | 95% CI | verdict |
+|---|---|---|---|---|
+| qualifying | correlation | -0.0003 | [-0.0035, +0.0026] | noise |
+| qualifying | overall_mae | -0.0157 | [-0.0458, +0.0141] | noise |
+| race | correlation | -0.0005 | [-0.0069, +0.0060] | noise |
+| race | overall_mae | +0.0327 | [-0.0190, +0.0840] | noise |
+| sprint race | correlation | -0.0019 | [-0.0094, +0.0042] | noise |
+| sprint race | overall_mae | -0.0251 | [-0.1114, +0.0606] | noise |
+
+**Gate new work on the widest bound:** qualifying correlation 0.0035 and MAE 0.046; race
+correlation 0.0069 and MAE 0.084; sprint correlation 0.0094 and MAE 0.111.
+
+**The floor is stable across the extra round.** Qualifying MAE 0.0439 -> 0.0458, race MAE
+0.0868 -> 0.0840 against 2026-09-12. It is a property of the simulator rather than of one run,
+so it can be reused until the code or round count moves materially.
+
+**Champion levels on this baseline, for reference, not as a verdict:** qualifying correlation
+0.8692 and MAE 2.3257; race correlation 0.6652 and MAE 3.5666; sprint race correlation 0.8366
+and MAE 2.5706.
+
+**One metric to distrust at sprint sample sizes.** In the floor run — no model change at all —
+sprint `exact_accuracy` came back `better` at +3.0303 with CI [+0.3030, +5.7576], excluding
+zero. At n=15 that metric manufactures significance from the seed. Do not let a sprint accuracy
+number carry a decision.
+
+**Control check.** Scoring the seed-43 run as a candidate returns
+`unresolvable (below seed floor)` on every metric, which is the correct verdict for a run with
+no model change, and confirms the gate fires.
 
 ## Adding an entry
 

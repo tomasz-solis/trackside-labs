@@ -1,109 +1,48 @@
-# Model Ledger
+# Model ledger
 
-What has been tried, how it was measured, and whether it helped.
+What was tried, how it was measured, and whether it helped. `MODEL_PROMOTION.md` defines the gates; this file records what went through them.
 
-`MODEL_PROMOTION.md` defines the gates a change must pass. This file is the
-record of what actually went through them, kept so the current model's
-reliability can be judged over time rather than re-argued from memory. Append to
-it; do not rewrite past entries when a later result contradicts them — supersede
-them and say so.
+Add new entries at the bottom. Never change a past verdict: when a later result contradicts one, mark it superseded and point to the new entry.
 
-## How to read a verdict
+## Verdicts
 
-| verdict | meaning |
+| Verdict | Meaning |
 |---|---|
-| `adopted` | measured better, now part of champion |
-| `worse` | measured, lost |
-| `noise` | measured, difference indistinguishable from run-to-run variation |
-| `unresolvable` | effect is smaller than the measured seed floor — **nothing was learned** |
-| `never activated` | ran, but a runtime guard made it champion-identical — **untested, not neutral** |
-| `refused` | could not produce a scored result at all |
-| `open` | not yet measured |
+| `adopted` | Measured better, now in the champion |
+| `worse` | Measured, lost |
+| `noise` | Measured, the effect straddles zero |
+| `unresolvable` | Smaller than the seed floor: nothing was learned |
+| `never activated` | Ran, but a guard made it identical to the champion: untested, not neutral |
+| `refused` | Could not produce a scored result |
+| `open` | Not measured yet |
 
-`never activated` is the one that misleads. A variant that returns
-champion-identical numbers looks harmless in a comparison table and is actually
-a variant nobody has tested.
+`never activated` is the one that misleads: identical numbers look harmless but mean nobody tested the change. `unresolvable` is not `noise`: noise straddles zero, unresolvable means the comparison could not detect the effect at all.
 
-`unresolvable` is the one added 2026-09-12, and it is **not** a synonym for
-`noise`. `noise` says the effect straddles zero across events. `unresolvable`
-says the effect is smaller than what changing the random seed alone does, so the
-comparison could not have detected it either way. Measured on 2026-09-12, a
-qualifying MAE change under ~0.045 positions and a race MAE change under ~0.087
-are both unresolvable on a single seed pair — which covers a good number of the
-deltas recorded in this file. See **Measurement protocol** for the floor and for
-how to produce one.
+## Baselines
 
-## The baseline problem
-
-**Every result is only comparable to the champion it was measured against.**
-On 2026-07-28 a bug fix moved champion qualifying MAE by 0.70 positions —
-roughly ten times the largest challenger effect ever recorded here. Any
-challenger scored before that date was scored against a champion that no longer
-exists.
-
-So every entry below records its baseline. When champion changes materially,
-past challenger verdicts become stale rather than wrong, and re-baselining is
-the only way to keep the table meaningful.
-
-## Champion history
-
-| date | change | measured effect | commit |
-|---|---|---|---|
-| 2026-07-28 | Centre `quali_rating_mu_s` within team when the qualifying driver list is built. It was carrying a team-level component on top of the team-strength term, so car pace was counted twice. | qualifying MAE **3.525 → 2.828**; mean per-driver \|bias\| **2.889 → 1.677**. HUL +6.11 → +1.67, ALB −5.78 → +0.11, GAS +4.33 → +0.33 | `93bfbeb0` |
-
-| 2026-08-04 | Refit `team_strength_seconds_mapping` on **2026 only**. It was fitted on 2022–2025 and had never seen a 2026 lap, so it converted team-strength rank into a time gap using a pre-regulation field and compressed team separation all season. | qualifying MAE **2.6599 → 2.5724**, mean per-driver \|bias\| **1.5017 → 1.2997**; race MAE **4.0606 → 3.9192**, race \|bias\| **2.4242 → 2.3434**, both at 60 simulations. Slopes: qualifying 1.77417 → 2.76281, race 1.97077 → 3.89727 | `fdf7be6f` |
-
-Known residual after that change, measured the same way: SAI −5.67, LAW +6.44,
-BOR +4.44, ALO −4.11, VER −4.11. These are team-strength errors (Williams
-over-rated, RB under-rated), not driver-rating errors, and the centering fix
-does not touch them.
+Every result only compares to the champion it was measured against. On 2026-07-28 one bug fix moved qualifying MAE by 0.70 positions, about ten times the largest challenger effect recorded here. So every entry names its baseline, and old verdicts go stale when the champion changes.
 
 ## Measurement protocol
 
-**Superseded 2026-09-12.** The protocol previously documented here prescribed
-`scripts/run_challenger_research_walk_forward.py` with 3 seeds from
-`DEFAULT_REPLAY_SEEDS`. **That script, that constant, and two of the data paths it
-named no longer exist** — verified 2026-09-12: `DEFAULT_REPLAY_SEEDS` appears in zero
-Python files, and `data/historical_replay/2026/prediction_cache` and
-`research_backend_state/` are both gone. Every other script named in this file and in
-`MODEL_PROMOTION.md` still exists, so this was one rotted section, not general drift.
-
-This matters more than a stale path. The rule that made results trustworthy — **score
-across 3 seeds** — pointed at a harness nobody could run, so work fell back to
-`scripts/replay_historical_checkpoints.py`, which until 2026-09-12 had **no seed
-support at all** and always ran seed 42. Every verdict produced that way rests on one
-draw of the simulator's randomness. The old protocol text is preserved below for
-reading old entries; do not try to run it.
-
-### Current protocol
-
-Rebuild the season from preseason, change one thing, score on 2026 only (see the
-regulation-break rule), and before adopting anything try to reproduce the gain by
-scaling a shipped constant.
+Rebuild the season from pre-season, change one thing, score on 2026 only (2022 to 2025 seasons cannot judge a 2026 calibration), and before adopting, check whether scaling an existing constant reproduces the gain.
 
 ```bash
-# baseline and candidate, one variable apart
-uv run python scripts/replay_historical_checkpoints.py --year 2026 --overwrite \
-  --output-root data/historical_replay_baseline
-uv run python scripts/replay_historical_checkpoints.py --year 2026 --overwrite \
-  --output-root data/historical_replay_candidate
+# baseline and candidate, one variable apart, same round window
+uv run python scripts/replay_historical_checkpoints.py --year 2026 --through-round 14 --output-root data/historical_replay_baseline
+uv run python scripts/replay_historical_checkpoints.py --year 2026 --through-round 14 --output-root data/historical_replay_candidate
 
-# the seed floor: identical code, two seeds
-uv run python scripts/replay_historical_checkpoints.py --year 2026 --overwrite \
-  --seed 43 --output-root data/historical_replay_seed43
+# seed floor: same code, second seed
+uv run python scripts/replay_historical_checkpoints.py --year 2026 --through-round 14 --seed 43 --output-root data/historical_replay_seed43
 
-# compare, gated against that floor
-uv run python scripts/compare_replay_arms.py \
-  --baseline data/historical_replay_baseline \
-  --seed-floor data/historical_replay_baseline data/historical_replay_seed43 \
-  --candidate data/historical_replay_candidate
+# compare, gated on the floor
+uv run python scripts/compare_replay_arms.py --baseline data/historical_replay_baseline --seed-floor data/historical_replay_baseline data/historical_replay_seed43 --candidate data/historical_replay_candidate
 ```
 
-**Correlation is the primary metric; MAE is secondary.** Measured 2026-09-12 over 46
-checkpoints, resolving power as the 95% CI half-width on a paired delta divided by the
-metric's own spread — lower is a finer instrument:
+A 14-round replay takes 30 minutes to 3 hours depending on machine load. Run it in your own terminal; Claude Code's low-memory reaper has killed it as a background job.
 
-| metric | detectable / spread |
+**Correlation is the primary metric, MAE secondary.** Resolving power over 46 checkpoints (95% CI half-width on a paired delta divided by the metric's spread, lower is finer):
+
+| Metric | Detectable / spread |
 |---|---|
 | **correlation** | **0.030** |
 | overall_mae | 0.063 |
@@ -113,364 +52,145 @@ metric's own spread — lower is a finer instrument:
 | within_1 | 0.172 |
 | exact_accuracy | 0.266 |
 
-Correlation resolves about twice as finely as MAE and its aggregate is seed-stable
-(shifts 0.0007 when only the seed changes) while still responding on 41 of 46
-checkpoints. MAE is also discretised to integer positions: in one real comparison,
-**7 of 46 checkpoints had different predicted orders and identical MAE**, so MAE
-silently reports "tied" for changes that happened.
+Correlation resolves about twice as finely as MAE and barely moves with the seed. MAE rounds to whole positions: in one comparison 7 of 46 checkpoints had different forecasts and identical MAE.
 
-**Always pass `--seed-floor`.** Without it `compare_replay_arms.py` warns and refuses
-to emit `unresolvable`, because a delta cannot be separated from seed noise without
-measuring that noise. The floor threshold is the widest absolute bound of the seed
-pair's confidence interval, not its point estimate: one seed pair's shift is a single
-draw, and gating on it alone lets noise-sized effects through as real.
+**Always pass `--seed-floor`.** Without it the script refuses to call anything `unresolvable`. The threshold is the widest bound of the seed pair's confidence interval, not its point estimate.
 
-**Current floor: use the 2026-09-21 re-measurement over 14 rounds** (entry at the bottom of
-this file). The 13-round table immediately below is kept because entries dated before
-2026-09-21 were gated against it; it is not the floor to gate new work with.
+`compare_replay_arms.py` verdicts: `better` / `worse` (CI excludes zero and clears the floor), `noise` (CI includes zero), `unresolvable (below seed floor)`, `identical (never activated)` (every checkpoint tied, so the change provably did nothing, which is a finding).
 
-**Seed floor measured 2026-09-12** (identical code, seed 42 vs 43, 13 rounds):
+**Current floor: 2026-09-25**, leak-free replay, baseline `data/historical_replay_wf42_r14`, `--through-round 14`:
 
-| target | metric | mean delta | 95% CI |
+| Target | Correlation | MAE |
+|---|---|---|
+| Qualifying | 0.0035 | 0.054 |
+| Race | 0.0110 | 0.058 |
+| Sprint race | 0.0078 | 0.079 |
+
+Older floors (2026-09-12, 13 rounds; 2026-09-21, 14 rounds) were measured on a replay that leaked future inputs. Keep them only for reading the entries gated on them.
+
+**Before 2026-09-12** entries used `scripts/run_challenger_research_walk_forward.py`: 9 events from `data/historical_replay/2026/event_catalog.json` (7 scored, two wet rounds excluded), checkpoint PRE, 3 seeds, 20 simulations. Champion-only entries used `predict_qualifying(..., practice_signal_mode="stored_profiles")` over the 9 events, after moving the prediction cache aside because its key ignored code version. That harness no longer exists.
+
+## Champion history
+
+| Date | Change | Effect | Commit |
 |---|---|---|---|
-| qualifying | overall_mae | -0.0122 | [-0.0439, +0.0187] |
-| qualifying | correlation | -0.0007 | [-0.0039, +0.0024] |
-| race | overall_mae | +0.0342 | [-0.0184, +0.0868] |
-| race | correlation | -0.0009 | [-0.0076, +0.0059] |
-| sprint race | overall_mae | -0.0251 | [-0.1163, +0.0609] |
+| 2026-07-28 | Centre `quali_rating_mu_s` within each team when building the qualifying field. It carried a team component on top of team strength, so car pace counted twice. | Qualifying MAE 3.525 -> 2.828; mean per-driver \|bias\| 2.889 -> 1.677. HUL +6.11 -> +1.67, ALB -5.78 -> +0.11, GAS +4.33 -> +0.33 | `93bfbeb0` |
+| 2026-08-04 | Refit `team_strength_seconds_mapping` on 2026 only. The 2022 to 2025 fit had never seen a 2026 lap and compressed team gaps all season. | Qualifying MAE 2.6599 -> 2.5724, \|bias\| 1.5017 -> 1.2997; race MAE 4.0606 -> 3.9192, \|bias\| 2.4242 -> 2.3434 (60 simulations). Slopes: qualifying 1.77417 -> 2.76281, race 1.97077 -> 3.89727 | `fdf7be6f` |
 
-**So a qualifying MAE change smaller than about 0.045 positions, or a race MAE change
-smaller than about 0.087, is not resolvable on a single seed pair.** Several adopted
-changes in this file are smaller than that. Re-measure before relying on them.
+Residual after that, same measurement: SAI -5.67, LAW +6.44, BOR +4.44, ALO -4.11, VER -4.11. Team-strength errors (Williams over-rated, RB under-rated), which the centring fix does not touch.
 
-`compare_replay_arms.py` reports four verdicts, and the last two are not the same thing:
+## Challengers tested (2026-07-19/20)
 
-- `better` / `worse` — CI excludes zero and clears the seed floor
-- `noise` — CI includes zero
-- `unresolvable (below seed floor)` — the effect is smaller than seed randomness; **nothing was learned**
-- `identical (never activated)` — every checkpoint tied, so the two runs produced the same predictions; the change **provably did nothing**, which is a finding, not a failed measurement
+Measured against the pre-centring champion and never re-baselined (see Blocked).
 
-### Superseded protocol, for reading pre-2026-09-12 entries
-
-The walk-forward entries below used: 9 events from
-`data/historical_replay/2026/event_catalog.json` of which 7 scored (two wet rounds
-excluded by `dry_only`); checkpoint `PRE`; 3 seeds from `DEFAULT_REPLAY_SEEDS`; 20
-qualifying and 20 race simulations; run through
-`scripts/run_challenger_research_walk_forward.py` with `--run-tag`. Champion-side
-entries were measured directly through
-`predict_qualifying(..., practice_signal_mode="stored_profiles")` over all 9 catalog
-events against `actual_qualifying_grid`. That path required moving
-`data/historical_replay/2026/prediction_cache` aside first, because its
-`_source_digest` key covered event data and simulation counts but not code version.
-
-
-## Challengers tested
-
-All rows below were measured 2026-07-19/20 against the **pre-centering
-champion**. Re-baselining against `93bfbeb0` has not been done — see "Blocked"
-at the end for why.
-
-| variant | thesis | verdict | evidence |
+| Variant | Idea | Verdict | Evidence |
 |---|---|---|---|
-| `q0_driver_state` | richer driver-state term for qualifying | **worse** | quali grid MAE mean delta **+0.19**, 1 better / 5 worse |
-| `q0_driver_state__baseline500` | q0, 500-sim baseline | **worse** | +0.24, 2 better / 13 worse |
-| `q0_driver_state__fp_hisim2` | q0, higher FP sim count | **worse** | +0.23, 2 better / 7 worse |
-| `q0_driver_state__pullcap025` | q0, cumulative pull cap 0.25 | **worse** | +0.24, 2 better / 13 worse |
-| `q0_driver_state__pullcap035` | q0, cumulative pull cap 0.35 | **worse** | +0.24, 2 better / 13 worse |
-| `r1_joint_grid` | sample race grid from the joint qualifying distribution instead of the marginal order | **noise** | end-to-end race MAE **−0.074**, but 4 better / 3 worse over 7 events |
-| `r1_joint_grid__fp_hisim2` | as above, higher sim count | **noise** | 5 better / 4 worse, mean delta 0.000 |
-| `q1_qualifying_practice` | practice one-lap pace → qualifying potential | **never activated** | manifest status `refused` ("no eligible scored events") because the research fit needs 4 prior dry same-class events and had 3; the `q1_retro` run that did produce output was champion-identical, disclosing `no_raw_practice_laps` |
-| `r0_long_run` | practice long-run pace → race pace | **never activated** | 42 structural-identity flags, `missing_race_practice_evidence` |
-| `r0_long_run__fp_hisim2` | as above | **never activated** | 60 structural-identity flags, `insufficient_field_evidence_coverage` |
-| `r2_no_anchor`, `r1_r2_no_anchor` | grid-anchor variants | **refused** | `finish_order` invalid: a position fell outside its own p5–p95 interval |
-| `r2_source_anchor`, `r1_r2_source_anchor` | grid-anchor variants | **refused** | no eligible scored events |
+| `q0_driver_state` | Richer driver state for qualifying | worse | Qualifying MAE +0.19, 1 better / 5 worse |
+| `q0_driver_state__baseline500` | Same, 500-simulation baseline | worse | +0.24, 2 / 13 |
+| `q0_driver_state__fp_hisim2` | Same, more practice simulations | worse | +0.23, 2 / 7 |
+| `q0_driver_state__pullcap025` | Same, pull cap 0.25 | worse | +0.24, 2 / 13 |
+| `q0_driver_state__pullcap035` | Same, pull cap 0.35 | worse | +0.24, 2 / 13 |
+| `r1_joint_grid` | Sample the race grid from the joint qualifying distribution | noise | Race MAE -0.074, but 4 better / 3 worse over 7 events |
+| `r1_joint_grid__fp_hisim2` | Same, more simulations | noise | 5 / 4, mean 0.000 |
+| `q1_qualifying_practice` | Practice one-lap pace to qualifying | never activated | `refused`: needs 4 prior dry same-class events, had 3; the retro run was identical and disclosed `no_raw_practice_laps` |
+| `r0_long_run` | Practice long-run pace to race pace | never activated | 42 identity flags, `missing_race_practice_evidence` |
+| `r0_long_run__fp_hisim2` | Same | never activated | 60 identity flags, `insufficient_field_evidence_coverage` |
+| `r2_no_anchor`, `r1_r2_no_anchor` | Grid anchor variants | refused | A position fell outside its own p5 to p95 |
+| `r2_source_anchor`, `r1_r2_source_anchor` | Grid anchor variants | refused | No eligible scored events |
 
-Across every run: 309 champion-vs-challenger metric pairs, 179 identical, 130
-differing. **Nothing beat champion.**
+309 champion vs challenger metric pairs, 179 identical, 130 different. Nothing beat the champion. Q0 lost under all four tunings.
 
-Q0 is the clearest result — it lost under all four tunings, so it is not a knob
-that needs turning.
-
-### What this does and does not tell you
-
-Q1 and R0 are the two variants that match the actual modeling thesis: one-lap
-pace drives qualifying, long-run pace drives the race. Neither has ever run.
-The replay harness feeds `practice_signal_mode="stored_profiles"`, so
-`session_laps_by_type = {}` by construction and both variants hit a runtime
-guard and return champion-identical output.
-
-So the honest summary is not "practice-driven variants do not help". It is
-**"the grid-plumbing variants were tested and lost; the practice-driven
-variants have never been tested."**
-
-`docs/RAW_LAPS_REPLAY_HANDOFF.md` is the fix and was already the stated priority
-on 2026-07-19.
+Q1 and R0 match the core idea (one-lap pace for qualifying, long-run pace for the race) and neither has ever run: the replay feeds `stored_profiles`, so `session_laps_by_type = {}` and both fall back to the champion. So the honest summary is: the grid variants were tested and lost; the practice variants were never tested. `docs/RAW_LAPS_REPLAY_HANDOFF.md` is the fix.
 
 ## Blocked
 
-**Challenger work is shelved as of 2026-07-29.** ~~The tree stays untracked in
-the worktree; no branch was made.~~ **Updated 2026-07-31: it is now on the branch
-`shelved/challenger-research`** and no longer sits loose in the `master` working
-tree.
+Challenger work was shelved on 2026-07-29 and lives on the branch `shelved/challenger-research` (since 2026-07-31): `scripts/run_challenger_research_walk_forward.py`, `src/analysis/challenger_*`, `src/models/qualifying_practice_*`, their tests and the reports under `data/model_diagnostics/2026/race_mae_investigation/`. Nothing on `master` imports them (checked across 409 tracked Python files). The method docs stayed on `master`: `docs/QUALIFYING_RACE_CHALLENGER.md` and `docs/RAW_LAPS_REPLAY_HANDOFF.md`. The 27,340 lines of generated comparison JSON were not kept.
 
-> **The methodology is on `master`:** `docs/QUALIFYING_RACE_CHALLENGER.md` and
-> `docs/RAW_LAPS_REPLAY_HANDOFF.md` were promoted here, since the reasoning
-> outlives the code. Every path *they* cite resolves only on the branch.
->
-> **The implementation is on `shelved/challenger-research`:**
-> `scripts/run_challenger_research_walk_forward.py`, the
-> `src/analysis/challenger_*` and `src/models/qualifying_practice_*` modules,
-> their tests, and the human-readable reports under
-> `data/model_diagnostics/2026/race_mae_investigation/`. Check the branch out to
-> read or run any of it. Nothing in production imports them: a scan of all 409
-> tracked Python files finds zero imports, and `master` passes its own suite
-> without them.
->
-> The generated `*_variant_comparison*.json` dumps behind those reports were
-> **not** kept — 27,340 lines of machine output whose conclusions are already in
-> this file. Regenerate them from the branch if a raw payload is ever needed.
->
-> **The walk-forward artifacts under `data/historical_replay/2026/` are the one
-> exception and are NOT on that branch.** They are 909 MB and gitignored
-> (`.gitignore:41`), so they exist only on local disk, unversioned. They are the
-> evidence behind every number above and there is no copy anywhere else: keep
-> them, and do not assume a branch checkout restores them.
+The walk-forward artifacts in `data/historical_replay/2026/` (909 MB, gitignored) are not on the branch. They exist only on local disk and back every number in the challenger table. Keep them.
 
-Re-running the three scoring variants against the fixed champion was attempted
-and stopped. The challenger modules were written against production code that no
-longer exists in this repo, and clearing one blocker only reveals the next:
+Re-running the challengers on the fixed champion was stopped. The modules target production code that no longer exists:
 
-| gap | outcome |
+| Gap | Outcome |
 |---|---|
-| `predict_qualifying(include_grid_scenarios=)` | implemented, then reverted with the shelving |
-| `predict_qualifying(include_challenger_evidence=)`, `q1_retrospective_diagnostic=` | Q1-only, cannot work in this harness |
-| `QualifyingGridEntry.start_type` dropped by `validate_qualifying_grid` | real bug, fixed in `3810c1ad` |
-| `predict_race(grid_scenarios=)` | **stopped here** |
+| `predict_qualifying(include_grid_scenarios=)` | Built, then reverted with the shelving |
+| `predict_qualifying(include_challenger_evidence=)`, `q1_retrospective_diagnostic=` | Q1 only, cannot work in this harness |
+| `QualifyingGridEntry.start_type` dropped by `validate_qualifying_grid` | Real bug, fixed in `3810c1ad` |
+| `predict_race(grid_scenarios=)` | Stopped here |
 
-The last one is not plumbing. `race_view_replay.py` passes joint scenarios into
-`predict_race` and validates a matching scenario count in the result, so the
-race simulation has to sample its starting grid from those scenarios. Rebuilding
-that means inventing how scenarios map to draws, how the marginal path stays
-seed-comparable, and how the grid anchor is chosen — three decisions with no
-surviving source. A wrong reconstruction produces numbers that look valid.
+The last one would mean inventing how scenarios map to simulation draws, how the marginal path stays seed-comparable and how the anchor is chosen, with no surviving source. A wrong reconstruction produces numbers that look valid.
 
-## Open — worth testing when there is time
+## Open, worth testing
 
-Ranked by expected value, not by effort.
+Ranked by expected value.
 
-1. **Raw-laps replay** (`docs/RAW_LAPS_REPLAY_HANDOFF.md`) — the only thing that
-   makes Q1 and R0 testable. Everything else in this list is smaller.
-2. **Team-strength residual** — the largest known error in the current champion.
-   SAI −5.67 and LAW +6.44 are team-level, and `overall_performance` already
-   ranks Williams and Audi correctly while the blended strength does not.
-3. **Gauge-fix the driver seconds at fit time** — centering currently happens at
-   prediction time. `_update_pair_constraint` only applies difference
-   constraints, so the per-team level is unidentified and the contamination will
-   regrow at the next seeding. Proper fix: centre inside
-   `attach_driver_rating_mus` before `team_target_s` is computed, then refit
-   `data/processed/team_strength_seconds_mapping/latest.json`.
-4. **Combination runs** — every variant so far was tested alone against
-   champion. Nothing has tested two changes together, so an interaction that
-   only appears when both are active has never been visible.
+1. **Raw-laps replay** (`docs/RAW_LAPS_REPLAY_HANDOFF.md`). The only way to test Q1 and R0.
+2. **Team-strength residual.** The largest known champion error. SAI -5.67 and LAW +6.44 are team-level, and `overall_performance` ranks Williams and Audi correctly while the blended strength does not.
+3. **Centre driver seconds at fit time.** `_update_pair_constraint` only applies difference constraints, so the per-team level is unidentified and will drift again at the next seeding. Centre inside `attach_driver_rating_mus` before `team_target_s`, then refit the mapping. (The 2026-08-03 attempt at this lost; read it first.)
+4. **Combinations.** Every variant was tested alone. No two changes have been tested together.
 
-## 2026-07-30: learning-path fixes, measured by decomposition
+## 2026-07-30: learning-path fixes, measured separately
 
-Baseline for every number below: `3810c1ad`, rebuilt from the 2026-04-25
-preseason driver artifact (`710fb551`) with seconds re-seeded, then all 11
-completed rounds replayed offline. **Qualifying MAE 2.6195, mean per-driver
-|bias| 1.5522**, scored as the champion protocol above over the 9-event catalog
-x 3 seeds (594 driver-events).
+Baseline `3810c1ad`, rebuilt from the 2026-04-25 pre-season driver artifact (`710fb551`) with seconds re-seeded and all 11 rounds replayed: **qualifying MAE 2.6195, mean per-driver \|bias\| 1.5522**, 9 events x 3 seeds (594 driver-events).
 
-Rebuilding matters: the same old code measured against the *stored* 6-round
-artifact scores 2.8788. Production had been stuck at 6 rounds because practice
-capture reset the season history every Friday. Comparing a fixed model against
-that stale artifact credits the fixes with 0.164 MAE they did not earn.
+Rebuilding matters. The same code scored against the stored 6-round artifact gives 2.8788, because practice capture had been resetting the season history every Friday. Comparing against that stale artifact credits the fixes with 0.164 MAE they did not earn.
 
-| variant | MAE | mean \|bias\| | verdict |
+| Variant | MAE | \|bias\| | Verdict |
 |---|---|---|---|
-| DB-first read + recency-weighted season mean + margin-scored fallback | **2.5993** | **1.4747** | `adopted` |
-| the above, plus skipping unpaired drivers in the Bayesian update | 2.8148 | 1.6094 | `worse` |
-| the above, with learn-time recency neutralised | 2.8013 | 1.6128 | `worse` |
+| Database-first read + recency-weighted season mean + margin-scored fallback | **2.5993** | **1.4747** | `adopted` |
+| Plus skipping unpaired drivers in the Bayesian update | 2.8148 | 1.6094 | `worse` |
+| Same, with learn-time recency neutralised | 2.8013 | 1.6128 | `worse` |
 
-The three-way split is the point. Measured as one change the package looks like
-a 0.064 MAE improvement over the stale artifact and is really a 0.195
-regression against a fair baseline. Neutralising the recency weighting moved it
-0.014, so that was not the cause. Reverting only the Bayesian change recovered
-0.215 and beat baseline.
+As one package it looked like a 0.064 gain over the stale artifact and was really a 0.195 loss against a fair baseline. Reverting only the Bayesian change recovered 0.215.
 
-**Skipping unpaired drivers is `worse`, and the reasoning behind it still
-holds.** `update_teammate_relative` gives a driver whose teammate retired the
-raw absolute 1..grid_size rating, mixing that scale into a model centred on the
-field mean — 32 such observations across the replay set, including one driver
-observed at the maximum 22.00 from the single race their teammate retired from.
-Dropping those observations costs more than the contamination does. The next
-attempt should rescale them, not discard them. Do not re-test discarding.
+Why skipping lost: `update_teammate_relative` gives a driver whose teammate retired a raw 1 to 22 rating, mixing that scale into a model centred on the field mean (32 such cases, one at the maximum 22.00). Dropping them costs more than the contamination. Next attempt should rescale them. Do not retest discarding.
 
-Related negative result the same day: disabling the `rating_mu` -> skill/pace
-blend (`bayesian_quali_skill_blend_cap: 0.0`) scored 3.0505 against a 2.8788
-baseline. `rating_mu` correlates only -0.068 with actual qualifying position,
-but the raw characteristics it falls back to are worse still.
+Same day: turning off the `rating_mu` blend (`bayesian_quali_skill_blend_cap: 0.0`) scored 3.0505 against 2.8788. `rating_mu` correlates only -0.068 with qualifying position, but what it falls back to is worse.
 
-### Bayesian update confidence rebalance - `worse`
+### Bayesian update confidence rebalance: `worse`
 
-Same baseline and protocol as the entry above. `rating_mu` is a single
-position-scale rating updated by both race and qualifying, and it feeds the
-*qualifying* skill and pace blend. Race observations carry
-`teammate_relative_confidence: 0.35` while qualifying carries
-`qualifying_update_confidence: 0.15`, so the qualifying skill term is weighted
-more by race results than by qualifying ones.
+`rating_mu` is one rating updated by race and qualifying, and it feeds the qualifying skill blend. Race observations carry confidence 0.35 and qualifying 0.15, so qualifying skill is shaped more by race results. It fits the 2026 pattern: backmarkers finish far better than they qualify (ALO -4.09, STR -4.00, PER -4.16), front-runners worse (ANT +2.78, RUS +0.94).
 
-The distortion that predicts is visible in the 2026 data: backmarkers finish far
-better than they qualify (ALO -4.09, STR -4.00, PER -4.16 positions) and
-front-runners finish worse (ANT +2.78, RUS +0.94), matching the sign of the
-residual bias on both groups.
-
-| variant | MAE | mean abs bias | verdict |
+| Variant | MAE | \|bias\| | Verdict |
 |---|---|---|---|
-| champion, quali 0.15 / race 0.35 | **2.5993** | **1.4747** | `adopted` |
-| quali 0.35 / race 0.35 | 2.6970 | 1.5354 | `worse` |
-| quali 0.35 / race 0.15 | 2.7811 | 1.6667 | `worse` |
+| Champion, quali 0.15 / race 0.35 | **2.5993** | **1.4747** | `adopted` |
+| 0.35 / 0.35 | 2.6970 | 1.5354 | `worse` |
+| 0.35 / 0.15 | 2.7811 | 1.6667 | `worse` |
 
-Both directions lost, so the shipped 0.15/0.35 split is better than either. The
-mechanism above is real but these weights are not the lever that fixes it.
-HUL's residual bias sat between +4.5 and +5.3 in every arm including champion,
-so nothing here moved the driver the hypothesis was aimed at. Do not re-test
-either direction without a new mechanism.
+Both directions lost. HUL's bias stayed between +4.5 and +5.3 in every arm. Do not retest without a new mechanism.
 
-### Margin-scored telemetry race pace - `worse`
+### Margin-scored telemetry race pace: `worse`
 
-Same baseline and protocol. `extract_team_performance_from_telemetry` computes a
-per-team median race lap time and then discards it for
-`1.0 - rank/(team_count-1)`, so team strength cannot express how large a gap
-was. This variant kept the margin: delta against the field median as a fraction
-of lap time (track-length invariant), mapped onto 0-1 by a configurable spread.
+`extract_team_performance_from_telemetry` computes each team's median race lap, then throws it away for `1 - rank/(teams-1)`. This variant kept the margin (gap to the field median as a fraction of lap time, mapped to 0 to 1 by a spread setting).
 
-| variant | MAE | mean abs bias | verdict |
+| Variant | MAE | \|bias\| | Verdict |
 |---|---|---|---|
-| champion, rank-collapsed | **2.5993** | **1.4747** | `adopted` |
-| margin, spread 0.06 | 2.6700 | 1.7138 | `worse` |
-| margin, spread 0.10 | 2.7744 | 1.8586 | `worse` |
+| Champion, rank | **2.5993** | **1.4747** | `adopted` |
+| Margin, spread 0.06 | 2.6700 | 1.7138 | `worse` |
+| Margin, spread 0.10 | 2.7744 | 1.8586 | `worse` |
 
-It did what it was designed to do: Aston's season went from a flat
-`[0.1, 0.0, 0.0, ...]` to `[0.028, 0.042, 0.04, 0.147, 0.0, 0.43, ..., 0.447]`,
-so an upgrade that closes a deficit without changing rank is finally visible.
-Qualifying accuracy still got worse, and monotonically - the wider the spread,
-the worse the result, meaning the closer the scoring stays to rank the better.
+It worked as designed (Aston Martin's flat `[0.1, 0.0, ...]` became a visible climb to 0.447) and still lost, monotonically: the closer to rank, the better. The input is the problem. A race median lap carries strategy, traffic, fuel and safety cars; the team spread was 4.6 to 4.8 s, more than twice what the seconds mapping was fitted for. Rank is robust to that; margin passes it through. Do not retry margin scoring on race medians. The version worth testing converts the matched-lap construct the mapping was fitted on.
 
-The reason is the input, not the idea. A race median lap time carries strategy,
-traffic, fuel load and safety cars: across three 2026 races the team spread was
-4.6-4.8s, more than twice the 1.97 s/unit that
-`team_strength_seconds_mapping` was fitted for. Rank is robust to that noise and
-margin propagates it. Do not retry margin scoring on race medians.
+### Open after this entry
 
-The idea is not dead, but it needs a pace measure built for it. The matched-lap
-same-session construct in `src/extractors/matched_laps.py` is what the seconds
-mapping was actually fitted on; converting *that* through the calibrated slope
-is the version worth testing. Converting race medians through it would be a
-scale error, mixing two different definitions of "seconds".
-
-### The lambda sweep that closes P0 — `noise`, monotone, no interior optimum
-
-The gate-2 loss was traced to SE under-dispersion at n=2, so the follow-up asks whether the recovered
-observations have any value once their uncertainty is honest. Sweep an inflation factor applied to
-`matched_gap_se_s` for rows with fewer than 3 matched pairs, at gate 2. The null is exact: as lambda
-grows the recovered rows carry no weight and the arm reduces to the gate-3 baseline.
-
-Same preseason-rebuilt baseline, 13 rounds of 2026, paired over 46 common checkpoints:
-
-| arm | qualifying MAE | mean delta | 95% bootstrap CI | verdict |
-|---|---|---|---|---|
-| gate 3 (baseline) | 2.3363 | — | — | — |
-| gate 2, lambda 1 | 2.3931 | +0.0633 | [+0.0062, +0.1204] | `worse` |
-| gate 2, lambda 2 | 2.3507 | +0.0221 | [-0.0285, +0.0749] | `noise` |
-| gate 2, lambda 4 | 2.3333 | +0.0023 | [-0.0448, +0.0471] | `noise` |
-
-**Monotone toward the baseline with no bowl.** The response has no interior optimum: the best the
-recovered observations achieve is to be down-weighted until they change nothing, which is what the
-gate already does by discarding them. Recovering them is worth nothing in accuracy terms.
-
-Per-checkpoint, no cell reaches significance at these fold counts:
-
-| checkpoint | lambda 2 mean | CI | lambda 4 mean | CI |
-|---|---|---|---|---|
-| PRE (n=13) | **-0.0360** | [-0.1409, +0.0559] | **-0.0280** | [-0.1119, +0.0490] |
-| FP1 (n=13) | +0.0343 | [-0.0503, +0.1252] | +0.0053 | [-0.0949, +0.1036] |
-| FP2 (n=8) | +0.0514 | [-0.0341, +0.1364] | +0.0168 | [-0.0682, +0.1304] |
-| FP3 (n=7) | +0.0779 | [-0.0519, +0.2338] | +0.0779 | [-0.0130, +0.1558] |
-| SQ (n=5) | +0.0165 | [-0.1489, +0.1818] | -0.0563 | [-0.1853, +0.0727] |
-
-**The one consistently-signed sub-result is PRE**, negative (better) at both lambdas. PRE is the only
-checkpoint with no practice data, so it is where driver ratings carry the most weight, and it is the
-checkpoint the original P0 claim was about. The confidence interval includes zero at n=13, so this is
-directional, not proven, and it is swamped by the other checkpoints in the aggregate.
-
-**Verdict: P0 is closed as `noise`.** The coverage defect is real and precisely located — Aston Martin
-discards 15 of 18 qualifying observations, McLaren none — and it does not cost measurable accuracy.
-The gate stands. Anyone reopening this should score PRE alone across more rounds rather than repeat
-the aggregate.
-
-**The sweep hook was temporary** (`TL_MIN_QUALI_PAIRS`, `TL_LOWN_SE_INFLATE`, `_swept_se` in
-`src/extractors/matched_laps.py`) and is reverted; with both variables unset the code is
-byte-identical to shipped, which was verified before the sweep started.
-
-### Still open
-
-- `extract_team_performance_from_telemetry` computes real median lap times per
-  team, then discards them for `1.0 - rank/(team_count-1)`. It is the primary
-  path for most races, so team strength still cannot express margin; the
-  2026-07-30 fallback fix only reached races where telemetry was missing.
-  `team_strength_seconds_mapping/latest.json` already has the calibrated slope
-  to convert lap-time deltas directly.
-- HUL degrades **as the season is learned**, on unmodified code: +1.52 at 6
-  rounds, +5.26 at 11. RUS moves +0.15 -> +2.19 the same way. Whatever causes
-  that is in the learning path and predates all of the above.
-  **Superseded 2026-07-31** — see the section below. The "learning path" framing
-  is wrong, and treating HUL and RUS as one phenomenon is wrong.
+- The telemetry path still discards margin for most races; the 2026-07-30 fix only reached races without telemetry.
+- HUL degrades as the season is learned (+1.52 at 6 rounds, +5.26 at 11); RUS +0.15 -> +2.19. **Superseded 2026-07-31:** not a learning-path problem, and HUL and RUS are not one problem.
 
 ## 2026-07-31: the HUL/RUS drift is not a driver-rating problem
 
-**No prediction run was made for this entry.** Everything below is derived from
-the shipped artifacts (`car_characteristics` v23 at 11 rounds,
-`driver_characteristics` v26, `team_strength_seconds_mapping/latest.json`), the
-9-event `event_catalog.json`, and code at `6771a8a5`. It carries no MAE because
-it scores no variant. It is here to stop the next session spending runs on a
-path that arithmetic already closes.
+No prediction run; everything comes from the shipped artifacts (`car_characteristics` v23 at 11 rounds, `driver_characteristics` v26, the seconds mapping), the 9-event catalog and code at `6771a8a5`. Written to stop runs on a path arithmetic already closes.
 
-### The driver rating cannot produce an error this large
+**The driver rating cannot produce this error.** HUL's centred `quali_rating_mu_s` is -0.1225 s. Qualifying projects it as `0.5 + delta / 1.9708`, so his driver term is 0.062 score units, at about 0.045 units per grid position: **about 1.4 positions of authority against a +5.26 bias.** All four failed hypotheses pulled that lever. Show a path has enough authority before testing another driver-rating variant.
 
-Centred `quali_rating_mu_s` for HUL is **-0.1225 s**
-(`center_rating_mu_by_team`, `qualifying_preparation.py:807`). The qualifying
-simulation projects it as `0.5 + seconds_delta / 1.9708`, clipped to [0, 1]
-(`qualifying_simulation.py:359`). So HUL's entire driver term is **0.062 score
-units**, and a 22-car grid spans 1.0 unit at roughly 0.045 units per position.
+**Both teammates share the sign, so it is a team offset.** HUL +5.26 / BOR +4.44, RUS +2.19 / ANT +2.78. "The HUL/RUS bias" is an Audi and Mercedes team-strength bias.
 
-**Driver-term authority: about 1.4 grid positions. HUL's bias is +5.26.**
+**HUL and RUS differ.** Model teammate order (centred rating) against actual head to head over the 9 events:
 
-This is the explanation for the four failed hypotheses above. None of them was
-obviously wrong in mechanism; all of them were pulling a lever with ~1.4
-positions of authority against a ~5.3 position error. Do not test another
-driver-rating variant against this bias without first showing the path has
-enough authority to matter.
-
-### Both teammates carry the same-signed bias, so it is a team offset
-
-Recorded elsewhere in this file but never connected: HUL +5.26 / BOR +4.44
-(champion-history note), RUS +2.19 / ANT +2.78 (confidence-rebalance section).
-Same sign, comparable magnitude, same team, both pairs. That is the signature of
-a team-strength offset, not a driver-rating error. **"The HUL/RUS bias" is a
-misnomer for an Audi and Mercedes team-strength bias.**
-
-### HUL and RUS do not share a mechanism
-
-Model teammate ordering (centred `quali_rating_mu_s`, positive = faster) against
-actual head-to-head over the 9 catalog events:
-
-| team | model rates faster | actual H2H | agrees |
+| Team | Model rates faster | Actual | Agrees |
 |---|---|---|---|
-| Audi | BOR (+0.1225) | **HUL 5-4** | no |
-| Red Bull | HAD (+0.0079) | **VER 6-3** | no |
-| RB | LIN (+0.0955) | **LAW 6-3** | no |
-| Cadillac | BOT (+0.1440) | **PER 6-3** | no |
+| Audi | BOR (+0.1225) | HUL 5-4 | no |
+| Red Bull | HAD (+0.0079) | VER 6-3 | no |
+| RB | LIN (+0.0955) | LAW 6-3 | no |
+| Cadillac | BOT (+0.1440) | PER 6-3 | no |
 | Mercedes | ANT (+0.1003) | ANT 5-4 | yes |
 | McLaren | NOR (+0.0878) | NOR 5-4 | yes |
 | Ferrari | LEC (+0.0099) | LEC 5-4 | yes |
@@ -479,974 +199,242 @@ actual head-to-head over the 9 catalog events:
 | Haas | BEA (+0.1161) | BEA 7-2 | yes |
 | Williams | SAI (+0.0442) | SAI 7-2 | yes |
 
-Four of eleven pairs are ordered backwards. HUL is one of them. **RUS is not** —
-Antonelli genuinely out-qualified him 5-4, so that rating direction is correct
-and RUS's residual has to come from Mercedes team strength alone. Lumping the
-two drivers into one phenomenon is what framed the whole search wrongly.
+Four of eleven pairs are backwards, HUL among them. RUS is not: Antonelli really out-qualified him, so RUS's error comes from Mercedes team strength alone. Sign convention checked: positive seconds means faster.
 
-Sign convention verified rather than assumed: `sign_convention:
-positive_seconds_means_faster_than_field` in the mapping artifact, consistent
-with the `0.5 + delta/scale` projection where higher score is a better grid slot.
+**Observation count does not shrink teammate gaps.** Audi at 11 observations has the largest gap among well-observed teams (0.245 s), Red Bull at 12 the smallest (0.016 s), Aston Martin's 0.708 s sits on 3. Do not test "more learning shrinks gaps".
 
-### Observation count does not compress the teammate gap - hypothesis killed
+**Separate bug: qualifying used the race slope.** `team_strength_seconds_score_scale: 1.9707717329051126` is the race slope, applied in qualifying where the fitted slope is 1.7741686893278807, compressing qualifying by about 11%. Measure alone. (Fixed 2026-08-05.)
 
-Worth stating because it looks plausible and costs a run to test. Centred
-teammate gap against `quali_rating_observations` across all 11 teams shows no
-relationship: Audi at 11 observations has the **largest** gap among
-well-observed teams (0.245 s), Red Bull at 12 observations has the **smallest**
-(0.016 s). Aston Martin's 0.708 s gap sits on 3 observations, so the two
-extremes are the low-observation teams in both directions.
+### Team vs driver decomposition
 
-Do not test "more learning shrinks teammate gaps".
+`identify_systematic_errors` already computes `team_bias` next to `driver_bias`; everything before read only the driver column. On cached champion predictions (`3f07ca70`, written 2026-07-19 to 22, before the centring fix `93bfbeb0`, so levels are stale), PRE qualifying, 7 events x 3 seeds, 462 observations, positive = too pessimistic:
 
-### Separate bug found while measuring: qualifying uses the race slope
-
-`config/default.yaml:219` sets
-`team_strength_seconds_score_scale: 1.9707717329051126`. That is the **race**
-slope from `team_strength_seconds_mapping/latest.json`. It is applied in the
-**qualifying** projection at `qualifying_simulation.py:359`, where the fitted
-qualifying slope is **1.7741686893278807**.
-
-Every qualifying deviation from 0.5 is therefore compressed by about 11%. This
-is unrelated to the HUL residual and is a one-line fix, but it rescales the
-whole qualifying grid, so measure it on its own before or after anything else —
-never bundled.
-
-### Team-vs-driver decomposition, measured - confirms the reframe
-
-`identify_systematic_errors` (`src/analysis/model_evaluation.py:427`) already
-computes `team_bias` alongside `driver_bias`. Every measurement before this one
-read `driver_bias` only. Running both over cached champion predictions
-decomposes each driver's residual into a team-shared component and a
-within-pair component.
-
-**Baseline caveat, and it is material.** The only cached champion predictions
-are `source_digest` `3f07ca70`, written **2026-07-19 to 2026-07-22**, so they
-predate the 2026-07-28 centering fix `93bfbeb0`. The prediction cache key does
-not cover code version — the trap documented under "Measurement protocol" — so
-these levels are *not* current-champion numbers. HUL reads +6.86 here against
-+5.26 on rebuilt current code.
-
-**The levels are stale; the decomposition is the claim.** The centering fix
-removes the team-mean component of the driver rating, so on current code the
-within-pair component can only be smaller than what is shown here. That
-strengthens the conclusion rather than threatening it.
-
-Protocol: champion variant, `qualifying` kind, `PRE` checkpoint, 7 events x 3
-seeds, 462 driver-observations, actuals from `actual_qualifying_grid` in
-`event_catalog.json`. Positive means too pessimistic.
-
-| team | team bias | driver 1 | driver 2 | within-pair spread |
+| Team | Team bias | Driver 1 | Driver 2 | Spread |
 |---|---|---|---|---|
-| **Audi** | **+6.71** | HUL **+6.86** | BOR **+6.57** | **0.29** |
+| Audi | +6.71 | HUL +6.86 | BOR +6.57 | 0.29 |
 | Williams | -7.10 | SAI -7.86 | ALB -6.33 | 1.53 |
 | RB | +3.33 | LAW +2.48 | LIN +4.19 | 1.71 |
 | McLaren | +1.74 | NOR +0.90 | PIA +2.57 | 1.67 |
 | Mercedes | +1.14 | RUS +0.14 | ANT +2.14 | 2.00 |
 | Alpine | +1.12 | GAS +1.48 | COL +0.76 | 0.72 |
-| Cadillac F1 | +0.05 | PER +1.29 | BOT -1.19 | 2.48 |
-| Haas F1 Team | -0.81 | OCO +0.62 | BEA -2.24 | 2.86 |
+| Cadillac | +0.05 | PER +1.29 | BOT -1.19 | 2.48 |
+| Haas | -0.81 | OCO +0.62 | BEA -2.24 | 2.86 |
 | Ferrari | -0.90 | LEC -0.76 | HAM -1.05 | 0.29 |
-| Red Bull Racing | -2.43 | VER -5.52 | HAD +0.67 | **6.19** |
-| Aston Martin | -2.86 | ALO -5.52 | STR -0.19 | **5.33** |
+| Red Bull | -2.43 | VER -5.52 | HAD +0.67 | 6.19 |
+| Aston Martin | -2.86 | ALO -5.52 | STR -0.19 | 5.33 |
 
-#### Correction, same day: the two extreme rows are the already-fixed bug
+**Correction, same day.** Audi +6.71 and Williams -7.10 are the uncentred driver rating that `93bfbeb0` already fixed, not open problems. The raw team-mean rating (Williams +0.412 s, Audi -0.387 s) alone implies +4.60 and -4.32 positions, an 8.9-position spread against an observed 9.67, on team strengths that are nearly equal (0.366 vs 0.354) and correctly ranked.
 
-The first reading of this table treated Audi +6.71 and Williams -7.10 as the
-largest *unexplained* errors in this file. That was wrong, and the table's own
-baseline is why.
+**The spread column is separation error, not driver-term size.** Bias is predicted minus actual, so the teammate spread is predicted gap minus actual gap.
 
-These cached predictions predate `93bfbeb0`, so they ran with **uncentered**
-`quali_rating_mu_s` — the double-counted car pace that `93bfbeb0` fixed. The raw
-team-mean driver rating still shows the size of it (values from the current
-11-round artifact, so indicative of the state in force rather than exact):
+**The clip binds at the front.** Score is `clip(0.5 + 1.7742*(strength-0.5)/1.9708 + mu/1.9708, 0, 1)`. Before the centring fix, ANT (1.136), LEC (1.060), HAM (1.050) and RUS (1.035) all clipped to 1.0, so their order was noise, and STR clipped to 0. After it, only STR. Any pre-fix result on the internal order of Mercedes or Ferrari reads noise. The clip does not explain Audi.
 
-| team | team-mean raw rating | implied position effect |
-|---|---|---|
-| Williams | +0.412 s | **+4.60** |
-| Audi | -0.387 s | **-4.32** |
+**Current order, and the one that is wrong** (current strengths and ratings, against head to head): Audi BOR 13th, HUL 18th while HUL leads 5-4, inverted by five places. Red Bull HAD 7th, VER 8th while VER leads 6-3. Mercedes, Williams and Aston Martin are correct. HUL/BOR is the largest live driver-level error, a sign error. Score order is not simulated position, so treat the sign as the finding.
 
-That is an 8.9 position spread between the two teams from the driver-rating term
-alone. The observed gap in predicted mean position is **9.67** (Audi 18.86 vs
-Williams 9.19) on team strengths that are nearly identical (0.366 vs 0.354) and
-correctly ranked — Williams' strength rank 9 matches its actual rank 9.
+### Mechanism: the rookie prior sigma sets the update gain
 
-So the team strength for both teams is approximately right, and the prediction
-error is the uncentered driver term. This is the same defect the champion-history
-entry already records collapsing: HUL +6.11 -> +1.67, ALB -5.78 -> +0.11.
-**Audi and Williams are not open problems. They are the pre-`93bfbeb0` state.**
+No sign bug (checked end to end: `matched_gap_s` positive means reference faster, positive innovation raises the reference). The prior had the right order; 2026 flipped it:
 
-#### What this does to the HUL conclusion
-
-The "HUL is closed as a driver problem" reading above is **withdrawn**, but the
-stated reason for withdrawing it was also wrong, and the third pass settled both.
-Recorded in full because two of the three readings here were mistakes.
-
-**The within-pair column measures separation *error*, not driver-term magnitude.**
-Bias is predicted minus actual per driver, so the spread between teammates is
-`(predicted gap) - (actual gap)`. Audi's 0.29 does not mean the driver term is
-inert; it means the pre-fix model got HUL-vs-BOR *separation* about right while
-both drivers carried the same large shared offset. The column is readable — just
-not as "how many positions of driver signal exist".
-
-**The clip is not what compresses Audi.** Neither Audi driver is near a bound.
-That hypothesis is dead.
-
-### The clip is binding, at the front of the grid
-
-Testing it turned up a different result. Deterministic score is
-`clip(0.5 + 1.7742*(strength-0.5)/1.9708 + driver_mu/1.9708, 0, 1)`. Evaluated
-over all 22 drivers on 6-round strengths:
-
-| state | drivers hitting a bound |
-|---|---|
-| raw / pre-`93bfbeb0` | **ANT 1.136, LEC 1.060, HAM 1.050, RUS 1.035** (all clipped to 1.0), STR -0.049 (clipped to 0) |
-| centred / post-`93bfbeb0` | STR only |
-
-Before the fix, **four front-runners collapsed onto the identical score 1.0**, so
-their relative order was simulation noise rather than signal. That is a second,
-previously unrecorded consequence of the uncentered ratings, and `93bfbeb0`
-incidentally fixed it. Worth knowing for any pre-fix number involving Mercedes or
-Ferrari: their internal ordering was not being modelled at all.
-
-The team term alone cannot reach a bound — it spans only ±0.42 against a ±0.5
-threshold — so every clip event needs the driver term to push it over. Post-
-centering, only Aston Martin still clips.
-
-### Current-state driver ordering, and the one that is wrong
-
-Ranking all 22 drivers by centred deterministic score — current 11-round
-strengths and current ratings, so this *is* today's state — against actual
-head-to-head over the 9 catalog events:
-
-| pair | model order (centred rank) | actual H2H | |
-|---|---|---|---|
-| **Audi** | **BOR 13, HUL 18** | **HUL 5-4** | **inverted by 5 positions** |
-| Red Bull | HAD 7, VER 8 | VER 6-3 | inverted by 1 |
-| Mercedes | ANT 1, RUS 2 | ANT 5-4 | correct |
-| Williams | SAI 14, ALB 16 | SAI 7-2 | correct |
-| Aston Martin | ALO 19, STR 22 | ALO 7-2 | correct |
-
-**HUL sits five places behind the teammate he actually outqualifies.** That is
-the largest live driver-level error on the grid and it is a sign error, not a
-magnitude error. It is unaffected by everything withdrawn above: it uses centred
-ratings, current artifacts, and actual results — no cached prediction, no
-pre-fix state.
-
-So driver-level work does belong on HUL/BOR after all, but for the inversion, not
-for the "degrades as the season is learned" framing that opened this
-investigation. Caveat: deterministic score ordering is not simulated mean
-position — Q1/Q2/Q3 structure and noise both intervene — so treat the rank gaps
-as indicative and the sign as the finding.
-
-### Mechanism of the inversion: rookie prior sigma sets the update gain
-
-**There is no sign bug.** The path was checked end to end and is consistent:
-`matched_gap_s = comparison_lap_time_s - reference_lap_time_s`, positive means
-reference faster (`matched_laps.py:164`); `innovation = observed_gap -
-(reference_mu - comparison_mu)` raises `reference_mu` on positive innovation
-(`driver_seconds_state.py:267`); higher mu is faster. Do not re-hunt this.
-
-**The prior had HUL and VER the right way round; 2026 flipped them.** Seed values
-from `teammate_network_prior/latest.json` (2022-2025) against the current
-11-round state:
-
-| pair | prior mu (a / b) | prior sigma | var ratio b:a | now | flipped |
+| Pair | Prior mu (a / b) | Prior sigma | Variance ratio | Now | Flipped |
 |---|---|---|---|---|---|
-| Red Bull VER/HAD | +0.447 / -0.145 | 0.152 / 0.530 | **12.2** | +0.299 / +0.315 | **yes** |
-| Audi HUL/BOR | -0.461 / -0.554 | 0.231 / 0.530 | **5.3** | -0.509 / -0.264 | **yes** |
-| Mercedes RUS/ANT | +0.453 / +0.232 | 0.277 / 0.530 | **3.7** | +0.226 / +0.426 | **yes** |
-| Aston ALO/STR | +0.143 / -0.111 | 0.152 / 0.155 | 1.1 | +0.364 / -0.343 | no |
-| Ferrari LEC/HAM | +0.498 / +0.395 | 0.273 / 0.275 | 1.0 | +0.456 / +0.437 | no |
-| Williams SAI/ALB | +0.421 / +0.405 | 0.272 / 0.260 | 0.9 | +0.456 / +0.368 | no |
+| VER / HAD | +0.447 / -0.145 | 0.152 / 0.530 | 12.2 | +0.299 / +0.315 | yes |
+| HUL / BOR | -0.461 / -0.554 | 0.231 / 0.530 | 5.3 | -0.509 / -0.264 | yes |
+| RUS / ANT | +0.453 / +0.232 | 0.277 / 0.530 | 3.7 | +0.226 / +0.426 | yes |
+| ALO / STR | +0.143 / -0.111 | 0.152 / 0.155 | 1.1 | +0.364 / -0.343 | no |
+| LEC / HAM | +0.498 / +0.395 | 0.273 / 0.275 | 1.0 | +0.456 / +0.437 | no |
+| SAI / ALB | +0.421 / +0.405 | 0.272 / 0.260 | 0.9 | +0.456 / +0.368 | no |
 
-**Every pair with a variance ratio above ~3 reordered. Every pair near 1.0 held.**
-The pair update splits each innovation in proportion to variance
-(`updated_reference_mu = reference_mu + (reference_var/denominator)*innovation`),
-so the wider-prior driver absorbs the update. Audi: BOR moved +0.289 while HUL
-moved -0.048. Red Bull: HAD moved +0.460 while VER moved -0.148.
+Every pair with a variance ratio above about 3 reordered; every pair near 1 held. The update splits each innovation by variance, so the wide-prior driver absorbs it (BOR +0.289 vs HUL -0.048; HAD +0.460 vs VER -0.148). BOR, HAD and ANT share sigma 0.5304206197376727 exactly, a default for low-observation drivers. Cadillac (ratio 12.2) did not flip because the prior already had BOT ahead. Correct Bayesian behaviour given those priors, and not always wrong (ANT does lead RUS). Most qualifying sessions give exactly 3 matched pairs, and 11 of 21 BOR/HUL sessions in 2025 gave none.
 
-`BOR`, `HAD` and `ANT` all carry sigma **0.5304206197376727** — bit-identical, so
-it is a shared default for low-observation drivers, not a fitted value. Against
-HUL's 0.231 (n=37) and VER's 0.152 (n=74) that is a 5x to 12x gain advantage on
-every observation.
+### Measured on current code
 
-Cadillac PER/BOT has ratio 12.2 and did *not* flip, because the prior already had
-BOT ahead and he simply moved further ahead. Consistent with the mechanism rather
-than a counterexample.
+A champion-only scorer (production `predict_qualifying(..., practice_signal_mode="stored_profiles")` plus `identify_systematic_errors`), 7 dry events x 3 seeds x 20 simulations. Not a walk-forward: each event is predicted with its own result already in the artifacts, so levels are optimistic. MAE 2.6494, \|bias\| 1.7186.
 
-**This is correct Bayesian behaviour given those priors, and it is not always
-wrong** — the Mercedes flip agrees with actual head-to-head (ANT 5-4). The
-question the mechanism raises is narrower: whether 0.5304 is the right default,
-and whether qualifying evidence is strong enough to justify that gain.
-`min_matched_pairs_quali` is **3**, most qualifying sessions produce exactly 3
-matched pairs, and in 2025 eleven of twenty-one BOR/HUL qualifying sessions
-produced no usable aggregate at all (`insufficient_matched_pairs`). Ratings are
-being reordered on three-lap medians.
-
-Two levers, neither tested: raise the low-observation prior sigma default, or
-raise `min_matched_pairs_quali`. See the scoring note at the end of this section
-for what testing them actually costs — it is not just a config edit.
-
-### Measured on current code, and the mechanism holds
-
-The blocked walk-forward was routed around. A champion-only scorer calling
-production `Baseline2026Predictor.predict_qualifying(..., practice_signal_mode=
-"stored_profiles")` plus the tracked `identify_systematic_errors` reproduces the
-decomposition without touching the shelved tree. 7 dry events x 3 seeds x 20
-simulations, 462 driver-observations, about 2 minutes.
-
-**This is not a walk-forward.** Every event is predicted against the current
-artifact state, which already contains that event's results. Absolute error is
-optimistic and **not comparable to the walk-forward numbers above**. Both arms of
-an A/B carry the same leakage, so deltas remain usable. Recorded level:
-MAE 2.6494, mean per-driver |bias| 1.7186.
-
-| team | team bias | driver 1 | driver 2 | spread |
+| Team | Team bias | Driver 1 | Driver 2 | Spread |
 |---|---|---|---|---|
-| Audi | +2.26 | HUL **+4.62** | BOR -0.10 | 4.71 |
-| RB | +1.45 | LAW **+3.38** | LIN -0.48 | 3.86 |
-| Mercedes | +1.29 | RUS **+3.14** | ANT -0.57 | 3.71 |
-| Cadillac F1 | +0.98 | PER +1.67 | BOT +0.29 | 1.38 |
+| Audi | +2.26 | HUL +4.62 | BOR -0.10 | 4.71 |
+| RB | +1.45 | LAW +3.38 | LIN -0.48 | 3.86 |
+| Mercedes | +1.29 | RUS +3.14 | ANT -0.57 | 3.71 |
+| Cadillac | +0.98 | PER +1.67 | BOT +0.29 | 1.38 |
 | Ferrari | +0.55 | LEC +0.29 | HAM +0.81 | 0.52 |
-| Haas F1 Team | +0.31 | OCO **+2.38** | BEA -1.76 | 4.14 |
+| Haas | +0.31 | OCO +2.38 | BEA -1.76 | 4.14 |
 | Alpine | -0.43 | GAS +0.24 | COL -1.10 | 1.33 |
 | Williams | -1.38 | SAI -2.19 | ALB -0.57 | 1.62 |
-| Red Bull Racing | -1.52 | VER -3.95 | HAD +0.90 | 4.86 |
+| Red Bull | -1.52 | VER -3.95 | HAD +0.90 | 4.86 |
 | McLaren | -1.69 | NOR -4.05 | PIA +0.67 | 4.71 |
 | Aston Martin | -1.81 | ALO -4.14 | STR +0.52 | 4.67 |
 
-**The picture inverted relative to the pre-`93bfbeb0` table, exactly as
-predicted.** Largest team offset fell from 7.10 to 2.26 — the centering fix
-removed the shared component — and the within-pair spreads grew from a 0.29-2.00
-band to 3.7-4.9. Pre-fix, teammates shared one large offset and the driver error
-was hidden inside it. Post-fix the offset is gone and the driver error is what is
-left. This also retroactively confirms the correction above: the pre-fix
-within-pair column really was measuring separation error against a shared offset.
+The largest team offset fell from 7.10 to 2.26 and teammate spreads grew to 3.7 to 4.9, as predicted: the shared offset is gone and the driver error is what remains. Where a wide-prior rookie exists (Audi, RB, Mercedes, Haas), the veteran carries the positive bias and the rookie sits near zero. **It is overshoot, not only inversion**: Mercedes is ordered correctly and RUS still carries +3.14. Red Bull, McLaren and Aston Martin are a different problem (stronger driver predicted too well, near-equal sigmas); likely team strength.
 
-**Where a wide-prior rookie exists, the veteran carries the positive bias and the
-rookie sits near zero**: Audi (HUL +4.62 / BOR -0.10), RB (LAW +3.38 / LIN
--0.48), Mercedes (RUS +3.14 / ANT -0.57), Haas (OCO +2.38 / BEA -1.76). Four of
-the six such pairs. The rookie's rating has been pulled to fit and the veteran
-absorbs the residual.
+### The prior sigma is a clamp
 
-**Refinement: the mechanism is overshoot, not inversion.** Mercedes is the case
-that shows it. The model's ANT-ahead ordering *agrees* with head-to-head, yet the
-rating gap is 0.20 s (~2.3 positions) on a 5-4 split, and RUS still carries
-+3.14. Rookie gain moves the rating too far whether or not it crosses over.
-Crossing over (Audi, RB) is the visible symptom; the magnitude error is the
-disease, and it is present in pairs that look correctly ordered.
+`_driver_sigma` in `scripts/build_teammate_network_prior.py` has three branches: unanchored or fewer than 24 observations gets `1.75 * population_sd` (0.530421, 14 of 31 drivers); otherwise `max(bootstrap, 0.5 * population_sd, floor)` (the 0.151549 floor binds for 9). **23 of 31 drivers carry a clamp.** DOO at 3 observations and LAW at 23 get the same sigma; LAW and RIC (31) differ by 8 observations and 3.5x in sigma.
 
-**Red Bull is not this mechanism.** VER -3.95 with HAD +0.90 is the opposite
-sign, and the VER/HAD rating gap is 0.016 s — about one position, far too small
-to produce it. Red Bull's error is team strength, not driver rating. Same for
-McLaren and Aston Martin, both of which have near-equal teammate sigmas and so no
-gain asymmetry at all.
+Both tuning levers (raise the default, raise `min_matched_pairs_quali`) were rejected without scoring as counter-tuning a threshold artefact. The structural fix is a sigma continuous in evidence. Two caveats: nothing shows it converts to MAE, and `population_sd` is itself a fit output. Scoring a lever needs a prior rebuild, re-seed and full replay per arm, not a config edit.
 
-### The prior sigma is a clamp, not an estimate - both tuning levers rejected
+### Open after this entry
 
-Before scoring either lever, the quantity they tune was checked. It is not a
-per-driver uncertainty for most of the grid.
+- HUL/BOR is inverted by five places: overshoot from the rookie prior sigma. The open item is the continuous sigma, gated on a cheap proxy showing it pays.
+- Red Bull, McLaren and Aston Martin: large spreads with no gain asymmetry; likely team strength.
+- The walk-forward re-measure on current code was `refused` (`include_grid_scenarios`). The runner exits 0 after the traceback, so a "completed" rerun produced nothing.
 
-`_driver_sigma` (`scripts/build_teammate_network_prior.py:841`) has three
-branches:
+## 2026-08-03: the low-observation prior sigma, scored: `noise`
 
-```python
-fallback_sigma = max(1.75 * population_sd_s, sigma_floor_s)
-if not anchored:                                    return fallback_sigma
-if n_observations < config.min_driver_observations: return fallback_sigma
-trusted_sigma = max(bootstrap_sigmas[driver], 0.5 * population_sd_s, sigma_floor_s)
-```
+Supersedes the unscored rejection above for the sigma lever. `min_matched_pairs_quali` stays unscored.
 
-With `main_component_population_sd_s = 0.3030975`, both saturation values in the
-artifact fall out exactly:
+Change: the fallback multiplier `1.75 * population_sd` in `_driver_sigma`, exposed as `--low-observation-sigma-multiplier` (`2aafbfc2`). Baseline `b1381e06`, arms on `71fa3615`. Protocol: `scripts/champion_quali_bias.py` (deleted 2026-09-24, source at `71fa3615`), 9 events x 3 seeds x 20 simulations, wet rounds included, leakage-inclusive, so deltas only. Each arm rebuilt the prior and rookie fallback, restored the `710fb551` pre-season artifact, re-seeded and replayed 11 rounds: about 6 minutes per arm. The 1.75 arm reproduced the shipped artifact exactly (MAE 2.6734, HUL +4.89).
 
-- `1.75 * 0.3030975 = 0.530421` — the fallback, **14 of 31 drivers**
-- `0.5  * 0.3030975 = 0.151549` — the floor, **9 of 31 drivers**
+| Multiplier | Rookie vs veteran gain | MAE | \|bias\| | HUL | Audi spread |
+|---|---|---|---|---|---|
+| 1.75 (baseline) | 5.28x | 2.6734 | 1.4747 | +4.89 | 6.11 |
+| 1.00 | 1.72x | 2.6734 | 1.4579 | +4.85 | 6.00 |
+| 0.50 (bound only) | 0.43x | 2.6599 | 1.4141 | +4.74 | 5.81 |
 
-**23 of 31 drivers carry a clamp. Only 8 have a sigma derived from their own
-bootstrap.** The cliff is `min_driver_observations = 24`:
+**Verdict: `noise`.** Cutting rookie gain from 5.28x to 1.72x moves HUL 0.04 positions and leaves MAE identical. Even the indefensible 0.5 bound fixes about 3% of HUL's error. The scorer is deterministic, so these are real but immaterial. Direction is right (spreads shrink), the mechanism is real, and it is not load-bearing. RB moved most (LAW at 23 observations, one short of the cliff); Mercedes moved the wrong way; Aston Martin not at all. Fifth mechanism tested against this bias, fifth loss: the cause is not on the driver-rating path.
 
-| driver | n_obs | sigma | source |
-|---|---|---|---|
-| DOO | 3 | 0.5304 | fallback |
-| BOR | 10 | 0.5304 | fallback |
-| ANT | 19 | 0.5304 | fallback |
-| LAW | 23 | 0.5304 | fallback |
-| RIC | 31 | 0.1515 | floor |
-| HUL | 37 | 0.2309 | bootstrap |
+## 2026-08-03: centring the prior mu at fit time: `worse`, built and reverted
 
-DOO at 3 observations and LAW at 23 are assigned identical uncertainty. LAW and
-RIC differ by eight observations and land 3.5x apart. **The quantity that sets
-Bayesian update gain is a step function at an arbitrary threshold, with no
-gradient across three quarters of the grid.**
+Built, measured, adopted, reverted the same day. It improved the headline metric and was still wrong.
 
-**Both tuning levers are therefore rejected without being scored.** Raising the
-`0.5304` default would mean overriding a fitted population quantity with a
-hand-picked one to compensate for a threshold artefact, and it would move all 14
-fallback drivers together regardless of whether they have 3 observations or 23.
-Raising `min_matched_pairs_quali` starves an evidence stream that already fails
-to produce an aggregate in half of all qualifying sessions. Neither survives at
-20 rounds; both are counter-tuning.
+The idea: finish what `93bfbeb0` started by centring inside `attach_driver_rating_mus` before `team_target_s`, then refit. Slopes steepened about 20% (qualifying 1.77417 -> 2.12643, race 1.97077 -> 2.33329). Qualifying MAE 2.6599 -> 2.5724, \|bias\| 1.5017 -> 1.3771 (60 simulations), suite green.
 
-**The structural fix, not attempted:** make the prior sigma continuous in
-evidence — one shrinkage scaling with observation count and graph connectivity —
-replacing the fallback / bootstrap / floor branches. Then BOR at 10 and LAW at 23
-differ because their evidence differs, and the rookie-gain overshoot dissolves
-rather than being counter-tuned.
+What killed it:
 
-Two caveats before anyone builds it. First, **nothing here has been shown to
-convert into MAE** — the base rate on this bias is four mechanisms, four losses,
-and a smaller |bias| is not automatically a smaller MAE. Run the cheap
-prediction-side proxy (scale the centred teammate gap and re-score) to establish
-the sign before spending a rebuild. Second, `population_sd_s` is itself a
-main-component fit output, so a continuous scheme needs its own validation rather
-than a drop-in swap.
+1. **The gain is a scalar.** Multiplying the shipped slopes by 1.1985, nothing else, reproduces MAE 2.5724 and \|bias\| 1.3771 exactly.
+2. **The derived value is not the best one.**
 
-### What scoring the two levers would have cost
-
-Neither lever is testable by editing config and re-predicting. Both change how
-state is *learned*:
-
-- `min_matched_pairs_quali` gates aggregate-row production in the extractor.
-- the 0.5304 prior sigma lives in `teammate_network_prior/latest.json`, built by
-  `scripts/build_teammate_network_prior.py`.
-
-So each arm needs: rebuild the prior (sigma arm only) -> re-seed driver seconds
--> replay all completed rounds -> then score. That is the rebuild procedure with
-its two documented silent traps (the driver-baseline default that double-counts,
-and `USE_DB_STORAGE` replaying onto stored state). Budget an hour per arm, not a
-config edit. The scorer is the cheap half and it already exists.
-
-### Still open after this
-
-- Re-measure the decomposition on current code. The table above is structurally
-  sound but its levels predate `93bfbeb0`, and no cached champion prediction
-  exists after that commit.
-  **Attempted 2026-07-31 via `run_challenger_research_walk_forward.py` and
-  `refused`** — `TypeError: BaselineQualifyingMixin.predict_qualifying() got an
-  unexpected keyword argument 'include_grid_scenarios'`. That is the first row
-  of the "Blocked" table above: the challenger harness has been shelved since
-  2026-07-29 and cannot run against current production code. **The walk-forward
-  runner is not a route to a champion re-measurement.** Note the runner exits 0
-  after printing the traceback, so a re-run that "completes" has still produced
-  nothing.
-  The remaining route is champion-only and avoids the shelved tree entirely:
-  `predict_qualifying(year, race_name, practice_signal_mode="stored_profiles")`
-  is production API, and `historical_replay.py`, `checkpoint_reconstruction.py`
-  and `model_evaluation.py` are all tracked. It needs a small purpose-built
-  driver loop over the 9 catalog events, which is a reconstruction — smaller
-  and lower-risk than the race-scenario reconstruction that stopped the
-  challenger work, but still capable of producing plausible wrong numbers if
-  the checkpoint state is assembled incorrectly. Not attempted.
-- ~~The Audi and Williams team offsets are the two largest single errors in this
-  file and have no mechanism.~~ **Withdrawn the same day** — see the correction
-  above. Both are the pre-`93bfbeb0` uncentered driver rating, already fixed.
-  Neither is a team-strength question: both teams' strength values are about
-  right and correctly ranked.
-- ~~Why does a back-of-grid pair's predicted positions compress?~~ **Settled the
-  same day** — nothing compresses. The within-pair column is a separation
-  *error*, and no Audi driver is near the clip. See the correction above.
-- **HUL/BOR is inverted by five positions in the current state** and is the
-  largest live driver-level error found. Sign error, not magnitude. This is the
-  one open item from this investigation that rests on nothing withdrawn.
-  Mechanism identified and then confirmed on current code (HUL +4.62 against BOR
-  -0.10): the shared low-observation prior sigma `0.5304` gives a rookie teammate
-  5-12x the update gain of an established one, so thin qualifying evidence pulls
-  the rookie's rating too far. **Overshoot, not inversion** — Mercedes is ordered
-  correctly and still carries RUS +3.14, so pairs that look right are affected
-  too. ~~Two levers: the prior sigma default and `min_matched_pairs_quali`.~~
-  **Both rejected without scoring** — see "The prior sigma is a clamp, not an
-  estimate". The open item is the structural fix (continuous sigma), gated on the
-  cheap proxy showing the direction pays at all.
-- **Red Bull, McLaren and Aston Martin are a separate problem.** Large
-  within-pair spreads (4.9, 4.7, 4.7) with the wrong sign for rookie gain, and
-  near-equal teammate sigmas, so no gain asymmetry exists to explain them. VER
-  -3.95, NOR -4.05, ALO -4.14 are all the stronger driver predicted too well.
-  Unexplained; likely team strength.
-- **Four front-runners clipped to an identical 1.0 before `93bfbeb0`.** Any
-  pre-fix result that depends on the internal ordering of Mercedes or Ferrari is
-  reading noise. Applies retroactively to entries above measured on that state.
-- The four inverted teammate pairs (Audi, Red Bull, RB, Cadillac) are measured
-  against actual head-to-head, not against a model state, so they are unaffected
-  by the baseline problem above.
-
-## 2026-08-03: the low-observation prior sigma, finally scored — `noise`
-
-Supersedes "both tuning levers rejected without being scored" above for the
-sigma lever only. The rejection reasoning there still reads correctly; what it
-could not know is how little the lever moves. `min_matched_pairs_quali` remains
-unscored.
-
-**What the variant changes.** One number: the low-observation prior sigma
-multiplier in `_driver_sigma`, `1.75 * population_sd_s`. Exposed as
-`--low-observation-sigma-multiplier` in `2aafbfc2` so an arm needs no source
-edit. Nothing else differs between arms.
-
-**Baseline.** Champion `b1381e06`. Arms ran on `71fa3615`, which adds only the
-flag and the scorer; rebuilding the prior at the 1.75 default reproduces the
-shipped artifact except at the 16th significant digit, so the flag is
-behaviour-preserving.
-
-**Protocol — differs from the one above.** Scored with
-`scripts/champion_quali_bias.py`, 9 catalog events x 3 seeds x 20 simulations,
-`--all-events` so wet rounds are included. **Leakage-inclusive**: every event is
-predicted against a state containing its own result, so these MAEs are not
-comparable to the walk-forward numbers elsewhere in this file. Valid only as
-a delta between arms carrying identical leakage.
-
-Each arm ran the full path — rebuild prior, rebuild rookie fallback, restore the
-`710fb551` preseason driver artifact, re-seed, replay all 11 rounds, score. Both
-documented traps were avoided (explicit `--driver-baseline-file` via the
-preseason restore, `USE_DB_STORAGE` unset). Cost was **16s per race, about 6
-minutes per arm**, not the hour budgeted above.
-
-**Harness validation.** The 1.75 arm — full preseason reseed plus 11-round
-replay — reproduces the shipped production artifact's score exactly: MAE 2.6734,
-HUL +4.89, BOR -1.22, every team row identical. The rebuild path is faithful.
-
-| arm | multiplier | rookie:established update gain | MAE | mean per-driver \|bias\| | HUL | Audi spread |
-|---|---|---|---|---|---|---|
-| baseline | 1.75 | 5.28x | 2.6734 | 1.4747 | +4.89 | 6.11 |
-| arm | 1.00 | 1.72x | 2.6734 | 1.4579 | +4.85 | 6.00 |
-| bound | 0.50 | 0.43x | 2.6599 | 1.4141 | +4.74 | 5.81 |
-
-**Verdict: `noise`.** Cutting rookie update gain from 5.28x to 1.72x moves HUL
-by 0.04 grid positions and leaves MAE bit-identical. The 0.5 bound is included
-only to bracket the channel — it is not a defensible setting, because it gives a
-10-observation rookie *less* update gain than a 37-observation veteran — and even
-there HUL improves 0.15 against a +4.89 error, roughly 3% of the authority
-required. The scorer is deterministic (verified: byte-identical artifacts and
-exact MAE reproduction across runs), so these are real differences, not sampling
-variation. They are simply immaterial.
-
-Direction of every pair is consistent and correct — spreads shrink, |bias|
-falls — so the mechanism described above is real. It is not load-bearing.
-
-**Which pairs respond.** RB moves most (spread 4.00 -> 3.19 at the bound, -0.81),
-consistent with LAW sitting at 23 observations, one short of the cliff. Mercedes
-moves the wrong way (RUS +2.59 -> +2.67). Aston Martin does not move at all.
-
-**What this closes.** The open item above gates the structural fix (continuous
-sigma) on "the cheap proxy showing the direction pays at all". The proxy has now
-been run at two settings including an extreme bound. **The direction pays, and
-pays about 3% of what is needed.** Building a continuous-shrinkage scheme to
-capture a 0.15-position effect on the largest live error is not worth it on this
-evidence. The clamp remains poor engineering — a step function where a gradient
-belongs — but it is not the cause of the HUL/RUS drift, and fixing it will not
-fix that.
-
-This is the fifth mechanism tested against this bias and the fifth to lose. The
-authority-ceiling argument continues to hold: the driver-rating path cannot
-produce a 5-position error, so the cause is not on that path.
-
-## 2026-08-03: centring the prior mu at fit time — `worse`, built and reverted
-
-Built, measured, adopted, then reverted the same day, so it reaches `master` only
-as this entry. Recorded in full because the failure mode is more useful than the
-change: **it improved the headline metric and was still wrong.**
-
-**The thesis.** `93bfbeb0` centred `quali_rating_mu_s` on the prediction path and
-named the rest of the job in its own message — centre inside
-`attach_driver_rating_mus` before `team_target_s` is formed, then refit the
-mapping. Fit time used the uncentered mu while prediction time used the centred
-one, so the two disagreed. Making them agree steepened the fitted slopes by ~20%
-(qualifying 1.77417 → 2.12643, race 1.97077 → 2.33329).
-
-**It measured better.** Qualifying MAE 2.6599 → 2.5724 and mean per-driver
-\|bias\| 1.5017 → 1.3771 at 60 simulations, delta stable from 20 sims, within-pair
-spread shrinking or holding for all 11 teams. Full suite green, golden fixtures
-unmoved. On the evidence in this paragraph alone it looks like a clean adopt,
-and it was committed as one.
-
-**Four checks killed it**, in ascending order of how much they should have been
-run first:
-
-1. **The gain is a scalar.** Take the *shipped* mapping, multiply both slopes by
-   1.1985, change nothing else — no centring, original intercepts — and it
-   reproduces MAE 2.5724 and \|bias\| 1.3771 exactly. The intercept move
-   contributes nothing, which is obvious in hindsight: a uniform shift cannot
-   reorder a grid, and MAE here is a position metric.
-2. **The derived multiplier is not the best one.** Sweeping the slope:
-
-   | slope x | 0.8 | 1.0 | 1.1985 | 1.4 | 1.7 | 2.1 |
+   | Slope x | 0.8 | 1.0 | 1.1985 | 1.4 | 1.7 | 2.1 |
    |---|---|---|---|---|---|---|
    | MAE | 2.7845 | 2.6734 | 2.5993 | **2.5825** | 2.6162 | 2.7071 |
    | \|bias\| | 1.6566 | 1.4747 | 1.3906 | 1.3502 | **1.2492** | 1.3367 |
 
-   There is a real interior optimum, near 1.4, and the "principled" value misses
-   it. Note also that \|bias\| and MAE optimise at different points — more
-   evidence that \|bias\| is not a proxy for MAE.
-3. **The refit generalises worse on its own held-out folds.** Qualifying mean
-   \|prediction_slope − 1\| 0.2936 → 0.3097, race 0.0927 → **0.1941**, rmse worse
-   in both session kinds, 2025 qualifying r² 0.3039 → 0.1192. `prediction_slope`
-   falling means the steeper fit over-predicts spread on holdout years.
-4. **The premise was wrong.** Centring assumed the prior's `mu_s` carries a
-   spurious team component, by analogy with `93bfbeb0`. Measured: the
-   within-team component has sd **0.2733** against a total mu sd of **0.3014**,
-   so ~82% of that quantity's variance is *between*-team — largely real driver
-   quality that correlates with team, because quick drivers sit in quick cars.
-   Centring it moves genuine driver signal into `team_target_s`, which is why the
-   target's spread inflated and the slope steepened. The 2026 season state that
-   `93bfbeb0` fixed had drifted to carry a team offset; the historical
-   teammate-network prior has not, and the analogy does not transfer.
+   \|bias\| and MAE optimise at different points; \|bias\| is not a proxy for MAE.
+3. ~~Worse on held-out folds~~ (2025 qualifying r squared 0.3039 -> 0.1192). **Withdrawn the same day:** the folds are 2022 to 2025, which cannot judge a 2026 mapping.
+4. **The premise was wrong.** About 82% of the prior's mu variance is between teams (within-team sd 0.2733, total 0.3014), largely real driver quality: fast drivers sit in fast cars. Centring moved real driver signal into `team_target_s`.
 
-**Verdict: `worse`.** Adopting would have baked a tuning constant into a
-calibrated artefact on the strength of a 9-event leakage-inclusive delta, while
-its own cross-validation said it was worse. Reverted, artefacts back to the
-2026-05-19 fit.
+**Verdict: `worse`.** Reverted to the 2026-05-19 fit. Points 1, 2 and 4 are measured on 2026 and stand.
 
-### Correction to the above, same day — one kill-criterion retracted
+### The real finding: the mapping was fitted on the wrong regulations
 
-Criterion 3, "generalises worse on held-out folds", **is withdrawn.** Those folds
-are 2022–2025. The 2026 regulations changed the competitive structure of the
-field, so pre-2026 seasons are not a valid arbiter of a 2026 mapping and should
-not have been weighted as one. Criteria 1, 2 and 4 stand — all three are measured
-on 2026 — so the revert itself still holds: the centring derivation is not what
-produced the gain, and the value it produced was not the best one.
+`training_years` was 2022 to 2025. Fitting the same construct on 2026 alone (3,356 matched pairs, 242 aggregate rows, 11 rounds):
 
-### The real finding — the mapping is fitted on the wrong regulations
-
-`training_years` is **2022–2025**, entirely pre-regulation-change, and the
-mapping has never seen a 2026 lap. Extracting 2026 matched laps with
-`scripts/build_matched_lap_observations.py --years 2026` (3,356 matched pairs,
-242 aggregate rows, 11 rounds) and fitting the same construct on 2026 alone:
-
-| session | 2022–25 slope | 2026 slope | ratio |
+| Session | 2022 to 2025 slope | 2026 slope | Ratio |
 |---|---|---|---|
-| qualifying | 1.77417 | **2.76281** | **1.557** |
-| race | 1.97077 | **3.89727** | **1.978** |
+| Qualifying | 1.77417 | 2.76281 | 1.557 |
+| Race | 1.97077 | 3.89727 | 1.978 |
 
-The current field is roughly 56% more spread in qualifying and nearly twice as
-spread in the race. That is the actual defect: not a 20% miscalibration to be
-patched, a mapping calibrated to a field that no longer exists. It also explains
-why the centring hack appeared to work — it moved the slope 1.1985x, the right
-direction and about a third of the way.
+The 2026 field is about 56% more spread in qualifying and nearly twice in the race. That is why the centring hack seemed to work: it moved the slope a third of the way. Scored on champion `52dd79c6`, 60 simulations:
 
-Scored against champion `52dd79c6`, 9 events x 3 seeds, 60 simulations:
-
-| mapping | source | MAE | mean \|bias\| |
+| Mapping | Source | MAE | \|bias\| |
 |---|---|---|---|
-| shipped | 2022–25 | 2.6599 | 1.5017 |
-| slope x1.1985 | tuned | 2.5724 | 1.3771 |
-| fitted on all 2026 | in-sample | 2.5724 | **1.2997** |
-| fitted on rounds 10–11 only | **out-of-sample** | 2.6263 | 1.3131 |
+| Shipped | 2022 to 2025 | 2.6599 | 1.5017 |
+| Slope x1.1985 | Tuned | 2.5724 | 1.3771 |
+| All 2026 | In sample | 2.5724 | 1.2997 |
+| Rounds 10 and 11 only | Out of sample | 2.6263 | 1.3131 |
 
-The last row is the one that matters: Belgian and Hungarian are **not** in the
-9-event scoring catalog, so a mapping fitted on those two rounds alone and scored
-on rounds 1–9 is genuinely out of sample, and it still improves both metrics.
-That is a measured recalibration, not a constant tuned against the score.
+The last row fits on races outside the scoring catalog and still improves both. Three mappings landing on exactly 2.5724 shows MAE saturating. Left `open` that day; adopted the next.
 
-**Also worth noting: position-MAE saturates here.** Three different mappings all
-land on exactly 2.5724 while mean \|bias\| keeps falling from 1.3771 to 1.2997.
-MAE is discretised to integer positions and is a coarse instrument at this
-margin; do not read a flat MAE as "no change".
+## 2026-08-04: refit the seconds mapping on 2026: `adopted`
 
-**Status: `open`, deliberately not adopted in this session.** The evidence is
-much stronger than the centring case, but the honest limits are: 11 rounds of
-2026 exist, the out-of-sample fit rests on 30 qualifying rows, and the race
-mapping nearly doubled while the scorer measures qualifying only. The right
-implementation is a 2026-inclusive or recency-weighted refit run through the
-normal pipeline with its own validation — not a hand-edited artefact. Given this
-file already contains one change adopted too quickly today, that decision is left
-explicit rather than taken in passing.
+Champion `52dd79c6`, local artifacts equal to production (`car_characteristics` v101, `driver_characteristics` v26). Protocol: `scripts/champion_quali_bias.py` (deleted, source at `71fa3615`), 9 events x 3 seeds x 60 simulations, leakage-inclusive, deltas only; the mapping file is the only difference.
 
-## 2026-08-04: refit the seconds mapping on 2026 — `adopted`
-
-Closes the `open` item from 2026-08-03. That entry established the defect and
-deliberately stopped short of adopting; this is the pipeline version, with the
-training-year choice argued from data rather than asserted.
-
-**The defect.** `team_strength_seconds_mapping` converts a team-strength rank
-into a time gap. `training_years` was 2022–2025, so it had **never seen a 2026
-lap**, and the 2026 field is materially more spread. Every prediction all season
-compressed team separation.
-
-**Baseline.** Champion `52dd79c6`. Local artefacts verified equal to production
-Supabase `car_characteristics` v101 / `driver_characteristics` v26.
-
-**Protocol.** `scripts/champion_quali_bias.py`, 9 events x 3 seeds x 60
-simulations, `--all-events`. Leakage-inclusive, so deltas only. The mapping is
-prediction-time only, so both arms ran on byte-identical state with the mapping
-file the single difference.
-
-| | champion | 2026 refit |
+| | Champion | 2026 refit |
 |---|---|---|
-| qualifying MAE | 2.6599 | **2.5724** |
-| mean per-driver \|bias\| | 1.5017 | **1.2997** |
-| qualifying slope | 1.77417 | 2.76281 |
-| race slope | 1.97077 | 3.89727 |
+| Qualifying MAE | 2.6599 | **2.5724** |
+| \|bias\| | 1.5017 | **1.2997** |
+| Qualifying slope | 1.77417 | 2.76281 |
+| Race slope | 1.97077 | 3.89727 |
 
-**Why 2026-only and not pooled or recency-weighted.** Per-season slopes:
+Why 2026 only: per-season slopes are qualifying 1.895, 2.634, 1.351, 1.216 and race 2.165, 1.757, 1.902, 2.059 for 2022 to 2025. The race is a clean break (2026 nearly doubles any prior season); the pooled qualifying 1.774 is an average that describes no real field. Leave-one-round-out in 2026 (11 folds): slope range 2.662 to 2.853 (sd 0.068) qualifying and 3.813 to 4.040 (sd 0.069) race; held-out prediction slope 0.899 and 0.973. Held-out calibration beats the old mapping on its own seasons (mean \|slope - 1\| 0.101 vs 0.294 qualifying, 0.027 vs 0.093 race).
 
-| kind | 2022 | 2023 | 2024 | 2025 | 2026 |
-|---|---|---|---|---|---|
-| qualifying | 1.895 | 2.634 | 1.351 | 1.216 | **2.763** |
-| race | 2.165 | 1.757 | 1.902 | 2.059 | **3.897** |
+Also fixed or exposed:
 
-Race is a clean regime break — 2026 is nearly double any prior season. Qualifying
-is **not**: 2023 reached 2.634, so 2026 is high but not unprecedented, and the
-pooled 1.774 is simply the four-season mean, describing no field that ever
-existed. Pooling would import pre-regulation seasons that cannot arbitrate a 2026
-calibration anyway.
+- `PriorFitConfig` historical years were recorded but never applied, so adding 2026 to the shared observations would have pulled it into the historical prior. Now enforced.
+- One-season fits had no valid validation; `evaluate_within_season_folds` adds leave-one-round-out as `primary_folds`.
+- The golden fixtures are tolerance-based and passed both this change and the reverted one. They catch gross regressions, not recalibration.
 
-**The check that justifies fitting on one season.** Leave-one-round-out inside
-2026, 11 folds per session kind:
+## 2026-08-04: validate the race half, and scope calibration to a regulation era: `adopted`
 
-| kind | slope min–max | slope sd | held-out prediction_slope | rmse |
-|---|---|---|---|---|
-| qualifying | 2.662–2.853 | 0.068 | 0.899 | 0.5614 |
-| race | 3.813–4.040 | 0.069 | 0.973 | 0.6702 |
+`scripts/champion_race_bias.py` (deleted 2026-09-24, source at `ad77ae04`) predicts each event from its actual starting grid, so qualifying error cannot leak in. 9 events x 3 seeds x 60 simulations:
 
-Dropping any single round moves the slope by at most 0.09, so the 2026 value is a
-property of the season and not of particular events. Held-out calibration is
-**better** than the old mapping achieved on its own seasons (mean
-\|prediction_slope − 1\|: qualifying 0.101 vs 0.294, race 0.027 vs 0.093).
-
-**Verdict: `adopted`.**
-
-### Three things this change also fixed or exposed
-
-- **The prior was one regeneration away from silently absorbing the current
-  season.** `PriorFitConfig.historical_start/end` were recorded in the artifact
-  but never applied in `_valid_fit_rows`, so putting 2026 into the shared
-  observations would have pulled it into the historical teammate-network prior —
-  double-counting a season the in-season updater already learns, and changing
-  every seeded rating. Now enforced; verified a no-op on 2022–2025 and verified
-  the prior is unchanged with 2026 present.
-- **Single-season fits had no valid validation.** Leave-one-season-out
-  degenerates on one training year. `evaluate_within_season_folds` adds
-  leave-one-round-out, and the frozen artefact now reports it as
-  `primary_folds` when fitted on one season, marking the cross-season folds as
-  provenance only.
-- **The golden fixtures are tolerance-based, not exact.** They passed through
-  both this change and the reverted one on 2026-08-03. Passing them does not mean
-  predictions are unchanged — they bound position drift and top-N overlap, so
-  they catch gross regressions, not recalibration.
-
-### Closed the same day
-
-Both open items below were resolved; kept here so the sequence is legible.
-
-- ~~The race mapping is unvalidated against race results.~~ **Measured** — see
-  the next entry. It helps.
-- ~~`training_years` needs a policy, not a constant.~~ **Now
-  `model.regulation_eras`.**
-- 2026 has 11 rounds and 181 qualifying calibration rows. Re-run this fit as the
-  season extends; the slope is stable so far, but that is 11 rounds of evidence.
-
-## 2026-08-04: validate the race half, and scope calibration to a regulation era — `adopted`
-
-The refit above changed a race slope nobody had scored, and pinned
-`training_years` to a constant that would be wrong at the next regulation change.
-This closes both.
-
-**Race validation.** `scripts/champion_race_bias.py` is new: the qualifying
-scorer cannot see the race slope at all, so half the refit was unmeasured. Each
-event is predicted **from its actual starting grid** rather than a predicted one,
-so qualifying error cannot leak into the number. 9 events x 3 seeds x 60
-simulations, same leakage on both arms:
-
-| | 2022–25 mapping | 2026 refit | delta |
+| | 2022 to 2025 mapping | 2026 refit | Delta |
 |---|---|---|---|
-| race MAE | 4.0606 | **3.9192** | **−0.1414** |
-| race mean \|bias\| | 2.4242 | **2.3434** | −0.0808 |
+| Race MAE | 4.0606 | **3.9192** | -0.1414 |
+| Race \|bias\| | 2.4242 | **2.3434** | -0.0808 |
 
-The race half helps by more in absolute terms than the qualifying half did
-(−0.141 vs −0.088). Both halves of the refit are now measured against a control.
+**Era policy.** `model.regulation_eras` replaces the hardcoded training years. Calibration is fitted within one era and never across a boundary; a new era is one config entry. It reproduced identical slopes.
 
-**Era policy.** `model.regulation_eras` replaces the `DEFAULT_TRAINING_YEARS`
-constant. Calibration is scoped to one era and never fitted across a boundary.
-When regulations change, adding an era and closing the previous `end_year` is the
-whole change — the refit follows. `--training-years` still overrides for one-off
-fits. Freezing through the policy reproduces `[2026]` and identical slopes, so
-adopting it changed no numbers.
+**No decay for field compaction.** Per-round slope sd is about 0.73 and thirds of the season are not monotone (qualifying 2.481, 3.013, 2.777; race 4.420, 3.292, 4.082). An apparent -0.10 per round trend was one standard error from overlapping windows and was retracted. A drift diagnostic was built and removed the same day (0.14 and 0.96 SE: nothing to detect).
 
-### Field compaction: expected, not yet measurable, and now detectable
+**Staleness guard.** `tests/test_team_strength_mapping_freshness.py` fails when refitting on current rows no longer reproduces the frozen slope within three standard errors of per-round scatter. Checked that it fires: a 40% perturbation reports `4.9 standard errors apart. Re-run scripts/freeze_team_strength_seconds_mapping.py`.
 
-Teams converge within a regulation era, the field compacts, and a frozen slope
-becomes progressively too steep. How fast is unknown.
+Race A/B arms take about 15 minutes against 4 for qualifying.
 
-**No decay weighting was applied, deliberately.** It is not measurable yet.
-Across 11 rounds of 2026 the per-round slope sd is **~0.73**, and non-overlapping
-thirds are not monotone in either session kind:
+## 2026-08-05: couple the qualifying score scale to the mapping: `adopted`
 
-| kind | rounds 1–4 | 5–8 | 9–11 |
-|---|---|---|---|
-| qualifying | 2.481 | 3.013 | 2.777 |
-| race | 4.420 | 3.292 | 4.082 |
+Qualifying divides the seconds delta by `team_strength_seconds_score_scale` to reach its 0 to 1 score. That was a frozen constant, 1.9707717329051126: the old race slope, used for qualifying since `0590c376` (2026-05-19). The 2026-08-04 refit moved the mapping and not the divisor.
 
-A trend estimate over 11 rounds at that scatter carries a standard error near
-0.067, so the −0.10/round "compaction" an earlier rolling-window pass appeared to
-show was about one standard error, and was an artefact of overlapping windows.
-**That claim was retracted rather than built on** — fitting a decay to it would
-have repeated the 2026-08-03 mistake.
+Saturation on the live Dutch GP state, 22 drivers:
 
-A drift diagnostic (`evaluate_slope_drift`) was built to watch for it — recent
-window against the era fit, in standard errors of per-round scatter — and then
-**removed the same day**. It measured 0.14 SE (race) and 0.96 SE
-(qualifying), i.e. nothing, which is the point: it was monitoring for a
-phenomenon this very section establishes is not detectable yet, and any refit
-would recompute the fit anyway. Building a detector before there is anything to
-detect is speculation, not rigour.
-
-What remains is the check that catches the failure that *does* happen: rounds
-accumulate, nobody refreezes, and the committed mapping stops describing its own
-calibration rows. See `tests/test_team_strength_mapping_freshness.py`.
-
-So the answer to "how long until compaction matters" is: unknown, not yet
-measurable, and **refit as rounds accumulate rather than trying to predict it**.
-The freshness test makes that automatic by failing when the mapping falls behind
-its own data.
-
-### Open after this
-
-- The race scorer takes roughly 15 minutes per arm against ~4 for qualifying, so
-  race A/Bs are not free the way qualifying ones are.
-- Still 11 rounds. Every conclusion here is 11 rounds deep.
-
-### The staleness guard
-
-The failure that actually happens is mundane: rounds accumulate, nobody
-refreezes, and the committed mapping stops describing its own calibration rows.
-`tests/test_team_strength_mapping_freshness.py` fails the build when refitting on
-the current rows no longer reproduces the frozen slope, judged against per-round
-scatter rather than a fixed tolerance, at three standard errors.
-
-It was originally two guards; the second watched the drift diagnostic and went
-with it. **Verified to fire, not merely to pass** — perturbing the committed
-qualifying slope by 40% reports `4.9 standard errors apart. Re-run
-scripts/freeze_team_strength_seconds_mapping.py`. A freshness test that cannot
-fail reads as coverage while providing none.
-
-Both judge against per-round scatter rather than a fixed tolerance. Staleness
-fails at three standard errors, one above the diagnostic's own two-standard-error
-prompt, so ordinary round-to-round movement does not break the build.
-
-**The guard was verified to fire, not just to pass.** Perturbing the committed
-qualifying slope by 40% fails with `4.9 standard errors apart. Re-run
-scripts/freeze_team_strength_seconds_mapping.py`. A freshness test that cannot
-fail is worse than none, because it reads as coverage.
-
-`latest.md` now carries the drift table too, so the numbers are visible to
-someone reading the artefact rather than only to `json.load`.
-
-## 2026-08-05: the qualifying seconds-to-score scale was never coupled to the mapping — `adopted`
-
-**The thesis.** Qualifying projects the team-strength seconds delta into its
-latent `[0, 1]` score space by dividing by `team_strength_seconds_score_scale`.
-That divisor was a frozen config constant, so the 2026-08-04 refit moved the
-mapping and the consumer did not follow. Deriving it from the live qualifying
-slope fixes the coupling permanently.
-
-**Two defects, stacked.** The constant was `1.9707717329051126`. That is exactly
-the pre-refit **race** slope, to the last digit — a different session's
-calibration, used on the qualifying path since `0590c376` (2026-05-19). The
-refit then froze it in place while the qualifying slope moved 1.7742 -> 2.7628.
-
-**This supersedes a claim recorded above.** The 2026-07-31 section "The clip is
-binding, at the front of the grid" concluded: "The team term alone cannot reach a
-bound — it spans only +/-0.42 against a +/-0.5 threshold — so every clip event
-needs the driver term to push it over." That was true when measured. It is no
-longer. Under the refitted slope Mercedes at strength 0.901 projects to 0.562 on
-the team term alone, so the team term now clips **without any driver
-contribution**. Both the slope increase and the move from 6-round to 11-round
-strengths contributed.
-
-**Measured saturation**, live Dutch GP state, all 22 drivers:
-
-| scale | drivers hitting a bound |
+| Scale | Drivers at a bound |
 |---|---|
-| 1.9708 frozen (shipped 2026-08-04) | **7 / 22** — LEC, HAM, RUS, ANT, STR, PER, BOT |
-| 1.9708 under the *pre-refit* slope | 1 / 22 — STR only |
-| 2.7628 derived (this change) | **0 / 22** |
+| 1.9708 frozen (after the refit) | 7 of 22: LEC, HAM, RUS, ANT, STR, PER, BOT |
+| 1.9708 with the old slope | 1 (STR) |
+| 2.7628 derived | 0 |
 
-Saturation is not cosmetic: both teammates pin to the identical value, so the
-learned `quali_rating_mu_s` is erased. Mercedes lost 0.200s of RUS/ANT
-separation, Cadillac 0.288s, Ferrari 0.020s. Ferrari and Mercedes both pinned to
-exactly 1.000, so the seconds channel could not separate the two teams at all.
+Saturation erases the driver rating (both teammates pin to the same value; Ferrari and Mercedes both hit 1.000). Dividing by the live qualifying slope recovers centred team strength exactly and keeps the signal inside 0 to 1. This also supersedes the 2026-07-31 claim that the team term alone cannot reach a bound.
 
-**Why the qualifying slope is the right divisor, not a fitted constant.**
-`delta = slope * (team_strength - 0.5)`, so `delta / slope` recovers the centred
-team strength exactly and the driver rating enters as `mu / slope`. The signal
-is then inside `[0, 1]` by construction for any team strength in `[0, 1]`. Any
-other divisor either saturates the clip or wastes the range.
+Champion `76d26fcf`, `scripts/champion_quali_bias.py --all-events` (deleted, source at `71fa3615`), 9 x 3 x 20:
 
-**Baseline.** Champion `76d26fcf`, working tree clean, in sync with origin.
-
-**Protocol.** `scripts/champion_quali_bias.py --all-events`, 9 events x 3 seeds x
-20 simulations. Leakage-inclusive, so deltas only. Arms varied through
-`F1_CONFIG` alone; no state replay, no artifact was touched.
-
-| | champion (1.9708) | derived (2.7628) |
+| | 1.9708 | 2.7628 |
 |---|---|---|
-| qualifying MAE | 2.5758 | **2.5556** |
-| mean per-driver \|bias\| | 1.2862 | **1.2660** |
+| Qualifying MAE | 2.5758 | **2.5556** |
+| \|bias\| | 1.2862 | **1.2660** |
 
-**The MAE gain is not evidence and is not claimed as one.** A nine-point sweep
-of the scale gives:
-
-| scale | 1.9708 | 2.2 | 2.4 | 2.606 | 2.8 | 3.069 | 3.3 | 3.7 | 4.2 |
+| Scale | 1.9708 | 2.2 | 2.4 | 2.606 | 2.8 | 3.069 | 3.3 | 3.7 | 4.2 |
 |---|---|---|---|---|---|---|---|---|---|
 | MAE | 2.5758 | 2.5791 | 2.5791 | 2.5791 | **2.5488** | 2.5623 | 2.5657 | 2.5892 | 2.6027 |
 | \|bias\| | 1.2862 | 1.2795 | 1.3064 | 1.2761 | 1.2559 | 1.2559 | 1.2458 | **1.2290** | 1.2458 |
 
-Three different scales return byte-identical MAE 2.5791, because MAE over
-integer grid positions is a step function. There is no bowl: 2.8 is an isolated
-dip with 3.069 and 3.3 both worse. The whole sweep spans 0.054, so the adopted
-arm's 0.0202 sits inside the jitter. Picking the sweep minimum would be fitting
-9 events x 3 seeds. Per-driver `|bias|` is the smoother, broadly monotone series
-and is the metric the mechanism actually predicts, since it measures exactly the
-driver ratings that saturation erases.
+The sweep spans 0.054 with no bowl, so the 0.0202 gain is jitter and is not claimed. **Adopted on the structural argument:** the two values were never coupled, so every refit would silently re-saturate. The race side divides nothing and cannot saturate. Tests: the scale must equal the live qualifying slope, must not be the race slope, and no strength in 0.02 to 0.98 may hit a bound (checked to fail under the old constant). An explicit config value still overrides for A/B arms.
 
-**Adopted on the structural argument, not the metric.** The measurement is
-neutral-to-slightly-positive and is recorded as such. The reason to take it is
-that the two values were never coupled, so every future refit silently
-re-saturates until someone notices.
+## 2026-08-24: qualifying classification is not the starting grid: `never activated` on the replay, `adopted` for the residual dataset
 
-**Race side is unaffected.** `lap_by_lap_simulator.py` consumes the seconds delta
-and `race_rating_mu_s` natively in seconds — no projection, no clip — so despite
-the race slope moving further (1.9708 -> 3.8973) it cannot saturate. The bounded
-score space is a legacy of qualifying's latent-ranking design.
+Nothing read FastF1's `GridPosition`; every start position was the qualifying classification, which ignores penalties. `fetch_actual_starting_grid()` in `src/data/actual_results_fetcher.py` now produces the real grid and `start_type`.
 
-**Guarded.** `tests/test_team_strength_mapping_freshness.py` gains three tests:
-the resolved scale must equal the live qualifying slope, must not be the race
-slope, and no team strength in `[0.02, 0.98]` may project onto a clip bound. The
-freshness tests above guard the artifact against its calibration rows; these
-guard it against its consumer, which is how this defect survived. Verified to
-fire, not merely to pass: under the old constant the scale test fails and the
-saturation test trips at 2 of 5 sampled strengths.
+Baseline `19085bd5`, fresh 12-round replay. 41 of 264 driver-races (15.5%) differ from the real grid:
 
-**Do not hardcode this value again.** An explicit config number still overrides,
-so an A/B arm costs no code change — that is what the sweep above used.
-
-## 2026-08-24: qualifying classification is not the starting grid — `never activated` on the replay, `adopted` for the residual dataset
-
-**The thesis.** Nothing in this repo read FastF1's `GridPosition`. Every path that
-needed a race start position used the qualifying classification instead, which
-carries no penalties: a driver who qualifies P3 and takes a ten-place drop is still
-classified P3 by the timing feed. `fetch_actual_starting_grid()` in
-`src/data/actual_results_fetcher.py` is the first producer of the real grid, and of
-the `start_type` field the `QualifyingGridEntry` type has declared and validated
-since it was written with nothing ever setting it.
-
-**Baseline.** `19085bd5`, rebuilt — a fresh 12-round 2026 walk-forward replay, not the
-stored artifact. Both arms carry the practice-session tolerance below, so the only
-difference between them is the starting grid.
-
-**How wrong the classification is, in 2026.** 41 of 264 driver-races, 15.5%, disagree
-with the real grid. The error distribution in positions:
-
-| error | -11 | -10 | -4 | -3 | -1 | +1 | +2 |
+| Error (positions) | -11 | -10 | -4 | -3 | -1 | +1 | +2 |
 |---|---|---|---|---|---|---|---|
-| rows | 1 | 1 | 2 | 3 | 4 | 18 | 12 |
+| Rows | 1 | 1 | 2 | 3 | 4 | 18 | 12 |
 
-Most are one-or-two-place cascades behind someone else's penalty. Seven rows exceed
-the residual model's own +/-2.5 target clip, and the two worst — Spa, where NOR
-qualified P3 and started P13, and HAD P10 -> P21 — saturate it in the wrong direction.
+Worst: Spa, NOR qualified P3 and started P13; HAD P10 to P21.
 
-**Replay: `never activated`.** Baseline and grid arms produced identical race MAE at
-all 42 shared checkpoints — mean 3.8468 both, zero difference to four decimals. The
-reason is structural, not marginal: every replay checkpoint is pre-qualifying
-(`PRE`, `FP1`, `FP2`, `FP3`, `SQ`), so the replay always predicts the grid and never
-reads a classification as a start position. The swap in
-`_resolve_race_section_for_replay` is guarded on `qualifying_grid_source == "ACTUAL"`
-and correctly never fires. **This corrects a claim made while planning the change** —
-that the ledger's race MAE was partly scored against grids that never happened. It
-was not. The replay was never exposed to this defect.
+**Replay: `never activated`.** Identical race MAE at all 42 checkpoints (3.8468). Every replay checkpoint is before qualifying, so the replay always predicts the grid. This corrects a planning claim that the ledger's race MAE had been scored on grids that never happened.
 
-**Residual dataset: `adopted`.** `build_race_residual_dataset` built both the
-`grid_position` feature and the `target_positions_gained` label from the qualifying
-classification, so 15.5% of its rows were labelled with positions the driver never
-gained or lost. It now builds both from the starting grid. Unmeasured against a
-scored run: `baseline_predictor.race.race_residual_model.enabled` is `false`, so this
-changes no live prediction today. It changes what the model learns the next time
-anyone evaluates it, which is the point.
+**Residual dataset: `adopted`.** `build_race_residual_dataset` built its grid feature and label from the classification, so 15.5% of rows were mislabelled. It now uses the real grid. The residual model is disabled, so no live forecast changes.
 
-**A separate fix the replay needed first.** FastF1 publishes 2026 Barcelona FP1 with
-laps but no team names — confirmed by deleting the cache entry and refetching from
-the live API: 22 drivers, 544 laps, every `TeamName` empty. It is the only session in
-the 2026 season with zero team names. `_apply_session_update` raised on it, so the
-whole season replay aborted at round 7 and wrote no checkpoints. Practice sessions now
-degrade: the failure is logged, recorded in `HistoricalReplaySummary.skipped_sessions`,
-and the replay continues. Testing days and competitive sessions still fail closed —
-a season seed or a scored result built on missing data is not a replay. Both arms
-above record `skipped_sessions: ['Barcelona Grand Prix::FP1']`.
+**Also fixed:** 2026 Barcelona FP1 has laps but no team names in FastF1 (refetch confirmed), and it aborted the whole replay at round 7. Practice sessions now log and skip (`skipped_sessions`); testing and competitive sessions still fail closed.
 
-**Indicative side measurement, not walk-forward.** Predicting each 2026 round directly
-from the two grids, 3 seeds x 100 simulations, scored against the actual finish: the
-six affected rounds averaged -0.056 MAE with the real grid (Spa -0.242, Hungary
-+0.242), and all six unaffected rounds were identical to three decimals. The unaffected
-rounds matching exactly is the control that matters; the -0.056 is inside noise and
-is not a claim.
+Side measurement, not walk-forward (3 seeds x 100): the six affected rounds averaged -0.056 MAE with the real grid; the six unaffected were identical. Inside noise, not claimed.
 
-## 2026-08-26: track difficulty must cap pass probability, not merely nudge it — `adopted`
+## 2026-08-26: track difficulty caps pass probability: `adopted`
 
-**The thesis.** In the lap-by-lap simulator, track difficulty entered pass probability only as
-an additive threshold, and the pace term swamped it. At Monaco, for a car 3.4 s/lap quicker
-than the one ahead:
+Track difficulty only shifted a pass threshold and pace swamped it. At Monaco a car 3.4 s/lap quicker passed 95% of the time. The pass probability is now capped by the track's observed rate, `overtaking_avg_changes_per_lap / (field_size - 1)`: for a 4 s/lap edge, Monaco 0.048, Monza 0.142, Spa 0.200. Tracks without data keep 0.95.
 
-    overtake_score   = pace_delta * 0.55 = 1.87
-    pass_threshold   = 0.06 + 0.95 * 0.16 = 0.21
-    pass_probability = 0.30 + (1.87 - 0.21) * 0.45 = 1.05  ->  clipped to 0.95
+Baseline `c7623714`, rebuilt: race MAE 3.6136 over 12 rounds from the actual qualifying classification, 100 simulations, seed 42. **Result 3.6136 -> 3.5909**, modest. (Below the later race floor; single seed.)
 
-A quick car passed 95% of the time on the least passable circuit in F1. Track difficulty was
-outweighed roughly nine to one. The fix caps the probability with the track's own observed
-rate: `overtaking_avg_changes_per_lap / (field_size - 1)`, i.e. field-wide position changes
-per lap divided by the number of following pairs. Measured pass rates for a 4 s/lap advantage
-in a 22-car field: Monaco 0.048, Monza 0.142, Spa 0.200; a track with no observed-change data
-keeps the previous 0.95 ceiling rather than guessing.
+Rejected: a queue rule scored 3.5152 but broke four behaviours that pass on the champion (`test_higher_skill_driver_wins_majority_of_intra_team_battles` 58.8% vs 60%, `test_high_sc_probability_produces_variance` zero upsets, two plumbing tests where the faster car finished second). An MAE gain bought with false physics. (Adopted later, 2026-08-28, with a safety car exemption.)
 
-**Baseline.** `c7623714`, rebuilt: mean race MAE 3.6136 over the 12 completed 2026 rounds,
-each predicted from its actual qualifying classification, 100 simulations, seed 42, scored
-against actual finishing positions.
+Known limit: a penalised Mercedes from P22 is predicted P5 at Monza, P8 Hungary, P9 Monaco; Monaco is 4 to 6 places optimistic because the simulator retires 3.1 cars there against 6 in reality. `overtaking_observed_races` was 0 for all 25 tracks.
 
-**Result — 3.6136 -> 3.5909.** A modest improvement, and it is recorded as modest.
+## 2026-08-26: the 2026 overtaking rates, measured: `adopted`
 
-**What was measured and rejected.** A queue invariant — a driver who failed a pass could not
-end the lap ahead of the car he failed to pass, enforced on cumulative time — scored better
-still, 3.5152. It was rejected because the full test suite showed it broke four pre-existing
-behaviours that all pass on champion:
+**Superseded 2026-09-25:** each 2026 value is the forecast race's own result, so the gain below is leakage, not evidence.
 
-| test | failure |
-|---|---|
-| `test_higher_skill_driver_wins_majority_of_intra_team_battles` | 58.8% vs 60% required |
-| `test_high_sc_probability_produces_variance` | zero upsets |
-| `test_race_simulation_uses_mapped_team_seconds_delta` | faster car finished second |
-| `test_race_simulation_uses_seconds_native_driver_residual` | faster car finished second |
+The cap's input came from 2022 to 2024 races. `scripts/extract_overtaking_rates.py` measured 2026 with the same counting rule:
 
-A safety car bunching the field and producing zero upsets is wrong: SC restarts are a primary
-overtaking mechanism, and especially so at Monaco. **The 0.0984 MAE gain was bought with
-physically false behaviour, and MAE alone did not reveal it** — only the qualitative tests did.
-Recorded here so the number is not rediscovered and adopted later without its cost. None of the
-four tests set `overtaking_avg_changes_per_lap`, so the cap adopted above is inactive in all of
-them and is not implicated.
-
-**Known limitation.** A Mercedes penalised to P22 is predicted P5 at Monza, P8 in Hungary and
-P9 at Monaco — correct ordering, but Monaco is roughly 4-6 places optimistic. The cause is not
-the passing model: it is attrition. The simulator produces 3.1 retirements per Monaco race
-against 6 in the actual 2026 event. Real 2026 Monaco has the season's second-highest mean
-grid-to-finish movement (3.88 places, behind Britain's 4.05) precisely because six cars
-retired, not because anyone overtook. That is DNF calibration; see `shelved/dnf-calibration`.
-
-**Unresolved.** `overtaking_avg_changes_per_lap` and `overtaking_difficulty` carry
-`overtaking_observed_races: 0` for all 25 tracks. Both are static priors this repo has never
-validated against a race, and the adopted cap now rests on one of them.
-
-## 2026-08-26: the 2026 overtaking rates, measured — `adopted`
-
-**The thesis.** The pass cap adopted in the entry below divides
-`overtaking_avg_changes_per_lap` by the number of following pairs. That input was a static
-prior derived from 2022-2024 races, carried in `2025_track_characteristics.json` with
-`overtaking_observed_races: 0` — never validated against a race — while
-`2026_track_characteristics.json` recorded it for none of its 25 circuits. A 2026 model was
-being capped by pre-regulation-change cars.
-
-**Measured from cached FastF1 lap data**, using the original prior's exact counting rule
-(skip lap 1, drop pit-out laps, skip laps with fewer than five cars, count every driver whose
-position changed — so one overtake counts twice):
-
-| race | 2026 | prior | race | 2026 | prior |
+| Race | 2026 | Prior | Race | 2026 | Prior |
 |---|---:|---:|---|---:|---:|
 | Australian | 2.30 | 2.81 | British | 3.14 | 2.53 |
 | Chinese | 3.20 | 4.53 | Belgian | 3.16 | 5.15 |
@@ -1455,907 +443,343 @@ position changed — so one overtake counts twice):
 | Canadian | 2.21 | 2.28 | Monaco | 1.26 | 1.12 |
 | Austrian | 2.80 | 3.38 | Barcelona | 3.62 | n/a |
 
-**The prior is not wrong — it measured a different formula.** Nine of eleven comparable
-circuits sit lower in 2026 and the spread compresses from 4.03 to 2.36. That is the
-regulation change appearing in the data, the same reason `model.regulation_eras` scopes the
-seconds mapping. `scripts/extract_overtaking_rates.py` now measures a season and writes the
-value with an `overtaking_observed_races` count; the loader blends toward the previous era's
-value using the existing transition weighting, so with one race per circuit the 2026
-measurement earns roughly 12-19% weight.
+Nine of eleven circuits are lower in 2026 and the spread compressed from 4.03 to 2.36: the regulation change. The loader blends toward the previous era (12 to 19% weight at one race). **Result 3.5909 -> 3.5606** against the rebuilt `c7623714` baseline 3.6136. The transition schedule (`races_to_full_weight: 8`) was built for drift within an era, not an era break.
 
-**Result — 3.5909 -> 3.5606** over the 12 completed rounds against the rebuilt `c7623714`
-baseline of 3.6136.
+## 2026-08-26: retirements, both layers: `adopted`, and a probe whose evidence failed
 
-**Worth knowing.** Belgium resolves to 4.78 from a previous-era 5.15 and a 2026 measurement of
-3.16. After a full season the input has moved about a fifth of the way. The transition
-schedule (`races_to_full_weight: 8`) was built for drift within an era, not for an era break;
-whether it should adapt faster after a regulation change is an open question, and it also
-governs `overtaking_difficulty`.
+Raw FastF1 has **42 retirements in 264 driver-races (0.201 each, 4.42 per race)**:
 
-## 2026-08-26: retirements, both layers — `adopted`, and a probe whose evidence failed
-
-**The thesis.** Actual 2026 retirements, read from raw FastF1 (`ClassifiedPosition` not
-numeric): **42 in 264 driver-races, 0.201 per driver-race, 4.42 per race.** Against that:
-
-| layer | before | after | actual |
+| Layer | Before | After | Actual |
 |---|---:|---:|---:|
-| simulator input `dnf_probability` (field sum) | 3.13 | 4.43 | 4.42 |
-| reported `dnf_probability` (mean) | 0.064 | 0.200 | 0.201 |
+| Simulator input, field sum per race | 3.13 | 4.43 | 4.42 |
+| Reported probability, mean | 0.064 | 0.200 | 0.201 |
 
-The simulator retired too few cars and the output layer then shrank the reported risk to a
-third of reality. A user reading "6% retirement risk" was looking at a one-in-five event.
+The probe that justified shrinking the reported number (`dnf_calibration_probe.md`) counted 11 retirements across 13 events; its actuals predate `scripts/backfill_dnf_data.py`. Pooled Brier on complete actuals:
 
-**The probe that justified the shrinkage was scored against incomplete actuals.**
-`data/model_diagnostics/2026/dnf_calibration_probe.md` recorded **11 DNFs across 13 events**;
-raw FastF1 for the same races has **42**. Its per-event counts read zero for Australia, China,
-Japan, Miami, Canada and Monaco, all of which had between 2 and 7 retirements; only the last
-three events it scored are correct. The signature is actuals attached before
-`scripts/backfill_dnf_data.py` existed.
-
-Re-scored on complete actuals (264 driver-races, true rate 0.201), pooled Brier by lambda:
-
-| lambda | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
+| λ | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
 |---|---:|---:|---:|---:|---:|
-| Brier (true rate 0.201) | 0.16045 | 0.16086 | 0.16362 | 0.16875 | 0.17622 |
-| Brier (probe's 0.038) | 0.18694 | 0.18409 | 0.18135 | 0.17873 | 0.17622 |
+| Brier, true rate 0.201 | 0.16045 | 0.16086 | 0.16362 | 0.16875 | 0.17622 |
+| Brier, probe's 0.038 | 0.18694 | 0.18409 | 0.18135 | 0.17873 | 0.17622 |
 
-Under the probe's understated base rate, Brier improves monotonically as lambda rises — the
-opposite ranking to the one it reported. Its lambda=0.25 optimum, and the deployed knob's
-justification that "the raw output overforecasts retirement risk", are artifacts of the
-missing retirements. **The direction was backwards: the model under-forecasts.**
+The ranking flips: the model under-forecasts. Changed: `dnf_probability_base_rate` 0.04 -> 0.20, and `dnf_season_calibration_multiplier` 1.415 scales the simulation input to the observed rate (relative order kept). λ stayed 0.25. **Cost 3.5606 -> 3.5758 race MAE**, the price of simulating retirements at the true rate. Per-track attrition was rejected: observed sd (1.68) is below Poisson noise (2.10) at one race per circuit. (λ moved to 1.0 on 2026-09-20; the constants are fitted on 2026, see 2026-09-25.)
 
-**What changed.** `dnf_probability_base_rate` 0.04 -> 0.20, the observed rate.
-`dnf_probability_shrinkage_lambda` stays 0.25 — with a correct target it now blends toward
-reality, and Brier there is within 0.0004 of the best value. A single documented
-`dnf_season_calibration_multiplier` (1.415) scales the per-driver probability fed to the Monte
-Carlo so the field expectation matches the observed rate; it multiplies, so relative driver
-ordering survives, and the existing cap and floor still bind.
+## 2026-08-26: teammate setup offset into base pace: `worse`, reverted
 
-**Cost — 3.5606 -> 3.5758.** Retirements are the least predictable event in a race, so
-simulating them at the true rate necessarily adds variance. The trade is 0.015 race MAE for a
-retirement model that is no longer wrong by a factor of three. Still 0.038 better than
-champion.
+Moving the persistent teammate spread into `base_lap_time` so the overtake model sees it. **3.5758 -> 3.6439**, worse than champion. The offset is a random draw, so feeding it to the overtake model turns noise into position changes. A comment at the call site now records this.
 
-**Not fixed.** The probe's own `.md` and `.json` are generated from production-stored
-predictions that are not reachable locally, so they still show the old numbers. Re-running the
-probe needs the stored actuals backfilled in production first.
+## 2026-08-28: position changes were not caused by passing: `adopted` (anchor removal), queue rule adopted after 2026-08-29
 
-**Per-track attrition was considered and rejected as unfittable.** Actual 2026 retirements per
-race range 2 to 7, but the observed standard deviation (1.68) is *smaller* than Poisson noise
-for a mean of 4.4 (2.10). With one race per circuit there is no track signal to fit, only
-randomness. The global rate above is fitted to 264 driver-races; a per-track multiplier would
-be fitting noise.
+A penalised ANT was forecast P3 from P22. Position came from cumulative lap time, so cars crossed whether or not a pass fired:
 
-## 2026-08-26: teammate setup offset into base pace — `worse`, built and reverted
-
-**The thesis.** The persistent half of the teammate spread is added to lap time after
-`base_pace` is cached, so it never reaches `pace_delta_to_ahead`. A persistently quicker
-teammate never registered as quicker and never attempted an overtake. Moving it into
-`base_lap_time` leaves total lap time identical and makes it visible to the overtake model.
-
-**Result — 3.5758 -> 3.6439, worse than champion (3.6136). Reverted.**
-
-**Why it should have been obvious.** The offset is `rng.normal(0, std)` — a random per-driver
-draw, not measured pace. Feeding it to the overtake model converts noise into position
-changes. The code sits the way it does on purpose; a comment at the call site now says so with
-this number attached, because the shape of the code invites the same "fix" again.
-
-## 2026-08-28: position changes were not caused by passing — `adopted` (anchor removal), `candidate` (queue invariant)
-
-**The thesis.** A penalised driver's predicted recovery was wrong: ANT was reported finishing P3
-from a P22 start. Chasing why exposed that position changes in the lap-by-lap simulator are not
-caused by passing at all — position is derived from cumulative lap time, so cars cross over
-whether or not the pass model fires.
-
-**Root cause, measured.** Counting successful pass events against position changes over 10
-simulations per circuit:
-
-| circuit | passes | changes | rate |
+| Circuit | Passes | Changes | Rate |
 |---|---:|---:|---:|
 | Monaco | 46 | 2949 | 1.6% |
 | Hungarian | 196 | 3151 | 6.2% |
 | Belgian | 357 | 2715 | 13.1% |
 
-Even at Belgium, the circuit with the most passing measured, 87% of position changes happen
-without a pass event.
+Baseline `566b5d3b`: race MAE 3.5758, 12 rounds, 100 simulations, seed 42. Four dead ends (each about 1% on churn): cap by contending pairs alone (MAE 3.5833, worse), dirty air at its measured size (churn ratio 1.76 -> 1.74), per-circuit lap 1 spread (1.69), pass probability x0.10 (1.75).
 
-**Baseline.** `566b5d3b`, rebuilt: mean race MAE **3.5758** over the 12 completed 2026 rounds,
-each predicted from its actual qualifying classification, 100 simulations, seed 42.
+**Adopted: `resolve_pace_anchor` deleted.** It restored a penalised driver's qualifying slot as his anchor, erasing the penalty. ANT goes P3 -> P18, MAE unchanged (3.5758; no scored round had a penalty).
 
-**Consequence — four measured dead ends.** Each moved the churn ratio by about 1%, none moved it
-meaningfully toward target:
+**Queue rule plus contending-pairs cap** (a position change needs a completed pass; pitted, retired and neutralised laps exempt): MAE 3.5758 -> 3.5227. Displacement ratio 2.07 -> 1.76, churn ratio 1.76 -> 1.25, churn correlation +0.273 -> +0.453 (target 0.617). Each part alone was worse (3.5833, 3.6364), so the pair may be two errors cancelling. Adopted once the skill calibration (2026-08-29) fixed the last failing test; suite green.
 
-| change | result |
-|---|---|
-| pass-probability cap by contending pairs alone | MAE 3.5833 (worse) |
-| dirty air raised to its measured magnitude, ~24x | churn ratio 1.76 -> 1.74 |
-| per-circuit field spread from lap-1 timing | churn ratio 1.76 -> 1.69 |
-| pass probability scaled to 0.10 (90% cut) | churn ratio 1.76 -> 1.75 |
+**MAE cannot judge any of this.** Per-race sd 1.339, standard error 0.387; every configuration (3.5152 to 3.6364) sits within 0.16 SE of champion. Decisions were made on the physics metrics. An earlier harness patched the wrong binding, inflating two figures (corrected: churn ratio 2.01 -> 1.76, correlation +0.389 -> +0.273). Churn reliability 0.595 (ceiling 0.771); displacement reliability -0.223, so per-track displacement cannot be judged until a second season.
 
-None of these touch the mechanism: position derives from time, not from the pass model, so
-tuning the pass model tunes something the position order barely reads.
+Recovery from P15 or worse, 2022 to 2025, 401 driver-races ranked within finishers, by the car's season median finish:
 
-**Adopted — `resolve_pace_anchor` deleted.** It restored a penalised driver's qualifying
-position as his finish-order anchor, silently erasing the penalty — the actual cause of ANT P3.
-Removing it changes ANT from P3 to P18 from a P22 start and costs **zero** MAE (3.5758 -> 3.5758,
-identical to four decimals), because no round in the 12-round scored set carries a penalty.
-
-**Candidate, not adopted — queue invariant plus contending-pairs cap.** Gates a position change
-on a completed pass, exempting pitted cars, retired cars and neutralised laps. **MAE 3.5758 ->
-3.5227**. At the time of measurement, recovery from P22 gave Monza P16, Hungary P18, Monaco P20,
-with a slow car (BOT) staying P22 at all three. Calibration metrics all moved toward target
-without reaching it: displacement ratio 2.07 -> 1.76, churn ratio 1.76 -> 1.25, churn correlation
-+0.273 -> +0.453 against a target of 0.617.
-
-Each component measured **worse alone** — cap 3.5833, gating 3.6364 — so the combined 3.5227 may
-be two errors partly cancelling rather than a validated joint fix. **However, see the MAE note
-below: none of these differences is distinguishable at n=12.**
-
-Test cost at the time: 4 behavioural failures. Three were plumbing tests reading pace through
-free passing and have since been re-pointed at lap time; the fourth,
-`test_higher_skill_driver_wins_majority_of_intra_team_battles` at 58.8% against a 60% floor, was
-a real signal and is resolved by the skill calibration in the 2026-08-29 entry. **Now adopted**,
-with the full suite green.
-
-**MAE cannot arbitrate between any of these variants.** Per-race MAE over the 12 scored rounds has
-sd 1.339, so the standard error of the mean is 0.387. Every configuration measured this session —
-3.5152, 3.5227, 3.5758, 3.5833, 3.6364 — lies within 0.16 SE of champion, where 0.758 would be
-needed to clear two standard errors. MAE is a guard against catastrophe here, not a discriminator;
-every decision in this work was made on the physics metrics instead.
-
-**Measurement corrections.** Two earlier figures were inflated by a harness that patched
-`simulate_race_lap_by_lap` on the utils module; that function is injected via `deps` and bound in
-`prediction_mixin`, so the patch never fired and per-run state never reset. Corrected: churn
-ratio 2.01 -> 1.76, churn correlation +0.389 -> +0.273.
-
-**Reliability limits.** Churn reliability is 0.595 across circuits against a ceiling of 0.771, so
-a correlation target above about 0.62 is unreachable at one race per circuit. Displacement
-reliability is **negative** (-0.223): its between-circuit differences are entirely within
-sampling noise, so no per-track displacement criterion is evaluable until a second season
-exists.
-
-**Recovery evidence, 2022-2025** (n=401 driver-races starting P15 or worse, classified finishers,
-grid and finish ranked within the finishers, bucketed by the driver's median finish across his
-other races that season):
-
-| car quality | n | median | p75 | p90 | max |
+| Car | n | Median | p75 | p90 | Max |
 |---|---:|---:|---:|---:|---:|
-| top car (season median finish <= 6) | 31 | +7 | +10 | +13 | +13 |
-| upper-mid (6 < median <= 11) | 99 | +3 | +5 | +8 | +12 |
-| backmarker (median > 11) | 271 | +1 | +3 | +4 | +12 |
+| Top (6 or better) | 31 | +7 | +10 | +13 | +13 |
+| Upper mid (7 to 11) | 99 | +3 | +5 | +8 | +12 |
+| Backmarker (12+) | 271 | +1 | +3 | +4 | +12 |
 
-2026 only, top car, n=2: HAD P21 -> P6 (+12), VER P20 -> P6 (+9). Largest top-car recoveries
-2022-2025: RUS P20 -> P6 (+13), LEC P19 -> P3 (+13), VER P15 -> P2 (+12), LEC P19 -> P5 (+12).
+2026 top cars: HAD P21 -> P6, VER P20 -> P6.
 
-**Verdict.** Anchor removal: `adopted`. Queue invariant plus contending-pairs cap: `candidate`,
-pending a decision on the four failing tests.
+## 2026-08-29: the blend was discarding a correct simulation: `adopted`, model version 3.0
 
-## 2026-08-29: the blend was discarding a correct simulation — `adopted`, model version 3.0
+With the queue rule, the simulator recovers a penalised driver on its own (ANT at Monza: P14 by lap 4, P4 by lap 48), but the reported finish was P17. For drivers flagged `is_penalised` only: `resolve_pace_anchor` is gone, the grid anchor and the `max_gain` floor are skipped. A flag, not a substitute position, because a boolean cannot erase a penalty.
 
-**The thesis.** With position changes gated on a completed pass, the simulator recovers a
-penalised driver realistically on its own: traced lap by lap at Monza, ANT climbs P22 -> P14 by
-lap 4, P10 by lap 12, P4 by lap 48. The reported finish was P17. Three damping heuristics were
-each discarding that answer, all justified by "a grid slot proxies pace" — which is false for a
-driver a steward moved.
+**Measured team race pace.** `team_strength` comes from classified results, which mix pace with reliability and luck. The simulator had Red Bull fastest and Mercedes third; measured 2026 race pace has Mercedes fastest and Red Bull fourth. `scripts/extract_team_race_pace.py` measures median green-flag laps per team and the simulator prefers it. (Its season average leaked into the replay; fixed 2026-09-25.)
 
-**Baseline.** `566b5d3b`, race MAE 3.5758 over the 12 completed 2026 rounds, 100 simulations,
-seed 42.
+**Driver skill.** `skill_improvement_max` 0.75 -> 1.75, fitted to two independent measurements:
 
-**What was removed, for penalised drivers only.** `resolve_pace_anchor` replaced the anchor with
-the qualifying position, erasing the penalty (ANT P3). Deleting it left the grid anchor charging
-the penalty twice — started at P22 and anchored at P22 — giving P17. The `max_gain` floor,
-`max(1, grid - 11)`, would have clamped the result at P11 regardless. All three are now bypassed
-for a driver carrying an `is_penalised` flag; every other driver's blend is untouched, which the
-MAE control confirms.
-
-**A flag, deliberately, not a substitute position.** Replacing the grid slot with the qualifying
-slot is what made the pace anchor dangerous. A boolean cannot erase a penalty.
-
-**Team race pace, measured instead of inferred.** `team_strength` is reconstructed from classified
-results (`_get_current_season_observations`), which conflate pace with reliability, strategy and
-luck, and it fed `base_pace` — a lap-time quantity. The simulator had Red Bull fastest with
-Mercedes third at +0.240; measured 2026 race pace has Mercedes fastest and Red Bull fourth at
-+0.750. `scripts/extract_team_race_pace.py` now measures median green-flag lap time per team per
-race, normalised to the fastest team, and `_resolve_team_pace_delta_seconds` prefers it, falling
-back to the results-derived mapping when absent.
-
-**Driver skill, fitted to two independent measurements.** `skill_improvement_max` 0.75 -> 1.75.
-
-| target | measured | model at 0.75 | model at 1.75 |
+| Target | Measured | Model at 0.75 | Model at 1.75 |
 |---|---|---|---|
-| team mate lap-time gap (114 team-races) | median 0.352 s/lap | 0.150 s | 0.350 s |
-| stronger driver's win rate (34 team-seasons) | median 0.667 | 0.546 | 0.692 |
+| Teammate lap gap (114 team-races) | 0.352 s/lap | 0.150 | 0.350 |
+| Stronger driver win rate (34 team-seasons) | 0.667 | 0.546 | 0.692 |
 
-Two unrelated statistics converge on the same value, which is the reason to trust it over a
-single fitted target. It also lowers the team:driver influence ratio from 2.33 to 1.00, well
-inside the repo's 2.40 cap, and leaves equal-skill team mates at 0.471.
+Team to driver influence ratio 2.33 -> 1.00, inside the 2.40 cap.
 
-**Result.**
-
-```
+```text
 ANT P22 ->  Monza P7   Hungary P7   Monaco P8     (champion: P3 / P4 / P5)
 BOT P22 ->  Monza P18  Hungary P20  Monaco P20
-MAE 3.5758 -> 3.5152   (0.16 SE — not a distinguishable difference)
+MAE 3.5758 -> 3.5152   (0.16 SE, not distinguishable)
 suite 1762 passed, 5 skipped, 3 xfailed, 0 failed
 ```
 
-For scale: a top car starting at the back finishes P3-P6 in reality (HAD P21->P6 and VER P20->P6
-in 2026; SAI P18->P4 at Monza 2022). P7-P8 from one place further back is in range.
+Watch: BOT drifted P22 -> P19 -> P18 at Monza across the three changes, each step inside the envelope. Pooling all back-of-grid starts dragged the p90 to 4.8 and nearly sent this work into an unneeded refit; bucket by car quality.
 
-**Watch this.** BOT — the slowest car — drifted P22 -> P19 -> P18 at Monza across the three
-changes. Each step is inside the measured envelope for a back-of-grid start (median +2, p90 +9 at
-Monza), but the cumulative trend was never examined and no single measurement flags it.
+## 2026-09-04: car x track fit: `rejected`; season-form construct: `candidate`
 
-**A measurement error worth not repeating.** The recovery bound this work was first scored against
-pooled every start from P15 or worse. That pool is 271 of 401 backmarkers, which dragged the p90
-to 4.8 places and made a correct P16 prediction look pessimistic — and sent this work toward a
-team-strength refit it did not need. Bucketed by car quality the top-car median is +7 and the
-four-season maximum +13. Pooling a conditional quantity is the same error class as fitting a
-per-track value to single-race noise.
+Prompted by a user report that the model "overweights recent performance instead of getting the characteristics of the car vs track".
 
-## 2026-09-04: car x track fit — `rejected`; season-form construct — `candidate`
+**Car x track fit cannot be recovered.** Leave-one-race-out over the calibration observations, with a permutation null:
 
-**Why this was opened.** A user report that the model "overweights recent performance instead of
-getting the characteristics of the car vs track". Two separable claims: that a car x track term is
-missing, and that the recency weighting is too aggressive.
-
-**Car x track fit is not recoverable — do not retry with layout features.** Leave-one-race-out over
-`team_strength_seconds_mapping/calibration_observations.csv`: estimate a team's offset from its
-other races, predict its residual at a held-out race, permutation null that keeps the estimator's
-structure and destroys only the real car-track correspondence.
-
-| season | races | race | qualifying |
+| Season | Races | Race | Qualifying |
 |---|---|---|---|
 | 2022 | 19 | -4.9% (p=0.72) | -6.2% (p=0.76) |
 | 2023 | 21 | -5.1% (p=0.80) | -3.7% (p=0.61) |
 | 2024 | 22 | -4.6% (p=0.73) | -3.5% (p=0.45) |
 | 2025 | 22 | -1.4% (p=0.25) | -9.8% (p=0.96) |
-| 2026 | 10 | **+12.1% (p=0.034)** | -14.7% (p=0.93) |
+| 2026 | 10 | +12.1% (p=0.034) | -14.7% (p=0.93) |
 
-Negative skill in 9 of 10 cells, including four seasons where round count is not the binding
-constraint. The single positive sits at the smallest sample and was found by sweeping 6 layout axes
-x 4 shrinkage values x 2 session kinds — 48 looks, against a null 95th percentile of +11.4%. It does
-not survive selection. Archetype binning was also tested and was indistinguishable from shuffled
-labels (p = 0.44-0.67).
+Negative in 9 of 10 cells. The one positive came from 48 looks against a null 95th percentile of +11.4% and does not survive selection. Archetype bins matched shuffled labels (p 0.44 to 0.67). `calculate_track_suitability` was removed from `get_blended_team_strength` (its weight was already 0 from race 4); `qualifying_residual_model` still uses it.
 
-**Consequence.** `calculate_track_suitability` was retired from `get_blended_team_strength`. Its
-weight was already 0.00 from race 4 onward under `rapid_adaptive`, so the term was annihilated for
-most of every season while the docstring claimed it was blended. The method is kept because
-`qualifying_residual_model` still uses it as a feature. Races 1-3 shift by
-`w_testing * track_suitability`, bounded at about 0.005 at race 1 — the suitability term's
-best-to-worst-track swing is at most 0.023 team-strength units across all 11 teams x 23 track
-profiles, and most of `directionality` is a per-team level offset rather than car shape (Aston
-Martin is negative on all four axes, McLaren positive on all four).
+**Recency exponent 1.8 -> 0.3: `candidate`, directional.** Walk-forward over 2026, scored in seconds on the held-out race:
 
-**Recency exponent 1.8 -> 0.3 — `candidate`, directional only.** Walk-forward over 2026, affine map
-fitted on training races, scored in seconds on the held-out race. The response is monotone in both
-session kinds, which is the opposite of the non-monotone jitter that invalidated the
-`grid_anchor_weight` two-arm delta.
-
-| exponent | race MAE | qualifying MAE |
+| Exponent | Race MAE | Qualifying MAE |
 |---|---|---|
-| 0.0 | 0.6583s | 0.5670s |
-| 0.9 | 0.6676s | 0.5747s |
-| 1.8 (was shipped) | 0.6775s | 0.5851s |
-| 2.5 | 0.6824s | 0.5902s |
+| 0.0 | 0.6583 s | 0.5670 s |
+| 0.9 | 0.6676 s | 0.5747 s |
+| 1.8 (shipped) | 0.6775 s | 0.5851 s |
+| 2.5 | 0.6824 s | 0.5902 s |
 
-0.3 was chosen over the measured-best 0.0 to retain some sensitivity to in-season upgrades. A
-team-clustered bootstrap on the 1.8 -> 0.0 delta includes zero in both session kinds
-(race [-0.0212, +0.0553], qualifying [-0.0113, +0.0481]). **Not scored against a rebuilt baseline
-yet** — this entry records the lever's shape, not an adoption.
+Monotone in both. 0.3 keeps some sensitivity to upgrades. A team-clustered bootstrap on 1.8 -> 0.0 includes zero (race [-0.0212, +0.0553], qualifying [-0.0113, +0.0481]). Not scored on a rebuilt baseline.
 
-**The finding that matters more than either change: team strength is a rank statistic end to end.**
-`score_teams_from_actual_rows` emits `1 - rank_index/(team_count-1)`, so the fastest team scores
-exactly 1.0 and the slowest exactly 0.0 every race regardless of gap size. The same collapse is in
-the calibration dataset the seconds mapping was fitted on: `team_strength_mapping.py:201` computes
-`team_median_s` — a real seconds value — and discards it on the next line by ranking. All 374 2026
-rows carry only 27 distinct values, every one a small fraction k/(n-1). This is why margin scoring
-has lost twice: the slope it gets converted through was never fitted on margin, so the arm measures
-a units error. **Refitting the mapping with a margin-native predictor is the prerequisite**, and
-`scripts/extract_team_race_pace.py` (added 2026-08-29) already produces the per-team green-flag
-median the refit needs. It also explains the car x track null above: rank cannot express "0.3s
-better here", so a track term could not register even if one existed.
+**Team strength is a rank statistic.** `score_teams_from_actual_rows` gives the fastest team 1.0 and the slowest 0.0 regardless of gaps, and the mapping's calibration data ranks `team_median_s` away (374 rows, 27 distinct values). This is why margin scoring lost twice: the slope was fitted on rank.
 
-**DNF exclusion from season form — `candidate`.** `score_teams_from_actual_rows` had no DNF filter,
-so a car that retired on lap 3 and was classified P19 scored as a slow car; the 2026-08-29 entry
-already noted this construct "conflate[s] pace with reliability, strategy and luck". `row_is_dnf`
-moved to `src/utils/accuracy_targets.py` and now gates the position mean, handling all three row
-shapes the sanitizer emits (`dnf`, `status`, `classified`). Verified byte-identical on all 28 stored
-2026 artifact target-sets while none carried a DNF signal, which is what the fix shipping dormant
-looked like.
+**DNF exclusion from season form: `candidate`.** A car retiring on lap 3 scored as a slow car. `row_is_dnf` now gates the position mean. `scripts/backfill_dnf_data.py` wrote 62 DNF row labels across 11 files (3 races, about 18 distinct retirements) and re-derived no probabilities (archive: `~/Documents/trackside-labs-archive/predictions_pre_dnf_backfill_20260904_231119.tar.gz`). 14 of 28 target sets moved, all race or sprint; at Australia (6 retirements) McLaren 0.5 -> 0.8, Red Bull 0.4 -> 0.7, Haas 0.8 -> 0.6, Alpine 0.6 -> 0.3. Retirements were scoring fast cars as slow, and recency amplified it: this, more than the exponent, explains the user report. Ceilings: a team whose cars all retired keeps its unfiltered rows; one surviving car is not comparable to two.
 
-**The cutover was done, not deferred.** Shipping dormant would have let one team's observation
-series mix two scoring conventions at the round the first flag appeared, with nothing recording
-which element used which. `scripts/backfill_dnf_data.py --year 2026 --predictions-dir
-supabase_artifacts/predictions` wrote **62 DNF row-labels across 11 files and re-derived zero
-probabilities**, so no current-model state leaked into historical artifacts. Those 11 files are
-checkpoint variants of only **3 distinct races** locally (Australia, China incl. sprint, Japan),
-so 62 is a row-label count, not 62 separate retirements - the distinct figure is about 18. `data/predictions`
-was deliberately NOT backfilled: it holds one qualifying file whose only change would have been
-2 probabilities filled from the modified model. Artifacts are untracked, so they were archived to
-`~/Documents/trackside-labs-archive/predictions_pre_dnf_backfill_20260904_231119.tar.gz` first.
+## 2026-09-04: prediction-path stress pass: three unreported defects, one dominant
 
-**Size of the contamination, measured.** Re-scoring every artifact before and after, 14 of 28
-target-sets moved and all 14 are race or sprint (qualifying carries no DNF concept and is
-provably untouched). Australian GP, 6 retirements: McLaren 0.5 -> 0.8, Red Bull 0.4 -> 0.7,
-Haas 0.8 -> 0.6, Alpine 0.6 -> 0.3. Moves of 0.3 on a 0-1 scale, on the series that carries 95%
-of team strength from race 4. Retirements were scoring fast cars as slow ones and the recency
-weighting was amplifying it — which is the mechanism behind the original "overweights recent
-performance" report, more than the exponent was. Two known ceilings, both commented in
-source: a team whose cars all retired keeps its unfiltered rows and still scores last, and a team
-scored on one surviving car is not comparable to one scored on two — the telemetry path has an
-entered-field guard for exactly this and the saved-actual path does not.
+Adversarial probes on real 2026 data. Invariants hold: all schedules sum to 1.0, current weight rises with race number, team scoring ignores row order, replay state cannot leak into production.
 
-## 2026-09-04: prediction-path stress pass — three unreported defects, one dominant
+1. **Rank costs 0.605 s RMS and dominates.** Real per-team gaps round-tripped through the rank score:
 
-Adversarial probes over the team-strength path, run against real 2026 data rather than by reading.
-Scripts were scratch; the numbers are reproducible from
-`data/processed/team_strength_seconds_mapping/calibration_observations.csv` plus the stored artifacts.
+   | | Race | Qualifying |
+   |---|---|---|
+   | RMS error | 0.605 s | 0.522 s |
+   | Mean absolute error | 0.464 s | 0.376 s |
+   | Worst | 2.019 s | 1.731 s |
+   | Real median adjacent gap | 0.302 s | 0.234 s |
+   | Gap the model assigns (constant) | 0.476 s | 0.362 s |
+   | Adjacent pairs where model > 4x reality | 20/90 | 19/84 |
 
-**Invariants that hold.** All 8 schedules sum to 1.0 at every race number and never go negative;
-current-season weight is monotone in race number; `score_teams_from_actual_rows` is permutation
-invariant over row order and never scores a worse finish higher; replay observations are instance
-state and cannot leak into production.
+   About 25x the value of the recency change (0.019 s). One position swap moves a team 0.390 s at the race slope whatever the real gap.
+2. **Teams in one race were scored on different constructs**, chosen per team by list length. Live and saved sources disagree by 0.098 units (0.38 s) on average, up to 0.308 (1.20 s, Audi). McLaren was scored on rank, the other ten on pace.
+3. **Bad rows dropped silently; one team left becomes 0.5.** An unmapped team name took a rank slot (Ferrari 0.667 -> 0.750, Williams 0.333 -> 0.250). Aliases resolved 28 of 32 variants.
+4. **Latent:** recency weights by list position, not race number.
+5. **Reported DNF probability confined to [0.150, 0.238]**; certain retirement and the cap look the same, and the simulation samples different rates.
 
-**1. Rank quantization costs 0.605s RMS, and it dominates everything else measured.** Round-tripping
-each 2026 session's real per-team gap through the rank score and back out via the fitted slope:
+Fix 1 and 2 before touching any weighting lever again.
 
-| | race | qualifying |
+## 2026-09-05: season-form construct defects fixed: `adopted` (mechanism), lead measured
+
+1. **One construct per race.** The source is chosen once for the whole field by total coverage, memoised per `(year, race)`, ties `replayed > saved > live`. A team missing from it falls back to the pre-season baseline.
+2. **Bad input.** Unknown teams are excluded and logged; if nothing resolves, ERROR and `{}`. The single-team fabricated `{team: 0.5}` now returns `{}`. Four aliases added (`Cadillac F1 Team`, `Mercedes-AMG`, `McLaren Formula 1 Team`, `General Motors`): 32 of 32 resolve.
+3. **Recency by race number.** Saved and replayed observations carry a race ordinal. The first attempt made the newest race the least weighted when it was unmapped (ordinals `[5, 6, 3]`, weights 0.343 / 0.362 / 0.294); review caught it. The fallback is now relative to the last ordinal with a clamp. `live` keeps index weighting.
+
+**Lead measured, not adopted: margin vs rank.** Using `team_target_s` (real gap to the field median), walk-forward, exponent 0.3:
+
+| Season | Race | Qualifying |
 |---|---|---|
-| RMS error | **0.605s** | 0.522s |
-| mean absolute error | 0.464s | 0.376s |
-| worst | 2.019s | 1.731s |
-| real median adjacent-team gap | 0.302s | 0.234s |
-| gap the model assigns (constant) | 0.476s | 0.362s |
-| adjacent pairs where model gap > 4x reality | 20/90 (22%) | 19/84 (23%) |
-
-The whole race field spans 3.897s, so the representation error is ~15% of the field per team per
-race. **For scale: the recency-exponent change adopted the same day is worth 0.019s.** Rank costs
-about 25x more than the knob that was tuned. One position swap moves a team 1/(n-1) = 0.100 units =
-**0.390s** at the race slope, regardless of whether the real gap changed by 0.01s or 1.0s. This is
-the quantified form of the "overweights recent performance" report and it is a representation
-defect, not a weighting one.
-
-**2. Two different constructs share one 0-1 scale, and which one a team gets is decided by list
-length, per team.** `_get_current_season_observations` returns whichever of `live_observations`
-(telemetry/position pace) or `saved_actual_observations` (rank) is longer, via
-`_prefer_longest_observations`, and it is called once per team. Measured on the stored 2026 payload
-the two sources disagree by a mean of **0.098 team-strength units (0.38s)**, max **0.308 (1.20s,
-Audi; Williams 1.11s)**. In the current artifact **McLaren is scored on rank while the other ten
-teams are scored on pace**, because its live and saved lists are both length 1 and the `>=` tie-break
-picks the later argument. Teams in the same race are therefore ranked against each other on
-different scales. [Certain] on the mechanism; the specific per-team split depends on which
-predictions root is live.
-
-**3. Malformed rows are dropped silently and can collapse a race to a hardcoded 0.5.** A row with
-position 0, a negative position, a null position, or no `team` key is skipped with no log. If that
-leaves one team, `score_teams_from_actual_rows` returns `{team: 0.5}` — a real race result becomes
-"exactly average" and enters the season-form series. Related: an **unmapped team name is kept as its
-own team**, takes a rank slot, and shifts every real team's score — adding one unknown name moved
-Ferrari 0.667 -> 0.750 and Williams 0.333 -> 0.250 (0.32s). The 2026 alias map resolves 28 of 32
-plausible broadcast/FastF1 name variants; the misses are `Cadillac F1 Team`, `Mercedes-AMG`,
-`McLaren Formula 1 Team`, `General Motors`. `Cadillac F1 Team` is the live risk — Cadillac is the new
-2026 entry and its canonical FastF1 string is not pinned. Same class as the Sao Paulo accented-key
-defect already recorded on 2026-08-01.
-
-**4. Latent, not currently biting: recency weights are indexed by list position, not race number.**
-`_get_saved_actual_observations` skips races where a team has no score, and weights are
-`arange(1, len+1) ** exponent`, so a team that missed a race has every later observation weighted as
-if one race earlier. All 11 teams are scored in every available 2026 race, so it does not fire today;
-at exponent 0.3 the error would be ~1.1 percentage points, and it grows with the exponent.
-
-**5. Reported DNF probability is confined to [0.150, 0.238] and saturates.** With
-`dnf_probability_shrinkage_lambda: 0.25` and `dnf_probability_base_rate: 0.20`, simulated risks of
-0.35, 0.60 and 1.00 all report 0.238 — a car certain to retire and a car at the cap are
-indistinguishable — while a car at zero simulated risk reports 15.0%. The finish order is sampled
-from the unshrunk rates, so the displayed number and the simulation disagree by construction.
-Unchanged in this pass; recorded for the fix.
-
-**Ranking.** Fix 1 and 2 before touching any weighting lever again; both are larger than every knob
-measured to date. 3 is cheap and should log rather than fail silently. 4 is a comment. 5 is a
-separate output-layer decision.
-
-## 2026-09-05: season-form construct defects fixed — `adopted` (mechanism), and lead #1 measured
-
-Follow-up to the 2026-09-04 stress pass. Three of its five findings were correctness defects with no
-calibration judgment in them and are fixed here. The two that are model decisions are recorded below
-with numbers but NOT adopted.
-
-**Fixed 1 — teams in the same race were scored on different constructs.**
-`_get_current_season_observations` returned whichever of `live` (telemetry/position pace), `saved`
-(rank) or `replayed` was longest, and it ran once per team. On the stored 2026 payload the live and
-saved constructs disagree by a mean of 0.098 team-strength units (0.38s) and a max of 0.308 (1.20s,
-Audi; Williams 1.11s), and McLaren resolved to `saved` while the other ten teams resolved to `live`
-because its two lists were both length 1 and the `>=` tie-break picked the later argument. The source
-is now resolved ONCE for the whole field by total coverage summed across every team, memoized per
-`(target_year, race_name)`, ties breaking `replayed > saved > live`. A team absent from the chosen
-source falls back to the preseason baseline rather than silently reading a different scale.
-
-**Fixed 2 — unmapped team names took a rank slot; malformed rows fabricated a score.**
-`score_teams_from_actual_rows` kept any name that failed to resolve, so it consumed a rank position
-and shifted every real team: one unknown name moved Ferrari 0.667 -> 0.750 and Williams 0.333 ->
-0.250 (0.32s at the race slope). Unknown teams are now excluded and logged; if every row fails to
-resolve the call logs ERROR and returns `{}` rather than producing a garbage field. Rows with an
-invalid position are still dropped but counted and logged. The single-resolvable-team path returned
-a fabricated `{team: 0.5}`, turning one real race result into "exactly average" inside the
-season-form series; it now returns `{}`. Verified empirically: adding an unknown team now leaves
-every known team's score bit-identical. Four missing 2026 aliases were added (`Cadillac F1 Team`,
-`Mercedes-AMG`, `McLaren Formula 1 Team`, `General Motors`) — 32 of 32 plausible FastF1/broadcast
-variants now resolve, up from 28. Same class as the Sao Paulo accented-key defect of 2026-08-01.
-
-**Fixed 3 — recency weights were indexed by list position, not race number**, so a team that missed
-a race had every later observation weighted as if one race earlier. Saved and replayed observations
-now carry a race ordinal from `_get_race_order_map`; `live` has no race labels and keeps index
-weighting, documented rather than invented.
-
-**The first attempt at fix 3 inverted the thing it was correcting, and review caught it.** The
-fallback for a race missing from the order map was `len(observations) + 1` — the running count,
-unrelated to the real race number. For a team whose first scored race is R5 when the newest race is
-unmapped, that produced ordinals `[5, 6, 3]` and weights `0.343 / 0.362 / 0.294` at exponent 0.3:
-**the newest race became the least weighted.** A mid-season join with an earlier gap gave `[5, 2, 7]`.
-Reachable here, not theoretical — the schedule loader logs `Supplemented 2026 schedule with local
-fallback races: ['Emilia Romagna Grand Prix']`, and the Sao Paulo accent defect is the same class.
-The fallback is now relative to the last emitted ordinal with a `<=` clamp, which also repairs a
-race that is in the map but arrives out of order. Six adversarial cases pass, including
-all-unmapped and duplicate-accented-slug.
-
-**Lead #1 measured, not adopted: does a TRUE margin construct beat rank?** The earlier attempts were
-invalid because `team_strength_same_session` is itself rank. Using `team_target_s` (real seconds gap
-to field median) as the predictor, walk-forward, recency exponent 0.3, paired bootstrap:
-
-| season | race | qualifying |
-|---|---|---|
-| 2026 | +15.7% (95% CI [+0.005,+0.202], significant) | +23.0% (CI [+0.058,+0.209], significant) |
-| 2025 | -8.8% (significant, margin WORSE) | +1.5% (ns) |
+| 2026 | +15.7% (CI [+0.005, +0.202]) | +23.0% (CI [+0.058, +0.209]) |
+| 2025 | -8.8% (significant, margin worse) | +1.5% (ns) |
 | 2024 | -0.6% (ns) | +2.0% (ns) |
 
-Blend sweep (w=0 pure rank, w=1 pure margin), best w per season:
+Best blend weight (0 rank, 1 margin): race 0.0, 0.0, 0.25, 0.0, **1.0** and qualifying 1.0, 0.0, 0.75, 0.75, **1.0** for 2022 to 2026. Qualifying margin wins or ties in 4 of 5 seasons. Indicative only (standalone harness, 11 rounds); it needs a mapping refitted on a margin-native predictor first.
 
-| | 2022 | 2023 | 2024 | 2025 | 2026 |
-|---|---|---|---|---|---|
-| race | 0.0 | 0.0 | 0.25 | 0.0 | **1.0** |
-| qualifying | 1.0 | 0.0 | 0.75 | 0.75 | **1.0** |
+Not changed: the DNF output band (an output-layer decision) and two couplings (the source cache key ignores `self.teams`; the completed-race count ignores the chosen source).
 
-**Qualifying margin wins or ties in 4 of 5 seasons — not an era artifact.** Race margin helps only in
-2026 and loses in 2022/2023/2025; the regulation-break rule makes those seasons inadmissible against
-a 2026 calibration, which also means the only support is 11 rounds. Separately, the pure
-representation cost of rank was measured by round-tripping each 2026 session's real gaps through the
-rank score and back: **0.605s RMS race / 0.522s qualifying**, worst 2.019s, against a 3.897s field
-span, with a constant assigned adjacent-team gap of 0.476s versus a real median of 0.302s (p10
-0.058s) — the model's gap exceeds 4x reality in 22% of adjacent pairs. For scale, the recency
-exponent change adopted 2026-09-04 is worth 0.019s.
+## 2026-09-07: the qualifying matched-pair gate: defect confirmed, `worse` fix rejected
 
-**These numbers are indicative, not adoption-grade.** They come from a standalone walk-forward
-harness, not a rebuilt baseline over three seeds. They justify opening the margin refit; they do not
-license adopting it. The prerequisite remains refitting `team_strength_seconds_mapping` with a
-margin-native predictor, since the shipped slope was fitted with rank on the x-axis.
+**Falsified: driver ratings do not carry a per-team offset into qualifying.** `qualifying_preparation.py` centres `quali_rating_mu_s` per team before its only consumer, so the per-team mean reaching the score is zero. This is the surviving half of `93bfbeb0`; the 2026-08-03 revert was the fit-time half only. All 11 teams have two finite values and all 29 drivers a full state, so nothing escapes. The -11.9 s slope was measuring team pace. `race_rating_mu_s` is not centred at all; no symptom yet.
 
-**Not changed, deliberately.** The reported DNF probability band `[0.150, 0.238]` and its
-disagreement with the unshrunk simulation are an output-layer calibration decision needing a Brier
-rescore, not a bug fix; `dnf_probability_shrinkage_lambda` and `dnf_probability_base_rate` were left
-alone. Two lower-severity couplings are noted but untouched: the field source cache is keyed on
-`(target_year, race_name)` and does not include `self.teams` or replay state, and
-`_resolve_saved_actual_races_completed` still derives the completed-race count from live payload
-state independently of which source the resolver picked.
+**Confirmed: qualifying observations are gated in a way that tracks team pace.** `min_matched_pairs_quali = 3` drops team-sessions below 3 pairs, which Q1-out teams hit far more often. 2026, 132 team-sessions:
 
-## 2026-09-07: the qualifying matched-pair gate — defect confirmed, `worse` fix rejected
-
-Two findings. A stated defect in the prediction fix plan is **falsified**; a real, separate
-defect is **confirmed and quantified**; the obvious fix for it is measured and **loses**.
-
-### The falsified one: driver ratings do not carry a per-team offset into qualifying
-
-The plan opened with "`quali_rating_mu_s` carries a per-team offset it is not supposed to
-have", backed by a regression of team-level PRE qualifying error on that offset with slope
--11.9 positions/second and r² 0.60 over the last three rounds.
-
-**The qualifying prediction path already centres that field per team.**
-`qualifying_preparation.py:807` calls `center_rating_mu_by_team(all_drivers,
-field="quali_rating_mu_s")` unconditionally, once, after every driver record in the field is
-built. Its only consumer is `_resolve_team_strength_signal`
-(`qualifying_simulation.py:378`). The value reaching the qualifying score therefore has a
-per-team mean of exactly zero.
-
-This is the surviving half of `93bfbeb0`. The 2026-08-03 `worse` verdict reverted the
-**fit-time** centring inside `attach_driver_rating_mus` plus the mapping refit; the
-**prediction-time** centring was never reverted. Reading that entry as "centring is already
-rejected" is wrong.
-
-Checked for escape hatches, all closed on production state of 2026-09-06:
-
-- all 11 teams have two finite values, so the `len(values) >= 2` guard never binds
-- all 29 drivers in the payload return a complete four-field state from
-  `read_driver_seconds_state`, so no driver is silently excluded from the centring
-- `qualifying_mixin.py:620` is the only construction site for `all_drivers`; every
-  downstream stage reuses `prepared["all_drivers"]`
-
-The -11.9 slope is measuring a correlate, most plausibly team pace itself, since drivers in
-fast cars carry faster seconds ratings. Three of the plan's four P0 work items depended on
-the offset reaching the score and are retired.
-
-Noted, not chased: `race_rating_mu_s` is never centred at all
-(`race/preparation_flow.py:506,658`). Qualifying and race treat the same construct
-differently. Race PRE MAE did not degrade, so there is no symptom yet.
-
-### The confirmed one: qualifying observations are gated in a way that tracks team pace
-
-`quali_rating_observations` spans 3 to 18 across the 2026 field while
-`race_rating_observations` spans 10 to 17. The gate is
-`MatchedLapConfig.min_matched_pairs_quali = 3`: `_qualifying_pair_rows` drops a whole
-team-session below it, and `aggregate_matched_teammate_laps` drops it again. A team
-eliminated in Q1 has one common segment and few timed laps, so it clears three matched pairs
-far less often than a team whose drivers both reach Q3.
-
-Extracted all 2026 qualifying sessions (`build_matched_lap_observations.py --years 2026`,
-offline, 12 rounds x 11 teams = 132 team-sessions). `insufficient_matched_pairs` is 27 of 29
-skips. Distribution of `candidate_matched_pairs`:
-
-| pairs | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+| Pairs | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|---|
-| team-sessions | 4 | 2 | **23** | 55 | 42 | 4 | 2 |
+| Team-sessions | 4 | 2 | **23** | 55 | 42 | 4 | 2 |
 
-23 of 132 sit at exactly two pairs, one short of the gate.
+Qualifying updates that moved mu: Aston Martin 3 of 18, Cadillac 6 of 17 to 18, Williams 7 of 17, Haas 11 of 18, McLaren 18 of 18.
 
-The replay harness reproduces this end to end. `driver_update_trace.json` from a baseline
-replay, counting qualifying update events against events that actually moved `mu`:
+**Fix that loses: gate 3 -> 2.** Baseline `757087f3` plus season-form work, rebuilt, 13 rounds:
 
-| team | events | moved mu |
+| Checkpoint | Gate 3 | Gate 2 |
 |---|---|---|
-| Aston Martin | 18 | **3** |
-| Cadillac | 17-18 | 6 |
-| Williams | 17 | 7 |
-| Haas | 18 | 11 |
-| McLaren | 18 | **18** |
-
-Aston Martin loses 15 of 18 qualifying observations. McLaren loses none. The replay's final
-driver state matches production exactly, so the harness is a faithful instrument for this.
-
-### The fix that loses: `min_matched_pairs_quali` 3 -> 2
-
-**Baseline** `757087f3` plus uncommitted season-form work, rebuilt from preseason with
-`replay_historical_checkpoints.py --year 2026 --overwrite`, 13 rounds. Candidate identical
-except the one constant.
-
-| checkpoint | gate 3 | gate 2 |
-|---|---|---|
-| **all** | **2.3363** | **2.3931** |
+| All | **2.3363** | 2.3931 |
 | PRE | 2.5728 | 2.6141 |
 | FP1 | 2.3959 | 2.4439 |
 | FP2 | 2.1775 | 2.2738 |
 | FP3 | 1.8831 | 1.9324 |
 | SQ | 2.4545 | 2.6147 |
 
-Mean delta **+0.0633 positions**, 95% bootstrap CI **[+0.0062, +0.1204]**, excludes zero.
-Paired split 12 better / 23 worse / 11 tied over 46 common checkpoints. Every checkpoint
-degrades. Race is `noise`: -0.0179, CI [-0.0930, +0.0562].
+Mean delta +0.0633, CI [+0.0062, +0.1204], 12 better / 23 worse / 11 tied. Race: noise (-0.0179). Coverage equalised (Aston Martin 3 -> 13) and it still lost: at n=2 the SE understates uncertainty by 1.5 to 2x (|err|/SE median 1.20 against 0.674 expected), mean \|mu\| movement per update rose 25%, sigma collapsed field-wide and two teammate orders flipped (Haas, RB). **Verdict: `worse`, reverted.** Confirmed on correlation on 2026-09-12 (-0.0051, CI [-0.0095, -0.0009]). The test suite did not catch it.
 
-**The delta is not run-to-run variance.** Australian Grand Prix is round 1, so both arms enter
-it with identical state, and all four of its checkpoints produced byte-identical prediction
-payloads across the two runs. The pipeline is deterministic given equal state — qualifying
-seeds from `sha256(f"{self.seed}:{year}:{race_name}:{stage}:{is_sprint}")` — so a repeat
-baseline was not needed to establish the floor.
+**Follow-up sweep: inflate the n=2 SE by lambda.** Same baseline, 46 checkpoints:
 
-**The change did what it was designed to do and still lost.** Coverage equalised: Aston Martin
-3 -> 13 observations, Cadillac 6 -> 15, Williams 7 -> 15, Haas 11 -> 17.
-
-**Why it lost.** The recovered observations are not weak evidence being safely down-weighted;
-they are over-weighted noise. Measured before scoring, on all 487 two-subsets of the 103
-accepted sessions with n >= 3 pairs:
-
-- a 2-pair median differs from the same session's full-n median by mean 0.235s, median
-  0.120s, p90 0.512s, max 2.623s
-- signed error is unbiased in aggregate at -0.010s, so this is variance, not skew
-- bootstrap SE at n=2 averages 0.220s against that 0.235s mean error — right magnitude — but
-  the calibration ratio |err|/SE has **median 1.20** where a correct 1-sigma gives 0.674, so
-  **the SE understates uncertainty by roughly 1.5-2x**, with 7% of subsets beyond z > 3
-- the 0.02s SE floor binds in only 9.4% of subsets, so it is not the mechanism
-
-Confirmed in the replay: effective qualifying updates rose 272 -> 362, and mean |mu movement|
-per update rose **0.0626s -> 0.0784s**, up 25%. Correctly down-weighted evidence moves
-ratings less per update; this moved them more. Posterior sigma collapsed field-wide including
-for teams that gained nothing — McLaren 0.031 -> 0.023, Mercedes 0.040 -> 0.020, VER 0.047 ->
-0.027 — and two teammate orderings flipped sign, Haas OCO -0.109 -> +0.110 and RB LAW -0.074
--> +0.057.
-
-The gate is a crude but load-bearing noise filter. Its *incidence* is biased against slow
-teams; removing it is worse than keeping it.
-
-**Verdict: `worse`.** Reverted, source unchanged.
-
-**Test suite did not catch this.** 325 passed, 1 skipped in the `ilmnop` chunk with the change
-applied. `tests/test_matched_lap_extractor.py` parameterises `min_matched_pairs_quali`
-explicitly at 1, 2 and 3, so the default moving is invisible to it. Nothing in the suite
-guards a calibration regression of this shape.
-
-### Still open
-
-The coverage defect is unfixed. The one arm the evidence points at is gate 2 with an honest
-low-n SE, since the measured failure is specifically that the SE is under-dispersed at n=2.
-That introduces a new tuning constant and must clear the "reproduce it by scaling a shipped
-constant" check before it is believed. Not attempted here.
-
-Second, smaller, untested: `_selected_qualifying_matches` iterates Q3, Q2, Q1 and `break`s as
-soon as the accumulated count reaches the gate, so a team with three Q3 pairs discards its Q2
-and Q1 pairs unread. This cannot help Q1-only teams and so cannot fix the bias, but it means
-well-covered teams update from less evidence than exists. Separate arm, not bundled.
-
-## 2026-09-07: P1 deployment construct — `never activated`, and the premise is wrong for the live path
-
-`score_teams_from_actual_rows` (`src/predictors/baseline/data_support.py`) was changed from rank
-among teams present (`1.0 - rank_index / (team_count - 1)`) to the fixed-scale margin construct that
-`updater_flow._build_position_fallback_race_pace` already uses
-(`clip(1.0 - (mean_position - 1) / (field_size - 1), 0, 1)`, field size from cars that entered).
-
-Scored against the same preseason-rebuilt baseline, 13 rounds of 2026:
-
-**All 46 paired checkpoints tied exactly. 0 better, 0 worse, 46 tied. Mean delta +0.0000.**
-
-### Why: the changed path never runs in the current season
-
-`_resolve_field_observation_source` picks one source for the whole field by total observation
-coverage. The replay log resolves **`live` in 12 of 13 rounds**, with coverage climbing 21 (Japan) to
-130 (Italy). The one exception is the season opener, which resolves to `replayed` with coverage **0** —
-no observations at all, so every team falls back to the preseason baseline and the changed function
-still contributes nothing.
-
-Production is the same: `current_season_performance` carries 12-13 observations for every team,
-**total live coverage 141**, which saved or replayed cannot beat.
-
-`live` is only a candidate when `target_year == loaded_season_year`. So the rank path runs for
-historical backtests of other seasons and, in principle, very early in a season before live coverage
-accumulates — not for current-season prediction, which is what the product serves.
-
-### The consequence for the plan
-
-P1 opens with "Team strength is a rank statistic end to end." **That is false for the current-season
-deployment path.** The source that actually feeds team strength is `live`, whose values come from
-telemetry pace or from `_build_position_fallback_race_pace` — and that function is already
-margin-preserving, with a docstring making the anti-rank argument verbatim. The deployment half of P1
-was fixing a fallback nobody reaches.
-
-What remains true, and is now the whole of P1: the **calibration** construct is still rank.
-`team_strength_same_session` ranks lap-time medians and is what
-`team_strength_seconds_mapping` was fitted against — qualifying slope 2.76281, race 3.89727. The
-0.605s RMS round-trip representation error and the endpoint saturation (fastest team pinned at 1.0 in
-11 of 11 rounds while its real margin varies 1.040s in qualifying and 1.089s in race) are both
-properties of that construct, and both stand.
-
-**This exposes a live units mismatch that no one has measured.** The mapping is fitted with rank on
-the x-axis and is fed, at prediction time, `live` values that are margin-preserving rather than rank.
-Those are different distributions on a shared 0-1 scale. The plan warned about exactly this class of
-error for a margin refit; it is already present in the shipped configuration, in the opposite
-direction.
-
-### Verdict and disposition
-
-**`never activated`** for the 2026 prediction path — untested, not neutral. Arm B (the same construct
-paired with a mapping refitted on it, slopes x1.153 race and x1.158 qualifying) was cancelled once
-Arm A returned identical numbers, because it would measure the same inactivity.
-
-The change itself is correct and makes the two season-form paths agree, which was the point. But it
-is **not** inert everywhere: historical backtests of other seasons resolve to saved/replayed and DO
-use this function, so keeping it would change `scripts/backtest_2025_season.py` results in a way this
-session did not measure. **Reverted** rather than left unmeasured on the strength of a 2026 replay
-that never called it. The construct inconsistency between the two season-form paths therefore stands
-as a known, documented gap; the fix is recorded here for whoever measures it on the path where it
-actually runs.
-
-### The live units mismatch, measured and dismissed
-
-This entry initially proposed that the mapping is fitted on rank but fed margin-preserving `live`
-values, making the shipped configuration carry a units error. **Measured, and it does not.** The 141
-live observations in production against the 196 rank rows the mapping was fitted on:
-
-| | n | mean | sd | min | max |
-|---|---|---|---|---|---|
-| live (reaches the mapping) | 141 | 0.5041 | 0.3128 | 0.0 | 1.0 |
-| rank (mapping was fitted on) | 196 | 0.5000 | 0.3233 | 0.0 | 1.0 |
-
-sd ratio 0.968, mean shift +0.0041 units — +0.011s in qualifying, +0.016s in race. Immaterial. The
-hypothesis is dead; the shipped mapping is fed a distribution that matches what it was fitted on.
-
-Note what that also means: the `live` source spans exactly 0.0 to 1.0, so it **saturates at the
-endpoints the same way rank does**. Being margin-preserving in construction did not stop it
-compressing the ends.
-
-### Next, if P1 continues
-
-The remaining lever is the one the fold evidence supports and neither path implements: a construct
-carrying real lap-time seconds rather than positions, on both the calibration and the live side,
-with the mapping refitted to match. On identical information a lap-time margin beats a lap-time rank
-by +0.157 R2 in 2026 qualifying and +0.122 in race, and position-based constructs sit 0.10 to 0.25 R2
-below lap-time ones regardless of whether they rank or preserve margin. That is the size of the prize
-and it is larger than anything measured in this session. It needs a per-team green-flag seconds
-source anchored on the field median (`scripts/extract_team_race_pace.py` anchors on the fastest team
-and has no qualifying equivalent), so it is real work, not a constant change.
-
-## 2026-09-12: the measurement protocol was unrunnable, and the seed floor it mandated was never measured
-
-Not a model change. This entry corrects how results in this file are produced, and it
-revises two verdicts recorded a few days earlier.
-
-### Root cause: the protocol pointed at a harness that no longer exists
-
-The **Measurement protocol** section prescribed `scripts/run_challenger_research_walk_forward.py`
-with 3 seeds from `DEFAULT_REPLAY_SEEDS`. Verified 2026-09-12: that script does not exist,
-`DEFAULT_REPLAY_SEEDS` appears in **zero** Python files, and two of the data paths it named
-(`data/historical_replay/2026/prediction_cache`, `research_backend_state/`) are gone. Every
-other script named across this file and `MODEL_PROMOTION.md` still exists, so this was one
-rotted section rather than general drift.
-
-The consequence is the part that matters. The rule that made results trustworthy — score
-across 3 seeds — pointed at something nobody could run, so work fell back to
-`scripts/replay_historical_checkpoints.py`, which **had no seed support at all** and always
-ran seed 42. Every verdict produced that way, including all of 2026-09-04 through
-2026-09-07, rests on a single draw of the simulator's randomness.
-
-### The seed floor, measured
-
-Identical code, seed 42 against seed 43, 13 rounds of 2026, 46 paired checkpoints:
-
-| target | metric | mean delta | 95% CI |
-|---|---|---|---|
-| qualifying | overall_mae | -0.0122 | [-0.0439, +0.0187] |
-| qualifying | correlation | -0.0007 | [-0.0039, +0.0024] |
-| race | overall_mae | +0.0342 | [-0.0184, +0.0868] |
-| race | correlation | -0.0009 | [-0.0076, +0.0059] |
-| sprint race | overall_mae | -0.0251 | [-0.1163, +0.0609] |
-
-Changing nothing but the seed moves qualifying MAE by 0.012 and race MAE by 0.034. Per
-checkpoint the deltas have sd 0.11 (qualifying) and 0.18 (race), and the seed change alters
-the score on 30 of 46 qualifying and 41 of 46 race checkpoints.
-
-**A qualifying MAE change under ~0.045 positions, or a race MAE change under ~0.087, is not
-resolvable on a single seed pair.** A number of deltas recorded in this file are smaller
-than that.
-
-### MAE is the wrong primary metric
-
-Resolving power over the same 46 checkpoints — 95% CI half-width on a paired delta divided
-by the metric's own spread, lower is finer:
-
-| metric | detectable / spread |
-|---|---|
-| **correlation** | **0.030** |
-| overall_mae | 0.063 |
-| top_3_pct | 0.076 |
-| within_3 | 0.093 |
-| top_10_pct | 0.160 |
-| within_1 | 0.172 |
-| exact_accuracy | 0.266 |
-
-Correlation resolves about twice as finely as MAE **and** is seed-stable. MAE is also
-discretised to integer positions: comparing `757087f3` against its parent, predictions
-differed on **40 of 46** checkpoints while MAE was identical on 13 — and **7 of those 13 had
-genuinely different predicted orders that MAE could not distinguish**. MAE reports "tied"
-for changes that happened.
-
-### Tooling added
-
-- `scripts/replay_historical_checkpoints.py` takes `--seed` (default 42, so existing
-  behaviour is unchanged); the seed is threaded through `run_historical_checkpoint_replay`
-  and `_build_race_checkpoint_record` into `Baseline2026Predictor`.
-- `scripts/compare_replay_arms.py` compares replay roots from their `accuracy_snapshot`
-  artifacts, reports `correlation` first, and gates every result against a measured floor
-  supplied as `--seed-floor <root> <root>`. Without a floor it warns and refuses to emit
-  `unresolvable`. The floor threshold is the **widest absolute bound of the seed pair's
-  confidence interval**, not its point estimate: one seed pair's shift is a single draw, and
-  gating on the point estimate lets noise-sized effects through as real.
-- Its verdicts distinguish `unresolvable (below seed floor)` — nothing was learned — from
-  `identical (never activated)` — every checkpoint tied, so the change provably did nothing.
-  Collapsing the second into the first would have hidden the most useful finding of
-  2026-09-07.
-
-### Two verdicts revised
-
-Re-scored with the floor applied, qualifying, 46 paired checkpoints:
-
-| arm | correlation delta | CI | verdict |
-|---|---|---|---|
-| seed floor (42 vs 43) | -0.0007 | [-0.0039, +0.0024] | noise |
-| gate 2, lambda 1 | **-0.0051** | **[-0.0095, -0.0009]** | **worse** |
-| gate 2, lambda 2 | -0.0021 | [-0.0056, +0.0013] | unresolvable |
-| gate 2, lambda 4 | -0.0008 | [-0.0038, +0.0021] | unresolvable |
-| P1 position-margin construct | +0.0000 | [0, 0] | identical (never activated) |
-
-**Revision 1 — the gate-2 loss is confirmed, not weak.** The 2026-09-07 entry called
-`min_matched_pairs_quali` 3 -> 2 `worse` on a qualifying MAE delta of +0.0633. When the seed
-floor was first measured that looked marginal, because +0.0633 is only about five times the
-floor's point estimate and their intervals overlap. On `correlation` it is unambiguous:
--0.0051 with a CI excluding zero, clearing the correlation floor of 0.0039, and corroborated
-by MAE (+0.0633), `exact_accuracy` (-3.85) and `top_10_pct` (-1.96). **The `worse` verdict
-stands and is better evidenced than when it was written.**
-
-**Revision 2 — lambda 2 and lambda 4 were recorded as `noise`; they are `unresolvable`.**
-Both sit below the floor, so those runs did not show the recovered observations are
-worthless — they showed the comparison could not tell. The P0 closure still holds, because
-the response is monotone toward the baseline with no interior optimum and lambda 1 is
-genuinely worse, but the supporting rows are weaker than the original entry implied.
-
-### Not done
-
-`src/analysis/promotion_gate.py` still scores on MAE alone and takes no floor, so the
-requirement added to `MODEL_PROMOTION.md` is enforced by the person running the promotion,
-not by code. `scripts/generate_evaluation_report.py` and the dashboard were deliberately
-left on MAE: changing the primary metric there reaches the live product, and the verdicts
-that matter are made in the comparison tool.
-
-## 2026-09-21: 2026 baseline rebuilt over 14 rounds, seed floor re-measured, pipeline determinism proven
-
-**No model change was measured.** This entry records the instrument, not a result.
-
-**Code identity.** `54810683` (`master`), clean tree. `config/default.yaml` changed earlier the
-same day (`dnf_probability_shrinkage_lambda` 0.25 -> 1.0), which moves the reported DNF number
-only; finish order, qualifying order and every metric below are untouched by it.
-
-**Protocol.** `scripts/replay_historical_checkpoints.py --year 2026` into three fresh roots, no
-`--overwrite` of any existing measurement. Pre-season reset from the committed flat
-`data/processed/driver_characteristics.json` (sha256 `62ea9300…`, extracted 2026-03-30 from
-2023-25, `sessions_observed=0` for all 29 drivers, identical to the blob at `ff9197a0^`). 14 of
-25 events complete, last being the Spanish Grand Prix on 2026-09-13. 51 paired checkpoints on
-qualifying and race, 15 on sprint race.
-
-| root | seed | purpose |
-|---|---|---|
-| `data/historical_replay_base42_r14` | 42 | first run; **inputs differ, see below** |
-| `data/historical_replay_base42_r14_check` | 42 | the baseline to reuse |
-| `data/historical_replay_base43_r14` | 43 | floor partner |
-
-**Determinism, established rather than assumed.** The two seed-42 runs produced byte-identical
-`metrics` blocks in all 117 accuracy snapshots, and all 51 prediction files matched apart from
-`predicted_at` and `run_id`. So the replay is reproducible at a fixed seed and the floor below
-measures seed randomness alone.
-
-**One input difference, and it decides which roots pair.** Run 1 replayed 68 weekend sessions;
-runs 2 and 3 replayed 69, the extra one being `Spanish Grand Prix::R`. It reached
-`2026_car_characteristics.json` (Alpine HARD laps sampled 93 -> 186) but changed no checkpoint,
-because it lands after the last scored prediction. Most plausibly run 1 failed to load that
-session and populated the FastF1 cache as a side effect. **Pair the floor and any future arm with
-`base42_r14_check`, not `base42_r14`**, so a comparison never mixes an input difference with the
-thing being tested.
-
-**Seed floor, 14 rounds, identical code, seed 42 vs 43:**
-
-| target | metric | mean delta | 95% CI | verdict |
+| Arm | Qualifying MAE | Delta | CI | Verdict |
 |---|---|---|---|---|
-| qualifying | correlation | -0.0003 | [-0.0035, +0.0026] | noise |
-| qualifying | overall_mae | -0.0157 | [-0.0458, +0.0141] | noise |
-| race | correlation | -0.0005 | [-0.0069, +0.0060] | noise |
-| race | overall_mae | +0.0327 | [-0.0190, +0.0840] | noise |
-| sprint race | correlation | -0.0019 | [-0.0094, +0.0042] | noise |
-| sprint race | overall_mae | -0.0251 | [-0.1114, +0.0606] | noise |
+| Gate 3 (baseline) | 2.3363 | | | |
+| Gate 2, λ 1 | 2.3931 | +0.0633 | [+0.0062, +0.1204] | `worse` |
+| Gate 2, λ 2 | 2.3507 | +0.0221 | [-0.0285, +0.0749] | ~~`noise`~~ `unresolvable` (2026-09-12) |
+| Gate 2, λ 4 | 2.3333 | +0.0023 | [-0.0448, +0.0471] | ~~`noise`~~ `unresolvable` (2026-09-12) |
 
-**Gate new work on the widest bound:** qualifying correlation 0.0035 and MAE 0.046; race
-correlation 0.0069 and MAE 0.084; sprint correlation 0.0094 and MAE 0.111.
+Monotone toward the baseline, no interior optimum: the best the recovered rows can do is change nothing. PRE was the only consistently better checkpoint (λ2 -0.0360, λ4 -0.0280) with CIs including zero at n=13. **P0 closed.** The gate stands; reopen only by scoring PRE alone over more rounds. The sweep hooks were reverted.
 
-**The floor is stable across the extra round.** Qualifying MAE 0.0439 -> 0.0458, race MAE
-0.0868 -> 0.0840 against 2026-09-12. It is a property of the simulator rather than of one run,
-so it can be reused until the code or round count moves materially.
+Untested: `_selected_qualifying_matches` stops at the gate, so a team with three Q3 pairs never reads its Q2 and Q1 pairs.
 
-**Champion levels on this baseline, for reference, not as a verdict:** qualifying correlation
-0.8692 and MAE 2.3257; race correlation 0.6652 and MAE 3.5666; sprint race correlation 0.8366
-and MAE 2.5706.
+## 2026-09-07: P1 deployment construct: `never activated`
 
-**One metric to distrust at sprint sample sizes.** In the floor run — no model change at all —
-sprint `exact_accuracy` came back `better` at +3.0303 with CI [+0.3030, +5.7576], excluding
-zero. At n=15 that metric manufactures significance from the seed. Do not let a sprint accuracy
-number carry a decision.
+`score_teams_from_actual_rows` changed from rank to the fixed-scale margin construct. Same baseline, 13 rounds: **46 of 46 checkpoints tied exactly.**
 
-**Control check.** Scoring the seed-43 run as a candidate returns
-`unresolvable (below seed floor)` on every metric, which is the correct verdict for a run with
-no model change, and confirms the gate fires.
+The field source resolves to `live` in 12 of 13 rounds (coverage 21 to 130), and to `replayed` with zero coverage at the opener. Production has 141 live observations. So the rank path runs only for backtests of other seasons. "Team strength is a rank statistic end to end" is false for the live path; `live` values are already margin-preserving. Reverted, because backtests of other seasons do use it and were not measured. Arm B (with a refitted mapping) was cancelled.
+
+**Units mismatch, measured and dismissed.** Live values fed to the mapping vs the rank rows it was fitted on: mean 0.5041 vs 0.5000, sd 0.3128 vs 0.3233 (n 141 vs 196). +0.011 s qualifying, +0.016 s race. Immaterial. Live values also span exactly 0 to 1, so they saturate like rank.
+
+What remains of P1: a construct in real lap-time seconds on both the calibration and live side, with the mapping refitted. On identical information, lap-time margin beats lap-time rank by +0.157 R squared in 2026 qualifying and +0.122 in race, and position-based constructs sit 0.10 to 0.25 below lap-time ones. Needs a per-team green-flag seconds source anchored on the field median.
+
+## 2026-09-12: the protocol was unrunnable, and its seed floor was never measured
+
+Not a model change. The protocol named `scripts/run_challenger_research_walk_forward.py` with 3 seeds from `DEFAULT_REPLAY_SEEDS`; neither exists (zero Python files), and two data paths are gone. So work fell back to `replay_historical_checkpoints.py`, which always ran seed 42: every verdict from 2026-09-04 to 2026-09-07 rests on one draw.
+
+**Seed floor** (same code, seed 42 vs 43, 13 rounds, 46 checkpoints):
+
+| Target | Metric | Mean delta | 95% CI |
+|---|---|---|---|
+| Qualifying | overall_mae | -0.0122 | [-0.0439, +0.0187] |
+| Qualifying | correlation | -0.0007 | [-0.0039, +0.0024] |
+| Race | overall_mae | +0.0342 | [-0.0184, +0.0868] |
+| Race | correlation | -0.0009 | [-0.0076, +0.0059] |
+| Sprint race | overall_mae | -0.0251 | [-0.1163, +0.0609] |
+
+Per-checkpoint sd 0.11 qualifying, 0.18 race; the seed alone changes the score on 30 of 46 qualifying and 41 of 46 race checkpoints. Metric resolving power is the table in the protocol section.
+
+**Tooling added.** `--seed` on the replay (default 42) threaded to the predictor, and `scripts/compare_replay_arms.py` (correlation first, floor-gated, separate `unresolvable` and `identical` verdicts).
+
+**Verdicts revised** (qualifying correlation, 46 checkpoints):
+
+| Arm | Delta | CI | Verdict |
+|---|---|---|---|
+| Seed floor | -0.0007 | [-0.0039, +0.0024] | noise |
+| Gate 2, λ 1 | -0.0051 | [-0.0095, -0.0009] | worse |
+| Gate 2, λ 2 | -0.0021 | [-0.0056, +0.0013] | unresolvable |
+| Gate 2, λ 4 | -0.0008 | [-0.0038, +0.0021] | unresolvable |
+| P1 margin construct | +0.0000 | [0, 0] | identical |
+
+Gate 2 is confirmed worse and better evidenced than before (also MAE +0.0633, exact accuracy -3.85, top 10 -1.96). λ 2 and 4 were `noise` and are `unresolvable`. The P0 closure still holds.
+
+Not done then: the promotion gate scored MAE only (fixed 2026-09-19 to 20, `d152509c`). The evaluation report and dashboard stay on MAE deliberately.
+
+## 2026-09-21: baseline rebuilt over 14 rounds, floor re-measured, pipeline determinism proven
+
+**Superseded 2026-09-25:** this replay leaked three future inputs. Its floor and levels are kept for reading entries gated on them.
+
+No model change. Code `54810683` (the same day's λ 0.25 -> 1.0 moves only the reported DNF number). Pre-season reset from the committed flat `driver_characteristics.json` (sha256 `62ea9300…`, 2023 to 2025, `sessions_observed=0` for all 29 drivers). 14 of 25 events, last the Spanish GP on 2026-09-13; 51 paired checkpoints for qualifying and race, 15 for sprint.
+
+| Root | Seed | Purpose |
+|---|---|---|
+| `data/historical_replay_base42_r14` | 42 | First run, inputs differ |
+| `data/historical_replay_base42_r14_check` | 42 | Baseline |
+| `data/historical_replay_base43_r14` | 43 | Floor partner |
+
+**Determinism.** The two seed-42 runs gave byte-identical metrics in all 117 snapshots and identical predictions apart from timestamps and run IDs. Run 1 replayed 68 sessions and runs 2 and 3 replayed 69 (the extra `Spanish Grand Prix::R`, after the last scored forecast), so pair with `base42_r14_check`.
+
+| Target | Metric | Mean delta | 95% CI | Verdict |
+|---|---|---|---|---|
+| Qualifying | correlation | -0.0003 | [-0.0035, +0.0026] | noise |
+| Qualifying | overall_mae | -0.0157 | [-0.0458, +0.0141] | noise |
+| Race | correlation | -0.0005 | [-0.0069, +0.0060] | noise |
+| Race | overall_mae | +0.0327 | [-0.0190, +0.0840] | noise |
+| Sprint race | correlation | -0.0019 | [-0.0094, +0.0042] | noise |
+| Sprint race | overall_mae | -0.0251 | [-0.1114, +0.0606] | noise |
+
+Floor then: qualifying correlation 0.0035 and MAE 0.046, race 0.0069 and 0.084, sprint 0.0094 and 0.111. Stable against 2026-09-12. Champion levels (leaky): qualifying correlation 0.8692 and MAE 2.3257, race 0.6652 and 3.5666, sprint 0.8366 and 2.5706.
+
+Sprint `exact_accuracy` came back `better` (+3.03, CI [+0.30, +5.76]) with no model change: at n=15 that metric invents significance. Never let a sprint accuracy number carry a decision. Scoring seed 43 as a candidate returns `unresolvable` everywhere, confirming the gate fires.
+
+## 2026-09-25: the replay leaked three future inputs; baseline and floor rebuilt without them
+
+No model change. Code `66873af5` plus uncommitted changes: the three fixes below, `--through-round` on the replay, and `tests/test_forecast_information_cutoff.py`.
+
+The 2026-09-21 replay reset driver and car state and built each checkpoint before later sessions, but read three inputs from the repository at their end-of-season state:
+
+| Input | What leaked | Fix |
+|---|---|---|
+| `team_race_pace/2026_team_race_pace.json` (`lap_by_lap_simulator`) | A 12-race average used for every race forecast from round 1 PRE, preferred over the results-derived delta | Per-race gaps stored under `races`; the loader averages only races before the target and returns nothing for round 1, an unknown race or an old-format file |
+| `team_strength_seconds_mapping/latest.json` | Slopes fitted on 11 rounds of 2026, used at every round, qualifying included | The replay refits per race on earlier 2026 rows, falling back to the 2022 to 2025 fit for round 1 (what live had then) |
+| `overtaking_avg_changes_per_lap` in `2026_track_characteristics.json` | Each circuit's 2026 value is that race's own result | A measurement in the target season's own file is ignored (one race per circuit); the previous season's value is used |
+
+The 2026-08-26 "2026 overtaking rates" gain was measured entirely on the third leak.
+
+Protocol: `--through-round 14`, seeds 42 and 43, roots `data/historical_replay_wf42_r14` and `data/historical_replay_wf43_r14`, 14 races (Australia to Spain), 51 checkpoints, Barcelona FP1 skipped. Run in a separate terminal: two attempts inside Claude Code were killed for low memory, and a probe showed the replay flat at about 1.15 GB over four rounds.
+
+**Seed floor, leak-free:**
+
+| Target | Metric | Mean delta | 95% CI | Verdict |
+|---|---|---|---|---|
+| Qualifying | correlation | +0.0008 | [-0.0020, +0.0035] | noise |
+| Qualifying | overall_mae | -0.0264 | [-0.0543, +0.0024] | noise |
+| Race | correlation | +0.0042 | [-0.0025, +0.0110] | noise |
+| Race | overall_mae | +0.0056 | [-0.0457, +0.0576] | noise |
+| Sprint race | correlation | -0.0008 | [-0.0078, +0.0056] | noise |
+| Sprint race | overall_mae | -0.0124 | [-0.0791, +0.0612] | noise |
+
+Gate on the widest bound: qualifying correlation 0.0035 and MAE 0.054; race 0.0110 and 0.058; sprint 0.0078 and 0.079.
+
+**What the leaks were worth** (old `base42_r14_check` vs new `wf42_r14`, same seed, gated on this floor):
+
+| Target | Metric | Leaky | Leak-free | Delta | 95% CI | Verdict |
+|---|---|---|---|---|---|---|
+| Qualifying | correlation | 0.8692 | 0.8639 | -0.0053 | [-0.0096, -0.0018] | worse |
+| Qualifying | overall_mae | 2.3257 | 2.3631 | +0.0374 | [+0.0125, +0.0677] | unresolvable |
+| Race | correlation | 0.6652 | 0.6574 | -0.0079 | [-0.0141, -0.0023] | unresolvable |
+| Race | overall_mae | 3.5666 | 3.6289 | +0.0623 | [+0.0250, +0.1054] | worse |
+| Sprint race | correlation | 0.8366 | 0.8406 | +0.0040 | [-0.0039, +0.0143] | unresolvable |
+
+The leaks flattered both main targets, by about 0.06 race positions and 0.005 qualifying correlation. Qualifying moved because the mapping slope sets the qualifying score scale.
+
+**Champion levels:** qualifying correlation 0.8639 and MAE 2.3631; race 0.6574 and 3.6289; sprint 0.8406 and 2.5278.
+
+**Still in sample:** constants fitted on 2026 and read at every round: `dnf_season_calibration_multiplier` 1.415 and `dnf_probability_base_rate` 0.20; `skill_improvement_max` 1.75 (its 114 team-races may include 2026, unchecked); `driver_rating_mu_s` in the calibration observations (source state unchecked). Removing them needs a per-round refit.
+
+## 2026-09-26: old adopted changes re-measured on the leak-free replay
+
+Six arms, each the leak-free baseline (`data/historical_replay_wf42_r14`, `--through-round 14`, seed 42) with one adopted change put back. Gated on the 2026-09-25 floor. Code `66873af5` plus uncommitted changes, including two A/B switches added for this: `--previous-era-mapping` on the replay and `baseline_predictor.race.track_pass_cap_enabled` (default on). Arm roots: `data/historical_replay_arms/`. An arm that scores worse means the adopted change helps.
+
+| Arm (puts back) | Change on trial | Qualifying correlation | Race correlation | Race MAE | Verdict for the adopted change |
+|---|---|---|---|---|---|
+| E: 2022 to 2025 mapping at every round | 2026-08-04 mapping refit | -0.0041 [-0.0069, -0.0013], 14 / 28 / 9 | -0.0001 | +0.0168 | **qualifying `better`**, race `unresolvable` |
+| B: qualifying scale frozen at 1.9708 | 2026-08-05 scale coupling | -0.0010 | -0.0023 | +0.0318 | `unresolvable` |
+| C: recency exponent 1.8 | 2026-09-04 recency 0.3 | +0.0005 | -0.0019 | +0.0201 | `unresolvable` |
+| F: track pass cap off | 2026-08-26 pass cap | identical | -0.0014 | +0.0072 | `unresolvable` (race only) |
+| A: `skill_improvement_max` 0.75 | 2026-08-29 skill 1.75 | identical | **+0.0028** | **-0.0131** | `unresolvable` (race only) |
+| D: DNF multiplier 1.0 | 2026-08-26 retirement calibration | identical | **+0.0024** | **-0.0223** | `unresolvable` (race only) |
+
+Deltas are arm minus baseline, 51 checkpoints (15 for sprint). Better / worse / tied is from the arm's side. Qualifying is identical for A, D and F because those are race-only settings, which confirms the arms isolate what they claim to.
+
+**What this settles.** The 2026 seconds mapping refit is the only old change with a measured, floor-clearing effect: fitting on earlier 2026 rounds beats the 2022 to 2025 mapping on qualifying correlation. Every other adopted change is below the floor on this replay, so their original gains (all single-seed, several on the deleted leaky scorer) were never evidence. The coupling (B) was adopted on structural grounds and stays; nothing here argues against it.
+
+**Arms A and D leaned the other way at seed 42** (putting back the old value made the race slightly better: 29 / 17 and 28 / 16 checkpoints, inside the floor), so both were repeated at seed 43 against `data/historical_replay_wf43_r14`:
+
+| Arm | Seed | Race correlation | Race MAE | Better / worse / tied |
+|---|---|---|---|---|
+| A: skill 0.75 | 42 | +0.0028 [-0.0013, +0.0069] | -0.0131 | 29 / 17 / 5 |
+| A: skill 0.75 | 43 | +0.0007 [-0.0046, +0.0058] | -0.0089 | 19 / 24 / 8 |
+| D: DNF multiplier 1.0 | 42 | +0.0024 [-0.0007, +0.0059] | -0.0223 | 28 / 16 / 7 |
+| D: DNF multiplier 1.0 | 43 | -0.0046 [-0.0103, -0.0001] | +0.0119 | 18 / 26 / 7 |
+
+D flips sign between seeds, so its seed-42 lean was noise. A keeps the sign but shrinks to almost nothing and loses the checkpoint majority. Both stay `unresolvable`; neither is a candidate to revert.
+
+**Not measurable on this replay.** 2026 overtaking rates (inactive in-season since 2026-09-25), `resolve_pace_anchor` removal and the penalised-driver blend (every checkpoint is before qualifying, so no penalties apply), and `757087f3` (cannot be reverted alone on current code).
 
 ## Adding an entry
 
-Keep it to what a future reader needs to trust or discard the result:
+- What changed, in one line: the idea, not the code.
+- The baseline, by commit and replay root.
+- The protocol, if it differs from the one above.
+- The numbers, including how many checkpoints went each way. A mean alone hides a 4-3 split.
+- A verdict from the table at the top.
+- For `never activated` or `refused`, the reason word for word.
 
-- what the variant changes, in one line — the thesis, not the implementation
-- the champion baseline it was measured against, by commit
-- the protocol, if it differs from the one above
-- the numbers, including how many events went each way — a mean delta alone
-  hides a 4–3 split
-- a verdict from the table at the top
-- for `never activated` or `refused`, the disclosed reason verbatim
-
-A result with no baseline recorded is not reusable later. That is the single
-most common way this kind of log goes stale.
+A result without its baseline cannot be reused. That is how logs like this go stale.

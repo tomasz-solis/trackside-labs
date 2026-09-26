@@ -534,6 +534,8 @@ baseline_predictor:
     pace_weight_base: 0.40      # Base pace weight
     pace_weight_track_modifier: 0.10  # Reduced weight per track overtaking difficulty
                                       # Range: 0.30 (Monza) to 0.40 (Monaco)
+    # Cap pass probability with the track's observed overtaking rate. Off only for A/B arms.
+    track_pass_cap_enabled: true
 
     # Intra-team variance
     # Split between a persistent per-race setup offset and smaller lap-to-lap noise.
@@ -580,7 +582,7 @@ baseline_predictor:
     # risk. That premise is the reverse of what the complete actuals show: the
     # model under-forecasts. Re-scored on the complete 264 driver-race set,
     # pooled Brier is 0.16045 at lambda 0.00, 0.16086 at lambda 0.25 and 0.17622
-    # at lambda 1.00 — reporting a flat base rate scores best, which says the
+    # at lambda 1.00; reporting a flat base rate scores best, which says the
     # per-driver rates carry little skill rather than that the display needs a
     # shrink. Fix the rates, not the reported number.
     dnf_probability_shrinkage_lambda: 1.0

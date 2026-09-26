@@ -329,7 +329,13 @@ class BaselineDataMixin:
         return max(races_completed, inferred_races)
 
     def _count_known_prior_races(self, target_year: int, race_name: str | None) -> int | None:
-        """Return number of scheduled races before the target race when known."""
+        """Return number of scheduled races before the target race.
+
+        ``None`` means no target race was given, so no cap applies. A named target
+        missing from the schedule (an alias, an unlisted venue, or a schedule that
+        failed to load) cannot be ordered, so it fails closed at zero prior races
+        rather than admitting every other race, later ones included.
+        """
         normalized_race_name = str(race_name or "").strip()
         if not normalized_race_name:
             return None
@@ -337,7 +343,12 @@ class BaselineDataMixin:
         race_order_map = self._get_race_order_map(target_year)
         target_order = race_order_map.get(normalized_race_name)
         if target_order is None:
-            return None
+            logger.warning(
+                "Race %r is not in the %s schedule; using no current-season form for it",
+                normalized_race_name,
+                target_year,
+            )
+            return 0
         return max(target_order - 1, 0)
 
     def _race_precedes_target(
@@ -358,9 +369,7 @@ class BaselineDataMixin:
         race_order_map = self._get_race_order_map(target_year)
         target_order = race_order_map.get(normalized_target)
         candidate_order = race_order_map.get(normalized_candidate)
-        if target_order is None:
-            return normalized_candidate != normalized_target
-        if candidate_order is None:
+        if target_order is None or candidate_order is None:
             return False
         return candidate_order < target_order
 

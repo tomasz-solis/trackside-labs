@@ -222,10 +222,17 @@ def test_predict_qualifying_blends_bayesian_form_into_quali_pace():
             for index, driver_info in enumerate(all_drivers)
         ]
 
+    # Bahrain is not on the real 2026 calendar; order it after the two completed races.
+    schedule = (
+        ("Australian Grand Prix", "conventional"),
+        ("Chinese Grand Prix", "sprint"),
+        ("Bahrain Grand Prix", "conventional"),
+    )
     with _patched_prediction_dependencies():
-        with patch.object(predictor, "_run_qualifying_simulations", _fake_run):
-            with patch.object(predictor, "_aggregate_grid_results", _fake_aggregate):
-                predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=1)
+        with patch("src.utils.weekend.get_schedule_rows", lambda year: schedule):
+            with patch.object(predictor, "_run_qualifying_simulations", _fake_run):
+                with patch.object(predictor, "_aggregate_grid_results", _fake_aggregate):
+                    predictor.predict_qualifying(2026, "Bahrain Grand Prix", n_simulations=1)
 
     driver_map = {driver["driver"]: driver for driver in captured["all_drivers"]}
     assert driver_map["AAA"]["raw_quali_pace"] == pytest.approx(0.30)

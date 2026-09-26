@@ -59,6 +59,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include sprint qualifying in accuracy scoring instead of saving it as unscored.",
     )
     parser.add_argument(
+        "--through-round",
+        type=int,
+        default=None,
+        help=(
+            "Replay only the first N race weekends, so a candidate arm matches its "
+            "baseline window after later weekends land in the cache."
+        ),
+    )
+    parser.add_argument(
+        "--previous-era-mapping",
+        action="store_true",
+        help=(
+            "Use the previous regulation era's seconds mapping at every round instead of "
+            "refitting it walk-forward on the current season (A/B arm)."
+        ),
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -81,6 +98,8 @@ def main() -> int:
         weather=str(args.weather).strip().lower(),
         overwrite=bool(args.overwrite),
         excluded_scoring_targets=excluded_targets,
+        through_round=args.through_round,
+        previous_era_mapping=bool(args.previous_era_mapping),
         seed=int(args.seed),
     )
 

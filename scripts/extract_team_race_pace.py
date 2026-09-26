@@ -17,7 +17,8 @@ Method, per race:
     - normalise: subtract the fastest team's value that race, giving a per-race
       gap in seconds (0.0 for the fastest team)
 
-Each team's per-race gaps are then averaged across every race it appears in.
+Per-race gaps are written under ``races`` so a forecast can average only the races
+before its target; ``teams`` is the season average, kept for reading.
 
 Usage:
     uv run python scripts/extract_team_race_pace.py --year 2026
@@ -118,13 +119,13 @@ def measure_race(year: int, race_name: str) -> dict[str, float] | None:
     return {team: value - fastest for team, value in team_medians.items()}
 
 
-def collect_measurements(year: int) -> list[tuple[str, float]]:
+def collect_measurements(year: int) -> dict[str, dict[str, float]]:
     """Measure every completed race of `year` with loadable lap data."""
     _enable_fastf1_cache()
     schedule = fastf1.get_event_schedule(year)
     detector = SessionDetector()
 
-    measurements: list[tuple[str, float]] = []
+    measurements: dict[str, dict[str, float]] = {}
     for _, event in schedule.iterrows():
         race_name = str(event["EventName"])
         if "testing" in race_name.lower():
@@ -142,17 +143,21 @@ def collect_measurements(year: int) -> list[tuple[str, float]]:
             logger.debug("No usable lap data for %s", race_name)
             continue
 
-        for team, gap_s in gaps.items():
-            measurements.append((team, gap_s))
+        measurements[race_name] = {
+            team: round(gap_s, _ROUND_PRECISION) for team, gap_s in gaps.items()
+        }
 
     return measurements
 
 
-def aggregate_by_team(measurements: list[tuple[str, float]]) -> dict[str, dict[str, float | int]]:
+def aggregate_by_team(
+    measurements: dict[str, dict[str, float]],
+) -> dict[str, dict[str, float | int]]:
     """Average each team's per-race gaps across every race it appears in."""
     gaps_by_team: dict[str, list[float]] = defaultdict(list)
-    for team, gap_s in measurements:
-        gaps_by_team[team].append(gap_s)
+    for race_gaps in measurements.values():
+        for team, gap_s in race_gaps.items():
+            gaps_by_team[team].append(gap_s)
 
     return {
         team: {
@@ -189,6 +194,7 @@ def main() -> None:
     payload = {
         "year": args.year,
         "built_at": datetime.now(UTC).isoformat(),
+        "races": measurements,
         "teams": aggregated,
     }
     path = (

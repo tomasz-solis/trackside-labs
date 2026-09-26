@@ -922,6 +922,7 @@ class BaselineRaceConfig(StrictConfigModel):
     sc_tire_wear_fraction: float = Field(default=0.65, ge=0.0, le=1.0)
     pace_weight_base: float = Field(default=0.40, ge=0.0)
     pace_weight_track_modifier: float = Field(default=0.10, ge=0.0)
+    track_pass_cap_enabled: bool = Field(default=True)
     teammate_variance_std: float = Field(default=0.13, ge=0.0)
     teammate_setup_offset_ratio: float = Field(default=0.30, ge=0.0)
     teammate_variance_lap_ratio: float = Field(default=0.45, ge=0.0)

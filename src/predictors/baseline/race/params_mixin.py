@@ -53,6 +53,9 @@ class BaselineRaceParamsMixin:
             ),
             "safety_car_luck_range": cfg.get("baseline_predictor.race.safety_car_luck_range", 0.25),
             "pace_weight_base": cfg.get("baseline_predictor.race.pace_weight_base", 0.40),
+            "track_pass_cap_enabled": bool(
+                cfg.get("baseline_predictor.race.track_pass_cap_enabled", True)
+            ),
             "pace_weight_track_modifier": cfg.get(
                 "baseline_predictor.race.pace_weight_track_modifier", 0.10
             ),

@@ -170,6 +170,14 @@ def _write_prediction_file(
     (race_dir / f"{safe_race_name}_{session_name.lower()}.json").write_text(json.dumps(payload))
 
 
+BAHRAIN_AFTER_THREE_RACES = [
+    ("Australian Grand Prix", "conventional"),
+    ("Chinese Grand Prix", "sprint"),
+    ("Japanese Grand Prix", "conventional"),
+    ("Bahrain Grand Prix", "conventional"),
+]
+
+
 def _patch_schedule_rows(patcher, rows: list[tuple[str, str]]) -> None:
     """Patch weekend schedule rows for deterministic race-order tests."""
     patcher.setattr("src.utils.weekend.get_schedule_rows", lambda year: tuple(rows))
@@ -685,6 +693,8 @@ def test_get_blended_team_strength_uses_preseason_anchor_for_live_updated_payloa
         data_mixin_module, "get_recommended_schedule", lambda is_regulation_change: "extreme"
     )
 
+    # Bahrain is not on the real 2026 calendar; order it after three completed races.
+    _patch_schedule_rows(patcher, BAHRAIN_AFTER_THREE_RACES)
     result = predictor.get_blended_team_strength("McLaren", "Bahrain Grand Prix")
 
     assert result == 0.70
@@ -728,6 +738,8 @@ def test_get_blended_team_strength_recovers_legacy_2026_seed_anchor(tmp_path, pa
         data_mixin_module, "get_recommended_schedule", lambda is_regulation_change: "extreme"
     )
 
+    # Bahrain is not on the real 2026 calendar; order it after three completed races.
+    _patch_schedule_rows(patcher, BAHRAIN_AFTER_THREE_RACES)
     predictor.get_blended_team_strength("McLaren", "Bahrain Grand Prix")
 
     assert captured["baseline_score"] == 0.85

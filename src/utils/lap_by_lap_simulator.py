@@ -41,16 +41,19 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-@lru_cache(maxsize=8)
-def _load_measured_team_pace_deltas(year: int) -> dict[str, float] | None:
-    """Load and centre a season's measured team race-pace deltas, cached per year.
+@lru_cache(maxsize=64)
+def _load_measured_team_pace_deltas(year: int, race_name: str | None) -> dict[str, float] | None:
+    """Load and centre measured team race-pace deltas from races before ``race_name``.
 
     Reads ``data/processed/team_race_pace/<year>_team_race_pace.json`` (built by
-    ``scripts/extract_team_race_pace.py``), which stores each team's mean gap in
-    seconds to that race's fastest team (smaller = faster). ``base_pace`` needs the
-    opposite convention -- larger delta = faster car -- so this centres the gaps
-    around their mean: ``delta = mean(all gaps) - gap_for_team``. Returns None when
-    the artifact is missing so callers fall back to the results-derived value.
+    ``scripts/extract_team_race_pace.py``), which stores each team's per-race gap in
+    seconds to that race's fastest team (smaller = faster). Only races the schedule
+    places before the target are averaged, so a forecast never sees its own race or
+    a later one. ``base_pace`` needs the opposite convention -- larger delta = faster
+    car -- so this centres the gaps around their mean: ``delta = mean(all gaps) -
+    gap_for_team``. Returns None, so callers fall back to the results-derived value,
+    when the artifact is missing, has no per-race gaps, the target is not in the
+    schedule, or no measured race precedes it.
     """
     path = _PROJECT_ROOT / "data" / "processed" / "team_race_pace" / f"{year}_team_race_pace.json"
     try:
@@ -59,11 +62,37 @@ def _load_measured_team_pace_deltas(year: int) -> dict[str, float] | None:
     except (OSError, json.JSONDecodeError):
         return None
 
-    teams = payload.get("teams", {})
-    gaps = {team: float(stats["gap_s"]) for team, stats in teams.items()}
-    if not gaps:
+    races = payload.get("races")
+    if not isinstance(races, dict):
+        logger.warning("%s has no per-race gaps; ignoring measured team pace", path.name)
         return None
 
+    from src.utils.weekend import get_schedule_rows
+
+    try:
+        schedule_names = [
+            str(name).strip()
+            for name, event_format in get_schedule_rows(year)
+            if "testing" not in f"{name} {event_format}".lower()
+        ]
+    except Exception as exc:
+        logger.warning("Could not order %s races for measured team pace: %s", year, exc)
+        return None
+    target = str(race_name or "").strip()
+    if target not in schedule_names:
+        return None
+    prior_races = set(schedule_names[: schedule_names.index(target)])
+
+    gaps_by_team: dict[str, list[float]] = {}
+    for measured_race, race_gaps in races.items():
+        if measured_race not in prior_races:
+            continue
+        for team, gap_s in race_gaps.items():
+            gaps_by_team.setdefault(team, []).append(float(gap_s))
+    if not gaps_by_team:
+        return None
+
+    gaps = {team: sum(values) / len(values) for team, values in gaps_by_team.items()}
     mean_gap = sum(gaps.values()) / len(gaps)
     return {team: mean_gap - gap for team, gap in gaps.items()}
 
@@ -286,7 +315,9 @@ def simulate_race_lap_by_lap(
     measured_team_pace_deltas = None
     _race_year = race_params.get("year")
     if _race_year is not None:
-        measured_team_pace_deltas = _load_measured_team_pace_deltas(int(_race_year))
+        measured_team_pace_deltas = _load_measured_team_pace_deltas(
+            int(_race_year), race_params.get("track_name")
+        )
     track_temperature_c = race_params.get("track_temperature_c")
     weather_feature_modifiers = race_params.get("weather_feature_modifiers", {})
     chaos_multiplier = float(
@@ -878,7 +909,11 @@ def _get_traffic_overtake_effect(
     # falls back to the previous ceiling rather than guessing a rate.
     max_pass_probability = 0.95
     avg_changes_per_lap = race_params.get("overtaking_avg_changes_per_lap")
-    if avg_changes_per_lap is not None and contending_pairs > 0:
+    if (
+        race_params.get("track_pass_cap_enabled", True)
+        and avg_changes_per_lap is not None
+        and contending_pairs > 0
+    ):
         max_pass_probability = min(0.95, float(avg_changes_per_lap) / contending_pairs)
     pass_probability = np.clip(
         pass_probability, min(0.05, max_pass_probability), max_pass_probability

@@ -31,8 +31,11 @@ def _info(states: dict[str, dict]) -> dict[str, dict]:
     return {driver: dict(common) for driver in states}
 
 
-def _params(avg_changes_per_lap: float | None, track_overtaking: float) -> dict:
+def _params(
+    avg_changes_per_lap: float | None, track_overtaking: float, cap_enabled: bool = True
+) -> dict:
     params = {
+        "track_pass_cap_enabled": cap_enabled,
         "track_overtaking": track_overtaking,
         "overtake_model": _expand_overtake_cfg({}),
         "track_name": "Test",
@@ -43,7 +46,10 @@ def _params(avg_changes_per_lap: float | None, track_overtaking: float) -> dict:
 
 
 def _pass_rate(
-    avg_changes_per_lap: float | None, track_overtaking: float, runs: int = 400
+    avg_changes_per_lap: float | None,
+    track_overtaking: float,
+    runs: int = 400,
+    cap_enabled: bool = True,
 ) -> float:
     """Share of laps on which a much quicker chaser completes a pass."""
     passes = 0
@@ -54,7 +60,7 @@ def _pass_rate(
             driver_states=states,
             driver_info_map=_info(states),
             driver_ahead_map={"CHASER": "AHEAD"},
-            race_params=_params(avg_changes_per_lap, track_overtaking),
+            race_params=_params(avg_changes_per_lap, track_overtaking, cap_enabled),
             contending_pairs=21,
             rng=np.random.default_rng(seed),
         ).effect
@@ -79,3 +85,8 @@ def test_a_track_without_observed_change_data_keeps_the_previous_ceiling():
 def test_the_cap_is_the_observed_rate_divided_by_the_following_pairs():
     """A 22-car field has 21 following pairs, so Monza's 3.9 changes/lap caps near 0.19."""
     assert 0.12 < _pass_rate(3.9, 0.55) < 0.26
+
+
+def test_switching_the_cap_off_restores_the_previous_ceiling():
+    """The A/B switch: with the cap off, Monaco's observed rate no longer limits passing."""
+    assert _pass_rate(1.12, 0.95, cap_enabled=False) > 0.5

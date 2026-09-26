@@ -874,6 +874,12 @@ def load_track_specific_params(
                     if avg_changes_observed_races_raw is not None
                     else None
                 )
+                # ponytail: a circuit hosts one race a season, so a measurement in the
+                # target season's own file is that race's result and must not predict
+                # it. A circuit raced twice in a season loses its first race here.
+                if avg_changes_observed_races and track_chars_path.name.startswith(f"{year}_"):
+                    avg_changes_per_lap = None
+                    avg_changes_observed_races = None
                 if avg_changes_per_lap is not None and avg_changes_observed_races and data_key:
                     prior_avg_changes_per_lap = _lookup_fallback_avg_changes_per_lap(data_key, year)
                     if prior_avg_changes_per_lap is not None:

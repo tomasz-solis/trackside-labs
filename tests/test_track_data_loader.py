@@ -159,10 +159,10 @@ def test_load_track_specific_params_borrows_avg_changes_per_lap_from_prior_year(
     assert params["overtaking_avg_changes_per_lap"] == 3.9
 
 
-def test_load_track_specific_params_blends_measured_avg_changes_per_lap_toward_prior(tmp_path):
-    """A real 2026 measurement (overtaking_observed_races > 0) moves the cap input
-    toward the 2026 value gradually rather than replacing the previous-era prior
-    outright -- the same transition convention used for overtaking_difficulty."""
+def test_load_track_specific_params_ignores_the_target_races_own_measurement(tmp_path):
+    """A circuit hosts one race a season, so a 2026 measurement in the 2026 file is the
+    target race's own result. Predicting that race must use the previous season's value,
+    not the result it is trying to forecast."""
     processed_root = tmp_path / "processed"
     chars_dir = processed_root / "track_characteristics"
     chars_dir.mkdir(parents=True, exist_ok=True)
@@ -201,11 +201,7 @@ def test_load_track_specific_params_blends_measured_avg_changes_per_lap_toward_p
     ):
         params = load_track_specific_params("Australian Grand Prix", year=2026)
 
-    # Blended toward, not replaced by, the measured 2026 value: strictly between the
-    # raw 2026 measurement and the 2025 (previous-era) prior, closer to the prior at
-    # n=1 observed race.
-    assert 2.30 < params["overtaking_avg_changes_per_lap"] < 2.81
-    assert params["overtaking_avg_changes_per_lap"] == pytest.approx(2.715, abs=0.01)
+    assert params["overtaking_avg_changes_per_lap"] == 2.81
 
 
 def test_load_track_specific_params_unvalidated_avg_changes_per_lap_keeps_prior_year(tmp_path):

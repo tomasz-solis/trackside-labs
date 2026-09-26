@@ -1,49 +1,231 @@
 {
-  "built_at": "2026-08-28T21:08:13.782776+00:00",
+  "built_at": "2026-09-24T07:49:22.217463+00:00",
+  "races": {
+    "Australian Grand Prix": {
+      "Alpine": 2.3595,
+      "Aston Martin": 4.4032,
+      "Audi": 1.6367,
+      "Cadillac F1": 4.7045,
+      "Ferrari": 0.1872,
+      "Haas F1 Team": 1.8975,
+      "McLaren": 0.5523,
+      "Mercedes": 0.0,
+      "RB": 1.9748,
+      "Red Bull Racing": 1.4117,
+      "Williams": 2.469
+    },
+    "Austrian Grand Prix": {
+      "Alpine": 1.595,
+      "Aston Martin": 3.599,
+      "Audi": 1.4275,
+      "Ferrari": 0.2525,
+      "Haas F1 Team": 2.0362,
+      "McLaren": 0.3102,
+      "Mercedes": 0.0,
+      "RB": 1.323,
+      "Red Bull Racing": 0.2308,
+      "Williams": 2.5245
+    },
+    "Barcelona Grand Prix": {
+      "Alpine": 2.2375,
+      "Aston Martin": 4.2255,
+      "Audi": 2.378,
+      "Cadillac F1": 4.3648,
+      "Ferrari": 0.0,
+      "Haas F1 Team": 2.7792,
+      "McLaren": 0.522,
+      "Mercedes": 0.1252,
+      "RB": 2.2488,
+      "Red Bull Racing": 0.479,
+      "Williams": 2.823
+    },
+    "Belgian Grand Prix": {
+      "Alpine": 1.98,
+      "Aston Martin": 6.0325,
+      "Audi": 1.7675,
+      "Cadillac F1": 4.6685,
+      "Ferrari": 0.2833,
+      "Haas F1 Team": 2.3777,
+      "McLaren": 0.8133,
+      "Mercedes": 0.0,
+      "RB": 1.6285,
+      "Red Bull Racing": 0.3665,
+      "Williams": 2.54
+    },
+    "British Grand Prix": {
+      "Alpine": 1.7255,
+      "Aston Martin": 4.868,
+      "Audi": 1.862,
+      "Cadillac F1": 3.3728,
+      "Ferrari": 0.0,
+      "Haas F1 Team": 2.7023,
+      "McLaren": 0.9072,
+      "Mercedes": 0.3093,
+      "RB": 1.6585,
+      "Red Bull Racing": 0.4938,
+      "Williams": 2.4947
+    },
+    "Canadian Grand Prix": {
+      "Alpine": 1.2873,
+      "Aston Martin": 4.655,
+      "Audi": 1.4592,
+      "Cadillac F1": 3.117,
+      "Ferrari": 0.1975,
+      "Haas F1 Team": 2.0658,
+      "McLaren": 1.0712,
+      "Mercedes": 0.0,
+      "RB": 1.556,
+      "Red Bull Racing": 0.2555,
+      "Williams": 2.2505
+    },
+    "Chinese Grand Prix": {
+      "Alpine": 1.5803,
+      "Aston Martin": 3.9535,
+      "Audi": 1.989,
+      "Cadillac F1": 3.487,
+      "Ferrari": 0.459,
+      "Haas F1 Team": 1.5275,
+      "Mercedes": 0.0,
+      "RB": 1.87,
+      "Red Bull Racing": 1.5277,
+      "Williams": 2.327
+    },
+    "Dutch Grand Prix": {
+      "Alpine": 2.0475,
+      "Aston Martin": 2.6058,
+      "Audi": 1.7482,
+      "Cadillac F1": 3.5152,
+      "Ferrari": 0.0,
+      "Haas F1 Team": 2.4612,
+      "McLaren": 0.2103,
+      "Mercedes": 0.0433,
+      "RB": 2.0517,
+      "Red Bull Racing": 0.8727,
+      "Williams": 2.8902
+    },
+    "Hungarian Grand Prix": {
+      "Alpine": 2.173,
+      "Aston Martin": 2.3725,
+      "Audi": 1.9965,
+      "Cadillac F1": 4.3058,
+      "Ferrari": 0.081,
+      "Haas F1 Team": 2.9163,
+      "McLaren": 0.0,
+      "Mercedes": 0.4142,
+      "RB": 1.7692,
+      "Red Bull Racing": 0.5233,
+      "Williams": 3.1045
+    },
+    "Italian Grand Prix": {
+      "Alpine": 0.8495,
+      "Aston Martin": 3.6033,
+      "Audi": 1.2798,
+      "Cadillac F1": 3.141,
+      "Ferrari": 0.7177,
+      "Haas F1 Team": 1.8125,
+      "McLaren": 0.7622,
+      "Mercedes": 0.0,
+      "RB": 1.2947,
+      "Red Bull Racing": 0.4947,
+      "Williams": 1.431
+    },
+    "Japanese Grand Prix": {
+      "Alpine": 1.2692,
+      "Aston Martin": 4.2982,
+      "Audi": 1.8825,
+      "Cadillac F1": 3.1165,
+      "Ferrari": 0.4313,
+      "Haas F1 Team": 1.9475,
+      "McLaren": 0.0573,
+      "Mercedes": 0.0,
+      "RB": 1.3255,
+      "Red Bull Racing": 1.4002,
+      "Williams": 2.585
+    },
+    "Miami Grand Prix": {
+      "Alpine": 0.997,
+      "Aston Martin": 3.1377,
+      "Audi": 1.988,
+      "Cadillac F1": 4.0768,
+      "Ferrari": 0.377,
+      "Haas F1 Team": 1.839,
+      "McLaren": 0.0,
+      "Mercedes": 0.0055,
+      "RB": 2.117,
+      "Red Bull Racing": 0.628,
+      "Williams": 1.346
+    },
+    "Monaco Grand Prix": {
+      "Alpine": 1.8812,
+      "Aston Martin": 2.2837,
+      "Audi": 2.2272,
+      "Cadillac F1": 3.427,
+      "Ferrari": 0.0,
+      "Haas F1 Team": 2.8798,
+      "McLaren": 1.3227,
+      "Mercedes": 0.2458,
+      "RB": 1.9263,
+      "Red Bull Racing": 0.8123,
+      "Williams": 2.1255
+    },
+    "Spanish Grand Prix": {
+      "Alpine": 1.325,
+      "Aston Martin": 4.3632,
+      "Audi": 1.5613,
+      "Cadillac F1": 5.4693,
+      "Ferrari": 0.0113,
+      "Haas F1 Team": 1.8253,
+      "McLaren": 0.2133,
+      "Mercedes": 0.0,
+      "RB": 1.8218,
+      "Red Bull Racing": 0.5148,
+      "Williams": 3.8573
+    }
+  },
   "teams": {
     "Alpine": {
-      "gap_s": 1.7611,
-      "races": 12
+      "gap_s": 1.6648,
+      "races": 14
     },
     "Aston Martin": {
-      "gap_s": 3.8696,
-      "races": 12
+      "gap_s": 3.8858,
+      "races": 14
     },
     "Audi": {
-      "gap_s": 1.8635,
-      "races": 12
+      "gap_s": 1.8002,
+      "races": 14
     },
     "Cadillac F1": {
-      "gap_s": 3.8323,
-      "races": 11
+      "gap_s": 3.9051,
+      "races": 13
     },
     "Ferrari": {
-      "gap_s": 0.1891,
-      "races": 12
+      "gap_s": 0.2141,
+      "races": 14
     },
     "Haas F1 Team": {
-      "gap_s": 2.2858,
-      "races": 12
+      "gap_s": 2.2191,
+      "races": 14
     },
     "McLaren": {
-      "gap_s": 0.5242,
-      "races": 11
+      "gap_s": 0.5186,
+      "races": 13
     },
     "Mercedes": {
-      "gap_s": 0.0953,
-      "races": 12
+      "gap_s": 0.0817,
+      "races": 14
     },
     "RB": {
-      "gap_s": 1.7874,
-      "races": 12
+      "gap_s": 1.7547,
+      "races": 14
     },
     "Red Bull Racing": {
-      "gap_s": 0.7501,
-      "races": 12
+      "gap_s": 0.7151,
+      "races": 14
     },
     "Williams": {
-      "gap_s": 2.4567,
-      "races": 12
+      "gap_s": 2.4834,
+      "races": 14
     }
   },
   "year": 2026

@@ -26,6 +26,11 @@ from src.dashboard.prediction_flow import (
     build_starting_grid_note,
 )
 from src.dashboard.race_context import attach_starting_grid_context
+from src.models.team_strength_mapping import (
+    TEAM_STRENGTH_SECONDS_MAPPING_PATH_ENV,
+    fit_linear_team_strength_mapping,
+    resolve_era_training_years,
+)
 from src.persistence.artifact_store import ArtifactStore
 from src.predictors.baseline_2026 import Baseline2026Predictor
 from src.systems.testing_updater import _season_snapshot_plan, update_from_testing_sessions
@@ -51,7 +56,7 @@ from src.utils.race_input_confidence import (
     cap_predicted_main_race_input_confidence,
     derive_race_input_confidence,
 )
-from src.utils.weekend import is_sprint_weekend
+from src.utils.weekend import get_schedule_rows, is_sprint_weekend
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +193,90 @@ def _force_file_only_storage() -> Any:
             os.environ.pop("USE_DB_STORAGE", None)
         else:
             os.environ["USE_DB_STORAGE"] = previous_mode
+
+
+@contextmanager
+def _walk_forward_team_strength_mapping(
+    *,
+    year: int,
+    race_name: str,
+    processed_dir: Path,
+    output_root: Path,
+    previous_era_only: bool = False,
+) -> Any:
+    """Point the seconds mapping at a fit that only uses races before ``race_name``.
+
+    The live ``latest.json`` is fitted on the whole season so far, so reading it in a
+    replay hands early rounds a slope measured on later ones. Each race instead gets a
+    mapping fitted on its regulation era's rows from earlier races; with none yet, it
+    falls back to the previous era's fit, which is what the live model had then.
+    ``previous_era_only`` uses the previous era's fit at every round (an A/B arm for
+    the pre-refit mapping).
+    """
+    import pandas as pd
+
+    observations_path = (
+        processed_dir / "team_strength_seconds_mapping" / "calibration_observations.csv"
+    )
+    if not observations_path.exists():
+        raise FileNotFoundError(
+            f"Replay needs {observations_path} to refit the seconds mapping walk-forward"
+        )
+    observations = pd.read_csv(observations_path)
+    schedule_names = [
+        str(name).strip()
+        for name, event_format in get_schedule_rows(year)
+        if "testing" not in f"{name} {event_format}".lower()
+    ]
+    if race_name not in schedule_names:
+        raise ValueError(f"{race_name!r} is not in the {year} schedule; cannot order the refit")
+    prior_races = schedule_names[: schedule_names.index(race_name)]
+    eras = Config().get("model.regulation_eras")
+    current_rows = observations[
+        observations["year"].eq(year) & observations["race_name"].isin(prior_races)
+    ]
+    previous_rows = observations[observations["year"].lt(year)]
+    previous_years = resolve_era_training_years(
+        previous_rows, target_year=year - 1, regulation_eras=eras
+    )
+
+    mappings: dict[str, Any] = {}
+    training_years: tuple[int, ...]
+    for session_kind in ("qualifying", "race"):
+        if not previous_era_only and current_rows["session_kind"].eq(session_kind).any():
+            rows, training_years = current_rows, (year,)
+        else:
+            rows, training_years = previous_rows, previous_years
+        mapping = fit_linear_team_strength_mapping(
+            rows,
+            session_kind=session_kind,
+            policy="same_session_construct",
+            training_years=training_years,
+        )
+        mappings[session_kind] = {
+            **asdict(mapping),
+            "training_years": list(mapping.training_years),
+        }
+
+    artifact_path = output_root / "team_strength_mapping" / f"{_slugify_race_name(race_name)}.json"
+    _write_json(
+        artifact_path,
+        {
+            "year": int(year),
+            "race_name": race_name,
+            "prior_races": prior_races,
+            "mappings": mappings,
+        },
+    )
+    previous_path = os.environ.get(TEAM_STRENGTH_SECONDS_MAPPING_PATH_ENV)
+    os.environ[TEAM_STRENGTH_SECONDS_MAPPING_PATH_ENV] = str(artifact_path.resolve())
+    try:
+        yield
+    finally:
+        if previous_path is None:
+            os.environ.pop(TEAM_STRENGTH_SECONDS_MAPPING_PATH_ENV, None)
+        else:
+            os.environ[TEAM_STRENGTH_SECONDS_MAPPING_PATH_ENV] = previous_path
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -980,9 +1069,20 @@ def run_historical_checkpoint_replay(
     overwrite: bool = False,
     excluded_scoring_targets: set[str] | frozenset[str] | None = None,
     stop_after_race: str | None = None,
+    through_round: int | None = None,
+    previous_era_mapping: bool = False,
     seed: int = 42,
 ) -> HistoricalReplaySummary:
-    """Replay testing and race weekends into sidecar checkpoint forecast files."""
+    """Replay testing and race weekends into sidecar checkpoint forecast files.
+
+    ``through_round`` keeps only the first N race weekends in the replay plan's date
+    order, so a candidate arm replays the same window as its baseline after new
+    weekends land in the cache. It raises when fewer than N weekends are cached.
+    ``previous_era_mapping`` fits the seconds mapping on the previous regulation era
+    at every round instead of walking forward through the current season.
+    """
+    if through_round is not None and through_round < 1:
+        raise ValueError(f"through_round must be at least 1, got {through_round}")
     processed_source = Path(source_processed_dir)
     replay_output_root = Path(output_root)
     scoring_exclusions = (
@@ -1020,6 +1120,13 @@ def run_historical_checkpoint_replay(
             for entry in replay_plan
             if "testing" not in str(entry.get("event_name", "")).lower()
         ]
+        if through_round is not None:
+            if len(race_entries) < through_round:
+                raise ValueError(
+                    f"through_round={through_round} but only {len(race_entries)} race "
+                    f"weekend(s) are cached for {year}"
+                )
+            race_entries = race_entries[:through_round]
 
         for plan_entry in testing_entries:
             event_name = str(plan_entry["event_name"])
@@ -1038,68 +1145,77 @@ def run_historical_checkpoint_replay(
         for plan_entry in race_entries:
             race_name = str(plan_entry["event_name"])
             cache_dirs = [str(path) for path in plan_entry.get("cache_dirs", [])]
-            is_sprint = bool(is_sprint_weekend(year, race_name))
-            replay_checkpoints = set(checkpoint_sequence_for_weekend(is_sprint))
+            with _walk_forward_team_strength_mapping(
+                year=year,
+                race_name=race_name,
+                processed_dir=processed_dir,
+                output_root=replay_output_root,
+                previous_era_only=previous_era_mapping,
+            ):
+                is_sprint = bool(is_sprint_weekend(year, race_name))
+                replay_checkpoints = set(checkpoint_sequence_for_weekend(is_sprint))
 
-            summary.checkpoints.append(
-                _build_race_checkpoint_record(
-                    year=year,
-                    race_name=race_name,
-                    checkpoint_session="PRE",
-                    weather=weather,
-                    processed_dir=processed_dir,
-                    output_root=replay_output_root,
-                    excluded_scoring_targets=scoring_exclusions,
-                    actual_cache=actual_cache,
-                    predictor_config=predictor_config,
-                    seed=seed,
-                )
-            )
-
-            for session_name in plan_entry.get("sessions", []):
-                normalized_session = str(session_name).strip().upper()
-                applied = _apply_session_update(
-                    year=year,
-                    event_name=race_name,
-                    session_name=normalized_session,
-                    cache_dirs=cache_dirs,
-                    processed_dir=processed_dir,
-                )
-                if applied:
-                    summary.weekend_sessions_replayed.append(f"{race_name}::{normalized_session}")
-                else:
-                    summary.skipped_sessions.append(f"{race_name}::{normalized_session}")
-
-                if normalized_session in replay_checkpoints and normalized_session != "PRE":
-                    summary.checkpoints.append(
-                        _build_race_checkpoint_record(
-                            year=year,
-                            race_name=race_name,
-                            checkpoint_session=normalized_session,
-                            weather=weather,
-                            processed_dir=processed_dir,
-                            output_root=replay_output_root,
-                            excluded_scoring_targets=scoring_exclusions,
-                            actual_cache=actual_cache,
-                            predictor_config=predictor_config,
-                            seed=seed,
-                        )
+                summary.checkpoints.append(
+                    _build_race_checkpoint_record(
+                        year=year,
+                        race_name=race_name,
+                        checkpoint_session="PRE",
+                        weather=weather,
+                        processed_dir=processed_dir,
+                        output_root=replay_output_root,
+                        excluded_scoring_targets=scoring_exclusions,
+                        actual_cache=actual_cache,
+                        predictor_config=predictor_config,
+                        seed=seed,
                     )
+                )
 
-            if is_sprint:
-                update_from_sprint_race(
+                for session_name in plan_entry.get("sessions", []):
+                    normalized_session = str(session_name).strip().upper()
+                    applied = _apply_session_update(
+                        year=year,
+                        event_name=race_name,
+                        session_name=normalized_session,
+                        cache_dirs=cache_dirs,
+                        processed_dir=processed_dir,
+                    )
+                    if applied:
+                        summary.weekend_sessions_replayed.append(
+                            f"{race_name}::{normalized_session}"
+                        )
+                    else:
+                        summary.skipped_sessions.append(f"{race_name}::{normalized_session}")
+
+                    if normalized_session in replay_checkpoints and normalized_session != "PRE":
+                        summary.checkpoints.append(
+                            _build_race_checkpoint_record(
+                                year=year,
+                                race_name=race_name,
+                                checkpoint_session=normalized_session,
+                                weather=weather,
+                                processed_dir=processed_dir,
+                                output_root=replay_output_root,
+                                excluded_scoring_targets=scoring_exclusions,
+                                actual_cache=actual_cache,
+                                predictor_config=predictor_config,
+                                seed=seed,
+                            )
+                        )
+
+                if is_sprint:
+                    update_from_sprint_race(
+                        year,
+                        race_name,
+                        str(processed_dir.parent),
+                        trace_rows=driver_update_traces,
+                    )
+                update_from_race(
                     year,
                     race_name,
-                    str(processed_dir.parent),
+                    str(processed_dir),
                     trace_rows=driver_update_traces,
                 )
-            update_from_race(
-                year,
-                race_name,
-                str(processed_dir),
-                trace_rows=driver_update_traces,
-            )
-            summary.race_updates.append(race_name)
+                summary.race_updates.append(race_name)
             if stop_after_label and race_name == stop_after_label:
                 break
 

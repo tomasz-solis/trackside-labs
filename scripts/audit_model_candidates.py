@@ -573,7 +573,7 @@ def build_candidate_audit(year: int) -> dict[str, Any]:
 def render_markdown(audit: dict[str, Any]) -> str:
     """Render the candidate audit as review-friendly markdown."""
     lines = [
-        f"# Model Candidate Audit - {audit['year']}",
+        f"# Model candidate audit, {audit['year']}",
         "",
         "Candidates are evaluated in expanding-window order. The first scored",
         "event seeds history; each later event can only use previous completed",

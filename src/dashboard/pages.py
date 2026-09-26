@@ -159,8 +159,8 @@ def render_team_comparison_page() -> None:
     render_page_hero_deck(
         title="Team Comparison",
         summary=(
-            "Compare synced team fingerprints without blending session profile pace into the "
-            "season-prior baseline."
+            "Compare team profiles side by side. Practice pace is not mixed into the "
+            "season baseline here."
         ),
         eyebrow="Team form",
         cards=[
@@ -344,7 +344,7 @@ def _load_race_round_meta(year: int) -> dict[str, tuple[int, str]]:
     Sourced from FastF1 so the dropdown can be ordered by calendar round and default
     to the next upcoming Grand Prix. Keyed by the plain event name (no "(Sprint)"
     suffix) so sprint-labelling differences never break the lookup. Empty when the
-    schedule can't be loaded (offline) — the dropdown then keeps its raw order and
+    schedule can't be loaded (offline), the dropdown then keeps its raw order and
     shows no numbers.
     """
     meta: dict[str, tuple[int, str]] = {}
@@ -396,7 +396,7 @@ def _order_races_by_round(
     if upcoming:
         return ordered, upcoming[0]
     if any(round_meta.get(_base(label), (0, ""))[1] for label in ordered):
-        return ordered, len(ordered) - 1  # season over — show the most recent race
+        return ordered, len(ordered) - 1  # season over: show the most recent race
     return ordered, 0
 
 
@@ -820,7 +820,7 @@ def render_live_prediction_page(enable_logging: bool) -> None:
     )
 
     # The raw option order (from the local track file) is not the calendar order, so
-    # order by round and open on the next upcoming Grand Prix — not whatever happened
+    # order by round and open on the next upcoming Grand Prix, not whatever happened
     # to be first. Numbers come from the schedule; the option value stays the clean
     # race name so downstream matching is untouched.
     round_meta = _load_race_round_meta(selected_season)
@@ -853,7 +853,7 @@ def render_live_prediction_page(enable_logging: bool) -> None:
     selected_race_prediction_available = False
 
     # Horizon-coverage detail (which upcoming races are warmed yet) is operator
-    # plumbing, not a fan's answer — it no longer gets its own banner above the
+    # plumbing, not a fan's answer, so it no longer gets its own banner above the
     # forecast. When a race has no forecast, the single pending state below says
     # everything the fan needs, without doubling up. (impeccable: distill)
     prediction_action_state = _prediction_action_state(
@@ -866,7 +866,7 @@ def render_live_prediction_page(enable_logging: bool) -> None:
     # the dashboard request path is read-only (no recompute, no writes), so show
     # it immediately on load instead of gating it behind a click. Changing the
     # Grand Prix or weather selector above reruns this and refreshes the forecast
-    # in place. (impeccable: onboard — auto-show next race)
+    # in place. (impeccable: onboard, auto-show next race)
     status_placeholder = st.empty()
 
     def update_status(message: str) -> None:
@@ -967,23 +967,22 @@ def render_live_prediction_page(enable_logging: bool) -> None:
 def render_model_insights_page() -> None:
     """Render the model insights page with hyperparameters and learning state."""
     render_page_hero_deck(
-        title="Model and Learning Runtime",
+        title="Model and learning",
         summary=(
-            "Inspect the active forecast path, calibration loop, and guardrails used before "
-            "experimental components are promoted."
+            "How the forecast is built, how it learns, and the checks a model change must pass."
         ),
         eyebrow="Model notes",
         cards=[
             {
                 "label": "Release",
                 "value": BRAND_MODEL_VERSION,
-                "meta": "Active dashboard model label.",
+                "meta": "Model version in use.",
                 "tone": "accent",
             },
             {
                 "label": "Learning",
                 "value": "Gated",
-                "meta": "Saved actuals update calibration state.",
+                "meta": "Results update the learned corrections.",
                 "tone": "success",
             },
             {
@@ -1003,7 +1002,7 @@ def render_model_insights_page() -> None:
     )
     st.markdown(MODEL_INSIGHTS_MARKDOWN)
 
-    st.subheader("Key Hyperparameters")
+    st.subheader("Key settings")
 
     col1, col2 = st.columns(2)
 
@@ -1021,10 +1020,7 @@ def render_model_diagnostics_page() -> None:
     selected_season = _get_selected_season()
     render_page_hero_deck(
         title="Model Diagnostics",
-        summary=(
-            "Read the persisted replay, leakage, and regulation-reset checks used before "
-            "schema migration."
-        ),
+        summary=("Replay and leakage checks, read from the saved diagnostics."),
         eyebrow="Model audit",
         cards=[
             {
@@ -1036,7 +1032,7 @@ def render_model_diagnostics_page() -> None:
             {
                 "label": "Source",
                 "value": "Persisted",
-                "meta": "No ad hoc dashboard recompute.",
+                "meta": "Read from saved diagnostics, not recomputed.",
                 "tone": "accent",
             },
             {
@@ -1077,14 +1073,14 @@ def _render_accuracy_page_controls() -> tuple[int, bool]:
     _set_selected_season(selected_season)
 
     st.caption(
-        "Scheduled workers refresh completed qualifying, sprint, and race results automatically. "
-        "Use the repair action only when stored artifacts need a forced rebuild."
+        "Results refresh automatically after each session. Use repair only if the saved "
+        "data needs a forced rebuild."
     )
     refresh_requested = st.button(
         "Repair Accuracy Data",
         type="secondary",
         width="stretch",
-        help=("Force a one-off actuals reconciliation and snapshot rebuild for saved predictions."),
+        help=("Reattach results and rebuild accuracy for all saved forecasts, once."),
     )
 
     return selected_season, refresh_requested
@@ -1102,10 +1098,7 @@ def render_prediction_accuracy_page() -> None:
     selected_season = _get_selected_season()
     render_page_hero_deck(
         title="Prediction Accuracy Tracker",
-        summary=(
-            "Review saved checkpoint forecasts against completed qualifying, sprint, and race "
-            "results."
-        ),
+        summary=("Saved forecasts scored against the real qualifying, sprint and race results."),
         eyebrow="Forecast audit",
         cards=[
             {
@@ -1117,19 +1110,19 @@ def render_prediction_accuracy_page() -> None:
             {
                 "label": "Refresh",
                 "value": "Automatic",
-                "meta": "Workers reconcile completed races after warmup.",
+                "meta": "Results attach automatically after each race.",
                 "tone": "accent",
             },
             {
                 "label": "Targets",
                 "value": "Checkpointed",
-                "meta": "Primary and sprint-only targets are tracked.",
+                "meta": "Main and sprint targets are tracked.",
                 "tone": "neutral",
             },
             {
                 "label": "Scope",
                 "value": "Saved runs",
-                "meta": "Retrospective-only records stay excluded.",
+                "meta": "Replayed records are not scored.",
                 "tone": "success",
             },
         ],
@@ -1159,10 +1152,7 @@ def render_prediction_accuracy_page() -> None:
     summary = pipeline.build_summary()
 
     if not pipeline.all_predictions:
-        st.info(
-            "No predictions saved yet. Run predictions after practice sessions to start "
-            "building checkpoint accuracy history."
-        )
+        st.info("No forecasts saved yet. Accuracy history starts after the first practice session.")
         return
 
     st.success(f"Found {summary.n_predictions} saved prediction(s)")
@@ -1185,13 +1175,13 @@ def render_prediction_accuracy_page() -> None:
 
         if summary.n_excluded_targets > 0:
             st.caption(
-                f"{summary.n_excluded_targets} target save(s) were excluded because they were not "
+                f"{summary.n_excluded_targets} target save(s) left out because they were not "
                 "real forecasts at that checkpoint."
             )
     else:
         st.info(
-            "Predictions saved, but no actual results added yet. After each race, "
-            "you can update predictions with actual results to calculate accuracy."
+            "Forecasts are saved, but no results are attached yet. Accuracy appears once "
+            "a session's results are in."
         )
 
     render_saved_predictions_summary(pipeline.prediction_status_rows)
@@ -1204,10 +1194,7 @@ def render_checkpoint_viewer_page() -> None:
     selected_season = _get_selected_season()
     render_page_hero_deck(
         title="Checkpoint Viewer",
-        summary=(
-            "Browse saved race-weekend artifacts directly, separate from accuracy charts and "
-            "summary metrics."
-        ),
+        summary=("Browse saved forecasts by race weekend, without the accuracy charts."),
         eyebrow="Artifact browser",
         cards=[
             {
@@ -1219,19 +1206,19 @@ def render_checkpoint_viewer_page() -> None:
             {
                 "label": "Granularity",
                 "value": "Checkpoint",
-                "meta": "Open each stored session boundary.",
+                "meta": "Open any saved session.",
                 "tone": "accent",
             },
             {
                 "label": "Mode",
                 "value": "Read-only",
-                "meta": "No prediction refresh from this view.",
+                "meta": "This view never refreshes forecasts.",
                 "tone": "neutral",
             },
             {
                 "label": "Source",
                 "value": "Artifacts",
-                "meta": "Uses persisted prediction records.",
+                "meta": "Reads saved forecasts.",
                 "tone": "success",
             },
         ],
@@ -1271,7 +1258,7 @@ def render_contact_page() -> None:
     """Render the contact page."""
     render_page_hero_deck(
         title="Contact",
-        summary=("Project links, scope notes, and the independence disclaimer for Trackside Labs."),
+        summary=("Links, what the project does, and the disclaimer."),
         eyebrow="About the project",
         cards=[
             {

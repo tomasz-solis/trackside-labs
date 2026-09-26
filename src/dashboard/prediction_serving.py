@@ -211,7 +211,7 @@ def load_served_prediction_bundle(
         else:
             # The exact (artifact_hash + boundary) key missed and no warmed-boundary
             # fallback applied. The forecast may still exist under a different model
-            # artifact hash — routine artifact bumps re-key every stored record — so
+            # artifact hash (routine artifact bumps re-key every stored record), so
             # serve the newest forecast for this race/weather/checkpoint regardless of
             # model version instead of failing to an empty page.
             resilient_prediction = None

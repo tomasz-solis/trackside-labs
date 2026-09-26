@@ -403,9 +403,9 @@ def _render_development_history_section(
     st.subheader("Relative Performance Over Time")
 
     st.caption(
-        "Sync rebuilds the stored session snapshot history from cached sessions without "
-        "changing the live prediction artifact. The chart follows testing, practice, "
-        "sprint, qualifying, and race snapshots in chronological order."
+        "Sync rebuilds the session history from cached data. It does not change the live "
+        "forecast. The chart runs through testing, practice, sprint, qualifying and race "
+        "sessions in order."
     )
     if st.button(
         "Sync Car Stats From Cache",
@@ -430,8 +430,8 @@ def _render_development_history_section(
     history_df = history_df[history_df["Team"].isin(selected_teams)].copy()
     if history_df.empty:
         st.info(
-            "No snapshot history matches the selected teams/profile yet. Try a different team set "
-            "or wait for more sessions to be ingested."
+            "No session history for these teams and this profile yet. Try other teams, or"
+            " wait for more sessions."
         )
         return
 
@@ -441,15 +441,14 @@ def _render_development_history_section(
         options=metric_options,
         index=0,
         help=(
-            "Overall Pace tracks actual session pace for the selected profile. "
-            "Radar Average is the mean of the six radar metrics in that snapshot. "
-            "Qualifying Pace always uses the short-run profile when snapshots store it, "
-            "Race Pace uses long-run, and the other options show one feature at a time."
+            "Overall Pace is real session pace for the selected profile. Radar Average is"
+            " the mean of the six radar metrics. Qualifying Pace uses short runs, Race "
+            "Pace long runs, and the other options show one metric each."
         ),
     )
     st.caption(
-        "Overall Pace reflects actual lap-time performance for the selected profile. "
-        "Radar Average is the mean of the six radar spokes, so the two can move in different directions."
+        "Overall Pace is real lap-time pace for the selected profile. Radar Average is "
+        "the mean of the six radar metrics, so the two can move differently."
     )
 
     if metric_label not in history_df.columns:
@@ -575,14 +574,14 @@ def _render_development_history_section(
     except Exception as exc:
         st.info(f"Relative performance chart unavailable ({exc}).")
     st.caption(
-        "Each point ranks a team against the field in that same session: the best car scores 100 "
-        "and the slowest 10, every session. A flat line means an unchanged position relative to "
-        "the field, not unchanged pace. Big swings can come from fuel loads, tires, and run plans."
+        "Each point ranks a team against the field in that session: fastest car 100, "
+        "slowest 10. A flat line means the same position in the field, not the same pace."
+        " Fuel, tyres and run plans cause big swings."
     )
     if metric_label in {"Radar Average", "Overall"}:
         st.caption(
-            "Each point is one session snapshot. Radar Average is the mean of the available radar metrics, "
-            "and the hover shows how complete each session snapshot is."
+            "Each point is one session. Radar Average is the mean of the available radar "
+            "metrics; hover to see how complete each session is."
         )
     elif metric_label == "Overall Pace":
         st.caption(
@@ -604,10 +603,7 @@ def _render_development_history_section(
             "Each point is one session snapshot. Relative changes matter more than absolute levels."
         )
     if missing_history_points:
-        st.caption(
-            "Gaps indicate sessions where a selected team has no stored snapshot sample, "
-            "for example after a non-classified or double-retirement result."
-        )
+        st.caption("Gaps are sessions with no data for a team, for example when both cars retired.")
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -675,7 +671,9 @@ def _render_team_comparison_section(year: int = 2026) -> None:
         "Comparison profile",
         options=profile_names,
         index=0,
-        help="Balanced uses mixed-session behavior. Short/long run focus specific session intent.",
+        help=(
+            "Balanced mixes all sessions. Short run and long run focus on qualifying or race pace."
+        ),
     )
 
     def _profile_sort_key(team: str) -> float:
@@ -709,9 +707,9 @@ def _render_team_comparison_section(year: int = 2026) -> None:
         "Weekend average",
         value=True,
         help=(
-            "Averages each team across the sessions of one race weekend, never across two, "
-            "then re-spreads each session over 10-100 so the fastest car reads 100. Applies to "
-            "both the radar and the season chart. Sessions a team missed stay gaps."
+            "Averages each team over the sessions of one weekend (never two), then "
+            "rescales so the fastest car reads 100. Applies to the radar and the season "
+            "chart. Missed sessions stay as gaps."
         ),
     )
     display_history_df = _build_display_history_frame(snapshots, profile, smooth=smooth_history)
@@ -737,9 +735,8 @@ def _render_team_comparison_section(year: int = 2026) -> None:
 
     if not teams_with_signal:
         st.info(
-            "Selected teams do not have session profile metrics for this profile yet. "
-            "Choose another profile or refresh telemetry with "
-            "`scripts/update_from_testing.py --apply`."
+            "No data for these teams in this profile yet. Pick another profile, or "
+            "refresh with `scripts/update_from_testing.py --apply`."
         )
         return
 
@@ -760,12 +757,12 @@ def _render_team_comparison_section(year: int = 2026) -> None:
                 "* only marks the latest-comparison profile pace and radar scores in this section."
             )
             st.caption(
-                "For these teams, the latest session snapshot has no stored team sample, so the "
-                "comparison uses an average of earlier same-weekend comparison scores."
+                "The latest session has no data for these teams, so the comparison uses "
+                "their average from earlier sessions of the same weekend."
             )
             st.caption(
-                "This does not relabel the team, change season priors, or turn the missing race "
-                "session in Relative Performance Over Time into a proxy point."
+                "This does not change the team's season baseline or add a point to the "
+                "season chart."
             )
 
     comparison_df, _neutral_fallbacks = _build_team_comparison_dataframe(
@@ -926,11 +923,11 @@ def _render_team_comparison_section(year: int = 2026) -> None:
             f"{comparison_display_names.get(team_name, team_name)}: {', '.join(sorted(labels))}"
             for team_name, labels in sorted(window_filled_metrics.items())
         )
-        dagger_note = f"† Supplied by other sessions of this weekend — {dagger_summary}."
+        dagger_note = f"† From other sessions of this weekend: {dagger_summary}."
         dagger_detail = (
-            "This session recorded no reading for these metrics, so the value comes from the "
-            "other sessions of the same weekend. Qualifying and sprint-qualifying runs are too "
-            "short to measure tire degradation, which is the usual case."
+            "This session has no reading for these metrics, so the value comes from other"
+            " sessions of the same weekend. Usually tyre wear, because qualifying runs "
+            "are too short to measure it."
         )
     elif carried_tire_deg_sources:
         dagger_summary = ", ".join(
@@ -939,10 +936,9 @@ def _render_team_comparison_section(year: int = 2026) -> None:
         )
         dagger_note = f"† Tire Deg carried forward for {dagger_summary}."
         dagger_detail = (
-            "Qualifying and sprint-qualifying runs are too short to measure tire degradation, "
-            "so this session stores none and the comparison reuses each team's last measured "
-            "value. It is scored on the absolute degradation scale rather than against this "
-            "session's field, so read it as a standing estimate of race pace."
+            "Qualifying runs are too short to measure tyre wear, so the comparison reuses"
+            " each team's last measured value. It is scored on an absolute scale, not "
+            "against this session's field, so read it as a standing estimate."
         )
     else:
         dagger_note = ""
@@ -954,9 +950,9 @@ def _render_team_comparison_section(year: int = 2026) -> None:
 
     if smooth_history:
         st.caption(
-            "Radar and table show this weekend's average rather than the single session named "
-            "above, and Relative Performance Over Time draws the same numbers. Switch off "
-            "Weekend average for the raw single-session values."
+            "The radar, table and season chart show this weekend's average, not the "
+            "single session named above. Turn off Weekend average for single-session "
+            "values."
         )
 
     display_df = comparison_df.copy()
@@ -991,36 +987,33 @@ def _render_team_comparison_section(year: int = 2026) -> None:
 
     st.dataframe(display_df, hide_index=True, width="stretch")
     st.caption(
-        "Profile pace/radar come from the latest synced comparison snapshot when present; "
-        "starred teams use a same-weekend approximation in this section only. "
-        "Season Prior Strength stays a separate baseline signal."
+        "Profile pace and radar come from the latest synced session. Starred teams use a "
+        "same-weekend average in this section only. Season Prior Strength is the separate"
+        " baseline."
     )
     st.caption(
         f"Source: {source_label or f'`{characteristics_path}`'} | profile=`{profile}` | "
         "session-derived values use a 10-100 display scale (higher is better)."
     )
     st.caption(
-        "When the latest snapshot lacks a usable tire-deg readout, the chart carries forward "
-        "the newest available long-run tire signal instead of defaulting to neutral."
+        "If the latest session has no usable tyre wear reading, the chart carries the "
+        "newest long-run reading forward instead of showing neutral."
     )
     st.caption(
-        "Tire-deg prefers raw slope data and normalizes the current snapshot's best and worst "
-        "samples to the 10-100 display range; when only one raw slope exists, it falls back to "
-        "a stable absolute-slope score."
+        "Tyre wear uses raw slope data, scaled so the session's best and worst read 100 "
+        "and 10. With only one slope, it uses a fixed absolute scale."
     )
     st.caption(
-        "Top speed prefers raw trap-speed data when the snapshot has it and maps the slowest and "
-        "fastest sampled teams to the 10-100 display endpoints."
+        "Top speed uses speed trap data when available, scaled so the slowest team reads "
+        "10 and the fastest 100."
     )
     st.caption(
-        "Cornering and pace also prefer raw session times when the snapshot has them, so the "
-        "fastest sampled team reaches 100 and the slowest reaches 10 instead of compressing "
-        "everyone into a narrow middle band."
+        "Cornering and pace use raw session times when available, so the fastest team "
+        "reads 100 and the slowest 10."
     )
     st.caption(
-        "Braking now prefers a stored telemetry-based proxy when snapshots have it; if the latest "
-        "session still carries a legacy placeholder, the comparison falls back to earlier "
-        "same-weekend braking or the most recent stored session proxy."
+        "Braking uses a telemetry-based estimate when available. Otherwise it falls back "
+        "to earlier braking from the same weekend, or the latest stored estimate."
     )
     if unresolved_neutral_fallbacks > 0:
         st.caption(

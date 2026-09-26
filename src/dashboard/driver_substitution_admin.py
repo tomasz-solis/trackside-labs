@@ -40,7 +40,7 @@ def render_driver_substitution_editor(
         return
 
     stored = load_configured_substitutions(race_name=race_name, year=year)
-    with st_module.expander(f"Driver substitutions — {race_name}", expanded=bool(stored)):
+    with st_module.expander(f"Driver substitutions: {race_name}", expanded=bool(stored)):
         if stored:
             st_module.caption(
                 "Racing this weekend: "
@@ -58,8 +58,9 @@ def render_driver_substitution_editor(
                 value=_format(stored),
                 placeholder=_PLACEHOLDER,
                 help=(
-                    "One swap per line, driver out first: 'HAD > LAW'. Enter the whole chain "
-                    "at once — moving a driver up without freeing his own seat is rejected."
+                    "One swap per line, driver out first: 'HAD > LAW'. Enter the whole "
+                    "chain at once. Moving a driver up without freeing his seat is "
+                    "rejected."
                 ),
             )
             submitted = st_module.form_submit_button("Save substitutions")

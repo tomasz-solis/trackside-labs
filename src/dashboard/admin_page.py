@@ -2,7 +2,7 @@
 
 The penalty and substitution editors used to hang off the public Prediction page, so
 running an operator job meant loading a full forecast first. They live here instead. This
-page renders no prediction, no team comparison, and no accuracy work — opening it with
+page renders no prediction, no team comparison, and no accuracy work, so opening it with
 ``?admin=<TL_ADMIN_TOKEN>`` costs a schedule lookup and an artifact-version read, nothing
 more.
 
@@ -194,9 +194,9 @@ def _render_precompute_detail(status: dict[str, Any], st_module: Any) -> None:
     horizon = status.get("horizon")
     if not horizon:
         st_module.error(
-            "Nothing is warmed at this artifact hash. The dashboard has no forecast to serve "
-            "until a precompute run finishes. This is the expected state right after a deploy "
-            "that touched the prediction code."
+            "Nothing is precomputed for this version yet, so the dashboard has no "
+            "forecast to show until a precompute run finishes. Expected right after a "
+            "deploy that changed the prediction code."
         )
         return
 
@@ -263,7 +263,7 @@ def _render_render_activity(st_module: Any, *, env: Mapping[str, str] | None) ->
     """Show what the cron and the web service have actually been doing.
 
     Render has no endpoint for reading a cron run directly, so both lists come from each
-    service's event feed. A failed run reports why — ``oomKilled`` and ``nonZeroExit``
+    service's event feed. A failed run reports why: ``oomKilled`` and ``nonZeroExit``
     both show up here, and neither is visible from the horizon index alone.
 
     Two API calls on every render of this page, uncached. The page already does an

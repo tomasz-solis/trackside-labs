@@ -1,4 +1,4 @@
-# Model Candidate Audit - 2026
+# Model candidate audit, 2026
 
 Candidates are evaluated in expanding-window order. The first scored
 event seeds history; each later event can only use previous completed

@@ -6,7 +6,7 @@ serve until the scheduled ``preheat`` cron next runs. Recovering meant opening t
 dashboard and clicking two buttons; these two calls put them on the admin page instead.
 
 The precompute deliberately does *not* run in this process. The web service is on the free
-plan and the cron on starter — loading the predictor and simulating a weekend here is how
+plan and the cron on starter; loading the predictor and simulating a weekend here is how
 the web process runs out of memory. The cron instance does the work; this only starts it.
 
 Nothing raises. A missing environment variable or an unreachable API returns

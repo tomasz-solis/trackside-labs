@@ -306,7 +306,7 @@ def test_prediction_action_state_keeps_current_race_enabled_during_boundary_lag(
     )
 
     assert state["disabled"] is False
-    assert "still being prepared" in state["pending_message"]
+    assert "New session data is being processed" in state["pending_message"]
 
 
 def test_prediction_action_state_reports_rewarm_when_artifact_hash_changed():
@@ -393,7 +393,7 @@ def test_latest_data_status_message_handles_schedule_unavailable():
         practice_update={},
     )
 
-    assert "schedule is currently unavailable" in message
+    assert "schedule is unavailable" in message
 
 
 def test_clear_fastf1_race_cache_removes_date_prefixed_race_dirs_only(patcher, tmp_path):
@@ -512,8 +512,8 @@ def test_build_runtime_messages_suppresses_2026_reset_warning_after_three_races(
 
     texts = [message for _level, message in messages]
 
-    assert not any("2026 regulation reset" in text for text in texts)
-    assert any("Sprint weekend mode active" in text for text in texts)
+    assert not any("2026 rules reset" in text for text in texts)
+    assert any("Sprint weekend: sprint qualifying" in text for text in texts)
 
 
 def test_save_prediction_if_enabled_saves_new_session(patcher):
@@ -768,12 +768,12 @@ def test_render_accuracy_page_controls_uses_secondary_repair_button(patcher):
             "label": "Repair Accuracy Data",
             "type": "secondary",
             "width": "stretch",
-            "help": "Force a one-off actuals reconciliation and snapshot rebuild for saved predictions.",
+            "help": "Reattach results and rebuild accuracy for all saved forecasts, once.",
         }
     ]
     assert captions == [
-        "Scheduled workers refresh completed qualifying, sprint, and race results automatically. "
-        "Use the repair action only when stored artifacts need a forced rebuild."
+        "Results refresh automatically after each session. Use repair only if the saved "
+        "data needs a forced rebuild."
     ]
 
 
@@ -1049,7 +1049,7 @@ def test_render_prediction_accuracy_page_handles_no_predictions(patcher):
 
     pages.render_prediction_accuracy_page()
 
-    assert any("No predictions saved yet" in message for message in messages)
+    assert any("No forecasts saved yet" in message for message in messages)
 
 
 def test_render_prediction_accuracy_page_uses_selected_season(patcher):

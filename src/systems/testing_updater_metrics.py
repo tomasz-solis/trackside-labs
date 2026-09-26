@@ -247,7 +247,7 @@ def _select_short_run_laps(team_laps: pd.DataFrame, top_n: int = _SHORT_RUN_TOP_
     """Select each driver's quickest clean green laps as the short-run sample.
 
     Short-run (qualifying-sim) pace is about single-lap bite on low fuel, not stint
-    length. Selecting by lap *pace* per driver — instead of by stint length — keeps a
+    length. Selecting by lap *pace* per driver, instead of by stint length, keeps a
     fast lap that happened inside a longer stint and rejects a slow 2-lap cooldown
     stint that a driver who ran a full program may leave at the end of a session.
     Mirrors ``src/utils/fp_blending.py::_extract_short_run_lap_time``.

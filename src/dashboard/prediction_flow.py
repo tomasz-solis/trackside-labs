@@ -56,8 +56,7 @@ def build_actual_qualifying_section(
             f"Showing ACTUAL {session_label.lower()} classification from the completed session."
         ),
         "classification_caption": (
-            "No grid penalties are applied here. This is the raw post-session classification "
-            "used as the race input grid."
+            "Raw session result used as the race grid, before any grid penalties."
         ),
     }
 

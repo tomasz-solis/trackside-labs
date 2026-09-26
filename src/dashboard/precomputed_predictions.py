@@ -279,7 +279,7 @@ def load_latest_prediction_for_boundary(
     artifact hash of the code+model snapshot that produced them, so a routine artifact
     bump re-keys every record and orphans forecasts that still exist under an older
     hash. When the exact key misses, serve the most recent forecast for the same race,
-    weather and boundary signature — just possibly from a slightly older model version —
+    weather and boundary signature, just possibly from a slightly older model version,
     rather than showing an empty page.
 
     The boundary signature is kept exact so the served checkpoint stays correct; only

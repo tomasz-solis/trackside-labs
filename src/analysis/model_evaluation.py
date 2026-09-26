@@ -53,9 +53,9 @@ def position_weight(
     Lower (better) positions carry more weight, so an error at the sharp end of
     the grid counts for more than an error among the backmarkers. Schemes:
 
-    - ``reciprocal`` (default): ``1 / position`` — P1 matters most, decaying fast.
-    - ``linear``: ``(field_size - position + 1) / field_size`` — gentle gradient.
-    - ``exponential``: ``exp(-(position - 1) / tau)`` — tunable decay length.
+    - ``reciprocal`` (default): ``1 / position``: P1 matters most, decaying fast.
+    - ``linear``: ``(field_size - position + 1) / field_size``: gentle gradient.
+    - ``exponential``: ``exp(-(position - 1) / tau)``: tunable decay length.
     """
     pos = max(1.0, float(position))
     normalized_scheme = str(scheme).strip().lower()

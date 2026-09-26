@@ -437,7 +437,7 @@ def _render_position_change_chart(
 
     top_gainers = comparison[comparison["positions_gained"] > 0].head(5).copy()
     if top_gainers.empty:
-        summary = "No major gainers in this run; the model expects a fairly grid-shaped race."
+        summary = "No big gainers: the model expects the race to finish close to the grid order."
     else:
         summary = "Biggest projected gainers: " + ", ".join(
             f"{row.driver} +{int(row.positions_gained)}"
@@ -446,10 +446,7 @@ def _render_position_change_chart(
 
     render_surface_header(
         title="Biggest Movers",
-        summary=(
-            "Net position change from the paired grid to the projected finish. "
-            "This isolates the race story before the full classification table."
-        ),
+        summary=("Positions gained or lost from the grid to the projected finish."),
         eyebrow=_position_change_chart_title(prediction_name, result),
     )
     render_stat_cards(
@@ -457,9 +454,7 @@ def _render_position_change_chart(
         grid_class="ts-stat-grid ts-stat-grid--movement",
     )
     if not bool((comparison["positions_gained"] != 0).any()):
-        st.caption(
-            "Movement ladder shows projected position changes only; unchanged drivers are omitted."
-        )
+        st.caption("Only drivers projected to change position are shown.")
         st.caption(summary)
         render_notice_banner(
             "No projected position changes in this run.",
@@ -637,8 +632,8 @@ def _render_pit_lap_distribution(pit_lap_distribution: dict) -> None:
     top_windows = sorted(windows, key=lambda x: x[2], reverse=True)[:5]
 
     st.caption(
-        "Share of all simulated pit events (all cars x all simulations). "
-        "Windows are 5-lap bins, e.g. L25-30."
+        "Share of all simulated pit stops (every car, every simulation), in 5-lap windows"
+        " such as L25-30."
     )
 
     most_likely = top_windows[0]
@@ -843,25 +838,27 @@ def _render_race_result(df: pd.DataFrame) -> None:
 
     if has_expected_position:
         primary_caption = (
-            "Rows are ranked by expected finishing position across the full simulation "
-            "distribution, not by Order Confidence% or Podium%."
+            (
+                "Rows are sorted by expected finishing position across all simulations, not "
+                "by Order Confidence % or Podium %."
+            )
             if has_podium_probability
-            else "Rows are ranked by expected finishing position across the full simulation "
-            "distribution, not by Order Confidence%."
+            else (
+                "Rows are sorted by expected finishing position across all simulations, not "
+                "by Order Confidence %."
+            )
         )
     else:
-        primary_caption = (
-            "Rows are ranked by projected finishing order from the selected checkpoint."
-        )
+        primary_caption = "Rows are sorted by projected finishing order at the selected checkpoint."
     st.caption(primary_caption)
     if has_expected_position:
         st.caption(
             "Key signal: `Expected Pos` (lower is better). Use `90% Pos Range` to judge uncertainty."
         )
     if has_ci:
-        ci_caption = "`90% Pos Range` shows where a driver lands in 90% of simulations (P5 to P95)."
+        ci_caption = "`90% Pos Range` is where a driver lands in 90% of simulations (P5 to P95)."
         if has_podium_probability:
-            ci_caption += " Equal Podium% values are normal because podium probabilities are monotonic-smoothed."
+            ci_caption += " Equal Podium % values are expected: podium odds are smoothed so they never rise down the order."
         st.caption(ci_caption)
 
     display_cols = ["position", "driver", "team"]
@@ -879,16 +876,16 @@ def _render_race_result(df: pd.DataFrame) -> None:
         display_cols.append("dnf_probability")
         display_names.append("DNF Risk %")
         st.caption(
-            "`DNF Risk %` is calibrated toward the season retirement rate, so it spans a narrow "
-            "band; colours rank drivers within this race. The simulated finishing order samples "
-            "retirements from the uncalibrated per-driver rates, so the two can differ."
+            "`DNF Risk %` is the retirement chance the simulation uses for each driver. "
+            "Colours rank drivers within this race."
         )
     if has_confidence:
         display_cols.append("confidence")
         display_names.append("Order Confidence %")
         st.caption(
-            "`Order Confidence %` is the simulated chance a driver finishes within one place of "
-            "the projected slot — high for clear-cut placements, low where the field is tightly packed."
+            "`Order Confidence %` is the chance a driver finishes within one place of the"
+            " projected position. High when the order is clear, low when the field is "
+            "close."
         )
 
     df_display = race_df[display_cols].copy()
@@ -917,7 +914,7 @@ def _render_race_result(df: pd.DataFrame) -> None:
         )
     render_stat_cards(podium_cards)
 
-    st.caption("Projected top 10 shown first. Expand for the full P1-P22 simulation table.")
+    st.caption("Projected top 10 first. Expand for the full P1-P22 table.")
     top_ten_display = df_display.head(10)
     styled_top_ten = _style_race_table(top_ten_display)
     st.markdown(

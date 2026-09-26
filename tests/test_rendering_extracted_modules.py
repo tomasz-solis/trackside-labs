@@ -206,7 +206,7 @@ def test_rendering_qualifying_renders_teammate_matchups_directly(monkeypatch) ->
         ]
     )
 
-    assert any("How to read" in message for message in messages)
+    assert any("Sorted by the biggest teammate edge" in message for message in messages)
     assert any("McLaren" in message and "moderate edge" in message for message in messages)
     assert any("#1" in message and "+22.0 pp toward NOR" in message for message in messages)
     assert any("50/50" in message and "PIA" in message for message in messages)

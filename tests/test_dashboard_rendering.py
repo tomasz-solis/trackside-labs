@@ -244,7 +244,7 @@ def test_render_race_result_handles_saved_checkpoint_payload_without_optional_co
 
     captions = [value for kind, value in calls if kind == "caption"]
     markdown_blocks = [value for kind, value in calls if kind == "markdown" and "<table" in value]
-    assert any("Rows are ranked by projected finishing order" in text for text in captions)
+    assert any("Rows are sorted by projected finishing order" in text for text in captions)
     assert markdown_blocks
 
 
@@ -271,7 +271,7 @@ def test_render_race_result_explains_sorting_and_interval(patcher):
 
     captions = [value for kind, value in calls if kind == "caption"]
     table_html_blocks = [value for kind, value in calls if kind == "markdown" and "<table" in value]
-    assert any("Rows are ranked by expected finishing position" in text for text in captions)
+    assert any("Rows are sorted by expected finishing position" in text for text in captions)
     assert any("90% Pos Range" in text for text in captions)
     assert table_html_blocks
     assert all(">Status<" not in html for html in table_html_blocks)
@@ -605,7 +605,7 @@ def test_display_prediction_result_renders_teammate_head_to_head_probabilities(p
     expander_labels = [value for kind, value in calls if kind == "expander"]
     assert any("Teammate Matchups" in text for text in expander_labels)
     markdown_blocks = [value for kind, value in calls if kind == "markdown"]
-    assert any("How to read:" in text for text in markdown_blocks)
+    assert any("Sorted by the biggest teammate edge" in text for text in markdown_blocks)
     assert any("VER over HAD" in text for text in markdown_blocks)
     assert any("80.3%" in text for text in markdown_blocks)
     assert any("+30.3 pp toward VER" in text for text in markdown_blocks)

@@ -37,11 +37,9 @@ def test_build_runtime_messages_collects_key_runtime_notices():
 
     texts = [message for _level, message in messages]
 
-    assert any(
-        "only 2/3 completed Grand Prix race results are in the model" in text for text in texts
-    )
-    assert any("Sprint weekend mode active" in text for text in texts)
-    assert any("Prediction reused from cache" in text for text in texts)
+    assert any("only 2/3 finished Grand Prix results are in the model" in text for text in texts)
+    assert any("Sprint weekend: sprint qualifying" in text for text in texts)
+    assert any("Forecast loaded from cache" in text for text in texts)
     assert any(
         "Serving the latest available persisted checkpoint SQ instead" in text for text in texts
     )
@@ -67,7 +65,7 @@ def test_build_runtime_messages_suppresses_reset_warning_after_three_races():
 
     texts = [message for _level, message in messages]
 
-    assert not any("2026 regulation reset" in text for text in texts)
+    assert not any("2026 rules reset" in text for text in texts)
     assert any("Latest datapoint in use" in text for text in texts)
 
 
@@ -85,7 +83,7 @@ def test_build_runtime_messages_keeps_reset_warning_when_count_is_missing():
 
     texts = [message for _level, message in messages]
 
-    assert any("completed Grand Prix race evidence is unavailable" in text for text in texts)
+    assert any("no finished Grand Prix is in the model yet" in text for text in texts)
 
 
 def test_render_collapsible_runtime_messages_deduplicates_details():

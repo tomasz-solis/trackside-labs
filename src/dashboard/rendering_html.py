@@ -425,7 +425,7 @@ def _build_prediction_highlight_cards(
                     {
                         "label": "Mean order confidence",
                         "value": f"{float(confidence):.1f}%",
-                        "meta": "Average simulated finish-order concentration.",
+                        "meta": "How settled the simulated finishing order is.",
                         "tone": "neutral",
                     }
                 )
@@ -477,7 +477,7 @@ def _build_prediction_highlight_cards(
                 {
                     "label": "Mean order confidence",
                     "value": f"{float(confidence):.1f}%",
-                    "meta": "Average simulated grid-order concentration.",
+                    "meta": "How settled the simulated grid order is.",
                     "tone": "neutral",
                 }
             )
@@ -564,11 +564,8 @@ def _prediction_section_summary(result: dict, *, is_race: bool) -> str:
 
     if is_race:
         return (
-            "Race distribution ranked by expected finish, with podium, risk, and strategy "
-            "signals summarized before the full-field table."
+            "Sorted by expected finish, with podium, risk and strategy summaries above "
+            "the full table."
         )
 
-    return (
-        "Grid projection grouped by elimination stage so sprint weekends stay readable even "
-        "when two separate qualifying sessions are on the page."
-    )
+    return "Projected grid grouped by qualifying stage."

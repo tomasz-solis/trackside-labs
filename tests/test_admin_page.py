@@ -160,7 +160,7 @@ def test_an_unwarmed_season_is_called_out_as_a_post_deploy_state(monkeypatch: py
     admin_page._render_precompute_detail(status, st_module)
 
     assert status["artifact_hash"] == "76d26fcf00"
-    assert any("Nothing is warmed" in message for message in st_module.errors)
+    assert any("Nothing is precomputed for this version" in message for message in st_module.errors)
 
 
 def test_a_partly_warmed_season_names_the_races_still_missing():

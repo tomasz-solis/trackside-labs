@@ -67,7 +67,7 @@ def render_grid_penalty_editor(
         return
 
     stored = load_configured_penalties(race_name=race_name, year=year)
-    with st_module.expander(f"Grid penalties — {race_name}", expanded=not stored):
+    with st_module.expander(f"Grid penalties: {race_name}", expanded=not stored):
         if stored:
             st_module.caption(
                 "Applied to the race grid: "

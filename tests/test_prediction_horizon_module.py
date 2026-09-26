@@ -99,7 +99,7 @@ def test_prediction_action_state_keeps_selected_race_enabled_during_boundary_lag
     )
 
     assert state["disabled"] is False
-    assert "still being prepared" in state["pending_message"]
+    assert "New session data is being processed" in state["pending_message"]
 
 
 def test_prediction_action_state_reports_missing_current_artifact_warmup():

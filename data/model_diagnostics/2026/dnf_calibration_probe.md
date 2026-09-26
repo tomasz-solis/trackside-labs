@@ -1,4 +1,4 @@
-# DNF Calibration Probe - 2026
+# DNF calibration probe, 2026
 
 - Transform: `p' = lambda * p + (1 - lambda) * expanding_prior_base_rate`
 - Seed base rate (first event only): **0.1**

@@ -3,8 +3,8 @@
 Qualifying classification is not the starting grid: a driver who qualifies P3 and
 takes a power-unit penalty is still classified P3 by the timing feed. Once the race
 has run, ``fetch_actual_starting_grid`` reads the real grid from FastF1 and this
-module stops mattering. Before it, there is no automated source — the stewards
-publish decisions as PDFs on a Saturday night — so the drop is typed in by hand
+module stops mattering. Before it, there is no automated source: the stewards
+publish decisions as PDFs on a Saturday night, so the drop is typed in by hand
 against ``grid.penalties`` in the config.
 
 The drop is applied here, to the race grid, and never to the qualifying prediction.

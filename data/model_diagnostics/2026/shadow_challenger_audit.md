@@ -1,4 +1,4 @@
-# Shadow Challenger Audit - 2026
+# Shadow challenger audit, 2026
 
 - Challenger version: `target_form_blend_v1`
 - Prediction artifacts loaded: **28**

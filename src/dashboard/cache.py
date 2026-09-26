@@ -139,8 +139,8 @@ def get_artifact_versions(year: int = _DEFAULT_SEASON) -> dict[str, tuple[int, s
     versions.update(_fingerprint_newest(store, "car_characteristics_snapshot", season_year))
 
     # Grid penalties and driver substitutions are both entered at runtime, so saving one has
-    # to move the prediction cache key or every precompute keeps serving the old grid — the
-    # un-penalised order, or the driver who is not in the car — until an unrelated artifact
+    # to move the prediction cache key or every precompute keeps serving the old grid (the
+    # un-penalised order, or the driver who is not in the car) until an unrelated artifact
     # happens to change.
     versions.update(_fingerprint_newest(store, "grid_penalties", season_year))
     versions.update(_fingerprint_newest(store, "driver_substitutions", season_year))
@@ -163,8 +163,8 @@ def _fingerprint_newest(
 ) -> dict[str, tuple[int, str]]:
     """Fingerprint the newest artifact of one type so a rewrite moves the cache key.
 
-    These artifacts are written at runtime — a snapshot correction, a Saturday-night
-    penalty, a Thursday driver substitution — with no change to any season artifact. The
+    These artifacts are written at runtime (a snapshot correction, a Saturday-night
+    penalty, a Thursday driver substitution) with no change to any season artifact. The
     cache key derives from ``get_artifact_versions`` on both the warmup-write and the
     dashboard-read side, so without this the precompute keeps serving the stale prediction.
     Versions auto-increment, so the newest row's version + created_at advances on every

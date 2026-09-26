@@ -16,7 +16,7 @@ def _load_local_env(path: str = ".env.local") -> None:
 
     `streamlit run` does not read .env files, so without this the app starts in
     file_only persistence mode (USE_DB_STORAGE unset) and never reads the
-    Supabase-backed forecast store. Real environment variables always win — we only
+    Supabase-backed forecast store. Real environment variables always win; we only
     fill values that aren't already set. No dependency: the file is trivial KEY=VALUE.
     """
     env_file = Path(path)

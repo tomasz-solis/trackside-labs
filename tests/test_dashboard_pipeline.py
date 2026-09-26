@@ -100,7 +100,7 @@ def test_execute_live_prediction_pipeline_loads_persisted_prediction_and_emits_r
     assert progress_messages == [
         "Loading persisted prediction artifacts...",
         "Resolving weekend format...",
-        "Warmup owns practice refresh; dashboard request path stays read-only...",
+        "Practice data is refreshed by the background worker...",
         "Loaded persisted prediction...",
     ]
     assert output["prediction_results"] == persisted_prediction
@@ -125,7 +125,7 @@ def test_execute_live_prediction_pipeline_rejects_force_refresh(patcher):
     _stub_single_target(patcher)
     with pytest.raises(
         live_prediction_flow.PrecomputedPredictionUnavailableError,
-        match="Manual dashboard refresh is disabled",
+        match="Manual refresh is off",
     ):
         live_prediction_flow.execute_live_prediction_pipeline_core(
             **_base_core_kwargs(force_refresh=True)

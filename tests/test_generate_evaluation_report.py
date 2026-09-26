@@ -463,7 +463,7 @@ def test_render_error_analysis_markdown_surfaces_worst_events(tmp_path):
 
     markdown = render_error_analysis_markdown(build_report(2026, predictions_dir))
 
-    assert "# Model Error Analysis" in markdown
+    assert "# Model error analysis" in markdown
     assert "Worst weekends:" in markdown
     assert "Drivers that show up repeatedly among the largest misses:" in markdown
     assert "Monaco Grand Prix" in markdown

@@ -40,7 +40,7 @@ def display_prediction_result(result: dict, prediction_name: str, is_race: bool 
         rendering_qualifying._render_actual_classification(
             df,
             caption=classification_caption
-            or "This table shows the completed-session classification from FastF1.",
+            or "Official result of the finished session, from FastF1.",
         )
         return
 
@@ -76,13 +76,13 @@ def display_prediction_result(result: dict, prediction_name: str, is_race: bool 
             render_notice_banner(f"Data source: {data_source}.", tone="info", label="Input mix")
             if isinstance(data_source, str) and "Model-only" in data_source:
                 qualifying_warning_messages.append(
-                    "Low-confidence qualifying mode: no weekend practice/testing signal. "
-                    "Early grids can look too team-ordered."
+                    "Low confidence: no practice or testing data for this weekend yet, so"
+                    " the grid can look too close to team order."
                 )
             elif isinstance(data_source, str) and "Testing short-run profile blend" in data_source:
                 qualifying_warning_messages.append(
-                    "Medium-confidence qualifying mode: using testing-derived team pace without "
-                    "weekend laps. Expect wider position ranges."
+                    "Medium confidence: using team pace from testing, no laps from this "
+                    "weekend yet. Expect wider ranges."
                 )
         confidence_col = (
             "order_confidence"

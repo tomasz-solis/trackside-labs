@@ -55,8 +55,10 @@ def _build_2026_regulation_reset_message(
     if completed_count is None:
         return (
             "warning",
-            "2026 regulation reset: completed Grand Prix race evidence is unavailable here, "
-            "so predictions still carry early-season uncertainty.",
+            (
+                "2026 rules reset: no finished Grand Prix is in the model yet, so these "
+                "forecasts carry early-season uncertainty."
+            ),
         )
 
     if completed_count >= _REGULATION_RESET_EVIDENCE_RACES:
@@ -65,9 +67,9 @@ def _build_2026_regulation_reset_message(
     result_label = "result is" if completed_count == 1 else "results are"
     return (
         "warning",
-        "2026 regulation reset: only "
-        f"{completed_count}/{_REGULATION_RESET_EVIDENCE_RACES} completed Grand Prix race "
-        f"{result_label} in the model, so predictions still carry early-season uncertainty.",
+        "2026 rules reset: only "
+        f"{completed_count}/{_REGULATION_RESET_EVIDENCE_RACES} finished Grand Prix "
+        f"{result_label} in the model, so these forecasts carry early-season uncertainty.",
     )
 
 
@@ -116,10 +118,7 @@ def latest_data_status_message(
 
     reason = str(boundary_refresh.get("reason", "")).strip().lower()
     if reason == "schedule_unavailable":
-        return (
-            "Live session schedule is currently unavailable. "
-            "Using the latest persisted artifacts and cached race-weekend state."
-        )
+        return "The live session schedule is unavailable. Showing the latest saved forecast."
 
     return (
         "Latest datapoint in use: pre-weekend baseline/testing only. "
@@ -159,8 +158,7 @@ def build_runtime_messages(
         runtime_messages.append(
             (
                 "info",
-                "Sprint weekend mode active: Sprint Qualifying -> Sprint Race -> "
-                "Main Qualifying -> Main Race cascade.",
+                ("Sprint weekend: sprint qualifying, sprint, qualifying, then the Grand Prix."),
             )
         )
     runtime_messages.append(
@@ -178,7 +176,7 @@ def build_runtime_messages(
         runtime_messages.append(
             (
                 "info",
-                "Prediction reused from cache (inputs unchanged, no new boundary data).",
+                "Forecast loaded from cache (no new session data).",
             )
         )
     if isinstance(boundary_fallback, dict) and boundary_fallback:
@@ -379,10 +377,9 @@ def prediction_failure_hint(error: Exception) -> str | None:
         and "predicted grid" in normalized_message
     ):
         return (
-            "FastF1 has not exposed a reliable completion state for that session yet. "
-            "This is a live-data sync problem, not a missing artifact problem. "
-            "Retry shortly; if the session is clearly finished, clear that race's FastF1 cache "
-            "and rerun."
+            "FastF1 has not confirmed that this session finished yet. This is a live data"
+            " delay, not missing data. Try again shortly; if the session is clearly over,"
+            " clear that race's FastF1 cache and rerun."
         )
 
     artifact_error_markers = (
@@ -393,9 +390,10 @@ def prediction_failure_hint(error: Exception) -> str | None:
     )
     if any(marker in normalized_message for marker in artifact_error_markers):
         return (
-            "Make sure data files are generated. Run: "
-            "`python scripts/extract_driver_characteristics.py --years 2023,2024,2025,2026`"
-            " (prefer a background job or local shell on Render; web-shell runs can hit memory limits)."
+            "Generate the data files first: `python "
+            "scripts/extract_driver_characteristics.py --years 2023,2024,2025,2026`. On "
+            "Render, use a background job or a local shell; the web shell can run out of "
+            "memory."
         )
 
     if (
@@ -403,17 +401,17 @@ def prediction_failure_hint(error: Exception) -> str | None:
         and "could not resolve weekend format" in normalized_message
     ):
         return (
-            "The schedule lookup for that race failed, so the dashboard refused to guess "
-            "whether it is a sprint or conventional weekend. Verify the race name/year "
-            "and refresh the schedule data before retrying."
+            "The schedule lookup for this race failed, so the dashboard will not guess "
+            "whether it is a sprint weekend. Check the race name and year, refresh the "
+            "schedule and try again."
         )
 
     if isinstance(error, PrecomputedPredictionUnavailableError):
         return (
-            "The dashboard is currently in persisted-prediction mode, so it will not simulate on demand. "
-            "Warm the 3-race horizon first with "
-            "`python scripts/warmup_precompute.py --year 2026` "
-            "(add `--require-db` only when you want DB-backed warmup to be mandatory)."
+            "The dashboard only shows precomputed forecasts and never simulates on "
+            "demand. Precompute the next 3 races with `python "
+            "scripts/warmup_precompute.py --year 2026` (add `--require-db` to require "
+            "database storage)."
         )
 
     return None

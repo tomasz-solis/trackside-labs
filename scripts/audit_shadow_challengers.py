@@ -251,7 +251,7 @@ def build_shadow_challenger_audit(year: int) -> dict[str, Any]:
 def render_markdown(audit: dict[str, Any]) -> str:
     """Render audit markdown."""
     lines = [
-        f"# Shadow Challenger Audit - {audit['year']}",
+        f"# Shadow challenger audit, {audit['year']}",
         "",
         f"- Challenger version: `{audit['shadow_challenger_version']}`",
         f"- Prediction artifacts loaded: **{audit['prediction_artifacts_loaded']}**",

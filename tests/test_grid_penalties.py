@@ -217,7 +217,7 @@ def test_two_simultaneous_penalties_match_the_real_hungarian_grid():
 
     Sorting the field by "qualifying position + places dropped" puts HAM ahead of VER.
     The stewards instead remove the penalised cars, let the rest close up, and put each
-    one back at the slot his drop earns — which is how HAM ends up behind VER.
+    one back at the slot his drop earns, which is how HAM ends up behind VER.
     """
     qualifying = _grid("NOR", "HAM", "LEC", "ANT", "PIA", "VER", "RUS", "HAD")
     cfg = _Cfg({"Hungarian Grand Prix": {"HAM": 3, "ANT": 3}})

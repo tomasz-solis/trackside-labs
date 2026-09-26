@@ -13,7 +13,7 @@ first event. ``lambda = 1`` reproduces the current model output; ``lambda = 0``
 is a base-rate-only forecast.
 
 The result feeds the decision whether to add an output-layer shrinkage knob to
-the race predictor. Diagnostics only — this script changes no product data.
+the race predictor. Diagnostics only: this script changes no product data.
 """
 
 from __future__ import annotations
@@ -153,7 +153,7 @@ def build_probe(year: int, *, seed_base_rate: float, lambdas: tuple[float, ...])
 def render_markdown(probe: dict[str, Any]) -> str:
     """Render the probe as reviewer-friendly markdown."""
     lines = [
-        f"# DNF Calibration Probe - {probe['year']}",
+        f"# DNF calibration probe, {probe['year']}",
         "",
         f"- Transform: `{probe['transform']}`",
         f"- Seed base rate (first event only): **{probe['seed_base_rate']}**",

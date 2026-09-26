@@ -402,7 +402,7 @@ def render_saved_prediction_viewer(
         index=max(0, len(race_names) - 1),
         key="saved_prediction_viewer_race",
         format_func=lambda race: race_labels.get(race, race),
-        help="Browse one saved race weekend and inspect each checkpoint artifact.",
+        help="Open a saved race weekend and look at each checkpoint.",
     )
     race_rows = [row for row in rows if row.get("race_name") == selected_race]
     checkpoint_options = [str(row.get("checkpoint_option_value", "")) for row in race_rows]
@@ -416,7 +416,7 @@ def render_saved_prediction_viewer(
         index=max(0, len(checkpoint_options) - 1),
         key=f"saved_prediction_viewer_checkpoint_{selected_race}",
         format_func=lambda checkpoint: checkpoint_labels.get(checkpoint, checkpoint),
-        help="Choose the historical cut-off you want to inspect.",
+        help="Pick the session to look at.",
     )
 
     selected_row = next(
@@ -816,8 +816,8 @@ def _render_progression_charts(target_summary: TargetAccuracySummary, metric_nam
             st.caption(". ".join(caption_parts))
             if max(race_counts, default=0) <= 1:
                 st.caption(
-                    "Only one valid race contributes here, so this path is a single-weekend trace, "
-                    "not a stable average yet."
+                    "Only one race counts here so far, so this line is a single weekend, "
+                    "not an average."
                 )
 
 
@@ -884,7 +884,7 @@ def _render_trend_charts(target_summary: TargetAccuracySummary, metric_name: str
             st.plotly_chart(figure, width="stretch")
             if len(race_names) < 2:
                 st.caption(
-                    "Trend lines need at least two races in this format; only points are available so far."
+                    "Trend lines need at least two races of this format. Points only for now."
                 )
 
 

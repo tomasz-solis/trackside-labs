@@ -653,8 +653,8 @@ def prediction_action_state(
     """Resolve whether a persisted dashboard prediction is available."""
     if bool(precompute_filter_meta.get("fallback_boundary_active")):
         pending_message = (
-            "Newer session data has just come in and is still being prepared. For now, this shows "
-            "the most recent ready forecast — it'll update shortly."
+            "New session data is being processed. This is the latest ready forecast; it "
+            "will update shortly."
         )
         return {
             "disabled": False,

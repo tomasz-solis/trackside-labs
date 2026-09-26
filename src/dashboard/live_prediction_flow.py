@@ -374,8 +374,8 @@ def execute_live_prediction_pipeline_core(
 
     if force_refresh:
         raise PrecomputedPredictionUnavailableError(
-            "Manual dashboard refresh is disabled. Run the warmup worker or trigger the "
-            "scheduled job manually to refresh persisted predictions."
+            "Manual refresh is off. Run the warmup worker, or trigger the scheduled job, "
+            "to refresh forecasts."
         )
     pipeline_timing["cache_clear"] = 0.0
 
@@ -414,7 +414,7 @@ def execute_live_prediction_pipeline_core(
 
     practice_start = time.time()
     practice_update = {"updated": False, "completed_fp_sessions": []}
-    _notify("Warmup owns practice refresh; dashboard request path stays read-only...")
+    _notify("Practice data is refreshed by the background worker...")
     pipeline_timing["practice_update_check"] = time.time() - practice_start
 
     prediction_start = time.time()

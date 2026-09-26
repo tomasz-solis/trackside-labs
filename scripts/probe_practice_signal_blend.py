@@ -12,7 +12,7 @@ re-ranked into positions and scored against actual qualifying results.
 This is an output-space analogue of the stored-checkpoint blend weight; it
 bounds the config decision without a multi-hour simulation replay.
 
-Diagnostics only — changes no product data.
+Diagnostics only: changes no product data.
 """
 
 from __future__ import annotations
@@ -151,7 +151,7 @@ def build_probe(year: int, *, weights: tuple[float, ...]) -> dict[str, Any]:
 def render_markdown(probe: dict[str, Any]) -> str:
     """Render the probe as reviewer-friendly markdown."""
     lines = [
-        f"# Practice Signal Blend Probe - {probe['year']}",
+        f"# Practice signal blend probe, {probe['year']}",
         "",
         f"- Transform: `{probe['transform']}`",
         "- `w=1.00` reproduces the stored practice-informed checkpoint forecast;"
@@ -169,8 +169,8 @@ def render_markdown(probe: dict[str, Any]) -> str:
         lines.append(f"| {checkpoint} | " + " | ".join(cells) + f" | `{best}` |")
     lines += [
         "",
-        "Notes: blending happens in output (rank) space, so it bounds — but is "
-        "not identical to — the `stored_checkpoint_blend_weight_*` strength-space "
+        "Notes: blending happens in output (rank) space, so it bounds, but is "
+        "not identical to, the `stored_checkpoint_blend_weight_*` strength-space "
         "knobs. A best weight of 0.00 means the practice-informed reordering adds "
         "no value over PRE at that checkpoint; small best weights argue for "
         "reducing the stored-checkpoint blend caps.",

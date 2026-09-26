@@ -31,8 +31,8 @@ def _render_qualifying_result(df: pd.DataFrame) -> None:
     if has_ci:
         df_display["90% Range"] = df.apply(lambda r: f"P{int(r['p5'])}-P{int(r['p95'])}", axis=1)
         st.caption(
-            "`90% Range` shows where each driver lands in 90% of qualifying simulations. "
-            "Ranges should tighten as weekend and season data accumulates."
+            "`90% Range` is where each driver lands in 90% of qualifying simulations. "
+            "Ranges narrow as more weekend and season data arrives."
         )
     confidence_col = (
         "order_confidence"
@@ -45,13 +45,11 @@ def _render_qualifying_result(df: pd.DataFrame) -> None:
             pd.to_numeric(df[confidence_col], errors="coerce").round(1).to_numpy()
         )
         st.caption(
-            "`Order Confidence %` is the simulated chance a driver qualifies within one place of "
-            "the projected slot — high for clear-cut placements, low where the field is tightly packed."
+            "`Order Confidence %` is the chance a driver qualifies within one place of "
+            "the projected position. High when the order is clear, low when the field is "
+            "close."
         )
-    st.caption(
-        "Read left to right as qualifying stages (Q1 -> Q2 -> Q3). "
-        "`Grid` remains the full projected final order."
-    )
+    st.caption("Read left to right as Q1, Q2, Q3. `Grid` is the full projected order.")
 
     if has_ci and len(df) >= 2:
         top_a = df.iloc[0]
@@ -69,10 +67,7 @@ def _render_qualifying_result(df: pd.DataFrame) -> None:
         ranges_overlap = not (a_p95 < b_p5 or b_p95 < a_p5)
         if same_team and ranges_overlap:
             render_notice_banner(
-                (
-                    "Front-row projection is statistically tight: teammate ranges overlap, "
-                    "so the P1/P2 ordering can flip between close scenarios."
-                ),
+                ("The front row is close: the two ranges overlap, so P1 and P2 can swap."),
                 tone="info",
                 label="Front row",
             )
@@ -278,7 +273,7 @@ def _render_teammate_head_to_head_probabilities(probabilities: list[dict[str, ob
 
     with expander:
         st.markdown(
-            "How to read: sorted by largest simulated teammate edge first. "
-            "The meter starts at 50/50; the colored segment points toward the favored driver."
+            "Sorted by the biggest teammate edge first. The meter starts at 50/50 and the"
+            " coloured part points to the favourite."
         )
         _render_teammate_matchup_cards(rows)

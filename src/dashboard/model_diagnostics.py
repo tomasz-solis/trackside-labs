@@ -135,8 +135,8 @@ def render_model_diagnostics(
     artifact = load_replay_leakage_diagnostics(year=year, artifact_store=artifact_store)
     if not artifact:
         st_module.info(
-            "No replay/leakage diagnostics artifact found yet. Run "
-            "`scripts/build_replay_leakage_diagnostics.py` after rebuilding replay outputs."
+            "No replay diagnostics yet. Run `scripts/build_replay_leakage_diagnostics.py`"
+            " after a replay."
         )
         return
 
@@ -197,8 +197,7 @@ def render_model_diagnostics(
         st_module.caption("Measured from race driver-seconds deltas and team-seconds deltas.")
     else:
         st_module.caption(
-            "The current artifact reports a legacy rating-mu proxy until baseline "
-            "and current race driver-seconds state is available."
+            "This artifact uses the old rating-mu stand-in because driver seconds state is missing."
         )
     dry_rows = dry_leakage.get("rows", [])
     if isinstance(dry_rows, list) and dry_rows:

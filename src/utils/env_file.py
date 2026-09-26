@@ -15,7 +15,7 @@ from pathlib import Path
 def load_env_file(env_file: Path) -> None:
     """Load ``KEY=VALUE`` pairs from ``env_file`` into ``os.environ``.
 
-    Existing environment variables take precedence — the file only fills gaps, so an
+    Existing environment variables take precedence: the file only fills gaps, so an
     explicitly exported value is never overwritten. Blank lines, comments, and lines
     without ``=`` are skipped.
 

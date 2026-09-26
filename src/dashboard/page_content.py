@@ -3,60 +3,54 @@
 MODEL_INSIGHTS_MARKDOWN = """
 ### How the model works
 
-The dashboard uses one predictor (`Baseline2026Predictor`) for both qualifying and race forecasts.
+One predictor (`Baseline2026Predictor`) makes both the qualifying and the race forecast.
 
-**1. Team baseline**
-- Builds team strength from preseason baseline and current-season performance.
-- Uses the `rapid_adaptive` reset-year schedule so trust shifts toward current-season evidence.
+**1. Team strength**
+- Blends the pre-season baseline with this season's results.
+- Moves trust to this season fast: 45% at race 1, 95% from race 4.
 
-**2. Qualifying forecast**
-- Uses the best available weekend practice pace for blending.
-- Falls back to testing short-run profiles when weekend practice data is unavailable.
-- Applies driver/team adjustments, then runs Monte Carlo simulations.
-- Outputs median grid positions with confidence intervals.
+**2. Qualifying**
+- Uses the weekend's practice pace, or pre-season testing runs if there is no practice yet.
+- Adds team and driver adjustments, then runs Monte Carlo simulations.
+- Shows the median grid position and a confidence range.
 
-**3. Race forecast**
-- Starts from predicted or actual qualifying order, depending on session availability.
-- Runs lap-by-lap Monte Carlo simulation with pace, tire degradation, strategy, overtaking, and reliability effects.
-- Sprint weekends use adjusted race dynamics (lower chaos variance and higher grid influence).
-- Derives podium probability from ranked simulation outcomes.
+**3. Race**
+- Starts from the actual grid once qualifying is done, the predicted grid before that.
+- Simulates the race lap by lap: pace, tyre wear, strategy, overtaking and retirements.
+- Sprints have less randomness and a stronger grid effect.
+- Podium odds come from how often each driver finishes top 3 in the simulations.
 
-**4. Learning loop**
-- Saved predictions with actuals update a persistent calibration state.
-- Tracks per-driver and teammate residual errors by session type.
-- Applies learned adjustments in qualifying and race scoring.
-- Skips retrospective records, duplicate run IDs, missing actuals, and tiny actual overlaps.
+**4. Learning**
+- Each saved forecast is scored against the result, and the model learns per-driver and teammate errors.
+- It skips replays, duplicate runs and missing or partial results.
 
-**5. Outputs**
-- Expected finish order, uncertainty bands, podium probabilities, and strategy distribution summaries.
-
-**6. Research safeguards**
-- Experimental model components must pass promotion gates before stacking.
-- Ablation reports compare champion and challenger movement against actual results.
+**5. Model changes**
+- A new component must pass promotion gates before it is added.
+- Every change is measured on a replay of the season against a seed-noise floor.
 """
 
 QUALIFYING_HYPERPARAMETERS_MARKDOWN = """
-**Qualifying (active path):**
-- Default prior: team/driver score starts at 70% team + 30% driver
-- Practice blend when available; testing fallback otherwise
-- Model-only mode rebalances weights and applies teammate/experience controls
-- Learned adjustment offsets are applied when calibration history is available
-- Output: Monte Carlo median grid + confidence intervals
+**Qualifying:**
+- Team 60%, driver 40% to start
+- Practice pace when available, testing runs otherwise
+- With no session data, weights rebalance and teammate and experience limits apply
+- Learned corrections apply once there is history
+- Output: median grid position and confidence range
 """
 
 RACE_HYPERPARAMETERS_MARKDOWN = """
-**Race (active path):**
-- Default prior: pace term starts at 40% and is adjusted by track overtaking profile
-- Grid influence is dynamic by overtaking difficulty and starting position context
-- Driver skill term starts at 20% and is normalized with grid/pace terms per simulation
-- Includes DNF probability, lap-1 chaos, strategy variance, and safety car modifiers
-- Podium probability from ranked outcomes with monotonic smoothing
+**Race:**
+- Pace weight starts at 40% and shifts with how hard the circuit is to pass on
+- Grid influence depends on overtaking difficulty and starting position
+- Driver skill is normalised with the grid and pace terms in each simulation
+- Includes retirements, lap 1 incidents, strategy variation and safety cars
+- Podium odds from simulated finishing order, smoothed so they never rise down the grid
 """
 
 CONTACT_PAGE_HTML = """
 <div class="contact-grid">
   <section class="contact-card">
-    <h3>Project Links</h3>
+    <h3>Links</h3>
     <div class="contact-link-stack">
       <a class="contact-link-row" href="https://github.com/tomasz-solis/trackside-labs" target="_blank" rel="noopener noreferrer">
         <span class="contact-link-row__label">GitHub</span>
@@ -69,12 +63,12 @@ CONTACT_PAGE_HTML = """
     </div>
   </section>
   <section class="contact-card">
-    <h3>Project Scope</h3>
-    <p>Race weekend prediction workflow built on a 2026 baseline with persistent learning and accuracy tracking.</p>
+    <h3>What it does</h3>
+    <p>Forecasts every 2026 race weekend, learns from each result and tracks its own accuracy.</p>
     <ul>
-      <li>Baseline/testing/current-season team blending</li>
-      <li>Practice-aware qualifying and race simulation</li>
-      <li>Session-based logging for gated learning and post-race accuracy analysis</li>
+      <li>Team strength from the baseline, testing and this season</li>
+      <li>Qualifying and race simulations that use practice data</li>
+      <li>Forecasts saved every session and scored after the race</li>
     </ul>
   </section>
 </div>

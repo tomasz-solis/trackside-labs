@@ -1,6 +1,6 @@
 """Swap a race-weekend driver into another team's seat before prediction runs.
 
-A driver misses a weekend — injury, illness, a mid-season drop — and a reserve or a
+A driver misses a weekend (injury, illness, a mid-season drop) and a reserve or a
 junior-team driver takes the seat, which usually pushes a second driver up the chain.
 ``data/current_lineups.json`` is one static season-wide file, so editing it means a
 commit and a redeploy for a change that lasts one or two races, and it retroactively
@@ -114,8 +114,8 @@ def apply_substitutions(
 ) -> dict[str, list[str]]:
     """Return the lineups with this race's substitutions applied.
 
-    Anything that does not hold — a driver who is no longer in the lineup, a swap that
-    would seat one driver twice — is logged and skipped, leaving the configured lineup
+    Anything that does not hold (a driver who is no longer in the lineup, a swap that
+    would seat one driver twice) is logged and skipped, leaving the configured lineup
     intact. A stale entry must not take a weekend's predictions down.
     """
     substitutions = load_configured_substitutions(

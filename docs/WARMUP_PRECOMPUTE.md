@@ -1,93 +1,40 @@
-# Warmup Precompute Worker
+# Warmup precompute worker
 
-Use this worker to precompute prediction payloads outside Streamlit request handling.
-
-## Why it exists
-
-- Keeps the dashboard race dropdown focused on warmed races.
-- Avoids first-click compute delays by pre-filling checkpoint-aware prediction rows.
-- Runs safely from cron/worker processes without blocking app requests.
+Precomputes forecasts outside the Streamlit request, so the dashboard never computes on a click. The race dropdown shows only warmed races.
 
 ## Command
 
 ```bash
-python scripts/warmup_precompute.py --year 2026
+uv run python scripts/warmup_precompute.py --year 2026
 ```
 
-Useful flags:
+| Flag | Effect |
+|---|---|
+| `--dry-run` | Plan only, no writes |
+| `--verbose` | Per-target checkpoint detail and reuse counts |
+| `--require-db` | Fail if storage is not database-backed or a write check warns |
+| `--no-verify-writes` | Skip the read-back after each database write |
 
-```bash
-python scripts/warmup_precompute.py --year 2026 --dry-run --verbose
-python scripts/warmup_precompute.py --year 2026 --verbose --no-verify-writes
-python scripts/warmup_precompute.py --year 2026 --require-db
-```
+Exit code 0 means success, nothing to do, or checkpoint not ready. Anything else is a failure.
 
-`--dry-run` computes a plan only (no writes).
-`--verbose` prints per-target checkpoint/boundary context and reuse/compute counts.
-`--require-db` fails fast when storage mode is not DB-backed, or if write verification warns.
-By default, writes are verified with immediate DB read-back when DB mode supports it.
+## What a run does
 
-Exit codes:
+1. Picks the next race as the anchor and builds a 3-race horizon.
+2. Checks which checkpoints have real session data. Normal weekend: PRE, FP1, FP2, FP3, Q. Sprint weekend: PRE, FP1, SQ, Sprint, Q.
+3. If the expected data is not ready, writes a small status and exits.
+4. Otherwise, for each race: computes the base features once, then only the missing weather scenarios (`dry`, `mixed`, `rain`). Each race uses its own checkpoint key.
+5. Takes a database lock so two workers do not overlap.
+6. Updates the horizon index (`ready_races`) that filters the dropdown.
+7. Rebuilds accuracy snapshots for recently finished races.
 
-- `0`: success, nothing-to-do, or checkpoint-not-ready
-- non-zero: unexpected runtime failure, or `--require-db` validation failure
-
-## Warmup behavior
-
-Each run:
-
-1. Loads the current calendar and selects the next upcoming race as anchor.
-2. Builds a 3-race horizon (`anchor + 2`).
-3. Resolves checkpoint readiness from real session data:
-   - conventional: `PRE`, `FP1`, `FP2`, `FP3`, `Q`
-   - sprint: `PRE`, `FP1`, `SQ`, `Sprint`, `Q`
-4. If expected checkpoint data is not ready, writes a throttled lightweight status and exits.
-5. If ready, for each target race:
-   - computes/stores base features once per key
-   - computes/stores missing weather scenarios (`dry`, `mixed`, `rain`) only
-   - uses each target race's own boundary signature/checkpoint key (no anchor-boundary reuse)
-6. Uses a distributed DB lock (when DB writes are enabled) to avoid overlapping workers.
-7. Updates horizon index (`ready_races`) for dropdown filtering.
-
-PRE behavior:
-
-- Missing PRE scenarios are computed immediately when the script runs.
-- This includes Thursday runs before the first race weekend starts.
+PRE forecasts are computed on the first run, including Thursday before a weekend. Once qualifying is done, qualifying is no longer forecast, and the race forecast uses the actual grid.
 
 ## Scheduling
 
-For production preheat, run it every 5 minutes so completed `Q`/`SQ`/`Sprint`
-sessions are warmed quickly after the boundary flips:
+Production runs it every 5 minutes, so finished sessions are warmed quickly:
 
 ```bash
-*/5 * * * * cd /path/to/formula1-2026 && /path/to/formula1-2026/.venv/bin/python scripts/warmup_precompute.py --year 2026 --require-db >> /tmp/f1_warmup.log 2>&1
+*/5 * * * * cd /path/to/trackside-labs && .venv/bin/python scripts/warmup_precompute.py --year 2026 --require-db >> /tmp/f1_warmup.log 2>&1
 ```
 
-If you use multiple workers, keep the same cadence; warmup writes are idempotent.
-By default, each successful warmup also checks recently completed races and
-rebuilds prediction-accuracy snapshots when classified results are available.
-Warmup follows the same target-boundary policy as the live prediction flow:
-after qualifying completes, qualifying itself is no longer an open forecast, but
-the race forecast may use the actual qualifying classification as its grid input.
-
-Quality gates for release checks:
-
-```bash
-make evaluation-gate
-make candidate-audit
-make shadow-challenger-audit
-```
-
-## Supabase/Render note
-
-For multi-instance deployments (Render web + worker), set `USE_DB_STORAGE` to a DB-backed mode:
-
-- `fallback`
-- `dual_write`
-- `db_only`
-
-`file_only` does not share warmup state across instances.
-
-The Streamlit request path is intentionally read-only. Rely on this worker to
-refresh warmed predictions and completed-race accuracy instead of trying to
-recompute them during a user request.
+Writes are idempotent, so several workers can share the schedule. With more than one instance (Render web plus worker), use a database-backed `USE_DB_STORAGE` mode; `file_only` does not share state.

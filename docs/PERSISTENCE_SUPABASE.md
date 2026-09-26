@@ -1,243 +1,72 @@
 # Persistence and Supabase
 
-This is the current persistence path: artifacts, runtime state, and target-aware accuracy storage.
+Where artifacts, runtime state and accuracy snapshots are stored.
 
-## Current Runtime Integration
+## Code
 
-Artifact persistence is already used in active runtime paths:
+Core: `src/persistence/artifact_store.py`, `config.py`, `db.py`, `runtime_state_store.py`, and `src/utils/operational_observability.py`.
 
-- `src/predictors/baseline/data_mixin.py` (load core artifacts)
-- `src/systems/updater.py` (save updated car characteristics)
-- `src/utils/prediction_logger.py` (save/load prediction tracking payloads)
-- `src/utils/accuracy_snapshots.py` (build per-target accuracy snapshot payloads)
-- `src/dashboard/cache.py` (artifact version checks for cache invalidation)
-- `src/predictors/baseline/race/preparation_mixin.py` (missing-driver debut-year lookup)
+Main users: `baseline/data_mixin.py` (loads artifacts), `src/systems/updater.py` (saves car characteristics), `prediction_logger.py` and `accuracy_snapshots.py` (forecasts and scores), `src/dashboard/cache.py` (artifact versions), `baseline/race/preparation_mixin.py` (driver debut lookup).
 
-Core layer:
+## Storage modes
 
-- `src/persistence/artifact_store.py`
-- `src/persistence/config.py`
-- `src/persistence/db.py`
-- `src/persistence/runtime_state_store.py`
-- `src/utils/operational_observability.py`
+`USE_DB_STORAGE`, default `file_only`:
 
-## Storage Modes
+| Mode | Reads | Writes |
+|---|---|---|
+| `file_only` | Files | Files |
+| `db_only` | Supabase | Supabase |
+| `fallback` | Supabase, then files | Supabase |
+| `dual_write` | Supabase, then files | Both |
 
-Storage mode comes from `USE_DB_STORAGE` (default: `file_only`):
+Any mode except `file_only` needs `SUPABASE_URL` (checked at startup, must be `https://`) and `SUPABASE_KEY` (`service_role`). Use `file_only` locally and `dual_write` while migrating.
 
-- `file_only`: read/write local JSON only
-- `db_only`: read/write Supabase only
-- `fallback`: read DB first, then file fallback; writes DB only
-- `dual_write`: write both DB and file; reads DB first, then file fallback
+## Tables
 
-If mode is not `file_only`, these env vars are required:
+| Table | Holds |
+|---|---|
+| `artifacts` | All artifacts, including forecasts and accuracy snapshots |
+| `runtime_state` | Session boundary snapshots, practice update progress, race learning dedupe, warmup cache |
+| `runtime_processing_locks` | Lease locks so workers do not apply a session twice |
+| `operational_events` | Counters and alerts |
+| `app_events` | Dashboard telemetry. RLS forced, `service_role` only, no IPs, emails or raw user agents |
 
-- `SUPABASE_URL`
-- `SUPABASE_KEY` (`service_role` key for backend writes)
+Baseline artifact keys: `2026::car_characteristics`, `2026::driver_characteristics`, `2026::track_characteristics`, `driver_debuts`.
 
-`SUPABASE_URL` is validated at startup and must be an `https://` URL. Common typos
-like `ttps://...` now fail fast with an explicit error.
+## Accuracy artifacts
 
-## Supabase Assets In Repo
+`prediction` is the source of truth: legacy `qualifying` and `race` fields, `targets`, `actuals.targets` and metadata with `weekend_format`.
 
-- SQL migration: `migrations/001_create_artifacts_table.sql`
-- SQL migration: `migrations/002_create_runtime_state_and_operational_tables.sql`
-- SQL migration: `migrations/003_harden_rls_policies.sql`
-- SQL migration: `migrations/004_normalize_prediction_artifact_keys.sql`
-- SQL migration: `migrations/005_create_app_events_table.sql`
-- SQL migration: `migrations/006_harden_app_events.sql`
-- Connection test: `scripts/test_supabase_connection.py`
-- Cleanup utility: `scripts/normalize_dashboard_artifacts_in_db.py`
-- Backfill utility: `scripts/backfill_to_db.py` (migrates `driver_debuts.csv` too)
-- Targeted dashboard datapoint compare/sync: `scripts/sync_dashboard_datapoints_to_db.py`
-- Stale warmup-cache pruning: `scripts/prune_stale_precompute_state.py`
-- Snapshot backfill utility: `scripts/backfill_accuracy_snapshots.py`
-- Predictor + storage smoke test: `scripts/test_predictor_with_db.py`
+`accuracy_snapshot` holds one scored target at one checkpoint, key `YYYY::Race Name::CHECKPOINT::TARGET_KEY`. Metadata: year, race, checkpoint, weekend format, target, target session, predicted and generated times, source run ID, eligibility. Metrics: `field_size`, `overall_mae`, `top_3_hits`, `top_3_pct`, `top_10_hits`, `top_10_pct`, `exact_accuracy`, `within_1`, `within_3`, `correlation`.
 
-No new Supabase tables or migrations are required for prediction accuracy. The existing generic `artifacts` table stores both raw prediction artifacts and derived accuracy snapshots.
+The dashboard reads snapshots first and falls back to raw forecasts.
 
-Dashboard telemetry uses `app_events`. Treat it as backend-only telemetry:
+## Setup
 
-- RLS is forced.
-- `PUBLIC`, `anon`, and `authenticated` privileges are revoked.
-- only `service_role` receives table access.
-- telemetry payloads must not include raw IP addresses, emails, or raw user-agent strings.
+1. Run the migrations in the Supabase SQL editor, in order: `migrations/001` to `006`. On tables created before the security defaults, `003_harden_rls_policies.sql` enforces RLS and removes `anon` and `authenticated` access.
+2. Test the connection: `uv run python scripts/test_supabase_connection.py`
+3. Check artifact keys: `uv run python scripts/normalize_dashboard_artifacts_in_db.py --env-file .env.local` (add `--apply` to fix).
+4. Migrate data: `uv run python scripts/backfill_to_db.py --dry-run`, then with `USE_DB_STORAGE=dual_write` run it without `--dry-run`. This includes `driver_debuts.csv`.
+5. Smoke test: `uv run python scripts/test_predictor_with_db.py`
+6. Backfill snapshots: `uv run python scripts/backfill_accuracy_snapshots.py --year 2026`
+7. Check that a Predict click writes `runtime_state`, that parallel practice runs show lock contention, that alerts appear in `operational_events`, and that `auto_update_from_races()` does not relearn processed races after a restart.
 
-## Targeted Dashboard Datapoint Sync
+## Maintenance scripts
 
-When you only need to compare or update the checkpoint rows that back dashboard
-charts, use `scripts/sync_dashboard_datapoints_to_db.py` instead of a full
-`backfill_to_db.py` run.
-
-Example compare-only run:
+**Sync one race's dashboard rows.** Safer than a full backfill when the local repo has unrelated changes. Compares `prediction` artifacts and the main-target snapshots for the given checkpoints; `--include-auxiliary-targets` adds sprint targets and `--sync` pushes the differences.
 
 ```bash
-uv run python scripts/sync_dashboard_datapoints_to_db.py \
-  --env-file .env.local \
-  --year 2026 \
-  --race-name "Chinese Grand Prix" \
-  --checkpoint FP1 \
-  --checkpoint SQ \
-  --checkpoint SPRINT
+uv run python scripts/sync_dashboard_datapoints_to_db.py --env-file .env.local --year 2026 --race-name "Chinese Grand Prix" --checkpoint FP1 --checkpoint SQ --checkpoint SPRINT
 ```
 
-Example compare + sync run, including sprint-only auxiliary targets:
+**Prune stale warmup rows.** Warmup rows are keyed by artifact hash and are cache, not history. Old hashes can surface stale data. This removes them from `precomputed_predictions`, `precomputed_prediction_base_features` and `prediction_precompute_horizon_index` only. Dry run by default, `--apply` deletes.
 
 ```bash
-uv run python scripts/sync_dashboard_datapoints_to_db.py \
-  --env-file .env.local \
-  --year 2026 \
-  --race-name "Chinese Grand Prix" \
-  --checkpoint FP1 \
-  --checkpoint SQ \
-  --checkpoint SPRINT \
-  --include-auxiliary-targets \
-  --sync
+uv run python scripts/prune_stale_precompute_state.py --env-file .env.local --year 2026 --require-db
 ```
 
-The script always compares:
+## Caveats
 
-- `prediction` artifacts for the requested checkpoints
-- `accuracy_snapshot` rows for `main_qualifying` and `grand_prix_race`
-- optional extra checkpoint targets when `--include-auxiliary-targets` is set
-
-This is the safer tool when your local repo has unrelated data changes and you
-do not want a broad Supabase backfill.
-
-## Prune Stale Warmup Cache Rows
-
-The prediction page warmup stores runtime-state rows keyed by artifact hash.
-Those rows are cache, not source-of-truth prediction history. If old hashes are
-left behind in Supabase, the deployed app can surface stale horizon metadata or
-mixed precompute state.
-
-Use `scripts/prune_stale_precompute_state.py` to remove stale warmup rows for
-one season year while keeping the current hash:
-
-```bash
-uv run python scripts/prune_stale_precompute_state.py \
-  --env-file .env.local \
-  --year 2026 \
-  --require-db
-```
-
-Add `--apply` to delete the stale rows after reviewing the dry-run report.
-
-The script only touches these runtime-state namespaces:
-
-- `precomputed_predictions`
-- `precomputed_prediction_base_features`
-- `prediction_precompute_horizon_index`
-
-It does not delete `prediction` or `accuracy_snapshot` artifacts.
-
-## Prediction Accuracy Artifacts
-
-The target-aware accuracy flow uses two artifact types:
-
-- `prediction`
-- `accuracy_snapshot`
-
-`prediction` remains the source of truth. It stores:
-
-- top-level legacy `qualifying` / `race` fields
-- canonical `targets`
-- canonical `actuals.targets`
-- metadata including `weekend_format`
-
-`accuracy_snapshot` stores one scored target at one checkpoint:
-
-- artifact key: `YYYY::Race Name::CHECKPOINT::TARGET_KEY`
-- metadata:
-  - `year`
-  - `race_name`
-  - `checkpoint_session`
-  - `weekend_format`
-  - `target_key`
-  - `target_session`
-  - `predicted_at`
-  - `generated_at`
-  - `source_run_id`
-  - `eligible`
-- metrics:
-  - `field_size`
-  - `overall_mae`
-  - `top_3_hits`
-  - `top_3_pct`
-  - `top_10_hits`
-  - `top_10_pct`
-  - `exact_accuracy`
-  - `within_1`
-  - `within_3`
-  - `correlation`
-
-The dashboard reads `accuracy_snapshot` artifacts first and falls back to raw prediction payloads when snapshots are missing.
-
-## Runtime State and Operational Tables
-
-When DB mode is enabled, dashboard runtime also uses:
-
-- `runtime_state`:
-  - namespace/key state for event-boundary snapshots and practice update progress
-- `runtime_processing_locks`:
-  - lease-based lock rows for practice backlog coordination across workers
-- `operational_events`:
-  - best-effort counters and alerts written by runtime observability hooks
-
-## Baseline Artifacts
-
-These keys are relevant for the baseline predictor stack:
-
-- `car_characteristics` -> `2026::car_characteristics`
-- `driver_characteristics` -> `2026::driver_characteristics`
-- `track_characteristics` -> `2026::track_characteristics`
-- `driver_debuts` -> `driver_debuts`
-
-## Recommended Rollout Path
-
-1. Run migrations in Supabase SQL Editor:
-   - `migrations/001_create_artifacts_table.sql`
-   - `migrations/002_create_runtime_state_and_operational_tables.sql`
-   - `migrations/003_harden_rls_policies.sql`
-   - `migrations/004_normalize_prediction_artifact_keys.sql`
-   - `migrations/005_create_app_events_table.sql`
-   - `migrations/006_harden_app_events.sql`
-2. Validate credentials and table access:
-   - `uv run --active python scripts/test_supabase_connection.py`
-3. Inspect or repair normalized dashboard artifact keys:
-   - `uv run --active python scripts/normalize_dashboard_artifacts_in_db.py --env-file .env.local`
-   - `uv run --active python scripts/normalize_dashboard_artifacts_in_db.py --env-file .env.local --apply`
-4. Dry-run data migration:
-   - `uv run --active python scripts/backfill_to_db.py --dry-run`
-5. Run backfill with DB writes enabled:
-   - set `USE_DB_STORAGE=dual_write` (or `db_only` for isolated testing)
-   - `uv run --active python scripts/backfill_to_db.py`
-6. Run predictor smoke test:
-   - `uv run --active python scripts/test_predictor_with_db.py`
-7. Backfill missing accuracy snapshots from stored prediction truth:
-   - `uv run --active python scripts/backfill_accuracy_snapshots.py --year 2026 --dry-run`
-   - `uv run --active python scripts/backfill_accuracy_snapshots.py --year 2026`
-8. Verify debut artifact:
-   - `driver_debuts::driver_debuts` should be present and readable via `ArtifactStore`.
-9. Verify runtime tables:
-   - prediction click writes/updates `runtime_state` rows
-   - concurrent practice runs create lock contention in `runtime_processing_locks`
-   - runtime alerts/counters appear in `operational_events`
-10. Verify race-learning dedupe state:
-   - namespace `race_learning` has per-season records in `runtime_state`
-   - `auto_update_from_races()` does not re-learn already processed races after restart
-
-If your tables already existed before these secure defaults, run
-`migrations/003_harden_rls_policies.sql` as a one-time hardening step to enforce RLS,
-add explicit `service_role` policies, and revoke `anon`/`authenticated` access.
-
-## Current Caveats
-
-- Prediction tracking UI now lists historical predictions through `ArtifactStore` with file fallback.
-- Accuracy snapshots are derived data. If they are missing, the dashboard can recompute from raw prediction truth, but backfilling them improves chart load time and keeps automation outputs explicit.
-- Historic sprint weekends may have real gaps for early main `Q/R` targets if those target forecasts were never stored.
-- For dashboard usage during migration, `dual_write` remains the safest mode.
-- File-based `list_artifacts()` fallback is intentionally minimal outside mapped artifact types.
-- Runtime-state writes and external updater side effects are not a single distributed transaction.
-
-Keep `file_only` as the default for local-only usage. Use `fallback` or `db_only` when you need DB-first reads, and `dual_write` when migrating while preserving local history files.
+- Snapshots are derived. Missing ones are recomputed, but backfilling makes charts faster.
+- File-mode `list_artifacts()` only covers mapped artifact types.
+- Runtime state writes and updater side effects are not one transaction.

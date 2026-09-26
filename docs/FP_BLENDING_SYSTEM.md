@@ -1,65 +1,33 @@
-# Practice Session Blending
+# Practice session blending
 
-This guide covers the qualifying-practice blend in `src/utils/fp_blending.py` and where `Baseline2026Predictor.predict_qualifying()` uses it.
+How the qualifying forecast uses practice data. Code: `src/utils/fp_blending.py`, called from `Baseline2026Predictor.predict_qualifying()`.
 
-## What It Does
-
-Qualifying prediction combines:
-
-- model team strength (from weight schedule), and
-- team pace extracted from short-stint session signals.
-
-Active formula:
+## The blend
 
 ```text
-blended_strength = w * session_strength + (1 - w) * model_strength
+strength = w * session_strength + (1 - w) * model_strength
+w = clip(base + (confidence - 0.5) * scale, min, max)
 ```
 
-The blend weight `w` is data-confidence aware in the active baseline path:
+Better data raises `w`. Current values in `config/default.yaml` (`baseline_predictor.qualifying`): `fp_blend_weight` 0.62, `fp_blend_confidence_scale` 0.22, `fp_blend_weight_min` 0.40, `fp_blend_weight_max` 0.72.
 
-```text
-w = clip(base_weight + (confidence - 0.5) * scale, min_weight, max_weight)
-```
+## Sessions used
 
-Default values in `config/default.yaml` are `base=0.70`, `scale=0.30`, `min=0.45`, and `max=0.85`.
+- Normal weekend: FP3, FP2, FP1 (FP3 weighted most)
+- Sprint weekend: sprint qualifying, FP1, sprint
 
-## Session Inputs
+## Session strength
 
-### Normal weekend
-
-`FP3 + FP2 + FP1` (weighted blend, FP3-heavy)
-
-### Sprint weekend
-
-`Sprint Qualifying + FP1 + Sprint` (weighted blend for main qualifying)
-
-## How Session Strength Is Built
-
-For each available session:
+For each session:
 
 1. Load laps.
-2. Build representative short-stint pace per driver (push-lap focused, TireLife-aware when available).
-3. Compute median representative lap per team.
-4. Scale teams to a 0-1 performance band (fastest = 1.0).
-5. Combine sessions with fixed weights into one blended session-strength map.
+2. Take each driver's representative short-run pace (push laps, tyre age aware).
+3. Take the median per team.
+4. Normalise across teams. The default (`fp_normalization: robust`) centres the field median at 0.5 and scales by an outlier-resistant spread, so one sandbagging team cannot set the scale. `minmax` is the old fastest 1.0, slowest 0.0.
+5. Combine the sessions with fixed weights.
 
-## Fallbacks
+A driver needs enough clean laps to count. With no session data, qualifying uses the model alone. A team missing from the session data keeps its model strength.
 
-- If no session data is available, qualifying uses model-only strength.
-- If a team is missing from session data, that team keeps model-only strength.
+## Scope
 
-## Where It Is Used
-
-- `src/predictors/baseline_2026.py` (`predict_qualifying`)
-- Dashboard prediction flow in `src/dashboard/prediction_flow.py` (called from `src/dashboard/pages.py`)
-
-## Where It Is Not Used Directly
-
-- Race scoring does not apply the FP blending function directly.
-- Race model runs from grid + race simulation features.
-
-## Practical Notes
-
-- Blend source is shown in UI (`data_source` and `blend_used`).
-- Session naming follows FastF1 conventions.
-- Behavior depends on data availability and cache state.
+Used for qualifying only. The race forecast runs from the grid and the race simulation. The UI shows the source in `data_source` and `blend_used`.

@@ -1,7 +1,7 @@
 """CLI entry point for Phase 2 smoke-session inspection.
 
 For each smoke-session candidate from
-``docs/design/matched_lap_extractor_smoke_sessions.md``, this script
+``docs/fixes/matched_lap_extractor_smoke_sessions.md``, this script
 loads the session via FastF1, runs the read-only inspector, and writes
 both a structured JSON summary and a short text summary to the
 configured output directory.

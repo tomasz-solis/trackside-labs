@@ -1,99 +1,32 @@
-> **Status: shelved research, not production.** Handoff notes for the raw-laps
-> replay mode that would let the Q1 and R0 challengers actually activate. The
-> code this refers to is on the branch `shelved/challenger-research`, not on
-> `master`. See `docs/MODEL_LEDGER.md` for why the work is blocked.
+# Raw-laps replay (shelved)
 
-# Handoff: raw-laps replay fidelity upgrade
+Shelved research, not production. The code lives on `shelved/challenger-research`. Why the work is blocked: `docs/MODEL_LEDGER.md`.
 
-## Mission
+## Goal
 
-Make the historical replay harness (`src/analysis/challenger_research_backend.py`)
-feed each checkpoint the same **raw per-lap practice telemetry** the live weekend
-predictor receives, instead of the current `practice_signal_mode="stored_profiles"`
-aggregates. This is the single change that makes practice-driven variants genuinely
-testable: today both Q1 (practice→qualifying potential) and R0 (long-run pace /
-tyre degradation) silently degrade to champion-identical predictions in replay
-because their runtime guards require raw laps that the harness never loads
-(`session_laps_by_type = {}` by construction; Q1 discloses
-`fallback_reason: "no_raw_practice_laps"`).
+Make the challenger replay (`src/analysis/challenger_research_backend.py`) feed each checkpoint the same raw per-lap practice data the live predictor gets, instead of stored profile aggregates (`practice_signal_mode="stored_profiles"`).
 
-## Why this is the priority (decided 2026-07-19)
+Without it, Q1 (practice to qualifying) and R0 (long-run pace) silently return champion-identical forecasts: their guards need raw laps and the replay passes `session_laps_by_type = {}`. Q1 reports `fallback_reason: "no_raw_practice_laps"`. So the two variants that match the core idea (one-lap pace for qualifying, long-run pace for the race) were never tested. Only the grid variants (R1, R2) could be compared.
 
-- The 2026 walk-forward comparison (see
-  `data/model_diagnostics/2026/race_mae_investigation/2026_WALK_FORWARD_VARIANT_COMPARISON_v2.md`
-  and the v3 revision) could only genuinely differentiate grid-plumbing variants
-  (r1/r2). The two variants matching the core modeling thesis — one-lap pace for
-  qualifying, long-run pace for the race — were structurally untestable.
-- Replay/live parity is a systemic health property: backtests must exercise the
-  same input path as the served weekend forecast, or shadow evidence
-  systematically diverges from live behavior.
-- Value compounds: every completed weekend adds raw-lap data; Q1 eligibility
-  (street/permanent classes, research floor 4) grows through the season; the
-  deferred track-similarity roadmap (corner-speed distributions, abrasiveness
-  proxies) needs per-lap data too.
+## Rules
 
-## Non-negotiable boundaries (unchanged from the race-MAE handoff)
+- Leave `config/production_config.json`, champion weights, artifacts and served forecasts untouched.
+- A checkpoint may load raw laps only from sessions that existed before its `information_cutoff_at`. Add raw-lap leakage tests.
+- Fail closed per checkpoint when telemetry is thin (`CheckpointInputUnavailable`). Barcelona FP1 (`teams=1 mapped=0 selected_laps=0`) is the test case.
+- Load FastF1 sessions one checkpoint at a time and release them. Full-season lap data in memory has crashed runs before (`eac843c2`, `bea5e2c6`).
+- Put `practice_signal_mode` in the prediction cache key so old and new results never mix.
+- Outputs go under `data/historical_replay/` or `data/model_diagnostics/`.
 
-- `config/production_config.json` untouched (sha256
-  `c690aa54e054f05a65f7ce565f0c195533723beaa21951ec63ac9daf4fbb96e1`);
-  `config/default.yaml` no longer carries `baseline_predictor.model_variant`;
-  the key was removed on 2026-09-02 as dead configuration (no code read it), so
-  "stay on champion" is now the only behaviour rather than a setting to hold.
-- No champion weights, active artifacts, prediction artifacts, or served
-  forecasts modified. No commits/pushes unless explicitly requested.
-- Leakage discipline: a checkpoint may load raw laps ONLY from sessions whose
-  data existed before that checkpoint's `information_cutoff_at`. Existing
-  leakage tests must keep passing; add raw-laps-specific ones.
-- Fail closed per event-checkpoint with a recorded refusal (the proven
-  `CheckpointInputUnavailable` pattern) when telemetry is thin — the Barcelona
-  FP1 case (`teams=1 mapped=0 selected_laps=0`) is the canonical fixture.
-- Research outputs below `data/historical_replay/` / `data/model_diagnostics/`.
+Pointers: Q1 guard in `baseline/qualifying_mixin.py` (keep the `retrospective_diagnostic` flag), R0 evidence in `src/features/race_practice_evidence.py`.
 
-## Current state pointers
+## Done when
 
-- Backend: `src/analysis/challenger_research_backend.py` — `predict_qualifying`
-  / `predict_race_views` call the live predictor with
-  `practice_signal_mode="stored_profiles"`; `_r0_evidence` extracts long-run
-  evidence but the runtime path never activates on aggregates.
-- Q1 guard: `src/predictors/baseline/qualifying_mixin.py` (raw-lap requirement;
-  carries the authorized `retrospective_diagnostic` flag — preserve it).
-- R0 evidence: `src/features/race_practice_evidence.py`.
-- Memory hazard: FastF1 session loading has caused memory blowups before — see
-  commits `eac843c2` ("isolate FastF1 sessions to cap memory") and `bea5e2c6`.
-  Load sessions per checkpoint, release before the next; never hold a full
-  season of laps resident.
-- Prediction cache: `data/historical_replay/2026/prediction_cache/` keyed by
-  (event, checkpoint, variant, seed) + source digest. Raw-laps mode MUST use a
-  distinct cache dimension (e.g. `practice_signal_mode` in the key) so old
-  stored-profiles results are never silently mixed with new ones.
+1. A replayed practice checkpoint gets raw laps through the live loader, not a copy of it.
+2. Q1 and R0 differ from champion on at least one checkpoint, or refuse with a recorded reason. No undisclosed champion-identical rows.
+3. Champion is replayed in both modes and the per-checkpoint differences are reported.
+4. Thin events refuse per checkpoint only.
+5. Runtime is measured on one event before the full run.
+6. Champion, q0, r0, r1 (and Q1 where eligible) rerun walk-forward at practice checkpoints, 500 simulations, seeds 17, 42 and 91, run tag `raw_laps`, with a side-by-side report.
+7. Tests, ruff, mypy, config hash and a clean git status.
 
-## Acceptance criteria
-
-1. A replayed FP checkpoint feeds the predictor raw per-lap data equivalent to
-   the live path (same loader/normalization code, not a reimplementation).
-2. R0 and Q1 produce predictions that differ from champion on at least one
-   event-checkpoint-seed — or refuse with a specific recorded reason. The
-   generalized identity guard must show zero undisclosed champion-identical
-   challenger rows.
-3. Champion replay results under raw-laps mode are regenerated and compared
-   against the stored-profiles baseline: differences reported per checkpoint
-   (this measures the fidelity gap itself — a finding, not an error).
-4. Thin-telemetry events refuse per-checkpoint; no whole-variant voiding.
-5. Runtime cost measured on one event before the full campaign; simulation
-   counts and mode recorded in the run manifest.
-6. Walk-forward rerun of champion + q0 + r0 + r1 (and Q1 via the retrospective
-   path where eligible) at FP checkpoints, 500/500 sims, seeds 17/42/91, new
-   run_tag `raw_laps`; consolidated report revision comparing raw-laps vs
-   stored-profiles results side by side.
-7. Standard verification: focused tests (leakage, cache-key separation, memory
-   isolation smoke), full relevant pytest set, ruff, mypy, config sha256, git
-   status. Work log updated every step (`RESEARCH_WORK_LOG.md`).
-
-## Recommended parallel habit (no code)
-
-Preregister r1_joint_grid shadow runs each race weekend (frozen manifest +
-scrubbed forecast pair before qualifying, per
-`docs/QUALIFYING_RACE_CHALLENGER.md`). r1 is the only variant with a positive
-signal (end-to-end finisher MAE 4.27 vs champion 4.34; winner 19.0% vs 14.3%);
-preregistered shadows build promotion-grade evidence that no retrospective
-replay can.
+Meanwhile, preregister `r1_joint_grid` shadows each weekend (see `QUALIFYING_RACE_CHALLENGER.md`). It was the only variant with a positive signal (finisher MAE 4.27 vs 4.34, winner 19.0% vs 14.3%).

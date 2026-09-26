@@ -1,159 +1,46 @@
-# Driver Seconds And Wet Trace Remediation
+# Driver seconds and wet trace
 
-Status: in progress  
-Started: 2026-05-21
+Started 2026-05-21. Steps 1 to 4 are done. Step 5 waits for a real wet 2026 race.
 
-This plan closes two Model Diagnostics coverage gaps:
+Two gaps in Model Diagnostics:
 
-1. dry leakage is still measured through legacy `bayesian.rating_mu`, which is
-   not a seconds field;
-2. 2026 replay has no real wet weather-routed sample and no persisted
-   session-level driver update trace for proving the wet dry-state invariant.
+1. Dry leakage was measured on the legacy `bayesian.rating_mu`, which is not in seconds.
+2. There was no wet 2026 replay sample and no session-level trace to prove that a wet race leaves dry driver state alone.
 
-The fixes are related but not interchangeable. Dry leakage needs the
-race/qualifying driver-seconds schema cutover. Wet leakage needs trace evidence
-and then real wet replay coverage. UI wording alone does not close either gap.
+## Done when
 
-## Target Conditions
+- **Dry:** `corr(delta_race_rating_mu_s, delta_team_strength_for_driver_team)` is computed from real seconds fields that the updater moves.
+- **Wet, in code:** the updater writes session trace rows and diagnostics prove a fully wet session changes dry state by zero.
+- **Wet, in 2026:** a real wet replay sample passes that check. Until then the dashboard keeps saying 2026 wet coverage is missing.
 
-### Dry leakage
+## Steps
 
-The exact diagnostic is:
+**1. Wet trace.** Done except historical wet tests.
 
-```text
-corr(delta_race_rating_mu_s, delta_team_strength_for_driver_team)
-```
+- Fully wet race, qualifying and sprint updates no longer move dry state.
+- Trace rows (session, weather route, dry state and wet skill before and after, applied flags) are written by the updater, carried through replay and checked by the diagnostics. A synthetic failure test exists.
+- Open: tests on historical wet evidence.
 
-It is complete only when persisted driver artifacts contain real seconds-native
-race and qualifying fields, the live/replay updater moves those fields, and the
-diagnostics builder reports the seconds metric instead of the legacy proxy.
+**2. Seconds schema.** Done.
 
-### Wet leakage
+- Driver artifacts accept `race_rating_*` and `quali_rating_*` alongside the old fields, through files and Supabase.
+- A migration script seeds seconds fields from the teammate-network prior and fails on a missing active driver instead of converting `rating_mu`.
+- LIN had no prior node. Drivers like that get a rookie fallback: the median debut-season seconds estimate, with wide uncertainty, recorded as a fallback. Live updates replace it after 24 construct-aligned observations (`min_driver_observations`).
 
-Code-level closure means the production updater emits session-level update
-trace rows and the diagnostics evaluator proves that a fully wet route applies
-zero dry race/qualifying driver-state delta.
+**3. Live cutover.** Done.
 
-2026 coverage closure is stricter: a real 2026 wet weather-routed replay sample
-and a matching traced update must exist. Until that happens, the dashboard must
-keep saying that 2026 wet replay coverage is absent.
+- Race and qualifying seconds update separately and never overwrite each other.
+- Readers prefer seconds fields and fall back to legacy fields when a driver has no complete seconds state.
+- If FastF1 cannot supply laps or weather for the matched-lap construct, the update is skipped with a warning; seconds are never derived from positions.
+- Sprints: `auto_update_from_races()` runs `update_from_sprint_race()` before the main race, and replay does the same. SQ moves qualifying seconds, the sprint moves race seconds, each at half weight.
+- Artifacts, replay and warmup were rebuilt and synced to Supabase with read-back checks.
 
-## Work Plan
+**4. Leakage diagnostic.** Done. Dry leakage now uses `delta_race_rating_mu_s` and is synced to Supabase.
 
-### 1. Wet trace foundation
+**5. Real wet 2026.** Open. When a wet race happens: rebuild matched-lap observations, replay the traced update and regenerate diagnostics.
 
-- [x] Guard fully wet race, qualifying, and sprint result updates from moving
-  the current dry driver-state paths.
-- [x] Define a persisted driver update trace row with event/session/weather
-  route, before/after dry state, before/after wet skill, and applied-update
-  flags.
-- [x] Emit trace rows from the production updater boundary without changing
-  normal artifact writes.
-- [x] Carry trace rows through historical replay and write a replay report.
-- [x] Evaluate the fully wet dry-state invariant from trace rows in replay
-  diagnostics.
-- [x] Add a synthetic failure test for the invariant evaluator.
-- [ ] Add historical wet evidence tests for the invariant evaluator.
+## Rules
 
-### 2. Driver-seconds schema migration
-
-- [x] Extend driver artifact validation for `race_rating_*` and
-  `quali_rating_*` fields while accepting old-only, mixed, and new-only
-  artifacts.
-- [x] Add reader/writer helpers that keep legacy rating units separate from
-  seconds-native fields.
-- [x] Add a migration script that snapshots current local artifacts, seeds
-  seconds fields from the teammate-network prior artifact, writes a report, and
-  fails on missing active-driver coverage instead of deriving seconds from
-  `rating_mu`.
-- [x] Verify the same mixed-artifact behavior through the Supabase
-  `ArtifactStore` path.
-
-Implementation note (2026-05-21): the first local dry-run exposed that
-current-lineup driver `LIN` has no race or qualifying node in the
-teammate-network prior. The seed path now handles that specific class of gap
-through a generated debut-season rookie fallback. It uses the median of
-historical rookie debut-season seconds estimates in the same matched-lap
-construct, keeps wide data-derived uncertainty, and records which drivers used
-the fallback. The legacy `bayesian.rating_mu` value is not a valid substitute.
-
-The fallback is not a calendar rule. Per session kind, live seconds-state
-updates should replace it after at least the teammate-network prior
-`min_driver_observations` evidence threshold (`24` in the current artifact) of
-construct-aligned driver observations.
-
-Verification note (2026-05-21): after backfilling the updated 2026 driver
-artifact, a DB-only predictor load and DB-only warmup both read the driver
-payload through `ArtifactStore` and passed driver-characteristics validation.
-That covers the mixed legacy-plus-seconds artifact path used by the live app.
-
-### 3. Live seconds-state cutover
-
-- [x] Split live dry driver state into race seconds and qualifying seconds
-  update paths.
-- [x] Keep race updates from clobbering qualifying state and qualifying updates
-  from clobbering race state.
-- [x] Make prediction readers prefer seconds fields after cutover while
-  retaining the temporary legacy fallback.
-- [x] Rebuild 2026 artifacts, replay, warmup, and production storage state
-  after artifact fingerprints change.
-
-Implementation note (2026-05-21): the live race boundary now extracts dry
-canonical matched-lap aggregates from the main race and qualifying sessions.
-Those rows update only `race_rating_*` or only `quali_rating_*`. If FastF1
-cannot supply lap/weather inputs for that construct, the seconds update skips
-with a warning instead of deriving seconds from result positions. Prediction
-keeps using the existing legacy driver signals when a driver artifact has no
-complete seconds state.
-
-Sprint path implementation (2026-05-22): sprint learning is live-wired.
-`auto_update_from_races()` now calls `update_from_sprint_race()` before the
-main-race updater on sprint weekends, and historical replay follows the same
-order. The sprint updater extracts construct-aligned `SQ` and `Sprint`
-matched-lap aggregates. `SQ` changes only qualifying seconds; `Sprint` changes
-only race seconds. Both use the accepted v1 0.5 sprint rule as half aggregate
-precision rather than treating sprint matched laps like full main-session
-evidence.
-
-Verification note (2026-05-21): the 2026 race artifacts and historical replay
-were rebuilt from the seeded driver baseline. File-backed warmup regenerated
-the current PRE horizon for Canadian, Monaco, and Barcelona. The updated
-artifacts and runtime warmup state were backfilled to Supabase, then DB-only
-warmup regenerated the same horizon with read-after-write verification enabled
-and no DB verification warnings.
-
-### 4. Exact leakage diagnostics
-
-- [x] Compute dry leakage from `delta_race_rating_mu_s` when seconds field
-  coverage exists.
-- [x] Keep a blocked state only when seconds fields are genuinely unavailable.
-- [x] Regenerate local diagnostics and sync the persisted diagnostics artifact
-  to Supabase.
-
-Verification note (2026-05-21): the persisted replay/leakage diagnostics now
-report the exact dry driver-seconds metric as measured. The diagnostics builder
-was run in DB-backed mode after replay rebuild, so the dashboard-facing
-artifact in Supabase matches the local artifact. The wet limitation remains
-open because 2026 replay still has no real wet weather-routed sample.
-
-### 5. Real 2026 wet closure
-
-- [ ] Rebuild matched-lap observations when a real 2026 wet event exists.
-- [ ] Replay the traced update path over that wet event.
-- [ ] Regenerate diagnostics so the wet coverage limitation disappears only
-  after a real 2026 wet sample passes the invariant.
-
-## Implementation Order
-
-1. Wet trace foundation.
-2. Driver-seconds schema migration.
-3. Live seconds-state cutover.
-4. Exact seconds diagnostics.
-5. Real 2026 wet closure when weather evidence exists.
-
-## Non-Goals
-
-- Do not hide missing evidence by suppressing diagnostics messages.
-- Do not infer seconds-native driver fields from legacy `rating_mu`.
-- Do not remove legacy reader fallback paths until the K=3 production-weekend
-  removal rule in `master_execution_plan.md` is satisfied.
+- Never hide missing evidence by suppressing a diagnostics message.
+- Never infer seconds fields from `rating_mu`.
+- Keep the legacy fallback until the removal rule in `master_execution_plan.md` is met (three clean production weekends).

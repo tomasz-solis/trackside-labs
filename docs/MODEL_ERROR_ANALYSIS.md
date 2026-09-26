@@ -1,9 +1,8 @@
-# Model Error Analysis - 2026
+# Model error analysis, 2026
 
 *Generated: 2026-06-16T19:46:42.011345+00:00*
 
-This companion note focuses on the failures the model needs to explain,
-not the averages it would prefer to show.
+The worst weekends and the drivers the model misses most.
 
 ### Qualifying
 

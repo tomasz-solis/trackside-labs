@@ -1,18 +1,18 @@
-# 2026 Qualifying Teammate Matched-Lap Observation Coverage
+# 2026 qualifying matched-lap coverage
 
-Built from `scripts/build_matched_lap_observations.py --years 2026 --output-dir data/diagnostics/2026_qualifying_observation_coverage`, run offline against the local FastF1 cache. Source outputs: `raw_matched_laps.csv`, `aggregated_observations.csv`, `filter_diagnostics.csv` in that directory. Config: `min_matched_pairs_quali=3`, `matched_gap_se_floor_s=0.02`.
+Built with `scripts/build_matched_lap_observations.py --years 2026 --output-dir data/diagnostics/2026_qualifying_observation_coverage`, offline, from the local FastF1 cache. Outputs in that folder: `raw_matched_laps.csv`, `aggregated_observations.csv`, `filter_diagnostics.csv`. Config: `min_matched_pairs_quali=3`, `matched_gap_se_floor_s=0.02`.
 
 ## Load status
 
-12 of 23 schedule rounds have session data in the local FastF1 cache and were extracted (rounds 1-12, Australian GP through Dutch GP). Rounds 13-22 (Italian GP through Abu Dhabi GP) raised `DataNotLoadedError` for both Race and Qualifying - these are 2026 calendar rounds that had not yet been held as of 2026-09-06 (today is the Italian GP date), so the cache holds only the schedule stub, not session data. Round 23, Emilia Romagna Grand Prix, is in `get_schedule_rows`'s local fallback schedule but absent from the FastF1 event schedule the extraction script itself iterates, so it was never attempted (no data, no load error, no cache entry) - see the matrix note below. No round with a race date in the past failed to load, and no `--online` fallback was used.
+Rounds 1 to 12 (Australia to the Dutch GP) had session data and were extracted. Rounds 13 to 22 (Italy to Abu Dhabi) had not been held on 2026-09-06, so they raised `DataNotLoadedError`. Round 23 (Emilia Romagna) is only in the local fallback schedule, not in the FastF1 schedule the script reads, so it was never attempted. No past round failed and `--online` was not used.
 
 ## (a) Per-team, per-round matched-pair matrix
 
-Cell = total accepted matched pairs for that team-round (summed across weather buckets when a round split dry/wet). `*` marks a round where one weather bucket was accepted and another was skipped (session had both dry and wet laps). Otherwise the cell shows the skip reason (`insuff` = `insufficient_matched_pairs`, `no_laptime` = `missing_lap_time_data`).
+Each cell is the accepted matched pairs for that team and round (summed over weather buckets). `*` marks a round where one weather bucket was accepted and another skipped. Otherwise the cell shows the skip reason (`insuff` = `insufficient_matched_pairs`, `no_laptime` = `missing_lap_time_data`).
 
 Round legend: R1=Australian Grand Prix R2=Chinese Grand Prix R3=Japanese Grand Prix R4=Miami Grand Prix R5=Canadian Grand Prix R6=Monaco Grand Prix R7=Barcelona Grand Prix R8=Austrian Grand Prix R9=British Grand Prix R10=Belgian Grand Prix R11=Hungarian Grand Prix R12=Dutch Grand Prix
 
-No round data: R13 Italian Grand Prix, R14 Spanish Grand Prix, R15 Azerbaijan Grand Prix, R16 Singapore Grand Prix, R17 United States Grand Prix, R18 Mexico City Grand Prix, R19 São Paulo Grand Prix, R20 Las Vegas Grand Prix, R21 Qatar Grand Prix, R22 Abu Dhabi Grand Prix (2026 rounds not yet held as of 2026-09-06 - see Load status). Emilia Romagna Grand Prix (R23) is in `get_schedule_rows`'s local fallback schedule but is not in the FastF1 event schedule the extractor itself queries, so it was never attempted at all - it has neither data nor a load error.
+No data: R13 to R22 (not yet held on 2026-09-06). R23 Emilia Romagna was never attempted (see above).
 
 | Team | R1 | R2 | R3 | R4 | R5 | R6 | R7 | R8 | R9 | R10 | R11 | R12 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -54,9 +54,9 @@ No round data: R13 Italian Grand Prix, R14 Spanish Grand Prix, R15 Azerbaijan Gr
 
 ## (d) Distribution of matched-pair counts per team-session
 
-Two views, both derived from this run's own output files (no new extractor):
+Two views from this run's own output files:
 
-**View 1 - output-level (`aggregated_observations.csv`, 134 team-round-weather-bucket rows).** This is what `raw_matched_laps.csv` / the aggregate table actually emit. It undercounts near-misses: when a whole qualifying session already has fewer than 3 candidate matches, `_qualifying_pair_rows` returns before emitting any raw rows, so the aggregate placeholder records `n_matched_pairs=0` regardless of whether 0, 1, or 2 candidates actually existed.
+**View 1: output rows** (`aggregated_observations.csv`, 134 team-round-weather rows). This undercounts near misses: a session with fewer than 3 candidate pairs emits no raw rows, so its placeholder shows `n_matched_pairs=0` whether it had 0, 1 or 2 candidates.
 
 | Pairs | Team-sessions | Share |
 |---|---|---|
@@ -67,7 +67,7 @@ Two views, both derived from this run's own output files (no new extractor):
 | 4 | 40 | 29.9% |
 | 5+ | 6 | 4.5% |
 
-**View 2 - pre-gate candidate count (`filter_diagnostics.csv`, 132 team-round rows, one row per team per round, computed session-wide before the 3-pair gate and before any weather-bucket split).** This is the real near-miss distribution and the number that answers what a lower gate would recover.
+**View 2: candidates before the gate** (`filter_diagnostics.csv`, 132 team-round rows, counted before the 3-pair gate and before the weather split). This is the real near-miss distribution.
 
 | Candidate pairs | Team-sessions | Share |
 |---|---|---|
@@ -78,13 +78,13 @@ Two views, both derived from this run's own output files (no new extractor):
 | 4 | 42 | 31.8% |
 | 5+ | 6 | 4.5% |
 
-**Key number:** 23 of 132 qualifying team-sessions (17.4%) sit at exactly 2 candidate matched pairs - one lap pair short of the current gate of 3. Lowering the gate from 3 to 2 would recover those 23 team-sessions. It would not touch the 6 team-sessions stuck at 0-1 candidates, which fail for a different reason (missing lap-time data, no common quali segment, or genuinely too few valid push laps).
+**Key number:** 23 of 132 team-sessions (17.4%) have exactly 2 candidate pairs, one short of the gate. A gate of 2 would recover them. The 6 sessions at 0 or 1 fail for other reasons (missing lap times, no common segment, too few push laps).
 
 ## (e) What this shows
 
-- `insufficient_matched_pairs` accounts for 27 of 29 skipped team-sessions (93%), so it dominates the skip reasons over the 12 extracted rounds. The remainder is `missing_lap_time_data` (2).
-- Skips are concentrated on the slower group: teams in {Aston Martin, Cadillac, Williams, Haas F1 Team, Audi, Racing Bulls} were skipped in 35% of their team-rounds (25/72), versus 7% (4/60) for teams in {McLaren, Ferrari, Mercedes, Red Bull Racing, Alpine}.
-- Per-team skip rate, all 132 team-round rows:
+- `insufficient_matched_pairs` is 27 of 29 skips (93%); the other 2 are `missing_lap_time_data`.
+- Skips hit the slower teams: Aston Martin, Cadillac, Williams, Haas, Audi and Racing Bulls were skipped in 35% of their team-rounds (25/72), against 7% (4/60) for McLaren, Ferrari, Mercedes, Red Bull and Alpine.
+- Skip rate by team, 132 team-rounds:
   - Aston Martin: 7/12 rounds skipped (58%)
   - Cadillac: 7/12 rounds skipped (58%)
   - Haas F1 Team: 4/12 rounds skipped (33%)
@@ -96,13 +96,13 @@ Two views, both derived from this run's own output files (no new extractor):
   - Ferrari: 1/12 rounds skipped (8%)
   - McLaren: 0/12 rounds skipped (0%)
   - Mercedes: 0/12 rounds skipped (0%)
-- McLaren and Mercedes were never skipped across the 12 extracted rounds. Aston Martin and Cadillac were skipped in just over half their rounds. Red Bull Racing (in the faster group by car pace) still shows a 17% skip rate, tied with Audi and Racing Bulls - a reminder this is a matched-lap-count effect (how many comparable push laps both teammates set), not a pure car-pace ranking.
+- McLaren and Mercedes were never skipped; Aston Martin and Cadillac in over half their rounds. Red Bull, a fast car, still sits at 17% with Audi and Racing Bulls: the effect is about how many comparable push laps both teammates set, not pure car pace.
 
-## Step 3 - `_bootstrap_median_se` at n=2 and n=3
+## `_bootstrap_median_se` at n=2 and n=3
 
-`matched_gap_se_floor_s` = 0.02. `_bootstrap_median_se` special-cases `len(gaps) < 2` to return the floor directly, but does not special-case n=2 or n=3; both go through the full bootstrap (`bootstrap_samples=1000`, `bootstrap_random_seed=2026`) then apply `max(se, floor)`.
+`matched_gap_se_floor_s` is 0.02. Samples below 2 return the floor directly; n=2 and n=3 go through the full bootstrap (1000 samples, seed 2026), then `max(se, floor)`.
 
-No qualifying team-session in this run ever reaches raw output with exactly 2 matched pairs (the extractor drops sub-gate candidates before emitting rows - see part (d)). So the n=2 vectors below are the first 2 laps of a real, accepted 3-pair group; the n=3 vectors are the same group's full 3 gaps.
+No session reaches the output with exactly 2 pairs (the extractor drops them first), so the n=2 columns below use the first 2 laps of a real 3-pair group, and the n=3 columns the full group.
 
 | Team / Round / Weather | n=2 gaps (s) | n=2 SE | n=3 gaps (s) | n=3 SE |
 |---|---|---|---|---|
@@ -112,4 +112,4 @@ No qualifying team-session in this run ever reaches raw output with exactly 2 ma
 | Alpine / Miami Grand Prix / dry | [0.186, -0.053] | 0.0840 | [0.186, -0.053, 0.226] | 0.1116 |
 | Aston Martin / Canadian Grand Prix / dry | [0.947, 0.438] | 0.1789 | [0.947, 0.438, 0.718] | 0.1811 |
 
-Across these 5 sampled groups: n=2 SE bound at the 0.02 floor in 0/5 cases (range 0.0780-0.1933); n=3 SE bound at the floor in 0/5 cases (range 0.0789-0.3135). For a 2-point sample, the bootstrap median always resolves to one of the two input values, so its spread is mechanically wide relative to 2 points and the floor binds only when the two gaps happen to be very close together; with real qualifying gaps (order 0.1-1s apart) the unfloored bootstrap SE for n=2 is usually well above the 0.02s floor. At n=3 the same pattern holds for widely spread gaps, but tighter 3-lap groups can fall to or below the floor, which is exactly the case it exists to catch.
+Across these 5 groups the floor never binds: n=2 SE ranges 0.0780 to 0.1933, n=3 SE 0.0789 to 0.3135. A 2-point bootstrap median is always one of the two values, so its spread is wide, and with real qualifying gaps (0.1 to 1 s apart) it sits well above the 0.02 floor. The floor catches tight 3-lap groups.

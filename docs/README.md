@@ -1,81 +1,41 @@
-# Documentation Index
+# Docs
 
-Start here if you want the docs that still match the current runtime.
+If a doc and the code disagree, trust the code.
 
-## Start Here
+## Start here
 
-- `../README.md`: project-level quick start and runtime summary
-- `../ARCHITECTURE.md`: component map and data flow
-- `../CONFIGURATION.md`: active vs secondary config paths
+- `../README.md`: what the model does and how to run it
+- `../ARCHITECTURE.md`: components and data flow
+- `../CONFIGURATION.md`: config files and environment variables
+- `../LIMITATIONS.md`: what the model does badly
+- `MODEL_LEDGER.md`: every model change, how it was measured and the verdict. Read it before proposing a change; several plausible ideas have already lost.
 
-## Detailed Guides
+## How the model works
 
-### `WEIGHT_SCHEDULE_GUIDE.md`
-Baseline/testing/current signal blending and race-by-race weight progression.
+- `WEIGHT_SCHEDULE_GUIDE.md`: blending baseline, testing and current-season strength
+- `FP_BLENDING_SYSTEM.md`: how practice feeds the qualifying forecast
+- `COMPOUND_ANALYSIS.md`: tyre compounds and the race simulation
+- `WEEKEND_PREDICTIONS.md`: the forecast chain on normal and sprint weekends
+- `OVERTAKING_CALIBRATION_PLAN.md`: why positions now change only on a completed pass (model 3.0)
+- `DNF_CALIBRATION_BRIEF.md`: retirements today, and the split that is built but off
 
-### `FP_BLENDING_SYSTEM.md`
-Session blending for qualifying with priority rules for normal and sprint weekends.
+## Running it
 
-### `WEEKEND_PREDICTIONS.md`
-Normal vs sprint cascade output, ACTUAL vs PREDICTED grids, and session chaining.
+- `WARMUP_PRECOMPUTE.md`: the worker that precomputes forecasts
+- `DASHBOARD_AUTO_UPDATE.md`: what the dashboard does and what the workers do
+- `PREDICTION_TRACKING.md`: saving forecasts, attaching results, accuracy
+- `PERSISTENCE_SUPABASE.md`: storage modes, tables, setup
 
-### `DASHBOARD_AUTO_UPDATE.md`
-Automatic vs manual updates during dashboard use and cache behavior.
+## Judging a change
 
-### `PREDICTION_TRACKING.md`
-Session-based prediction storage, attaching actual results, and accuracy metrics.
+- `MODEL_PROMOTION.md`: production gate, promotion gate, seed floor
+- `MODEL_CALIBRATION.md` and `MODEL_ERROR_ANALYSIS.md`: generated evaluation reports
+- `../reports/backtest_2025/REVIEW_PACKET.md`: 2025 backtest summary
+- `../data/model_diagnostics/2026/`: generated challenger and candidate audits
 
-### `MODEL_PROMOTION.md`
-Production readiness gates, shadow challenger audits, movement diagnostics, and
-adaptive-learning safety checks for research components.
+## Records
 
-### `MODEL_LEDGER.md`
-Running record of every model variant tried, how it was measured, and whether it
-helped. Read it before proposing a change — several plausible ideas have already
-been tested and lost, and two more only look neutral because they never ran.
+- `fixes/`: design and fix records, mostly the May 2026 work to separate driver ratings from car pace. Start with `fixes/master_execution_plan.md`.
+- `QUALIFYING_RACE_CHALLENGER.md` and `RAW_LAPS_REPLAY_HANDOFF.md`: shelved research; the code is on `shelved/challenger-research`.
 
-### `QUALIFYING_RACE_CHALLENGER.md`
-Q0/Q1/R0/R1/R2 evidence, replay, governance, and champion-safe release workflow.
-**Shelved research** — the implementation it describes lives on the branch
-`shelved/challenger-research`, so its path references only resolve there. Kept
-on `master` for the preregistration and leakage-boundary methodology.
-
-### `RAW_LAPS_REPLAY_HANDOFF.md`
-What raw per-lap replay would take, and why Q1 and R0 stay structurally inert
-without it. **Shelved research**, same branch as above.
-
-### `MODEL_CALIBRATION.md`
-Generated 2026 calibration report, including the machine-readable production
-gate status and baseline-vs-model metrics.
-
-### `../reports/backtest_2025/REVIEW_PACKET.md`
-Canonical historical backtest summary with adaptive-vs-static comparison,
-baseline overlap, and experiment ranking output.
-
-### `MODEL_ERROR_ANALYSIS.md`
-Companion diagnostic focused on worst weekends, repeat miss drivers, and failure patterns.
-
-### `COMPOUND_ANALYSIS.md`
-Tire compound performance collection, dynamic selection, and race prediction adjustments.
-
-### `PERSISTENCE_SUPABASE.md`
-ArtifactStore modes, Supabase migration workflow, and active artifact keys.
-
-### `WARMUP_PRECOMPUTE.md`
-Background warmup worker for checkpoint-aware precompute and ready-race horizon indexing.
-
-### `../data/model_diagnostics/2026/`
-Generated challenger and candidate audit artifacts used to decide whether a
-target-specific model should remain in shadow mode or be promoted.
-
-## Validation Notebooks
-
-- `../notebooks/model_development/validate_testing_predictions.ipynb`
-- `../notebooks/model_development/test_weight_schedules.ipynb`
-
-Use these as supporting analysis, not as a substitute for checking runtime code.
-
-## Scope Note
-
-If docs and code disagree, trust the code first. This set is meant to mirror the
-current runtime path, not preserve old design notes.
+Supporting notebooks: `../notebooks/model_development/validate_testing_predictions.ipynb` and `test_weight_schedules.ipynb`.

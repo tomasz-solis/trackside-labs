@@ -1,203 +1,73 @@
-# Model Promotion Gates
+# Model promotion
 
-This project treats model changes as challengers until they prove they help.
-That matters because reset-year signals are easy to double count: a testing
-team seed, residual model, and calibration layer can each look reasonable alone
-but regress when stacked.
+A model change is a challenger until it proves it helps. Reset-year signals are easy to count twice: a testing seed, a residual model and a calibration layer can each look fine alone and hurt together.
 
-## Current Release Posture
+## Current model
 
-Active model version: `3.0`.
+Version `3.0`. It changed a mechanism, not a calibration. Positions in the race simulation used to change whenever a faster car's cumulative time passed another's, whether or not a pass happened (98.4% of simulated position changes at Monaco had no pass). Now a position change needs a completed pass. The same release measured team race pace from green-flag laps, fitted `skill_improvement_max` to the real teammate gap, and stopped re-anchoring a penalised driver to his penalty grid slot. Numbers are in `docs/MODEL_LEDGER.md`.
 
-`3.0` is a mechanism change, not a recalibration, which is why it takes a major
-version. Position changes in the race simulation previously happened by free
-crossover on cumulative lap time: a quicker car moved ahead whether or not the
-pass model fired, and 98.4% of simulated position changes at Monaco involved no
-pass event at all. They are now gated on a completed pass, so behaviour before
-and after is not comparable rather than merely differently tuned.
+Targets are judged separately: `main_qualifying`, `grand_prix_race`, `sprint_qualifying`, `sprint_race`. A challenger can win one target without being promoted for all.
 
-Three inputs were refitted to measurements in the same release: per-team race
-pace now comes from measured green-flag lap times rather than classified
-results, `skill_improvement_max` was fitted to the observed team mate lap-time
-gap, and a penalised driver is no longer re-anchored to the grid slot a steward
-put him in. See `docs/MODEL_LEDGER.md` for the numbers.
+## Safe defaults
 
-`2.3` kept the existing champion predictor in production and added
-target-specific shadow challengers. The challenger outputs are recorded for
-audit; they are not dashboard-facing promotion decisions. Note that the doc
-recorded `2.3` while `config/default.yaml` carried `2.4` — the two had already
-drifted before this release.
+- Residual models are off by default, and skipped when the team seed is `testing_model` unless an ablation opts in.
+- Conformal calibration is judged as interval calibration, not as a ranking fix.
+- Shadow challengers are saved for audits and never replace the champion without a promotion decision.
 
-Targets are evaluated separately:
+## Production gate
 
-- `main_qualifying`
-- `grand_prix_race`
-- `sprint_qualifying`
-- `sprint_race`
+`scripts/generate_evaluation_report.py` writes `production_gate` to `data/evaluation/2026_evaluation_report.json` and `docs/MODEL_CALIBRATION.md`. It needs:
 
-The current rule is to revisit promotion after races 8, 9, and 10. A challenger
-may improve one target without being promoted to every target.
-
-## Runtime Safety
-
-Production defaults stay conservative:
-
-- residual models are disabled by default,
-- residual models are skipped when the active team seed is `testing_model`,
-- stacking with `testing_model` requires an explicit ablation opt-in,
-- conformal calibration is evaluated as interval calibration, not as a ranking fix.
-- shadow challengers are saved as diagnostics and must not overwrite champion
-  predictions without a promotion decision.
-
-## Production Readiness Gate
-
-Implementation: `scripts/generate_evaluation_report.py`.
-
-The production gate writes `production_gate` into
-`data/evaluation/2026_evaluation_report.json` and mirrors the result in
-`docs/MODEL_CALIBRATION.md`.
-
-The gate requires:
-
-- a fresh evaluation report after the latest completed race weekend,
-- at least 5 scored completed race weekends,
-- positive qualifying MAE improvement over previous-race naive baseline,
-- positive race MAE improvement over previous-race naive baseline,
-- empirical qualifying interval coverage near the nominal 90% band,
-- no unresolved high-miss systematic-bias bucket.
-
-Run it with:
+- a report newer than the last finished race
+- at least 5 scored race weekends
+- qualifying and race MAE better than the previous-race baseline
+- qualifying interval coverage near 90%
+- no unresolved large-miss bias group
 
 ```bash
 make evaluation-gate
-```
-
-Candidate and shadow diagnostics:
-
-```bash
 make candidate-audit
 make shadow-challenger-audit
 ```
 
-## Promotion Gate
+## Promotion gate
 
-Implementation: `src/analysis/promotion_gate.py`.
+`src/analysis/promotion_gate.py`. A challenger must:
 
-A challenger must pass all of these before it is treated as stackable:
+- improve combined race and qualifying MAE by enough to matter
+- not make race or qualifying MAE worse beyond tolerance
+- not lower winner accuracy, or top 3 accuracy beyond tolerance
+- not be worse on more weekends than it is better, for race and for qualifying
+- beat a measured seed floor on at least one target
 
-- combined race + qualifying central MAE improves enough to matter,
-- race MAE does not regress beyond tolerance,
-- qualifying MAE does not regress beyond tolerance,
-- winner accuracy does not drop,
-- top-3 accuracy does not drop beyond tolerance,
-- race MAE is not worse on more weekends than it improves,
-- qualifying MAE is not worse on more weekends than it improves,
-- a seed floor is supplied, and at least one target's MAE improvement exceeds it.
+It returns pass or fail with the reasons.
 
-The gate returns both a boolean and concrete block reasons. Reports should show
-those reasons instead of reducing the result to a vague pass/fail.
+## The seed floor
 
-### The seed floor, added 2026-09-12, enforced in code 2026-09-19
+Changing only the simulator seed moves the scores. A gain smaller than that is not a gain. The current floor (2026-09-25, leak-free replay, 14 rounds, seed 42 vs 43) is qualifying MAE 0.054 and race MAE 0.058; correlation floors are in `docs/MODEL_LEDGER.md`.
 
-Every bullet above is a MAE comparison, and **MAE cannot resolve the size of
-change this project usually tests**. Measured on 2026-09-12 by replaying the same
-code at seed 42 and seed 43 over 13 rounds of 2026: qualifying MAE moved -0.0122
-(95% CI [-0.0439, +0.0187]) and race MAE moved +0.0342 (CI [-0.0184, +0.0868])
-with **no model change at all**. So a qualifying MAE gain under ~0.045 positions,
-or a race MAE gain under ~0.087, is indistinguishable from the simulator's own
-randomness.
+Correlation is the better primary metric. MAE rounds to whole positions, so in one comparison 7 of 46 checkpoints had different forecasts and identical MAE. Correlation resolves about twice as finely and barely moves with the seed.
 
-Two further defects in MAE as a gate metric, both measured the same day: it
-discretises to integer positions, so in one real comparison 7 of 46 checkpoints
-had **different predicted orders and identical MAE**; and it resolves about half
-as finely as `correlation`, which is also seed-stable (its aggregate shifts
-0.0007 across a seed change while still responding on 41 of 46 checkpoints).
-
-**Requirement.** Before a challenger is promoted, measure the seed floor for the
-arms being compared and confirm the improvement exceeds it. Use:
+Measure the floor for the comparison you are gating:
 
 ```bash
-uv run python scripts/replay_historical_checkpoints.py --year 2026 --overwrite \
-  --seed 43 --output-root data/historical_replay_seed43
-uv run python scripts/compare_replay_arms.py --baseline <baseline> \
-  --seed-floor <baseline> data/historical_replay_seed43 --candidate <candidate>
+uv run python scripts/replay_historical_checkpoints.py --year 2026 --through-round 14 --seed 43 --output-root data/historical_replay_seed43
+uv run python scripts/compare_replay_arms.py --baseline <baseline> --seed-floor <baseline> data/historical_replay_seed43 --candidate <candidate>
 ```
 
-`compare_replay_arms.py` reports `correlation` first and labels a sub-floor
-result `unresolvable` rather than `noise`, which are different findings — see
-the verdict table in `docs/MODEL_LEDGER.md`.
+`compare_replay_arms.py` calls a result below the floor `unresolvable`, which is different from `noise`. The promotion gate takes `seed_floor={"race_mae": ..., "qualifying_mae": ...}` and fails without it. A floor belongs to its replay and does not transfer to other seasons or sample sizes. `scripts/evaluate_testing_team_seed_model.py` runs on one seed with no floor, so its comparisons stay blocked until one is measured.
 
-**`src/analysis/promotion_gate.py` enforces this.** It takes
-`seed_floor={"race_mae": ..., "qualifying_mae": ...}` and fails with "seed floor
-not supplied; improvement unproven" when none is given. The floor must be
-measured for the comparison being gated: the replay floor above belongs to the
-13-round 2026 replay and does not transfer to other seasons or sample sizes.
-`scripts/evaluate_testing_team_seed_model.py` runs its holdouts on one seed and
-passes no floor, so every comparison it reports is blocked until a floor is
-measured for it.
+## Movement diagnostics
 
-## Movement Diagnostics
+`src/analysis/component_diagnostics.py` compares champion, challenger and actual per race, session and driver: how many drivers moved closer, farther or not at all, MAE before and after, mean movement. A residual model that improves the mean but moves most drivers the wrong way is not promoted.
 
-Implementation: `src/analysis/component_diagnostics.py`.
+## Shadow challengers
 
-Movement diagnostics compare:
+`src/models/shadow_challenger.py`, `scripts/audit_shadow_challengers.py`, `scripts/audit_model_candidates.py`. Challengers use only earlier finished actuals and saved champion forecasts; same-race actuals are leakage. The audit reports champion vs challenger MAE per target, the number of comparable events, checkpoint MAE decay and the best candidate per target.
 
-```text
-champion prediction -> challenger prediction -> actual result
-```
+## Workflow
 
-per race, session, and driver. The report counts:
-
-- moved closer,
-- moved farther,
-- unchanged,
-- MAE before,
-- MAE after,
-- mean movement,
-- mean reported residual or learned adjustment when available.
-
-This is especially useful for residual models. If a residual model improves one
-mean metric but moves most drivers farther from actual positions, it should not
-be promoted.
-
-## Adaptive Learning Gate
-
-Implementation: `src/systems/systematic_learning.py`.
-
-The learner updates only from usable actual outcomes. It skips:
-
-- retrospective checkpoint reconstructions,
-- duplicate run IDs,
-- records with no actual results,
-- records with too few overlapping drivers between prediction and actuals.
-
-Skipped partial records do not mark the run ID as processed. If a complete
-actual payload arrives later for the same run, it can still train the learner.
-
-## Shadow Challenger Workflow
-
-Implementation:
-
-- `src/models/shadow_challenger.py`
-- `scripts/audit_shadow_challengers.py`
-- `scripts/audit_model_candidates.py`
-
-Shadow challengers must use only prior completed actuals and current saved
-champion predictions. Same-race actuals are leakage and must be excluded.
-
-The audit reports:
-
-- target-specific champion vs challenger MAE,
-- number of comparable scored events,
-- checkpoint MAE decay,
-- best candidate family by target/session type.
-
-## Research Workflow
-
-1. Run the champion and challenger with isolated data roots.
-2. Generate component ablations with `scripts/evaluate_testing_team_seed_model.py`.
-3. Read the promotion gate and movement diagnostics together.
-4. Read the model candidate and shadow challenger audits.
-5. Keep exploratory artifacts out of ordinary code commits unless they are part
-   of the release evidence.
-6. Promote only the smallest component stack that passes across holdouts and the live slice.
+1. Run champion and challenger with separate data roots.
+2. Run the ablations with `scripts/evaluate_testing_team_seed_model.py`.
+3. Read the promotion gate and movement diagnostics together, then the audits.
+4. Promote the smallest set of components that passes on holdouts and live races.

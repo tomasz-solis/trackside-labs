@@ -1,38 +1,16 @@
-# Weight Schedule Guide
+# Weight schedule
 
-The weight schedule blends three team-strength signals:
+Team strength blends three signals: the baseline, a testing modifier and current-season results. Code: `src/systems/weight_schedule.py`, used by `Baseline2026Predictor`.
 
-1. baseline performance
-2. testing directionality modifier
-3. current-season performance
+## Why
 
-Implementation: `src/systems/weight_schedule.py`, used by `Baseline2026Predictor`.
+After a rules change, last year's order is a weak anchor. Testing shows direction, but teams hide pace. The schedule states how much each source is trusted at each race, so the shift is visible and configurable. At race 1 all three count. By race 3 the model runs almost entirely on results.
 
-## Why This Exists
+For 2026, the closest analogs are the 2022 and 2014 resets. Use 2025 only as a sanity check.
 
-In a regulation-change season, last year's championship standings are a weak
-anchor, not a season template. A team that dominated on the previous rules might
-have gotten the new concept wrong. A midfield team might have nailed it.
+## Active schedule
 
-Pre-season testing gives you directional signals - who looks fast, who looks
-fragile - but teams deliberately mask their true pace. Treating testing lap times
-as ground truth is a mistake.
-
-The weight schedule handles this by being explicit about which source of evidence
-you trust at each point in the season. At Race 1, you blend all three signals
-because you don't have much else. By Race 3, you're almost entirely running on
-what teams have actually shown in competition. The trust shift is configurable
-and auditable - not hidden inside a model.
-
-For 2026 analysis, treat 2022 and 2014 as the closest regulation-reset analogs.
-Use 2025 as a carryover sanity check only; it should not be the representative
-season for promotion decisions.
-
-## Active Schedule
-
-The runtime config currently sets `baseline_predictor.team_strength_schedule` to
-`rapid_adaptive`. That keeps early learning fast without making three completed
-weekends act like the whole 2026 order is settled.
+`baseline_predictor.team_strength_schedule: rapid_adaptive`:
 
 | Race | Baseline | Testing | Current |
 |------|----------|---------|---------|
@@ -41,23 +19,13 @@ weekends act like the whole 2026 order is settled.
 | 3    | 8%       | 5%      | 87%     |
 | 4+   | 5%       | 0%      | 95%     |
 
-## How Inputs Are Built
+## Inputs
 
-For a given team:
+- `baseline`: `overall_performance` from car characteristics.
+- `testing_modifier`: currently also the baseline. Track suitability used to be added here, but it lost out of sample in 9 of 10 season and session cells (2022 to 2026), so it was removed. Its weight now just adds to the baseline weight.
+- `current`: a recency-weighted mean of `current_season_performance`, pulled toward the baseline by `stabilization_strength`. Race `i` gets weight `i ** recency_exponent`. Before any race it equals the baseline, never zero.
 
-- `baseline`: `overall_performance` from car characteristics
-- `testing_modifier`: **also `baseline`.** This slot used to carry
-  `baseline + track_suitability`, but track suitability no longer feeds the blend -
-  an out-of-sample check across 2022-2026 found the term negative in 9 of 10
-  season x session cells. Because the slot now receives `baseline` too, its weight
-  folds into the baseline weight. The column is kept in `SCHEDULES` rather than
-  removed, so the shared table and its other schedules stay untouched.
-- `current`: **recency-weighted and stabilized** mean of `current_season_performance`
-  if race results exist, otherwise falls back to `baseline`. Race `i` is weighted
-  `i ** recency_exponent` and the result is pulled toward `baseline` by
-  `stabilization_strength`; it is not a plain mean.
-
-The pre-season fallback matters: before any races, `current` is not zero. It inherits the baseline value so the blended output stays sensible even at the first race.
+`update_from_race` appends to `current_season_performance`. It never overwrites the baseline.
 
 ## Example
 
@@ -66,21 +34,9 @@ from src.systems.weight_schedule import calculate_blended_performance
 
 score = calculate_blended_performance(
     baseline_score=0.85,
-    testing_modifier=0.85,  # the caller passes baseline here; see above
-    current_score=0.85,   # pre-season: inherits baseline
+    testing_modifier=0.85,  # the caller passes the baseline here
+    current_score=0.85,     # before any race: equals the baseline
     race_number=1,
     schedule="rapid_adaptive",
 )
 ```
-
-## Where Race Updates Feed In
-
-`update_from_race` appends new values to `current_season_performance`, which shifts
-the recency-weighted mean used as `current` in future predictions. The pre-season
-baseline is not overwritten by in-season data.
-
-## Related
-
-- `src/systems/weight_schedule.py`
-- `src/predictors/baseline_2026.py`
-- `scripts/update_from_race.py`

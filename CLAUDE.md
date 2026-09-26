@@ -1,40 +1,25 @@
-# trackside-labs — agent guide
+# trackside-labs agent guide
 
 ## Repo hygiene
 
-`git status` ends every session clean. Every file is committed, gitignored, or
-deleted — nothing sits untracked "for now". Untracked files are unprotected: they
-survive no branch switch, no `git clean`, and no disk failure.
+End every session with a clean `git status`. Every file is committed, gitignored or deleted. Untracked files survive nothing.
 
-**Any path written at runtime gets its `.gitignore` entry in the same change that
-creates it.** Generated artifacts belong in `ArtifactStore`, not in git. If an
-artifact needs to be readable from a fresh clone, that is a deliberate decision
-worth stating in the commit message, not a default.
+Any path written at runtime gets its `.gitignore` entry in the same change. Generated artifacts belong in `ArtifactStore`, not git. Tracking one on purpose is a decision for the commit message.
 
-Two traps this repo has already hit:
+Two traps already hit:
 
-- `*.backup` does **not** match `<name>.json.rebuild_backup`. Check that a new
-  ignore pattern actually matches with `git check-ignore -v <path>`.
-- Tracking generated data rots. `data/car_characteristics_snapshot/` had stale
-  files tracked under an obsolete naming scheme while the live ones, written by
-  `safe_slug` in `src/utils/artifact_paths.py`, were untracked.
+- `*.backup` does not match `<name>.json.rebuild_backup`. Check a new pattern with `git check-ignore -v <path>`.
+- Tracked generated data goes stale. `data/car_characteristics_snapshot/` once tracked old files while the live ones were untracked.
 
-Work that is scoped but unimplemented — briefs, tests for helpers that do not
-exist yet, shelved research — goes on a `shelved/*` branch, not into the working
-tree. See `shelved/challenger-research` and `shelved/dnf-calibration`.
+Scoped but unbuilt work (briefs, tests for missing helpers, shelved research) goes on a `shelved/*` branch, for example `shelved/challenger-research` and `shelved/dnf-calibration`.
 
-## Verifying before you claim done
+## Checks before claiming done
 
-**Ruff is pinned to the same exact version in three places, so local lint now
-does prove something about CI.** As of 2026-09-02 that version is `0.15.1`, in:
+Ruff is pinned to one version (`0.15.1`) in three places. Bump all three together:
 
 - `pyproject.toml` (`ruff==0.15.1`)
 - `.pre-commit-config.yaml` (`rev: v0.15.1`)
 - `.github/workflows/lint.yml` (`pip install ruff==0.15.1`)
-
-**Bump all three together, or the drift returns.** They were previously
-`>=0.9,<1` / `v0.9.6` / `0.9.6`, which let the local venv run a formatter CI did
-not have — three files sat unformatted on `master` because of it.
 
 ```bash
 uv sync --extra dev
@@ -43,15 +28,19 @@ uv run ruff format --check src tests scripts app.py predict_weekend.py
 make typecheck MYPY=mypy
 ```
 
-Tests run in alphabetic chunks in CI over **tracked files only**; a bare
-`uv run pytest` picks up untracked files and can die at collection, stopping
-every tracked test from running. Use `make test-github-chunk-N`.
+CI runs tests in chunks over tracked files only. A bare `uv run pytest` also collects untracked files and can fail at collection. Use `make test-github-chunk-N`.
+
+## Measuring model changes
+
+- Results and verdicts live in `docs/MODEL_LEDGER.md`. Add new entries and mark old ones superseded; never change a past verdict.
+- Every measured claim names the baseline it was measured against. The prediction cache key does not include the code version, so a cached prediction can predate the model it is credited to.
+- Measure on the walk-forward replay with `--through-round`, against a rebuilt baseline and the seed floor. The protocol is at the top of the ledger.
+- A 14-round replay takes 30 minutes to 3 hours (it varies with machine load) and about 1.2 GB. Run it in your own terminal: Claude Code's low-memory reaper has killed it as a background job.
+
+## Writing docs
+
+Keep it simple and short. Lead with the answer or result, say each thing once, keep the numbers and drop the story around them. No em or en dashes and no other AI tells. Tables for comparisons, lists for steps.
 
 ## House conventions
 
-- uv-first: `uv sync --extra dev`, `uv run <cmd>`.
-- Model results and their verdicts live in `docs/MODEL_LEDGER.md`. Append and
-  supersede; do not rewrite past entries when a later result contradicts them.
-- Every measured claim records the champion baseline it was measured against.
-  The prediction cache key does **not** cover code version, so a cached
-  "champion" prediction may predate the model it is being credited to.
+- uv first: `uv sync --extra dev`, `uv run <cmd>`.

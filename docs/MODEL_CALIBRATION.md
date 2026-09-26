@@ -1,14 +1,12 @@
-# Model Calibration Report - 2026 Season
+# Model calibration report, 2026 season
 
 *Generated: 2026-06-16T19:46:42.011345+00:00*
 
-This report measures three things: whether the Monte Carlo uncertainty
-bands are empirically honest, whether the model has systematic directional
-bias for specific drivers or teams, and whether it beats a naive baseline.
+Checks three things: are the uncertainty intervals honest, is the model biased
+for or against any driver or team, and does it beat a naive baseline.
 
-It is generated from saved prediction artifacts by
-`scripts/generate_evaluation_report.py`. Re-run after each race to keep
-it current.
+Built from saved forecasts by `scripts/generate_evaluation_report.py`. Re-run
+after each race.
 
 ---
 
@@ -165,9 +163,8 @@ Canonical evaluation uses `latest_checkpoint_per_race_and_target` so each race/t
 
 ## 2. Confidence Interval Calibration (Qualifying)
 
-The Monte Carlo simulation produces a p5 - p95 position interval for each
-driver. A well-calibrated model should have ~90% of actual outcomes fall
-inside that interval.
+Each driver gets a p5 to p95 position interval. About 90% of actual results
+should land inside it.
 
 | Metric | Value |
 |---|---|
@@ -180,9 +177,8 @@ inside that interval.
 
 OK Well-calibrated (within 3% of nominal).
 
-**Interpretation:** A negative calibration error means intervals are
-too tight - the model is more certain than it should be. A positive
-error means intervals are too wide.
+Negative calibration error: intervals too narrow (overconfident).
+Positive: intervals too wide.
 
 ---
 
@@ -267,8 +263,7 @@ Based on 7 races.
 ## 5. Baseline Comparison
 
 Naive baseline: predict race N using the actual results of race N-1
-(previous-race classification). This is a realistic lower bar - it
-requires no modelling, just memory of last week.
+(previous-race classification). No model, just last week's result.
 
 ### Qualifying
 

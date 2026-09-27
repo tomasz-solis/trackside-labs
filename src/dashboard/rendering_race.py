@@ -788,8 +788,15 @@ def _render_race_result(df: pd.DataFrame) -> None:
         race_df["expected_position"] = race_df["position_blend_score"].astype(float).round(2)
 
     has_ci = "p5" in race_df.columns and "p95" in race_df.columns
-    if has_ci:
+    has_likely_range = "likely_lo" in race_df.columns and "likely_hi" in race_df.columns
+    range_label = "Likely range" if has_likely_range else "90% Pos Range"
+    if has_likely_range:
+        race_df["ci_range"] = race_df.apply(
+            lambda r: f"P{int(r['likely_lo'])} - P{int(r['likely_hi'])}", axis=1
+        )
+    elif has_ci:
         race_df["ci_range"] = race_df.apply(lambda r: f"P{int(r['p5'])} - P{int(r['p95'])}", axis=1)
+    has_range_column = has_likely_range or has_ci
 
     input_confidence = race_df.attrs.get("input_confidence")
 
@@ -853,10 +860,19 @@ def _render_race_result(df: pd.DataFrame) -> None:
     st.caption(primary_caption)
     if has_expected_position:
         st.caption(
-            "Key signal: `Expected Pos` (lower is better). Use `90% Pos Range` to judge uncertainty."
+            f"Key signal: `Expected Pos` (lower is better). Use `{range_label}` to judge "
+            "uncertainty."
         )
-    if has_ci:
-        ci_caption = "`90% Pos Range` is where a driver lands in 90% of simulations (P5 to P95)."
+    if has_range_column:
+        if has_likely_range:
+            ci_caption = (
+                "`Likely range`: half of past results for this spot landed here. "
+                "`DNF Risk %` is separate."
+            )
+        else:
+            ci_caption = (
+                "`90% Pos Range` is where a driver lands in 90% of simulations (P5 to P95)."
+            )
         if has_podium_probability:
             ci_caption += " Equal Podium % values are expected: podium odds are smoothed so they never rise down the order."
         st.caption(ci_caption)
@@ -866,9 +882,9 @@ def _render_race_result(df: pd.DataFrame) -> None:
     if has_expected_position:
         display_cols.append("expected_position")
         display_names.append("Expected Pos")
-    if has_ci:
+    if has_range_column:
         display_cols.append("ci_range")
-        display_names.append("90% Pos Range")
+        display_names.append(range_label)
     if has_podium_probability:
         display_cols.append("podium_probability")
         display_names.append("Podium %")

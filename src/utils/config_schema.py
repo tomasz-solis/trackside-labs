@@ -817,6 +817,32 @@ class PositionIntervalFloorConfig(StrictConfigModel):
     max_extra_width: int = Field(default=1, ge=0)
 
 
+class LikelyRangeBucketConfig(StrictConfigModel):
+    """One predicted-position bucket's calibrated 50% residual offsets."""
+
+    q25: float
+    q75: float
+
+    @model_validator(mode="after")
+    def _check_order(self) -> LikelyRangeBucketConfig:
+        if self.q25 > self.q75:
+            raise ValueError(f"q25 ({self.q25}) must be <= q75 ({self.q75})")
+        return self
+
+
+class LikelyRangeConfig(StrictConfigModel):
+    """Calibrated 50% likely-range offsets by predicted-position bucket.
+
+    Fitted by scripts/fit_race_band_quantiles.py from real finish-position
+    error on the replay; see config/default.yaml for the fit provenance.
+    Keyed by bucket label ("1-5", "6-10", "11-16", "17-22"); ``race`` covers
+    grand_prix_race, ``sprint`` covers sprint_race.
+    """
+
+    race: dict[str, LikelyRangeBucketConfig] = Field(default_factory=dict)
+    sprint: dict[str, LikelyRangeBucketConfig] = Field(default_factory=dict)
+
+
 class OvertakingTransitionConfig(StrictConfigModel):
     """How observed 2026 overtaking data should blend with priors."""
 
@@ -980,6 +1006,7 @@ class BaselineRaceConfig(StrictConfigModel):
     position_interval_floor: PositionIntervalFloorConfig = Field(
         default_factory=PositionIntervalFloorConfig
     )
+    likely_range: LikelyRangeConfig = Field(default_factory=LikelyRangeConfig)
     overtaking_transition: OvertakingTransitionConfig = Field(
         default_factory=OvertakingTransitionConfig
     )

@@ -162,6 +162,64 @@ def apply_learned_interval_radius(
         row["p95"] = min(field_size, center + required_half_width)
 
 
+_LIKELY_RANGE_BUCKET_EDGES = [(1, 5), (6, 10), (11, 16), (17, 22)]
+
+
+def _likely_range_bucket(position: int) -> str:
+    """Return the config bucket label for a final position.
+
+    Positions past the widest fitted bucket (a grid bigger than 22, which this
+    repo does not model) clamp into that bucket rather than reporting nothing.
+    """
+    for lo, hi in _LIKELY_RANGE_BUCKET_EDGES:
+        if lo <= position <= hi:
+            return f"{lo}-{hi}"
+    return "1-5" if position < 1 else "17-22"
+
+
+def assign_likely_range(
+    *,
+    finish_order: list[dict[str, Any]],
+    is_sprint: bool,
+    field_size: int,
+    cfg: Any,
+) -> None:
+    """Attach a calibrated 50% ``likely_lo``/``likely_hi`` range to each row.
+
+    ``lo``/``hi`` are the row's point prediction (``position_blend_score``)
+    plus the q25/q75 residual offset fitted for its final-position bucket (see
+    ``scripts/fit_race_band_quantiles.py``), clipped to the field and to
+    ``lo <= hi``. Unlike ``p5``/``p95`` (kept unchanged for evaluation), this
+    is the range the dashboard shows.
+    """
+    if field_size <= 0:
+        return
+    table_name = "sprint" if is_sprint else "race"
+    table = cfg.get(f"baseline_predictor.race.likely_range.{table_name}", {}) or {}
+    if not table:
+        return
+
+    for row in finish_order:
+        try:
+            position = int(row.get("position", 1))
+            point = float(row.get("position_blend_score", position))
+        except (TypeError, ValueError):
+            continue
+
+        bucket = table.get(_likely_range_bucket(position))
+        if not bucket:
+            continue
+
+        lo = int(round(point + float(bucket["q25"])))
+        hi = int(round(point + float(bucket["q75"])))
+        lo = max(1, min(lo, field_size))
+        hi = max(1, min(hi, field_size))
+        if lo > hi:
+            lo, hi = hi, lo
+        row["likely_lo"] = lo
+        row["likely_hi"] = hi
+
+
 def apply_early_season_team_uncertainty_adjustments(
     *,
     finish_order: list[dict[str, Any]],
@@ -808,6 +866,12 @@ def build_finish_order(
         blended_samples_by_driver=blended_samples_by_driver,
         cfg=cfg,
         prefix="baseline_predictor.race",
+    )
+    assign_likely_range(
+        finish_order=finish_order,
+        is_sprint=is_sprint,
+        field_size=max(1, field_size),
+        cfg=cfg,
     )
     return finish_order
 

@@ -858,6 +858,22 @@ baseline_predictor:
       min_width: 1
       max_extra_width: 1
 
+    # Dashboard "Likely range": 25th/75th percentile of past finish error, by
+    # predicted position. A 90% band needs ~10 places, too wide to be useful.
+    # Fitted 2026-09-27 by scripts/fit_race_band_quantiles.py on
+    # data/historical_replay_m1s42_r14. Refit as the season adds races.
+    likely_range:
+      race:
+        "1-5": {q25: -2.10, q75: 1.07}
+        "6-10": {q25: -3.26, q75: 0.92}
+        "11-16": {q25: -3.79, q75: 0.97}
+        "17-22": {q25: -4.95, q75: -0.60}
+      sprint:
+        "1-5": {q25: -1.14, q75: 1.21}
+        "6-10": {q25: -1.91, q75: 1.28}
+        "11-16": {q25: -2.08, q75: 0.56}
+        "17-22": {q25: -2.92, q75: 0.08}
+
     # Regulation-transition blend for track overtaking difficulty.
     # Early 2026 observations should move historical priors gradually, not jump.
     overtaking_transition:

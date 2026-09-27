@@ -277,6 +277,64 @@ def test_render_race_result_explains_sorting_and_interval(patcher):
     assert all(">Status<" not in html for html in table_html_blocks)
 
 
+def test_render_race_result_shows_likely_range_when_present(patcher):
+    """`Likely range` uses likely_lo/likely_hi when the columns exist."""
+    calls = _stub_streamlit(patcher)
+
+    df = pd.DataFrame(
+        [
+            {
+                "position": 1,
+                "driver": "VER",
+                "team": "Red Bull Racing",
+                "position_blend_score": 1.2,
+                "confidence": 58.0,
+                "dnf_probability": 0.04,
+                "p5": 1,
+                "p95": 4,
+                "likely_lo": 1,
+                "likely_hi": 2,
+            }
+        ]
+    )
+
+    rendering_race._render_race_result(df)
+
+    captions = [value for kind, value in calls if kind == "caption"]
+    table_html_blocks = [value for kind, value in calls if kind == "markdown" and "<table" in value]
+    assert any("Likely range" in text for text in captions)
+    assert any("half of past results" in text for text in captions)
+    assert any("P1 - P2" in html for html in table_html_blocks)
+    assert not any("90% Pos Range" in text for text in captions)
+
+
+def test_render_race_result_falls_back_to_90pct_range_without_likely_columns(patcher):
+    """Cached checkpoints saved before likely_lo/likely_hi existed keep the old label."""
+    calls = _stub_streamlit(patcher)
+
+    df = pd.DataFrame(
+        [
+            {
+                "position": 1,
+                "driver": "VER",
+                "team": "Red Bull Racing",
+                "position_blend_score": 1.82,
+                "confidence": 58.0,
+                "dnf_probability": 0.04,
+                "p5": 1,
+                "p95": 4,
+            }
+        ]
+    )
+
+    rendering_race._render_race_result(df)
+
+    captions = [value for kind, value in calls if kind == "caption"]
+    table_html_blocks = [value for kind, value in calls if kind == "markdown" and "<table" in value]
+    assert any("90% Pos Range" in text for text in captions)
+    assert any("P1 - P4" in html for html in table_html_blocks)
+
+
 def test_render_race_result_warns_on_low_confidence_signals(patcher):
     calls = _stub_streamlit(patcher)
 

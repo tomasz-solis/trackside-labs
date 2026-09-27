@@ -98,6 +98,20 @@ def test_validate_config_rejects_invalid_numeric_values():
     assert "base_volatility" in str(exc_info.value)
 
 
+def test_validate_config_rejects_likely_range_q25_above_q75():
+    """The likely-range bucket schema should reject an inverted q25/q75 pair."""
+    config_dict = yaml.safe_load(Path("config/default.yaml").read_text())
+    config_dict["baseline_predictor"]["race"]["likely_range"]["race"]["1-5"] = {
+        "q25": 5.0,
+        "q75": 1.0,
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_config(config_dict)
+
+    assert "q25" in str(exc_info.value)
+
+
 def test_config_loader_integration():
     """Config loader should continue to validate the real config file."""
     from src.utils.config_loader import Config

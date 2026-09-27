@@ -44,7 +44,9 @@ It returns pass or fail with the reasons.
 
 ## The seed floor
 
-Changing only the simulator seed moves the scores. A gain smaller than that is not a gain. The current floor (2026-09-25, leak-free replay, 14 rounds, seed 42 vs 43) is qualifying MAE 0.054 and race MAE 0.058; correlation floors are in `docs/MODEL_LEDGER.md`.
+Changing only the simulator seed moves the scores. A gain smaller than that is not a gain. Current floor (2026-09-27, leak-free replay, 14 rounds, seed 42 vs 43): qualifying MAE 0.054, race MAE 0.076, sprint MAE 0.100. Correlation floors are in `docs/MODEL_LEDGER.md`.
+
+**Floor re-measured 2026-09-27.** The 2026-09-25 floor (race MAE 0.058) came from race seed streams that were 299 of 300 identical between seeds 42 and 43. The streams are now independent (`SeedSequence([base_seed, sim_idx])`), so the race floor is wider.
 
 Correlation is the better primary metric. MAE rounds to whole positions, so in one comparison 7 of 46 checkpoints had different forecasts and identical MAE. Correlation resolves about twice as finely and barely moves with the seed.
 
@@ -56,6 +58,8 @@ uv run python scripts/compare_replay_arms.py --baseline <baseline> --seed-floor 
 ```
 
 `compare_replay_arms.py` calls a result below the floor `unresolvable`, which is different from `noise`. The promotion gate takes `seed_floor={"race_mae": ..., "qualifying_mae": ...}` and fails without it. A floor belongs to its replay and does not transfer to other seasons or sample sizes. `scripts/evaluate_testing_team_seed_model.py` runs on one seed with no floor, so its comparisons stay blocked until one is measured.
+
+**CI method (2026-09-27):** the bootstrap in `compare_replay_arms.py` now resamples whole race weekends, not individual checkpoints, because checkpoints (PRE/FP1/FP2/FP3/SQ) from the same weekend share one actual result and are not independent draws. Effective sample size is the number of race weekends (about 14 on the current replay), not the larger number of checkpoints (51), so CIs are wider than before. Any verdict measured with the old per-checkpoint bootstrap (everything in `docs/MODEL_LEDGER.md` before 2026-09-27) used a narrower, overstated CI and should be re-scored before being cited as confirmed; the recorded verdicts themselves are unchanged.
 
 ## Movement diagnostics
 

@@ -48,6 +48,8 @@ Fix: extract per-circuit safety car and lap 1 incident rates from past races and
 
 Each driver gets a p5 to p95 interval, and the learning system can widen it once enough residuals exist. The last calibration report (2026-04-20, 3 events, 66 intervals) showed 80.3% qualifying coverage against a 90% target.
 
+Race p5/p95 has the same problem: measured 2026-09-27 on `data/historical_replay_m1s42_r14` (895 race finishers), coverage is 86% overall (92/95/89/67% by predicted-position bucket 1-5/6-10/11-16/17-22, the back of the field worst). An honest 90% band there needs about 10 to 11 positions, too wide to show as "the range a driver is likely to finish in". The dashboard's race table now shows a separate, narrower "Likely range" (a fitted 50% band, 3 to 5 positions wide, see `docs/MODEL_LEDGER.md` 2026-09-27) instead of p5/p95 for that purpose. p5/p95 itself is unchanged and still used for evaluation.
+
 Fix: more races, then replay the widening before tightening anything.
 
 ## 9. Components can help alone and hurt together
@@ -61,5 +63,9 @@ Fix: rerun the ablations after each component change. Check which way residuals 
 On 2026 (42 retirements in 264 driver-races, 0.201 each), a flat base rate scores better (Brier 0.16045) than the per-driver rates (0.17622). An earlier probe claimed the model overforecast; it had only 11 of the 42 retirements and is retired.
 
 The shrinkage knob (`dnf_probability_shrinkage_lambda`) is 1.0 since 2026-09-20, so the reported number matches the simulation. The dashboard hides the column (`SHOW_DNF_RISK` in `src/dashboard/rendering_html.py`). Forecasts still store `dnf_probability` and the report still scores it.
+
+The aggregate rate is roughly right: measured 2026-09-27 from `wf42_r14` PRE checkpoints against public classifications (repo DNF rule), predicted 4.04 vs actual 4.50 DNFs per race over 14 races (ratio 0.90). The per-lap draw (`p / race_distance` in `src/utils/lap_by_lap_simulator.py`) under-delivers that target rate by about 9% (15% at the 0.35 cap), not fixed yet. This is a count check, not a skill check, and does not change the Brier result above.
+
+Separately, the per-driver rate's learning path (`_update_dnf_rate_ema` in `src/systems/updater.py`) had its own bug: a session with a NaN or missing `Status` and no `ClassifiedPosition` used to count as a DNF for every driver in it, permanently biasing `dnf_rate` toward 1.0 even though the race still counted as learned. Fixed 2026-09-27 to share the scoring rule (`ClassifiedPosition` authoritative, else `Status`; missing means no signal, not a DNF). See `docs/DNF_CALIBRATION_BRIEF.md`.
 
 Fix: the planned DNF revamp. It has to beat the flat base rate on 2026, measured through the replay with the seed floor.

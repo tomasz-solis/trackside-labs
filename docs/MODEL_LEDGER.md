@@ -40,7 +40,7 @@ uv run python scripts/compare_replay_arms.py --baseline data/historical_replay_b
 
 A 14-round replay takes 30 minutes to 3 hours depending on machine load. Run it in your own terminal; Claude Code's low-memory reaper has killed it as a background job.
 
-**Correlation is the primary metric, MAE secondary.** Resolving power over 46 checkpoints (95% CI half-width on a paired delta divided by the metric's spread, lower is finer):
+**Correlation is the primary metric, MAE secondary.** Resolving power over 46 checkpoints (95% CI half-width on a paired delta divided by the metric's spread, lower is finer). Measured under the old per-checkpoint bootstrap; superseded 2026-09-27, when the bootstrap changed to resample race weekends (effective n about 14, not 46), which widens every CI and lowers this table's resolving power. Not recomputed under the new bootstrap yet:
 
 | Metric | Detectable / spread |
 |---|---|
@@ -58,13 +58,15 @@ Correlation resolves about twice as finely as MAE and barely moves with the seed
 
 `compare_replay_arms.py` verdicts: `better` / `worse` (CI excludes zero and clears the floor), `noise` (CI includes zero), `unresolvable (below seed floor)`, `identical (never activated)` (every checkpoint tied, so the change provably did nothing, which is a finding).
 
-**Current floor: 2026-09-25**, leak-free replay, baseline `data/historical_replay_wf42_r14`, `--through-round 14`:
+**Current floor: 2026-09-27**, leak-free replay, seed pair `data/historical_replay_m1s42_r14` / `data/historical_replay_m1s43_r14`, `--through-round 14`, race-weekend bootstrap. Baseline arm: `m1s42_r14`.
 
-| Target | Correlation | MAE |
-|---|---|---|
-| Qualifying | 0.0035 | 0.054 |
-| Race | 0.0110 | 0.058 |
-| Sprint race | 0.0078 | 0.079 |
+| Target | Correlation | MAE | 2026-09-25 (superseded) |
+|---|---|---|---|
+| Qualifying | 0.0027 | 0.054 | 0.0035, 0.054 |
+| Race | 0.0067 | 0.076 | 0.0110, 0.058 |
+| Sprint race | 0.0080 | 0.100 | 0.0078, 0.079 |
+
+The 2026-09-25 floor used race seed streams that were 299 of 300 identical between seeds, and a per-checkpoint bootstrap. See the 2026-09-27 entry.
 
 Older floors (2026-09-12, 13 rounds; 2026-09-21, 14 rounds) were measured on a replay that leaked future inputs. Keep them only for reading the entries gated on them.
 
@@ -806,6 +808,51 @@ Written values: `overtaking_avg_changes_per_lap` 4.083, `pit_stop_loss` 24.2 s (
 - After the race, `extract_overtaking_rates.py` resolves by location and writes Sepang's measurement to the same entry; `extract_sepang_history.py` refuses to overwrite a measured race.
 
 These come from older rules (V8 to 2013, V6 hybrid after). 2026 circuits showed less passing than their 2022-2024 values at 9 of 11 tracks, and Sepang churn itself fell from about 4.8 (2011-2015) to 2.7 (2017), so 4.083 likely overstates 2026 passing. The values carry `overtaking_observed_races: 0`, so the loader treats them as priors.
+
+## 2026-09-27: race seed streams fixed, bootstrap by weekend, floor re-measured
+
+Not a model change. It fixes how the floor and every CI are measured.
+
+**Seed streams.** `_sim_rng` in `src/predictors/baseline/race/race_simulation.py` seeded each race sim with `default_rng(base_seed + sim_idx)`, so seed 43 sim i reused seed 42 sim i+1: 299 of 300 streams were shared. Now `default_rng(SeedSequence([base_seed, sim_idx]))`. Qualifying seeds through `sha256` and is untouched.
+
+**Bootstrap.** `scripts/compare_replay_arms.py` now resamples race weekends, not checkpoints. Checkpoints of one weekend share one result, so the effective n is about 14 weekends, not 51 checkpoints.
+
+**New floor** (widest CI bound, seed 42 vs 43, 14 rounds, 51 checkpoints, roots `m1s42_r14` / `m1s43_r14`):
+
+| Target | Correlation | MAE | Point delta (corr, MAE) |
+|---|---|---|---|
+| Qualifying | 0.0027 | 0.054 | +0.0008, -0.0264 |
+| Race | 0.0067 | 0.076 | +0.0013, +0.0310 |
+| Sprint race | 0.0080 | 0.100 | -0.0031, +0.0332 |
+
+Old streams under the new bootstrap (`wf42_r14` / `wf43_r14`): race 0.0116 and 0.055, sprint 0.0078 and 0.067. So the race MAE floor widened mainly from the stream fix, and the correlation floor narrowed.
+
+Race MAE, seed 42: 3.633 on the new streams, 3.629 on the old. No regression.
+
+**One seed pair is a noisy floor.** The same pair flagged race `exact_accuracy` and sprint `within_3` as "worse", about the 1 in 20 expected at 95%.
+
+**Re-scoring needed.** Every verdict before 2026-09-27, including arms A to F on 2026-09-26, used the old streams and the per-checkpoint bootstrap. The verdicts stay as recorded; re-score an arm before building on it.
+
+## 2026-09-27: dashboard "Likely range" column: a calibrated 50% band, separate from p5/p95
+
+Not a model change: a display and config addition. No simulation or learning path is touched, and p5/p95 are unchanged and still used for evaluation.
+
+**Why.** `scripts/fit_race_band_quantiles.py` on `data/historical_replay_m1s42_r14` (race finishers only, n=895) measured p5/p95 coverage at 86% overall against a 90% target (92/95/89/67% by predicted-position bucket 1-5/6-10/11-16/17-22; the back of the field, bucket 17-22, is worst). Closing that gap needs about 10 to 11 positions of width, too wide to read as "where a driver is likely to finish". The 50% band below is 3 to 5 positions wide.
+
+**What was added.** `assign_likely_range` in `src/predictors/baseline/race/result_processing.py` attaches `likely_lo`/`likely_hi` to each race and sprint row: the point prediction (`position_blend_score`) plus the q25/q75 residual offset fitted for the row's predicted-position bucket, clipped to the field and to `lo <= hi`. Offsets live in `config/default.yaml` under `baseline_predictor.race.likely_range.race` / `.sprint` (schema: `LikelyRangeConfig` in `src/utils/config_schema.py`), fitted 2026-09-27 on the replay above. The dashboard (`src/dashboard/rendering_race.py`) labels this column "Likely range" and falls back to the old "90% Pos Range" (p5/p95) label only for cached predictions saved before this change. "DNF Risk %" is a separate column, unaffected.
+
+**Leave-one-race-out coverage of the fitted 50% band** (fit on the other races, check the held-out one, pooled across races):
+
+| Bucket | Race | Sprint |
+|---|---|---|
+| 1-5 | 49.1% | 46.7% |
+| 6-10 | 49.8% | 47.2% |
+| 11-16 | 48.1% | 47.4% |
+| 17-22 | 50.0% | 44.4% |
+
+Close to the nominal 50% in every bucket. Offsets are pooled over checkpoints (PRE, FP1, FP2, FP3, SQ); PRE likely under-covers and FP3 likely over-covers, but that split is inferred, not measured separately.
+
+**Consequence.** The config change invalidates the prediction cache fingerprint, so predictions regenerate on the next deploy.
 
 ## Adding an entry
 

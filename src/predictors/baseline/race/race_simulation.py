@@ -24,6 +24,16 @@ from .weather_context import (
 )
 
 
+def _sim_rng(base_seed: int, sim_idx: int) -> np.random.Generator:
+    """Build a per-simulation RNG whose stream is independent across ``base_seed`` values.
+
+    ``default_rng(base_seed + sim_idx)`` would make consecutive base seeds share almost
+    every stream (seed N sim i == seed N+1 sim i-1); ``SeedSequence`` over the pair avoids
+    that collision.
+    """
+    return np.random.default_rng(np.random.SeedSequence([base_seed, sim_idx]))
+
+
 @dataclass(frozen=True)
 class RaceSimulationDeps:
     """Bundle race-simulation callables into one readable dependency object."""
@@ -353,7 +363,7 @@ def predict_race_core(
     simulation_results = []
 
     for sim_idx in range(n_simulations):
-        rng = np.random.default_rng(base_seed + sim_idx)
+        rng = _sim_rng(base_seed, sim_idx)
         sampled_grid_positions = _sample_probabilistic_grid_positions(
             validated_grid=validated_grid,
             grid_uncertainty_profile=grid_uncertainty_profile,

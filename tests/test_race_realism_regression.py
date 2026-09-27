@@ -19,7 +19,7 @@ def australian_quali_race():
         quali["grid"],
         weather="dry",
         race_name="Australian Grand Prix",
-        n_simulations=80,
+        n_simulations=300,  # P95 at 80 sims flips with the RNG stream
     )
     return quali, race
 

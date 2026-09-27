@@ -133,13 +133,13 @@ def test_load_track_specific_params_borrows_avg_changes_per_lap_from_prior_year(
     chars_dir = processed_root / "track_characteristics"
     chars_dir.mkdir(parents=True, exist_ok=True)
     (chars_dir / "2026_track_characteristics.json").write_text(
-        json.dumps({"tracks": {"Bahrain Grand Prix": {"overtaking_difficulty": 0.40}}})
+        json.dumps({"tracks": {"Qatar Grand Prix": {"overtaking_difficulty": 0.40}}})
     )
     (chars_dir / "2025_track_characteristics.json").write_text(
         json.dumps(
             {
                 "tracks": {
-                    "Bahrain Grand Prix": {
+                    "Qatar Grand Prix": {
                         "overtaking_difficulty": 0.40,
                         "overtaking_avg_changes_per_lap": 3.9,
                     }
@@ -154,7 +154,7 @@ def test_load_track_specific_params_borrows_avg_changes_per_lap_from_prior_year(
             str(processed_root) if key == "paths.processed" else default
         ),
     ):
-        params = load_track_specific_params("Bahrain Grand Prix", year=2026)
+        params = load_track_specific_params("Qatar Grand Prix", year=2026)
 
     assert params["overtaking_avg_changes_per_lap"] == 3.9
 
@@ -215,7 +215,7 @@ def test_load_track_specific_params_unvalidated_avg_changes_per_lap_keeps_prior_
         json.dumps(
             {
                 "tracks": {
-                    "Bahrain Grand Prix": {
+                    "Qatar Grand Prix": {
                         "overtaking_difficulty": 0.5,
                         "overtaking_avg_changes_per_lap": 5.0,
                         "overtaking_observed_races": 0,
@@ -228,7 +228,7 @@ def test_load_track_specific_params_unvalidated_avg_changes_per_lap_keeps_prior_
         json.dumps(
             {
                 "tracks": {
-                    "Bahrain Grand Prix": {
+                    "Qatar Grand Prix": {
                         "overtaking_difficulty": 0.5,
                         "overtaking_avg_changes_per_lap": 3.9,
                     }
@@ -243,7 +243,7 @@ def test_load_track_specific_params_unvalidated_avg_changes_per_lap_keeps_prior_
             str(processed_root) if key == "paths.processed" else default
         ),
     ):
-        params = load_track_specific_params("Bahrain Grand Prix", year=2026)
+        params = load_track_specific_params("Qatar Grand Prix", year=2026)
 
     assert params["overtaking_avg_changes_per_lap"] == 3.9
 

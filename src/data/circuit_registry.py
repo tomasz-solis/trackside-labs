@@ -256,6 +256,16 @@ _CIRCUITS: tuple[Circuit, ...] = (
         ("Jeddah",),
         ("Saudi Arabian Grand Prix",),
     ),
+    # Sepang hosted the Malaysian GP from 1999 to 2017 and the 2026 "Bahrain Grand Prix"
+    # (round 16, moved from Sakhir). Its data key holds priors from 2011-2017 races.
+    _c(
+        "sepang",
+        "Sepang International",
+        "Malaysia",
+        "Malaysian Grand Prix",
+        ("Sepang", "Kuala Lumpur"),
+        ("Malaysian Grand Prix",),
+    ),
     # Recently-dropped circuit kept for historical (2022) generation; no current data.
     _c(
         "le_castellet",
@@ -271,9 +281,11 @@ _CIRCUITS: tuple[Circuit, ...] = (
 # ``location`` or ``year`` to disambiguate these and hard-fails otherwise, so a name
 # migration can never silently pick the wrong circuit.
 #   "Spanish Grand Prix": Barcelona-Catalunya through 2025; Madrid (Madring) from 2026.
+#   "Bahrain Grand Prix": Sakhir, except 2026 when the round ran at Sepang.
 _AMBIGUOUS_NAME_YEAR_RULES: dict[str, tuple[tuple[int, str], ...]] = {
     # name -> ordered (first_year_inclusive, circuit_id); the last matching rule wins.
     _normalize("Spanish Grand Prix"): ((0, "barcelona_catalunya"), (2026, "madrid_madring")),
+    _normalize("Bahrain Grand Prix"): ((0, "sakhir"), (2026, "sepang"), (2027, "sakhir")),
 }
 
 _BY_ID: dict[str, Circuit] = {circuit.circuit_id: circuit for circuit in _CIRCUITS}
@@ -366,6 +378,11 @@ def resolve_circuit(
         f"Unrecognised race {race_name!r}: no circuit is registered for it. Add it to "
         "src/data/circuit_registry.py (with its physical circuit) before warming it."
     )
+
+
+def is_registered_location(location: str | None) -> bool:
+    """Return True when a schedule ``Location`` names a registered circuit."""
+    return _normalize(location) in _BY_LOCATION
 
 
 def resolve_track_data_key(

@@ -502,3 +502,13 @@ def test_build_report_reads_target_aware_intervals_when_legacy_rows_lack_bands(t
     assert report["race_accuracy"]["mae"] == 0.0
     assert report["calibration"]["races_with_band_data"] == 1.0
     assert report["calibration"]["total_races_evaluated"] == 1.0
+
+
+def test_track_type_is_read_by_circuit_for_a_moved_race():
+    """The 2026 Bahrain GP ran at Sepang: its segment reads Sepang's entry, not Sakhir's."""
+    track_types = {"Bahrain Grand Prix": "street", "Malaysian Grand Prix": "permanent"}
+
+    from scripts.generate_evaluation_report import _track_type_for_race
+
+    assert _track_type_for_race(track_types, "Bahrain Grand Prix", 2026) == "permanent"
+    assert _track_type_for_race(track_types, "Bahrain Grand Prix", 2025) == "street"

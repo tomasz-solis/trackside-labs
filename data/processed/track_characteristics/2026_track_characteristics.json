@@ -255,6 +255,15 @@
       "safety_car_prob": 0.35,
       "lap1_risk_modifier": 0.1,
       "overtaking_difficulty": 0.65
+    },
+    "Malaysian Grand Prix": {
+      "type": "permanent",
+      "pit_stop_loss": 24.2,
+      "safety_car_prob": 0.16,
+      "overtaking_difficulty": 0.53,
+      "overtaking_avg_changes_per_lap": 4.083,
+      "overtaking_years_analyzed": 7,
+      "overtaking_observed_races": 0
     }
   },
   "generated_at": "2026-02-27T15:34:51.525539",

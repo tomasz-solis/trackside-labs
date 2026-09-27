@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 KNOWN_MAIN_RACE_LAPS: dict[str, int] = {
     "Bahrain Grand Prix": 57,
+    "Malaysian Grand Prix": 56,  # Sepang; 2016 and 2017 race distance (Ergast)
     "Saudi Arabian Grand Prix": 50,
     "Australian Grand Prix": 58,
     "Japanese Grand Prix": 53,

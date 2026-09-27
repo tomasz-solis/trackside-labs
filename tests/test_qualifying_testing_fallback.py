@@ -222,7 +222,7 @@ def test_predict_qualifying_blends_bayesian_form_into_quali_pace():
             for index, driver_info in enumerate(all_drivers)
         ]
 
-    # Bahrain is not on the real 2026 calendar; order it after the two completed races.
+    # Pin a schedule with Bahrain after the two completed races.
     schedule = (
         ("Australian Grand Prix", "conventional"),
         ("Chinese Grand Prix", "sprint"),

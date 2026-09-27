@@ -12,6 +12,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
+from src.data.circuit_registry import circuit_aggregation_key
 from src.utils.normalization import rank_normalize
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,19 @@ def _calculate_compound_consistency(compound_laps: pd.DataFrame) -> float | None
         return None
 
     return float(lap_seconds.std(ddof=1))
+
+
+def compound_track_key_for_session(session: object, event_name: str) -> str:
+    """Return the physical-circuit key compound samples are stored under for a session.
+
+    Keyed by circuit, not GP name, so a race that keeps its name but moves venue (the
+    2026 Bahrain GP at Sepang) never blends with the old circuit's tyre data. Events
+    the registry does not know (pre-season testing) keep their own name.
+    """
+    event = getattr(session, "event", {})
+    return circuit_aggregation_key(
+        event_name, year=getattr(event, "year", None), location=event.get("Location")
+    )
 
 
 def extract_compound_metrics(

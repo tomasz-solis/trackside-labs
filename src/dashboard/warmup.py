@@ -1052,8 +1052,12 @@ def _validate_target_circuits(target_races: tuple[str, ...], year: int) -> None:
     """Hard-fail the warmup if any target race cannot be mapped to a known circuit.
 
     Prevents an unrecognised or migrating GP name from being warmed with another
-    circuit's characteristics; the circuit registry must be updated first.
+    circuit's characteristics; the circuit registry must be updated first. A schedule
+    location that is not registered also fails here, even for a name that would resolve:
+    a known GP name at an unknown venue is how a moved race (2026 Bahrain GP at Sepang)
+    silently picks up its old circuit's data.
     """
+    from src.data.circuit_registry import is_registered_location
     from src.utils.schedule_location import location_for_race
 
     unresolved: list[str] = []
@@ -1061,8 +1065,12 @@ def _validate_target_circuits(target_races: tuple[str, ...], year: int) -> None:
         name = str(race_name).strip()
         if not name:
             continue
+        location = location_for_race(int(year), name)
+        if location and not is_registered_location(location):
+            unresolved.append(f"{name}: schedule location {location!r} is not registered")
+            continue
         try:
-            resolve_circuit(name, year=int(year), location=location_for_race(int(year), name))
+            resolve_circuit(name, year=int(year), location=location)
         except CircuitResolutionError as exc:
             unresolved.append(f"{name}: {exc}")
     if unresolved:

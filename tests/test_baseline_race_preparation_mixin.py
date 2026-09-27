@@ -82,7 +82,7 @@ def test_load_track_overtaking_difficulty_from_file_and_fallbacks(tmp_path):
     track_dir.mkdir(parents=True)
     track_file = track_dir / "2026_track_characteristics.json"
     track_file.write_text(
-        json.dumps({"tracks": {"Bahrain Grand Prix": {"overtaking_difficulty": 0.82}}})
+        json.dumps({"tracks": {"Qatar Grand Prix": {"overtaking_difficulty": 0.82}}})
     )
 
     prep = DummyPreparation()
@@ -93,11 +93,11 @@ def test_load_track_overtaking_difficulty_from_file_and_fallbacks(tmp_path):
             lambda payload, **kwargs: None,
         ):
             assert prep._load_track_overtaking_difficulty(None) == 0.5
-            assert prep._load_track_overtaking_difficulty("Bahrain Grand Prix") == 0.82
+            assert prep._load_track_overtaking_difficulty("Qatar Grand Prix") == 0.82
             assert prep._load_track_overtaking_difficulty("Unknown Race") == 0.5
 
             track_file.write_text("{bad json")
-            assert prep._load_track_overtaking_difficulty("Bahrain Grand Prix") == 0.5
+            assert prep._load_track_overtaking_difficulty("Qatar Grand Prix") == 0.5
 
 
 def test_load_track_overtaking_difficulty_handles_schema_validation_error(tmp_path):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 TRACK_OVERTAKING_BASELINES: dict[str, float] = {
     "Bahrain Grand Prix": 0.40,
+    "Malaysian Grand Prix": 0.53,  # Sepang; from 2011-2017 churn (scripts/extract_sepang_history.py)
     "Saudi Arabian Grand Prix": 0.60,
     "Australian Grand Prix": 0.50,
     "Japanese Grand Prix": 0.50,

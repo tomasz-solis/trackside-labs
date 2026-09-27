@@ -823,16 +823,29 @@ def _aggregate_metric_dicts(metric_rows: list[dict[str, float]]) -> dict[str, fl
     return aggregated
 
 
+def _track_type_for_race(track_types: dict[str, str], race_name: str, year: Any) -> str:
+    """Look up a race's track type by its physical circuit, not its GP name.
+
+    The track file is keyed by circuit, so the 2026 Bahrain GP (at Sepang) must read
+    Sepang's entry, not Sakhir's.
+    """
+    from src.data.circuit_registry import circuit_aggregation_key
+
+    key = circuit_aggregation_key(race_name, year=int(year) if year else None)
+    return _bucket_name(track_types.get(key, "unknown"))
+
+
 def _extract_segment_value(
     metadata: dict[str, Any],
     *,
     track_types: dict[str, str],
     dimension: str,
+    year: int | None = None,
 ) -> str:
     """Resolve one segment label from prediction metadata."""
     if dimension == "track_type":
         race_name = str(metadata.get("race_name", "")).strip()
-        return _bucket_name(track_types.get(race_name, "unknown"))
+        return _track_type_for_race(track_types, race_name, metadata.get("year", year))
     if dimension == "weekend_format":
         return _bucket_name(metadata.get("weekend_format"))
     if dimension == "weather":
@@ -868,6 +881,7 @@ def _build_segment_breakdown(
                     metadata,
                     track_types=track_types,
                     dimension=dimension,
+                    year=year,
                 )
                 bucket = bucketed[session_name][dimension].setdefault(bucket_name, [])
                 bucket.append(metrics)
@@ -967,7 +981,9 @@ def _collect_error_events(
                 "race_name": race_name,
                 "weekend_format": _bucket_name(metadata.get("weekend_format")),
                 "weather": _bucket_name(metadata.get("weather")),
-                "track_type": _bucket_name(track_types.get(race_name, "unknown")),
+                "track_type": _track_type_for_race(
+                    track_types, race_name, metadata.get("year", year)
+                ),
                 "mae": metrics.get("mae"),
                 "exact_match_rate": metrics.get("exact_match_rate"),
                 "within_3_rate": metrics.get("within_3_rate"),

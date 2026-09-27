@@ -773,6 +773,40 @@ D flips sign between seeds, so its seed-42 lean was noise. A keeps the sign but 
 
 **Not measurable on this replay.** 2026 overtaking rates (inactive in-season since 2026-09-25), `resolve_pace_anchor` removal and the penalised-driver blend (every checkpoint is before qualifying, so no penalties apply), and `757087f3` (cannot be reverted alone on current code).
 
+## 2026-09-27: 2026 Bahrain GP moved to Sepang: track priors from 1999-2017
+
+Not a measured model change. Round 16 (2026-10-04) keeps the name "Bahrain Grand Prix" but runs at Sepang. Without changes the race was hidden (Bahrain was on the 2026 cancelled list) and would have resolved to Sakhir's track data.
+
+- `src/utils/weekend.py`: Bahrain removed from the 2026 cancelled list; `Malaysian Grand Prix` added so Sepang's track-data key never shows up as a race.
+- `src/data/circuit_registry.py`: new `sepang` circuit (locations `Sepang`, `Kuala Lumpur`, data key `Malaysian Grand Prix`) and a year rule: Bahrain GP is Sakhir, except 2026 at Sepang. An unregistered location for this race now stops the forecast instead of falling back to Sakhir.
+- Priors from `scripts/extract_sepang_history.py` (Ergast, Malaysian GP 2011-2017, same counting rules as the baseline generator):
+
+| Year | Changes per lap | Median pit lane time |
+|---|---|---|
+| 2011 | 4.873 | 23.2 s |
+| 2012 | 4.655 | 24.7 s |
+| 2013 | 4.836 | 22.4 s |
+| 2014 | 3.309 | 25.3 s |
+| 2015 | 4.909 | 25.6 s |
+| 2016 | 3.255 | 24.7 s |
+| 2017 | 2.745 | 24.4 s |
+
+Written values: `overtaking_avg_changes_per_lap` 4.083, `pit_stop_loss` 24.2 s (outlier-filtered mean), `overtaking_difficulty` 0.53, race distance 56 laps.
+
+**Safety car probability 0.16** (3 of 19 races, 1999-2017). Ergast has no flag data, so a safety car is inferred from lap times: a run of laps at least 1.25x the race's median pace during which the leader-to-P5 gap closes to under 0.8x its size. Detected: 2012 (L6-13, gap 20.1 to 7.4 s, then red flag), 2015 (L5-6, 9.7 to 5.9 s), 2016 (L2, 6.3 to 4.2 s). Rain runs are correctly excluded because the gaps grow (2001 L4-10, 4.5 to 6.5 s; 2009 L31, 31.5 to 47.4 s). Limits: a VSC cannot be told apart, a safety car during rain is missed, and pit stops under a safety car blur the gap (2016 L40-41 closed only to 0.80x). Treat 0.16 as a lower bound; 2011-2017 alone gives 3 of 7.
+
+**Decisions (Tomasz, 2026-09-27):** tyre stress stays neutral; practice compound data (FP1 to FP3) updates Sepang's tyre model automatically. Rain is covered by the three weather scenarios. Churn stays the 2011-2017 Sepang value. The 2027 return to Sakhir is political; the year rule guesses Sakhir, and FastF1's location decides when available.
+
+**Mechanism fixes, so the next venue move is caught automatically:**
+
+- FastF1 is the source of truth for the schedule. The cancelled list now filters only the local fallback schedule, and logs a warning if FastF1 still lists a cancelled race. It had hidden Bahrain after it was reinstated.
+- The warmup circuit check now fails on any schedule location that is not registered, even for a known GP name. A known name at an unknown venue is exactly a moved race. The check runs every 5 minutes over the next 3 races, so a move fails loudly weeks early. Historical scripts keep the lenient behaviour, because older seasons have unregistered venues (Hockenheim, Sochi).
+- Tyre compound samples are keyed by physical circuit (`compound_track_key`), not GP name, so Sepang's 2026 tyre data is stored as `Malaysian Grand Prix` and never blends with Sakhir's.
+- The evaluation report reads track type by circuit, so the 2026 Bahrain GP reads Sepang's entry.
+- After the race, `extract_overtaking_rates.py` resolves by location and writes Sepang's measurement to the same entry; `extract_sepang_history.py` refuses to overwrite a measured race.
+
+These come from older rules (V8 to 2013, V6 hybrid after). 2026 circuits showed less passing than their 2022-2024 values at 9 of 11 tracks, and Sepang churn itself fell from about 4.8 (2011-2015) to 2.7 (2017), so 4.083 likely overstates 2026 passing. The values carry `overtaking_observed_races: 0`, so the loader treats them as priors.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

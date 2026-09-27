@@ -475,3 +475,31 @@ def test_aggregate_compound_samples_handles_none_values():
     assert result["SOFT"]["pace_performance"] == pytest.approx(0.7)
     # Tire deg should use new value (old was None)
     assert result["SOFT"]["tire_deg_performance"] == 0.7
+
+
+def test_compound_samples_are_keyed_by_circuit_not_gp_name():
+    """The 2026 Bahrain GP ran at Sepang, so its tyre data is stored under Sepang's key."""
+    from src.systems.compound_analyzer import compound_track_key_for_session
+
+    class _Event(dict):
+        year = 2026
+
+    class _Session:
+        event = _Event(Location="Kuala Lumpur")
+
+    assert compound_track_key_for_session(_Session(), "Bahrain Grand Prix") == (
+        "Malaysian Grand Prix"
+    )
+    assert compound_track_key_for_session(object(), "Pre-Season Testing") == "Pre-Season Testing"
+
+
+def test_sepang_tyre_data_replaces_sakhir_data_instead_of_blending():
+    from src.systems.compound_analyzer import aggregate_compound_samples
+
+    sakhir = {"SOFT": {"track_name": "Bahrain Grand Prix", "median_lap_time": 95.0}}
+    sepang = {"SOFT": {"track_name": "Malaysian Grand Prix", "median_lap_time": 99.0}}
+
+    blended = aggregate_compound_samples(sakhir, sepang, blend_weight=0.5)
+
+    assert blended["SOFT"]["median_lap_time"] == 99.0
+    assert blended["SOFT"]["track_name"] == "Malaysian Grand Prix"

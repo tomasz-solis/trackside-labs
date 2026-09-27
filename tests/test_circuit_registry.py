@@ -189,6 +189,8 @@ def test_every_data_key_resolves_in_the_files_it_keys():
 
     # Circuits that are registered but genuinely have no data yet resolve to None and are
     # covered by the defaults path, so only keyed circuits are checked here.
+    # Sepang has no Pirelli tyre-stress rating on file; it uses the neutral stress default.
+    no_pirelli_rating = {"Malaysian Grand Prix"}
     missing: list[str] = []
     for circuit in all_circuits():
         key = circuit.data_key
@@ -196,7 +198,7 @@ def test_every_data_key_resolves_in_the_files_it_keys():
             continue
         for table_name, present in (
             ("2026_track_characteristics.json", key in track_chars),
-            ("2025_pirelli_info.json", pirelli_key(key) in pirelli),
+            ("2025_pirelli_info.json", pirelli_key(key) in pirelli or key in no_pirelli_rating),
             ("TRACK_OVERTAKING_BASELINES", key in TRACK_OVERTAKING_BASELINES),
             ("KNOWN_MAIN_RACE_LAPS", key in KNOWN_MAIN_RACE_LAPS),
         ):
@@ -204,3 +206,24 @@ def test_every_data_key_resolves_in_the_files_it_keys():
                 missing.append(f"{circuit.circuit_id}: {key!r} missing from {table_name}")
 
     assert not missing, "Track data keys with no matching entry:\n  " + "\n  ".join(missing)
+
+
+def test_2026_bahrain_gp_runs_at_sepang_not_sakhir():
+    """Round 16 of 2026 kept the Bahrain name but moved to Sepang."""
+    assert resolve_circuit("Bahrain Grand Prix", year=2026, location="Kuala Lumpur").circuit_id == (
+        "sepang"
+    )
+    # Without a location, the year rule still routes 2026 to Sepang.
+    assert resolve_track_data_key("Bahrain Grand Prix", year=2026) == "Malaysian Grand Prix"
+
+
+def test_bahrain_gp_is_sakhir_in_every_other_year():
+    """The Sepang rule covers 2026 only, so history and 2027 keep Sakhir's data."""
+    for year in (2022, 2025, 2027):
+        assert resolve_track_data_key("Bahrain Grand Prix", year=year) == "Bahrain Grand Prix"
+
+
+def test_bahrain_gp_with_an_unknown_location_hard_fails():
+    """An unregistered venue for a moved GP must stop, not fall back to Sakhir's data."""
+    with pytest.raises(CircuitResolutionError):
+        resolve_circuit("Bahrain Grand Prix", year=2026, location="Atlantis")

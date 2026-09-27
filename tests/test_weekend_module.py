@@ -122,7 +122,11 @@ def test_get_all_conventional_races(patcher, tmp_path):
     assert "Chinese Grand Prix" not in conventional_races
 
 
-def test_get_schedule_rows_excludes_cancelled_2026_april_races(patcher):
+def test_get_schedule_rows_trusts_fastf1_over_the_cancelled_list(patcher, caplog):
+    """FastF1 is the source of truth: a listed race it still carries is kept, with a warning.
+
+    The cancelled list once hid the 2026 Bahrain GP after it was reinstated at Sepang.
+    """
     weekend.refresh_schedule_cache()
     patcher.setattr(
         weekend.fastf1,
@@ -152,8 +156,14 @@ def test_get_schedule_rows_excludes_cancelled_2026_april_races(patcher):
     assert ("Australian Grand Prix", "conventional") in rows
     assert ("Chinese Grand Prix", "sprint") in rows
     assert all(event_name != "Pre-Season Testing" for event_name, _event_format in rows)
-    assert all(event_name != "Bahrain Grand Prix" for event_name, _event_format in rows)
-    assert all(event_name != "Saudi Arabian Grand Prix" for event_name, _event_format in rows)
+    assert ("Bahrain Grand Prix", "conventional") in rows
+    assert ("Saudi Arabian Grand Prix", "conventional") in rows
+    assert "cancelled list" in caplog.text
+
+
+def test_sepang_track_key_is_not_a_2026_event():
+    """The Malaysian GP key holds Sepang's track data; it must never appear as a race."""
+    assert weekend.should_skip_schedule_event(2026, "Malaysian Grand Prix")
 
 
 def test_is_sprint_weekend_raises_when_lookup_fails(patcher):
@@ -165,3 +175,9 @@ def test_is_sprint_weekend_raises_when_lookup_fails(patcher):
 
     with pytest.raises(ValueError, match="missing race"):
         weekend.is_sprint_weekend(2026, "Missing Race")
+
+
+def test_cancelled_list_still_filters_the_local_fallback_schedule():
+    """Track-file keys that are not 2026 races (Saudi Arabia, Sepang's key) stay out."""
+    assert weekend.should_skip_schedule_event(2026, "Saudi Arabian Grand Prix")
+    assert not weekend.should_skip_schedule_event(2026, "Bahrain Grand Prix")

@@ -29,6 +29,7 @@ def update_compound_characteristics_from_session(
                 context.teams[team_name]["compound_characteristics"] = compounds
         return
 
+    from src.data.circuit_registry import circuit_aggregation_key
     from src.systems.compound_analyzer import (
         aggregate_compound_samples,
         extract_compound_metrics,
@@ -37,6 +38,7 @@ def update_compound_characteristics_from_session(
     from src.utils.team_mapping import map_team_to_characteristics
 
     logger.info("Extracting compound metrics from session for %s...", race_name)
+    track_key = circuit_aggregation_key(race_name, year=year)
 
     race_compound_metrics: dict[str, dict[str, Any]] = {}
     known_teams = set(context.teams.keys())
@@ -50,7 +52,7 @@ def update_compound_characteristics_from_session(
             continue
 
         team_laps = session_laps[session_laps["Team"] == raw_team]
-        compound_data = extract_compound_metrics(team_laps, canonical_team, race_name)
+        compound_data = extract_compound_metrics(team_laps, canonical_team, track_key)
         if compound_data:
             race_compound_metrics[canonical_team] = compound_data
 
@@ -60,7 +62,7 @@ def update_compound_characteristics_from_session(
 
     normalized_compound_metrics = normalize_compound_metrics_across_teams(
         race_compound_metrics,
-        race_name,
+        track_key,
     )
     if is_sprint:
         blend_weight = cfg.get("baseline_predictor.compound_blend_weights.sprint", 0.50)

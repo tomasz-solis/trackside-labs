@@ -12,6 +12,7 @@ from fastf1.exceptions import DataNotLoadedError
 
 from src.extractors.performance import extract_all_teams_performance
 from src.systems.compound_analyzer import (
+    compound_track_key_for_session,
     extract_compound_metrics,
     normalize_compound_metrics_across_teams,
 )
@@ -990,6 +991,7 @@ def _extract_session_compound_metrics(
     if laps is None or laps.empty or "Team" not in laps.columns:
         return {}
 
+    track_key = compound_track_key_for_session(session, event_name)
     session_compound_metrics = {}
     raw_teams = laps["Team"].dropna().unique()
 
@@ -999,11 +1001,11 @@ def _extract_session_compound_metrics(
             continue
 
         team_laps = laps[laps["Team"] == raw_team]
-        compound_data = extract_compound_metrics_fn(team_laps, canonical_team, event_name)
+        compound_data = extract_compound_metrics_fn(team_laps, canonical_team, track_key)
         if compound_data:
             session_compound_metrics[canonical_team] = compound_data
 
     if not session_compound_metrics:
         return {}
 
-    return normalize_compound_metrics_across_teams_fn(session_compound_metrics, event_name)
+    return normalize_compound_metrics_across_teams_fn(session_compound_metrics, track_key)

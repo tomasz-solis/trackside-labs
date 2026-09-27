@@ -693,7 +693,7 @@ def test_get_blended_team_strength_uses_preseason_anchor_for_live_updated_payloa
         data_mixin_module, "get_recommended_schedule", lambda is_regulation_change: "extreme"
     )
 
-    # Bahrain is not on the real 2026 calendar; order it after three completed races.
+    # Pin a schedule with Bahrain after three completed races.
     _patch_schedule_rows(patcher, BAHRAIN_AFTER_THREE_RACES)
     result = predictor.get_blended_team_strength("McLaren", "Bahrain Grand Prix")
 
@@ -738,7 +738,7 @@ def test_get_blended_team_strength_recovers_legacy_2026_seed_anchor(tmp_path, pa
         data_mixin_module, "get_recommended_schedule", lambda is_regulation_change: "extreme"
     )
 
-    # Bahrain is not on the real 2026 calendar; order it after three completed races.
+    # Pin a schedule with Bahrain after three completed races.
     _patch_schedule_rows(patcher, BAHRAIN_AFTER_THREE_RACES)
     predictor.get_blended_team_strength("McLaren", "Bahrain Grand Prix")
 
@@ -1368,7 +1368,7 @@ def test_select_race_compound_thresholds(tmp_path, patcher, stress, expected):
     patcher.chdir(tmp_path)
 
     (tmp_path / "data").mkdir()
-    payload = {"bahrain_grand_prix": {"tyre_stress": stress}}
+    payload = {"qatar_grand_prix": {"tyre_stress": stress}}
     (tmp_path / "data" / "2026_pirelli_info.json").write_text(json.dumps(payload))
 
     def _get_config(key: str, default):
@@ -1380,7 +1380,7 @@ def test_select_race_compound_thresholds(tmp_path, patcher, stress, expected):
 
     patcher.setattr(data_mixin_module.config_loader, "get", _get_config)
 
-    assert predictor._select_race_compound("Bahrain Grand Prix") == expected
+    assert predictor._select_race_compound("Qatar Grand Prix") == expected
 
 
 def test_select_race_compound_defaults_for_missing_or_invalid_file(tmp_path, patcher):

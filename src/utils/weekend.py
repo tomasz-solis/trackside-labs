@@ -8,7 +8,9 @@ from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 _EXCLUDED_SCHEDULE_EVENT_NAMES: dict[int, frozenset[str]] = {
-    2026: frozenset({"bahrain grand prix", "saudi arabian grand prix"})
+    # Bahrain returned on 2026-10-04 as a round at Sepang; only Saudi Arabia stays cancelled.
+    # "Malaysian Grand Prix" is Sepang's track-data key, not a 2026 event.
+    2026: frozenset({"saudi arabian grand prix", "malaysian grand prix"})
 }
 
 
@@ -107,8 +109,18 @@ def _get_schedule_rows(year: int) -> tuple[tuple[str, str], ...]:
             for _, event in schedule.iterrows():
                 event_name = str(event.get("EventName", "")).strip()
                 event_format = str(event.get("EventFormat", "")).strip().lower()
-                if event_name and not should_skip_schedule_event(year, event_name):
-                    rows.append((event_name, event_format))
+                if not event_name or "testing" in event_name.lower():
+                    continue
+                # FastF1 is the source of truth: it drops cancelled races itself, and a
+                # hand-kept cancelled list must not hide one that comes back (2026 Bahrain).
+                if should_skip_schedule_event(year, event_name):
+                    logger.warning(
+                        "FastF1 lists %r for %s although it is on the cancelled list; "
+                        "keeping it. Update _EXCLUDED_SCHEDULE_EVENT_NAMES.",
+                        event_name,
+                        year,
+                    )
+                rows.append((event_name, event_format))
     except Exception as exc:
         logger.warning("Could not load FastF1 schedule for %s: %s", year, exc)
 

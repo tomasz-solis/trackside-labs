@@ -1459,3 +1459,25 @@ def test_run_warmup_precompute_cycle_hard_fails_on_unregistered_circuit(patcher)
         warmup.run_warmup_precompute_cycle(
             2026, now_utc=fixed_now, dry_run=True, verify_db_writes=False
         )
+
+
+def test_warmup_gate_rejects_a_known_race_at_an_unregistered_venue(patcher):
+    """A known GP name at an unknown venue is a moved race: stop instead of using old data."""
+    from src.data.circuit_registry import CircuitResolutionError
+
+    patcher.setattr(
+        "src.utils.schedule_location.location_for_race",
+        lambda year, race_name: "Somewhere New",
+    )
+
+    with pytest.raises(CircuitResolutionError, match="Somewhere New"):
+        warmup._validate_target_circuits(("Qatar Grand Prix",), 2026)
+
+
+def test_warmup_gate_accepts_2026_bahrain_at_sepang(patcher):
+    patcher.setattr(
+        "src.utils.schedule_location.location_for_race",
+        lambda year, race_name: "Kuala Lumpur",
+    )
+
+    warmup._validate_target_circuits(("Bahrain Grand Prix",), 2026)

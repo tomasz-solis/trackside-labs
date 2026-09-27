@@ -8,6 +8,11 @@ simulator seed noise (``Baseline2026Predictor`` hardcodes ``seed=42`` through
 most of the replay history), so ``--seed-floor`` lets a candidate delta be
 gated against a measured seed-noise floor computed from two identically-coded
 runs at different seeds.
+
+Checkpoints (PRE/FP1/FP2/FP3/SQ) from the same race weekend share one actual
+result, so the bootstrap CI resamples whole weekends, not individual
+checkpoints: the effective sample size is the number of race weekends, not
+the (larger) number of checkpoints.
 """
 
 from __future__ import annotations
@@ -121,14 +126,28 @@ def _round_sort_key(schedule_order: list[str], key: CheckpointKey) -> tuple[int,
 
 
 def _bootstrap_ci(
-    deltas: np.ndarray, iterations: int, rng: np.random.Generator
+    deltas: np.ndarray, weekends: np.ndarray, iterations: int, rng: np.random.Generator
 ) -> tuple[float, float]:
-    """Return a 95% paired bootstrap CI for the mean of ``deltas``."""
+    """Return a 95% bootstrap CI for the mean of ``deltas``, resampling by race weekend.
+
+    Checkpoints (PRE/FP1/FP2/FP3/SQ) from the same race weekend share the same actual
+    result, so they are not independent draws. Resampling whole weekends with
+    replacement, then taking every checkpoint of each drawn weekend, keeps that
+    dependence intact instead of treating each checkpoint as its own data point.
+    """
     n = len(deltas)
     if n == 0:
         return (0.0, 0.0)
-    sample_indices = rng.integers(0, n, size=(iterations, n))
-    resampled_means = deltas[sample_indices].mean(axis=1)
+    unique_weekends = sorted(set(weekends.tolist()))
+    indices_by_weekend = {
+        weekend: np.flatnonzero(weekends == weekend) for weekend in unique_weekends
+    }
+    n_weekends = len(unique_weekends)
+    draws = rng.integers(0, n_weekends, size=(iterations, n_weekends))
+    resampled_means = np.empty(iterations)
+    for i, draw in enumerate(draws):
+        idx = np.concatenate([indices_by_weekend[unique_weekends[w]] for w in draw])
+        resampled_means[i] = deltas[idx].mean()
     lo, hi = np.percentile(resampled_means, [2.5, 97.5])
     return float(lo), float(hi)
 
@@ -145,6 +164,7 @@ def compare_metric(
     """Compare one metric across every paired checkpoint. None if unavailable."""
     baseline_vals: list[float] = []
     candidate_vals: list[float] = []
+    weekends: list[str] = []
     for key in paired_keys:
         baseline_metrics = baseline_by_key[key]
         candidate_metrics = candidate_by_key[key]
@@ -152,6 +172,7 @@ def compare_metric(
             continue
         baseline_vals.append(float(baseline_metrics[metric]))
         candidate_vals.append(float(candidate_metrics[metric]))
+        weekends.append(key[0])
     if not baseline_vals:
         return None
 
@@ -169,7 +190,7 @@ def compare_metric(
         else:
             worse += 1
 
-    ci_lo, ci_hi = _bootstrap_ci(deltas, iterations, rng)
+    ci_lo, ci_hi = _bootstrap_ci(deltas, np.array(weekends), iterations, rng)
     return MetricRow(
         target=target,
         metric=metric,
@@ -353,7 +374,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Prediction targets to compare.",
     )
     parser.add_argument(
-        "--bootstrap", type=int, default=4000, help="Bootstrap resample count for the CI."
+        "--bootstrap",
+        type=int,
+        default=4000,
+        help="Bootstrap resample count for the CI (resamples race weekends, not checkpoints).",
     )
     return parser
 

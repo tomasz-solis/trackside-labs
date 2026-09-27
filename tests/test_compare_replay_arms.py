@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from scripts.compare_replay_arms import MetricRow, MetricsByCheckpoint, analyze_arm, assign_verdicts
+import numpy as np
+import pytest
+from scripts.compare_replay_arms import (
+    MetricRow,
+    MetricsByCheckpoint,
+    _bootstrap_ci,
+    analyze_arm,
+    assign_verdicts,
+)
 
 TARGET = "main_qualifying"
 
@@ -104,3 +112,69 @@ def test_seed_floor_gates_on_interval_not_point_estimate() -> None:
     candidate = analyze_arm(baseline, _by_target([1.05] * 8), [TARGET], iterations=400)
     assign_verdicts(candidate, floor)
     assert _overall_mae_row(candidate).verdict == "unresolvable (below seed floor)"
+
+
+def test_clustered_bootstrap_matches_per_weekend_resampling() -> None:
+    """Checkpoints sharing a weekend's delta must resample as one unit, not each on its own.
+
+    Every checkpoint within a weekend carries the same delta here, so the clustered
+    bootstrap over all 12 checkpoints (4 weekends x 3 checkpoints) must produce exactly
+    the same resampled-mean distribution as bootstrapping the 4 weekend deltas directly:
+    the effective sample size is the weekend count, not the checkpoint count.
+    """
+    weekend_deltas = [0.30, -0.10, 0.20, -0.40]
+    deltas = np.array([delta for delta in weekend_deltas for _ in range(3)])
+    weekends = np.array([f"W{i}" for i in range(len(weekend_deltas)) for _ in range(3)])
+    collapsed_deltas = np.array(weekend_deltas)
+    collapsed_weekends = np.array([f"W{i}" for i in range(len(weekend_deltas))])
+
+    clustered_ci = _bootstrap_ci(deltas, weekends, 2000, np.random.default_rng(0))
+    collapsed_ci = _bootstrap_ci(
+        collapsed_deltas, collapsed_weekends, 2000, np.random.default_rng(0)
+    )
+
+    assert clustered_ci == pytest.approx(collapsed_ci)
+
+
+def test_clustered_bootstrap_wider_than_naive_checkpoint_bootstrap() -> None:
+    """Treating within-weekend checkpoints as independent understates the true CI.
+
+    Same perfectly-correlated-within-weekend data as above, but compared against the
+    old (pre-fix) behaviour of resampling every checkpoint independently: with only 4
+    independent weekends behind 12 checkpoints, the clustered CI must be wider.
+    """
+    weekend_deltas = [0.30, -0.10, 0.20, -0.40]
+    deltas = np.array([delta for delta in weekend_deltas for _ in range(3)])
+    weekends = np.array([f"W{i}" for i in range(len(weekend_deltas)) for _ in range(3)])
+
+    clustered_lo, clustered_hi = _bootstrap_ci(deltas, weekends, 4000, np.random.default_rng(0))
+
+    # Old behaviour: resample individual checkpoints as if independent.
+    rng = np.random.default_rng(0)
+    n = len(deltas)
+    sample_indices = rng.integers(0, n, size=(4000, n))
+    naive_means = deltas[sample_indices].mean(axis=1)
+    naive_lo, naive_hi = np.percentile(naive_means, [2.5, 97.5])
+
+    assert (clustered_hi - clustered_lo) > (naive_hi - naive_lo)
+
+
+def test_bootstrap_ci_singleton_weekends_matches_old_iid_checkpoint_bootstrap() -> None:
+    """One checkpoint per weekend (the existing tests' shape) is unchanged by the fix.
+
+    When every weekend contributes exactly one checkpoint, resampling weekends and
+    resampling checkpoints are the same operation, so the clustered CI must equal the
+    old iid-checkpoint CI bit for bit.
+    """
+    deltas = np.array([0.1, -0.2, 0.3, -0.4, 0.05, -0.15, 0.25, -0.35])
+    weekends = np.array([f"W{i}" for i in range(len(deltas))])
+
+    clustered_ci = _bootstrap_ci(deltas, weekends, 500, np.random.default_rng(0))
+
+    rng = np.random.default_rng(0)
+    n = len(deltas)
+    sample_indices = rng.integers(0, n, size=(500, n))
+    naive_means = deltas[sample_indices].mean(axis=1)
+    naive_ci = tuple(float(v) for v in np.percentile(naive_means, [2.5, 97.5]))
+
+    assert clustered_ci == naive_ci

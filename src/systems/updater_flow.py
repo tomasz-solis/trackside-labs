@@ -13,6 +13,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.data.actual_results_fetcher import _result_row_is_dnf
+
 CharacteristicPayload = dict[str, Any]
 RacePaceMap = dict[str, float]
 CompoundMetricsByTeam = dict[str, dict[str, Any]]
@@ -51,16 +53,18 @@ def _load_characteristics_payload(
 def extract_dnf_drivers(race_results: pd.DataFrame) -> set[str]:
     """Return driver codes that retired rather than finishing the race.
 
-    Keeps drivers who finished or were classified as lapped (Status contains
-    "Lap") but excludes mechanical retirements, collisions, and other DNFs.
+    Uses the same ``ClassifiedPosition``/``Status`` rule as the scoring path
+    (`actual_results_fetcher._result_row_is_dnf`), so a NaN/missing Status is
+    not mistaken for a DNF.
     """
     dnf_drivers: set[str] = set()
-    if not isinstance(race_results, pd.DataFrame) or "Status" not in race_results.columns:
+    if not isinstance(race_results, pd.DataFrame):
+        return dnf_drivers
+    if "ClassifiedPosition" not in race_results.columns and "Status" not in race_results.columns:
         return dnf_drivers
 
     for _, row in race_results.iterrows():
-        status = str(row.get("Status", "")).strip()
-        if status and status != "Finished" and "Lap" not in status:
+        if _result_row_is_dnf(row):
             abbrev = str(row.get("Abbreviation", "")).strip()
             if abbrev:
                 dnf_drivers.add(abbrev)

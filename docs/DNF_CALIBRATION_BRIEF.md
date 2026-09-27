@@ -4,7 +4,7 @@ Retirements add about 1.2 to 1.4 MAE positions on incident weekends (2026: Austr
 
 ## How DNFs work today
 
-1. **Per-driver rate.** `_update_dnf_rate_ema` in `src/systems/updater.py` blends each race into the driver's rate: `(1-w)*old + w*retired`, clipped. It ignores the track: a Monaco retirement counts the same as a Monza one.
+1. **Per-driver rate.** `_update_dnf_rate_ema` in `src/systems/updater.py` blends each race into the driver's rate: `(1-w)*old + w*retired`, clipped. It ignores the track: a Monaco retirement counts the same as a Monza one. Fixed 2026-09-27: a session with a NaN or missing `Status` and no `ClassifiedPosition` used to count as a DNF for every driver in it, so a single bad session could push `dnf_rate` toward 1.0 permanently. It now shares the scoring rule (`ClassifiedPosition` authoritative, else `Status`; missing means no signal, not a DNF) with `src/data/actual_results_fetcher.py`.
 2. **Experience add-on.** `_EXPERIENCE_DNF_MODIFIERS` in `baseline/race/preparation_flow.py`: rookie +0.05, second year +0.03, developing +0.02, established 0.
 3. **Bounds** (`src/utils/config_schema.py`): missing driver 0.10, historical cap 0.20, final cap 0.35, floor 0.02.
 4. **Draw.** Per lap in `src/utils/lap_by_lap_simulator.py`: `rng.random() < dnf_probability / race_distance`. An earlier version of this brief scoped a one-draw-per-race function; that function had no callers and was deleted on 2026-09-02.

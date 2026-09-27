@@ -11,6 +11,7 @@ import fastf1
 import numpy as np
 import pandas as pd
 
+from src.data.actual_results_fetcher import _clean_result_str
 from src.extractors.matched_laps import (
     MatchedLapConfig,
     aggregate_matched_teammate_laps,
@@ -454,17 +455,24 @@ def update_team_characteristics(
 
 
 def _status_observed_driver_codes(session_results: pd.DataFrame) -> set[str]:
-    """Return drivers whose result row has an explicit classified status."""
+    """Return drivers whose result row has a usable ClassifiedPosition or Status."""
     observed: set[str] = set()
     if not isinstance(session_results, pd.DataFrame):
         return observed
-    if "Abbreviation" not in session_results.columns or "Status" not in session_results.columns:
+    if "Abbreviation" not in session_results.columns:
+        return observed
+    if (
+        "ClassifiedPosition" not in session_results.columns
+        and "Status" not in session_results.columns
+    ):
         return observed
 
     for _, row in session_results.iterrows():
-        status = str(row.get("Status", "")).strip()
+        has_signal = bool(_clean_result_str(row.get("ClassifiedPosition"))) or bool(
+            _clean_result_str(row.get("Status"))
+        )
         driver_code = str(row.get("Abbreviation", "")).strip()
-        if status and driver_code:
+        if has_signal and driver_code:
             observed.add(driver_code)
     return observed
 

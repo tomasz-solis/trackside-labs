@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from src.systems import updater
+from src.systems.updater_flow import extract_dnf_drivers
 
 
 def _timedelta_seconds(value: float) -> pd.Timedelta:
@@ -918,6 +919,55 @@ def test_update_bayesian_driver_ratings_updates_dnf_rate_from_statuses(patcher, 
     payload = store.saved[0][2]
     assert payload["drivers"]["LEC"]["dnf_risk"]["dnf_rate"] == pytest.approx(0.10)
     assert payload["drivers"]["NOR"]["dnf_risk"]["dnf_rate"] == pytest.approx(0.55)
+
+
+def test_extract_dnf_drivers_all_nan_status_is_empty():
+    """A NaN Status must not be misread as a retirement string."""
+    race_results = pd.DataFrame(
+        {
+            "Abbreviation": ["LEC", "NOR"],
+            "Status": [float("nan"), float("nan")],
+        }
+    )
+    assert extract_dnf_drivers(race_results) == set()
+
+
+def test_extract_dnf_drivers_matches_canonical_rule():
+    """ClassifiedPosition overrides Status when both are present."""
+    race_results = pd.DataFrame(
+        {
+            "Abbreviation": ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"],
+            "Status": ["Finished", "+1 Lap", "Lapped", "Retired", float("nan"), "Collision"],
+            "ClassifiedPosition": ["1", "2", "3", "R", None, "R"],
+        }
+    )
+    assert extract_dnf_drivers(race_results) == {"DDD", "FFF"}
+
+
+def test_update_dnf_rate_ema_all_nan_status_observes_nobody():
+    """No ClassifiedPosition and an all-NaN Status leaves dnf_rate untouched."""
+    session_results = pd.DataFrame(
+        {
+            "Abbreviation": ["LEC", "NOR"],
+            "Status": [float("nan"), float("nan")],
+        }
+    )
+    drivers_payload = {
+        "LEC": {"dnf_risk": {"dnf_rate": 0.20}},
+        "NOR": {"dnf_risk": {"dnf_rate": 0.10}},
+    }
+
+    touched = updater._update_dnf_rate_ema(
+        session_results=session_results,
+        drivers_payload=drivers_payload,
+        blend_weight=0.5,
+        floor=0.02,
+        cap=0.9,
+    )
+
+    assert touched == 0
+    assert drivers_payload["LEC"]["dnf_risk"]["dnf_rate"] == 0.20
+    assert drivers_payload["NOR"]["dnf_risk"]["dnf_rate"] == 0.10
 
 
 def test_load_driver_characteristics_payload_prefers_year_scoped_fallback(tmp_path, patcher):

@@ -166,6 +166,37 @@ def test_auto_update_if_needed_force_recheck_passes_explicit_race_list(patcher):
     assert captured_races == ["Australian Grand Prix", "Chinese Grand Prix"]
 
 
+def test_auto_update_if_needed_force_recheck_skips_learned_race_without_warning(patcher):
+    """force_recheck must not report a partial update when it only skips an already-learned race.
+
+    Exercises the real needs_update/auto_update_from_races, not the faked
+    call-site versions the other force_recheck test above uses, so it proves
+    the fix at the source rather than just the plumbing.
+    """
+    calls, _progress_bar, _status_text, cache_calls = _stub_streamlit(patcher)
+
+    patcher.setattr(
+        "src.utils.auto_updater.get_completed_races",
+        lambda year=2026: ["Australian Grand Prix", "Chinese Grand Prix"],
+    )
+    patcher.setattr(
+        "src.utils.auto_updater.get_learned_races",
+        lambda year=2026: ["Australian Grand Prix"],
+    )
+    patcher.setattr("src.utils.auto_updater.is_sprint_weekend", lambda year, race_name: False)
+    patcher.setattr(
+        "src.utils.auto_updater.mark_race_as_learned", lambda race_name, year=2026: None
+    )
+    patcher.setattr("src.systems.updater.update_from_race", lambda year, race_name: None)
+
+    update_flow.auto_update_if_needed(force_recheck=True)
+
+    assert ("info", "Found 1 new race(s) to learn from. Updating characteristics...") in calls
+    assert ("success", "Learned from 1 race(s). Predictions now use updated data.") in calls
+    assert not any(level == "warning" for level, _ in calls)
+    assert cache_calls == ["resource", "data"]
+
+
 def test_auto_update_if_needed_passes_year_to_updater_dependencies(patcher):
     _stub_streamlit(patcher)
     seen_years: list[int] = []

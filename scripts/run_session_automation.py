@@ -45,7 +45,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force-recheck",
         action="store_true",
-        help="Re-check boundaries and completed races even if they were seen before.",
+        help=(
+            "Re-check session boundaries even if seen before. Does not re-learn an "
+            "already-learned race: that is always skipped."
+        ),
     )
     parser.add_argument(
         "--no-reconcile-actuals",

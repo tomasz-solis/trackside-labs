@@ -221,6 +221,70 @@ class TestAutoUpdaterExecution:
         assert mock_update.call_args_list[0].args == (2026, "Australian Grand Prix")
         assert mock_update.call_args_list[1].args == (2026, "Chinese Grand Prix")
 
+    def test_auto_update_from_races_force_recheck_skips_already_learned_race(self, temp_data_dir):
+        """Force recheck must not re-apply the EMA blend to an already-learned race.
+
+        needs_update(force_recheck=True) excludes already-learned races, same as
+        the normal path: it only re-fetches completed races from FastF1 instead
+        of trusting a cache, it does not resurrect learned races as "new". The
+        guard in auto_update_from_races still applies on top, as defence for an
+        explicit races_to_update list assembled some other way.
+        """
+        from src.utils.auto_updater import auto_update_from_races, needs_update
+
+        with patch("src.utils.auto_updater.get_completed_races") as mock_completed:
+            mock_completed.return_value = ["Australian Grand Prix", "Chinese Grand Prix"]
+
+            with patch("src.utils.auto_updater.get_learned_races") as mock_learned:
+                mock_learned.return_value = ["Australian Grand Prix"]
+
+                needs_update_flag, race_candidates = needs_update(force_recheck=True)
+                assert needs_update_flag is True
+                assert race_candidates == ["Chinese Grand Prix"]
+
+                with patch("src.systems.updater.update_from_race") as mock_update:
+                    with patch("src.utils.auto_updater.is_sprint_weekend", return_value=False):
+                        with patch("src.utils.auto_updater.mark_race_as_learned") as mock_mark:
+                            updated_count = auto_update_from_races(races_to_update=race_candidates)
+
+        assert updated_count == 1
+        mock_update.assert_called_once_with(2026, "Chinese Grand Prix")
+        mock_mark.assert_called_once_with("Chinese Grand Prix", year=2026)
+
+    def test_auto_update_from_races_explicit_list_skips_already_learned_race(self, temp_data_dir):
+        """An explicit races_to_update list still skips races already learned."""
+        from src.utils.auto_updater import auto_update_from_races
+
+        with patch("src.utils.auto_updater.get_learned_races") as mock_learned:
+            mock_learned.return_value = ["Australian Grand Prix"]
+
+            with patch("src.systems.updater.update_from_race") as mock_update:
+                with patch("src.utils.auto_updater.is_sprint_weekend", return_value=False):
+                    with patch("src.utils.auto_updater.mark_race_as_learned") as mock_mark:
+                        updated_count = auto_update_from_races(
+                            races_to_update=[
+                                "Australian Grand Prix",
+                                "Chinese Grand Prix",
+                            ]
+                        )
+
+        assert updated_count == 1
+        mock_update.assert_called_once_with(2026, "Chinese Grand Prix")
+        mock_mark.assert_called_once_with("Chinese Grand Prix", year=2026)
+
+    def test_auto_update_from_races_all_explicit_races_already_learned(self, temp_data_dir):
+        """No update calls happen when every requested race is already learned."""
+        from src.utils.auto_updater import auto_update_from_races
+
+        with patch("src.utils.auto_updater.get_learned_races") as mock_learned:
+            mock_learned.return_value = ["Australian Grand Prix"]
+
+            with patch("src.systems.updater.update_from_race") as mock_update:
+                updated_count = auto_update_from_races(races_to_update=["Australian Grand Prix"])
+
+        assert updated_count == 0
+        mock_update.assert_not_called()
+
     def test_auto_update_from_races_runs_sprint_before_main_race(self, temp_data_dir):
         """Sprint weekends should learn sprint sessions before the main race update."""
         from src.utils.auto_updater import auto_update_from_races

@@ -351,7 +351,8 @@ def auto_update_if_needed(force_recheck: bool = False, year: int = 2026) -> None
     Also refreshes predictor if characteristic files were manually updated.
 
     Args:
-        force_recheck: If True, clears learned races cache to force re-check
+        force_recheck: Only adds log detail; already-learned races are always
+            excluded, so this does not re-check or re-learn a learned race.
         year: Season year to evaluate for newly completed races
     """
     from src.utils.auto_updater import auto_update_from_races, needs_update

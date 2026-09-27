@@ -224,17 +224,19 @@ def needs_update(year: int = 2026, force_recheck: bool = False) -> tuple[bool, l
     Check if there are new races to learn from.
 
     Args:
-        force_recheck: If True, re-check all completed races regardless of learned state
+        force_recheck: Only logs more detail. Learned races are always excluded,
+            because re-learning a race double-counts it.
     """
     completed = get_completed_races(year=year)
-
-    if force_recheck:
-        # Force re-check: treat all completed races as potentially new
-        logger.info("Force recheck enabled: found %s completed race(s)", len(completed))
-        return len(completed) > 0, completed
-
     learned = get_learned_races(year=year)
     new_races = [race for race in completed if race not in learned]
+
+    if force_recheck:
+        logger.info(
+            "Force recheck enabled: found %s completed race(s), %s not yet learned",
+            len(completed),
+            len(new_races),
+        )
 
     return len(new_races) > 0, new_races
 
@@ -249,7 +251,10 @@ def auto_update_from_races(
     Args:
         progress_callback: Optional callback receiving (current, total, message).
         races_to_update: Explicit race list to update. When provided, this exact
-            list is used and `needs_update()` is not recomputed.
+            list is used and `needs_update()` is not recomputed. Races already
+            learned are still skipped: the EMA blend in `update_from_race` /
+            `update_from_sprint_race` is not idempotent, so re-applying an
+            already-learned race would double-count its evidence.
     """
     if races_to_update is None:
         needs_update_flag, new_races = needs_update(year=year)
@@ -262,6 +267,24 @@ def auto_update_from_races(
         if not new_races:
             logger.info("No races provided for explicit update.")
             return 0
+
+    # Defence in depth: needs_update() already excludes learned races, but an
+    # explicit races_to_update list can be assembled by other code, so guard
+    # here too against double-counting an already-learned race.
+    learned = set(get_learned_races(year=year))
+    already_learned = [race for race in new_races if race in learned]
+    new_races = [race for race in new_races if race not in learned]
+    if already_learned:
+        logger.info(
+            "Skipping %s already-learned race(s) for %s: %s",
+            len(already_learned),
+            year,
+            already_learned,
+        )
+
+    if not new_races:
+        logger.info("All requested races have already been learned from.")
+        return 0
 
     logger.info("Found %s new race(s) to learn from: %s", len(new_races), new_races)
 

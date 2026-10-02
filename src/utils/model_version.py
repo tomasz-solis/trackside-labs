@@ -10,7 +10,7 @@ from src.utils import config_loader
 # Keep in sync with `model.version` in config/default.yaml and the ModelConfig
 # schema default in config_schema.py. test_model_version_defaults_agree fails if
 # these three drift apart; this constant is only reached when config fails to load.
-_DEFAULT_MODEL_VERSION = "3.0"
+_DEFAULT_MODEL_VERSION = "3.1"
 
 
 def get_model_version() -> str:

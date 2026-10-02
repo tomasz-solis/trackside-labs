@@ -37,7 +37,7 @@ grid:
     #   LAW: TSU
 
 model:
-  version: "3.0"
+  version: "3.1"
   # Regulation eras for seconds calibration. The gap between a fast car and a slow
   # one is set by the regulations, so team_strength_seconds_mapping is fitted within
   # one era and never across a boundary: pooling 2022-2025 with 2026 produced a slope
@@ -536,11 +536,16 @@ baseline_predictor:
                                       # Range: 0.30 (Monza) to 0.40 (Monaco)
     # Cap pass probability with the track's observed overtaking rate. Off only for A/B arms.
     track_pass_cap_enabled: true
-    # Model 3.1 candidates, off until a replay arm clears the seed floor.
-    # Per-lap DNF chance 1-(1-p)^(1/N) instead of p/N (which under-delivers p by ~9%).
+    # Model 3.1 (2026-10-02). Replay arms: all below the seed floor, see MODEL_LEDGER.
+    # Per-lap DNF chance 1-(1-p)^(1/N) instead of p/N. Off: leaned worse on the replay.
     dnf_per_lap_hazard: false
-    # Sort the finish order by median rank (mean as tie-break) instead of mean rank.
-    finish_order_sort: mean_rank
+    # Sort the finish order by median rank (mean as tie-break), so a DNF tail does
+    # not bury the usual winner. On since 3.1: accuracy-neutral, fixes the ordering.
+    finish_order_sort: median_rank
+    # Read the gap to the car ahead from the start-of-lap snapshot. Off read live
+    # times, where the car ahead had already run this lap, so every gap clamped to 0.
+    # On since 3.1: accuracy-neutral, fixes the bug.
+    overtake_gap_from_lap_start: true
 
     # Intra-team variance
     # Split between a persistent per-race setup offset and smaller lap-to-lap noise.

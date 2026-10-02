@@ -78,6 +78,7 @@ Older floors (2026-09-12, 13 rounds; 2026-09-21, 14 rounds) were measured on a r
 |---|---|---|---|
 | 2026-07-28 | Centre `quali_rating_mu_s` within each team when building the qualifying field. It carried a team component on top of team strength, so car pace counted twice. | Qualifying MAE 3.525 -> 2.828; mean per-driver \|bias\| 2.889 -> 1.677. HUL +6.11 -> +1.67, ALB -5.78 -> +0.11, GAS +4.33 -> +0.33 | `93bfbeb0` |
 | 2026-08-04 | Refit `team_strength_seconds_mapping` on 2026 only. The 2022 to 2025 fit had never seen a 2026 lap and compressed team gaps all season. | Qualifying MAE 2.6599 -> 2.5724, \|bias\| 1.5017 -> 1.2997; race MAE 4.0606 -> 3.9192, \|bias\| 2.4242 -> 2.3434 (60 simulations). Slopes: qualifying 1.77417 -> 2.76281, race 1.97077 -> 3.89727 | `fdf7be6f` |
+| 2026-10-02 | Model 3.1: finish order sorted by median rank; overtake gaps read from the start-of-lap snapshot. | Both `unresolvable` (below the seed floor), adopted on correctness. See the 2026-10-02 entry | 3.1 commit |
 
 Residual after that, same measurement: SAI -5.67, LAW +6.44, BOR +4.44, ALO -4.11, VER -4.11. Team-strength errors (Williams over-rated, RB under-rated), which the centring fix does not touch.
 
@@ -880,6 +881,22 @@ Not a model change. Display and config only; the finish order, p5/p95 and the si
 | Pooled | 63.3% | 62.2% | 58.9% |
 
 Whole places and the include-the-shown-place rule push coverage above 50%, so the caption says "about 6 times in 10". The 2026-09-27 table measured 49-50% on fractional residuals, not on the band as shown. A 75% qualifying band was 4 to 8 places wide by bucket, so 50% stays. Sprint qualifying (10 checkpoints) uses the main qualifying table.
+
+## 2026-10-02: model 3.1, five single-change arms, two adopted on correctness
+
+Baseline `data/historical_replay_arms/Z_base_30` (3.0 code at `4c04c9a9` plus the switch commit, all switches off). Each arm changes one config line. Seed 42, `--through-round 14`, floor `data/historical_replay_m1s42_r14` vs `m1s43_r14` (race corr 0.0067 / MAE 0.076, qualifying 0.0027 / 0.054, sprint 0.0080 / 0.100).
+
+| Arm | Change | Race corr | Race MAE | Qualifying | Verdict |
+|---|---|---|---|---|---|
+| G | Sort by median rank, mean as tie-break | +0.0006 | +0.0001 (42/51 tied) | not touched | `unresolvable`, adopted on correctness |
+| H | Per-lap DNF hazard `1-(1-p)^(1/N)` | -0.0019 | +0.0119 | not touched | `unresolvable`, leans worse, off |
+| I | `qualifying.session_confidence.fp1` 0.2 to 0.45 | +0.0001 | +0.0056 | identical | `never activated` for qualifying: the replay path does not read the key |
+| J | `stabilization_strength` 1.0 to 0.0 | -0.0026 | -0.0131 | corr +0.0030, MAE -0.043 | `unresolvable` (qualifying corr inside the floor's CI) |
+| K | Overtake gap from the start-of-lap snapshot | -0.0011 | -0.0154 | not touched | `unresolvable`, adopted on correctness |
+
+**Why G and K ship without a measured gain.** Both fix logic, not a tuned number, and neither costs anything measurable. K: the lap loop runs the leader first, so a follower read the car ahead's time after it had already run the lap; every gap clamped to 0 and every follower paid dirty air and tried a pass every lap. G: mean rank let a driver's DNF tail push the usual winner down (Sepang 3.0 PRE: VER median P2 shown behind RUS median P3). Decision by Tomasz, 2026-10-02.
+
+**What this does not show.** No arm resolves at n=14 races. K changed the pass mechanics the 3.0 overtaking calibration was tuned on, yet scored neutral: the calibration was not as coupled to the bug as expected. I needs a different test, because qualifying in the replay uses stored checkpoint profiles. J's qualifying lean is worth a seed-43 repeat before anyone reads it.
 
 ## Adding an entry
 

@@ -427,6 +427,8 @@ def simulate_race_lap_by_lap(
     _elite_denominator = max(1e-6, 1.0 - _elite_skill_threshold)
     _lap_time_bounds = _lt_cfg.get("bounds", [70.0, 120.0])
 
+    overtake_gap_from_lap_start = bool(race_params.get("overtake_gap_from_lap_start", False))
+
     # Per-lap retirement chance. p / N per lap only retires ~1 - e^-p of drivers over
     # the race (9% short at p 0.2); the hazard form delivers p exactly.
     if race_params.get("dnf_per_lap_hazard", False):
@@ -478,6 +480,11 @@ def simulate_race_lap_by_lap(
         )
 
         active_neutralization = _neutralization_by_lap.get(lap_num)  # "SC", "VSC", or None
+        lap_start_times = (
+            {d: s["cumulative_time"] for d, s in driver_states.items()}
+            if overtake_gap_from_lap_start
+            else None
+        )
 
         for driver in lap_driver_order:
             state = driver_states[driver]
@@ -621,6 +628,7 @@ def simulate_race_lap_by_lap(
                 race_params=race_params,
                 contending_pairs=contending_pairs,
                 rng=rng,
+                lap_start_times=lap_start_times,
             )
 
             lap_time = (
@@ -816,11 +824,14 @@ def _get_traffic_overtake_effect(
     race_params: dict[str, Any],
     contending_pairs: int,
     rng: np.random.Generator,
+    lap_start_times: dict[str, float] | None = None,
 ) -> TrafficOvertakeResult:
     """Return lap-time delta from traffic and overtake attempts.
 
     Positive values are time losses (dirty air), negative values are gains
-    from successful overtakes.
+    from successful overtakes. ``lap_start_times`` gives the gap from the
+    start-of-lap snapshot. Without it the gap reads live cumulative times, and
+    because the car ahead runs its lap first that gap is negative and clamps to 0.
     """
     ahead_driver = driver_ahead_map.get(driver)
     if ahead_driver is None:
@@ -831,7 +842,10 @@ def _get_traffic_overtake_effect(
     if ahead_state.get("has_dnf", False):
         return TrafficOvertakeResult(0.0, False)
 
-    gap_to_ahead = max(0.0, state["cumulative_time"] - ahead_state["cumulative_time"])
+    if lap_start_times is not None:
+        gap_to_ahead = max(0.0, lap_start_times[driver] - lap_start_times[ahead_driver])
+    else:
+        gap_to_ahead = max(0.0, state["cumulative_time"] - ahead_state["cumulative_time"])
     track_overtaking = race_params.get("track_overtaking", 0.5)
     overtake_cfg = race_params.get("overtake_model", {})
 

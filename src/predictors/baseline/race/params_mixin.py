@@ -59,6 +59,9 @@ class BaselineRaceParamsMixin:
             "dnf_per_lap_hazard": bool(
                 cfg.get("baseline_predictor.race.dnf_per_lap_hazard", False)
             ),
+            "overtake_gap_from_lap_start": bool(
+                cfg.get("baseline_predictor.race.overtake_gap_from_lap_start", False)
+            ),
             "pace_weight_track_modifier": cfg.get(
                 "baseline_predictor.race.pace_weight_track_modifier", 0.10
             ),

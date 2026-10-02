@@ -90,3 +90,29 @@ def test_the_cap_is_the_observed_rate_divided_by_the_following_pairs():
 def test_switching_the_cap_off_restores_the_previous_ceiling():
     """The A/B switch: with the cap off, Monaco's observed rate no longer limits passing."""
     assert _pass_rate(1.12, 0.95, cap_enabled=False) > 0.5
+
+
+def test_gap_from_lap_start_sees_a_clear_follower_as_clear():
+    """The car ahead has already added this lap (~90 s) when the follower is checked.
+
+    Live times then make a 5 s gap read as 0 s, so the follower pays dirty air.
+    The start-of-lap snapshot keeps him in clean air.
+    """
+    states = _states(5.0)
+    lap_start = {driver: state["cumulative_time"] for driver, state in states.items()}
+    states["AHEAD"]["cumulative_time"] += 90.0  # ahead already ran this lap
+
+    def effect(lap_start_times):
+        return _get_traffic_overtake_effect(
+            driver="CHASER",
+            driver_states=states,
+            driver_info_map=_info(states),
+            driver_ahead_map={"CHASER": "AHEAD"},
+            race_params=_params(None, 0.5),
+            contending_pairs=21,
+            rng=np.random.default_rng(0),
+            lap_start_times=lap_start_times,
+        ).effect
+
+    assert effect(None) != 0.0  # old path: gap clamps to 0, dirty air or a pass
+    assert effect(lap_start) == 0.0  # snapshot: 5 s gap, clean air

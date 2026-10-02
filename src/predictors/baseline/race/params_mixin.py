@@ -56,6 +56,9 @@ class BaselineRaceParamsMixin:
             "track_pass_cap_enabled": bool(
                 cfg.get("baseline_predictor.race.track_pass_cap_enabled", True)
             ),
+            "dnf_per_lap_hazard": bool(
+                cfg.get("baseline_predictor.race.dnf_per_lap_hazard", False)
+            ),
             "pace_weight_track_modifier": cfg.get(
                 "baseline_predictor.race.pace_weight_track_modifier", 0.10
             ),

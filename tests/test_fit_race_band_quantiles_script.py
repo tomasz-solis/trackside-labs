@@ -93,4 +93,4 @@ def test_load_residuals_pairs_predictions_with_actuals_and_drops_dnfs(tmp_path):
 
     assert len(residuals) == 1
     assert residuals[0].bucket == "1-5"
-    assert residuals[0].residual == 1.0 - 1.5
+    assert residuals[0].residual == 0.0  # actual P1 minus shown P1; blend score ignored

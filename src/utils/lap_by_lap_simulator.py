@@ -427,6 +427,21 @@ def simulate_race_lap_by_lap(
     _elite_denominator = max(1e-6, 1.0 - _elite_skill_threshold)
     _lap_time_bounds = _lt_cfg.get("bounds", [70.0, 120.0])
 
+    # Per-lap retirement chance. p / N per lap only retires ~1 - e^-p of drivers over
+    # the race (9% short at p 0.2); the hazard form delivers p exactly.
+    if race_params.get("dnf_per_lap_hazard", False):
+        per_lap_dnf = {
+            driver: _calculate_safety_car_lap_probability(
+                float(driver_info_map[driver]["dnf_probability"]), race_distance
+            )
+            for driver in driver_states
+        }
+    else:
+        per_lap_dnf = {
+            driver: float(driver_info_map[driver]["dnf_probability"]) / race_distance
+            for driver in driver_states
+        }
+
     # Lap-by-lap progression
     for lap_num in range(1, race_distance + 1):
         active_order = sorted(
@@ -472,7 +487,7 @@ def simulate_race_lap_by_lap(
             if state["has_dnf"]:
                 continue
 
-            if rng.random() < info["dnf_probability"] / race_distance:
+            if rng.random() < per_lap_dnf[driver]:
                 state["has_dnf"] = True
                 state["dnf_lap"] = lap_num
                 logger.debug("%s DNF on lap %s", driver, lap_num)

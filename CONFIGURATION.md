@@ -27,7 +27,7 @@ Current values live in `config/default.yaml`. This page lists where to look, not
 | Race randomness | `baseline_predictor.race.base_chaos.*`, `lap1_chaos.*`, `teammate_variance_std`, `track_chaos_multiplier` |
 | Overtaking | `baseline_predictor.race.overtake_model.*`, `overtaking_transition.*`, `grid_weight_*`, `overtaking_skill_multiplier`, `final_blend.*`, `track_pass_cap_enabled` (A/B switch, on by default) |
 | Retirements | `baseline_predictor.race.dnf_*` |
-| Dashboard "Likely range" band | `baseline_predictor.race.likely_range.race`, `.sprint` (q25/q75 by predicted-position bucket, fitted by `scripts/fit_race_band_quantiles.py`) |
+| Dashboard "Likely range" band | `baseline_predictor.race.likely_range.race`, `.sprint`, `.qualifying` (q25/q75 around the shown position, by position bucket, fitted by `scripts/fit_race_band_quantiles.py`) |
 | Learning safeguards | `learning.min_samples`, `driver_error_scale`, `teammate_gap_scale`, `max_adjustment`, `interval_*` |
 | Tyres and fuel | `baseline_predictor.race.tire_physics.*`, `fuel.*` |
 | Pit strategy | `baseline_predictor.race.tire_strategy.*`, `pit_stops.*`, `strategy_constraints.*` |

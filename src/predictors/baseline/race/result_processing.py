@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -180,21 +181,26 @@ def _likely_range_bucket(position: int) -> str:
 def assign_likely_range(
     *,
     finish_order: list[dict[str, Any]],
-    is_sprint: bool,
     field_size: int,
     cfg: Any,
+    is_sprint: bool = False,
+    table_name: str | None = None,
 ) -> None:
     """Attach a calibrated 50% ``likely_lo``/``likely_hi`` range to each row.
 
-    ``lo``/``hi`` are the row's point prediction (``position_blend_score``)
-    plus the q25/q75 residual offset fitted for its final-position bucket (see
-    ``scripts/fit_race_band_quantiles.py``), clipped to the field and to
-    ``lo <= hi``. Unlike ``p5``/``p95`` (kept unchanged for evaluation), this
-    is the range the dashboard shows.
+    ``lo``/``hi`` are the row's shown ``position`` plus the q25/q75 offset
+    fitted for that position's bucket (see ``scripts/fit_race_band_quantiles.py``),
+    widened to whole places, always containing the shown position, and clipped
+    to the field. Anchoring on the shown position
+    keeps the range consistent with the place the dashboard prints. ``table_name``
+    picks ``race``, ``sprint`` or ``qualifying``; by default ``is_sprint`` picks
+    between the two race tables. Unlike ``p5``/``p95`` (kept for evaluation),
+    this is the range the dashboard shows.
     """
     if field_size <= 0:
         return
-    table_name = "sprint" if is_sprint else "race"
+    if table_name is None:
+        table_name = "sprint" if is_sprint else "race"
     table = cfg.get(f"baseline_predictor.race.likely_range.{table_name}", {}) or {}
     if not table:
         return
@@ -202,7 +208,6 @@ def assign_likely_range(
     for row in finish_order:
         try:
             position = int(row.get("position", 1))
-            point = float(row.get("position_blend_score", position))
         except (TypeError, ValueError):
             continue
 
@@ -210,14 +215,13 @@ def assign_likely_range(
         if not bucket:
             continue
 
-        lo = int(round(point + float(bucket["q25"])))
-        hi = int(round(point + float(bucket["q75"])))
-        lo = max(1, min(lo, field_size))
-        hi = max(1, min(hi, field_size))
-        if lo > hi:
-            lo, hi = hi, lo
-        row["likely_lo"] = lo
-        row["likely_hi"] = hi
+        # Widen to whole places (floor/ceil) and always include the shown place, so a
+        # back-marker whose finishers usually gain places never gets a range that
+        # excludes his own row. fit_race_band_quantiles.py measures this exact band.
+        lo = position + min(0, math.floor(float(bucket["q25"])))
+        hi = position + max(0, math.ceil(float(bucket["q75"])))
+        row["likely_lo"] = max(1, min(lo, field_size))
+        row["likely_hi"] = max(1, min(hi, field_size))
 
 
 def apply_early_season_team_uncertainty_adjustments(
@@ -817,6 +821,9 @@ def build_finish_order(
         row["podium_probability"] = round(podium_prob_by_driver.get(row["driver"], 0.0), 1)
         rank_samples = rank_samples_by_driver.get(row["driver"], [])
         if rank_samples:
+            # Share of simulations the driver wins. Not smoothed like podium %, so a
+            # driver shown second can carry the higher win chance in a close fight.
+            row["win_probability"] = round(100.0 * float(np.mean(np.equal(rank_samples, 1))), 1)
             row["position_blend_score"] = round(float(np.mean(rank_samples)), 4)
             row["median_position"] = int(np.median(rank_samples))
             row["p5"] = int(np.percentile(rank_samples, 5))
@@ -829,7 +836,10 @@ def build_finish_order(
         field_size=max(1, field_size),
     )
 
-    finish_order.sort(key=lambda item: item["position_blend_score"])
+    if cfg.get("baseline_predictor.race.finish_order_sort", "mean_rank") == "median_rank":
+        finish_order.sort(key=lambda item: (item["median_position"], item["position_blend_score"]))
+    else:
+        finish_order.sort(key=lambda item: item["position_blend_score"])
     for index, item in enumerate(finish_order, start=1):
         item["position"] = index
 

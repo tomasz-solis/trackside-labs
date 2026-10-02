@@ -854,6 +854,33 @@ Close to the nominal 50% in every bucket. Offsets are pooled over checkpoints (P
 
 **Consequence.** The config change invalidates the prediction cache fingerprint, so predictions regenerate on the next deploy.
 
+Partly superseded by 2026-10-01: the band is now anchored on the shown position, not `position_blend_score`.
+
+## 2026-10-01: "Likely range" around the shown position, for qualifying too, plus Win %
+
+Not a model change. Display and config only; the finish order, p5/p95 and the simulation are unchanged.
+
+**Why.** The 2026-09-27 band sat around `position_blend_score` (mean rank). With the top four near-tied that score is about 3.9 for everyone, so the Sepang PRE showed P1 RUS with a "Likely range" of P2-P5. Qualifying still showed p5/p95, which covers 95.3% on the replay (n=784, target 90%).
+
+**What changed.**
+
+- `assign_likely_range` adds the offsets to the row's shown `position`. It takes `table_name` (`race`, `sprint`, `qualifying`). Qualifying rows now carry `likely_lo`/`likely_hi`.
+- The dashboard recomputes the band from the shown position and current config at display time, so a cached or fallback payload never shows an old band or falls back to "90%". Sprint races use the sprint table (`starting_session_name` SQ).
+- Qualifying table shows "Likely range". The "90% ranges spanning 8+ places" warnings are gone from both tables while the band is shown.
+- Race rows carry `win_probability`: share of ranked draws a driver finishes first. Not smoothed, so the driver shown second can have the higher Win %.
+
+**Refit** with `scripts/fit_race_band_quantiles.py` on `data/historical_replay_m1s42_r14`, residual = actual minus shown position, race and sprint finishers only. The band as shown is the shown position plus floor(q25) to ceil(q75), always including the shown position. Without that rule the race 17-22 band (q75 -1.25) excluded the driver's own place. Leave-one-race-out coverage of that displayed band:
+
+| Bucket | Race | Sprint | Qualifying |
+|---|---|---|---|
+| 1-5 | 62.1% | 66.7% | 52.9% |
+| 6-10 | 60.9% | 59.7% | 57.4% |
+| 11-16 | 58.5% | 57.9% | 63.1% |
+| 17-22 | 73.7% | 64.2% | 60.8% |
+| Pooled | 63.3% | 62.2% | 58.9% |
+
+Whole places and the include-the-shown-place rule push coverage above 50%, so the caption says "about 6 times in 10". The 2026-09-27 table measured 49-50% on fractional residuals, not on the band as shown. A 75% qualifying band was 4 to 8 places wide by bucket, so 50% stays. Sprint qualifying (10 checkpoints) uses the main qualifying table.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

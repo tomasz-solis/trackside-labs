@@ -303,7 +303,7 @@ def test_render_race_result_shows_likely_range_when_present(patcher):
     captions = [value for kind, value in calls if kind == "caption"]
     table_html_blocks = [value for kind, value in calls if kind == "markdown" and "<table" in value]
     assert any("Likely range" in text for text in captions)
-    assert any("half of past results" in text for text in captions)
+    assert any("6 times in 10" in text for text in captions)
     assert any("P1 - P2" in html for html in table_html_blocks)
     assert not any("90% Pos Range" in text for text in captions)
 
@@ -668,3 +668,110 @@ def test_display_prediction_result_renders_teammate_head_to_head_probabilities(p
     assert any("80.3%" in text for text in markdown_blocks)
     assert any("+30.3 pp toward VER" in text for text in markdown_blocks)
     assert any("50/50" in text and "HAD" in text for text in markdown_blocks)
+
+
+def _field(first_rows: list[dict]) -> list[dict]:
+    """Pad rows to a full 22-car field so the band is not clipped by field size."""
+    taken = {row["position"] for row in first_rows}
+    filler = [
+        {"position": pos, "driver": f"D{pos:02d}", "team": "Team"}
+        for pos in range(1, 23)
+        if pos not in taken
+    ]
+    return sorted(first_rows + filler, key=lambda row: row["position"])
+
+
+def _capture_df(patcher, module, name):
+    captured: list[pd.DataFrame] = []
+    patcher.setattr(module, name, lambda df: captured.append(df))
+    return captured
+
+
+def test_display_prediction_result_adds_likely_range_to_old_race_payload(patcher):
+    """A payload saved before the band existed still gets it, around the shown place."""
+    _stub_streamlit(patcher)
+    captured = _capture_df(patcher, rendering_race, "_render_race_result")
+    patcher.setattr(rendering_race, "_render_position_change_chart", lambda *_a, **_k: None)
+
+    rendering.display_prediction_result(
+        result={
+            "finish_order": _field(
+                [
+                    {
+                        "position": 1,
+                        "driver": "RUS",
+                        "team": "Mercedes",
+                        "position_blend_score": 3.9,
+                    },
+                    {
+                        "position": 8,
+                        "driver": "PIA",
+                        "team": "McLaren",
+                        "position_blend_score": 7.1,
+                    },
+                ]
+            ),
+            "starting_session_name": "Q",
+        },
+        prediction_name="Race Prediction",
+        is_race=True,
+    )
+
+    df = captured[0].set_index("driver")
+    # Shipped race table: 1-5 is q25 -1 / q75 +2, 6-10 is -3 / +1.
+    assert (df.loc["RUS", "likely_lo"], df.loc["RUS", "likely_hi"]) == (1, 3)
+    assert (df.loc["PIA", "likely_lo"], df.loc["PIA", "likely_hi"]) == (5, 9)
+
+
+def test_display_prediction_result_uses_sprint_table_for_sprint_race(patcher):
+    _stub_streamlit(patcher)
+    captured = _capture_df(patcher, rendering_race, "_render_race_result")
+    patcher.setattr(rendering_race, "_render_position_change_chart", lambda *_a, **_k: None)
+
+    rendering.display_prediction_result(
+        result={
+            "finish_order": _field([{"position": 8, "driver": "PIA", "team": "McLaren"}]),
+            "starting_session_name": "SQ",
+        },
+        prediction_name="Sprint Race Prediction",
+        is_race=True,
+    )
+
+    # Shipped sprint table 6-10 is q25 -2 / q75 +1.
+    df = captured[0].set_index("driver")
+    assert (df.loc["PIA", "likely_lo"], df.loc["PIA", "likely_hi"]) == (6, 9)
+
+
+def test_qualifying_table_shows_likely_range_not_90pct(patcher):
+    calls = _stub_streamlit(patcher)
+
+    rendering.display_prediction_result(
+        result={
+            "grid": _field(
+                [{"position": 1, "driver": "RUS", "team": "Mercedes", "p5": 1, "p95": 6}]
+            ),
+        },
+        prediction_name="Qualifying Prediction",
+        is_race=False,
+    )
+
+    text = " ".join(value for _kind, value in calls)
+    assert "Likely range" in text
+    assert "P1-P3" in text  # shipped qualifying table 1-5 is q25 0 / q75 +2
+    assert "90%" not in text
+
+
+def test_render_race_result_shows_win_probability(patcher):
+    calls = _stub_streamlit(patcher)
+    df = pd.DataFrame(
+        [
+            {"position": 1, "driver": "RUS", "team": "Mercedes", "win_probability": 24.0},
+            {"position": 2, "driver": "VER", "team": "Red Bull Racing", "win_probability": 31.5},
+        ]
+    )
+
+    rendering_race._render_race_result(df)
+
+    html = " ".join(value for kind, value in calls if kind == "markdown" and "<table" in value)
+    assert "Win %" in html
+    assert "31.5" in html

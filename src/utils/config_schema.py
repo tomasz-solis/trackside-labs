@@ -953,6 +953,7 @@ class BaselineRaceConfig(StrictConfigModel):
     track_pass_cap_enabled: bool = Field(default=True)
     dnf_per_lap_hazard: bool = Field(default=False)
     overtake_gap_from_lap_start: bool = Field(default=False)
+    center_driver_lap_terms_by_team: bool = Field(default=False)
     teammate_variance_std: float = Field(default=0.13, ge=0.0)
     teammate_setup_offset_ratio: float = Field(default=0.30, ge=0.0)
     teammate_variance_lap_ratio: float = Field(default=0.45, ge=0.0)

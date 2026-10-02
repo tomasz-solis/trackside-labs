@@ -898,6 +898,23 @@ Baseline `data/historical_replay_arms/Z_base_30` (3.0 code at `4c04c9a9` plus th
 
 **What this does not show.** No arm resolves at n=14 races. K changed the pass mechanics the 3.0 overtaking calibration was tuned on, yet scored neutral: the calibration was not as coupled to the bug as expected. I needs a different test, because qualifying in the replay uses stored checkpoint profiles. J's qualifying lean is worth a seed-43 repeat before anyone reads it.
 
+## 2026-10-02: C3, centring driver lap-time terms within each team: `worse`
+
+Baseline `data/historical_replay_arms/Z_base_31_s42` (3.1 at `3d08b75d`, switches off). Seed 42, `--through-round 14`, same floor as the 3.1 entry. J2 is a seed-43 repeat against `Z_base_31_s43`.
+
+**Premise.** Race team pace comes from measured lap times that already hold the drivers' average, yet the driver terms add a team-level offset on top. Live state 2026-10-02: driver-term spread sd 0.39 s/lap, 73% between teams, correlation with car strength 0.22 (Red Bull drivers +2.00 s/lap on average, Alpine +0.78; PER +0.93 at Cadillac from a Red Bull-era seed).
+
+| Arm | Change | Race corr | Race MAE | Verdict |
+|---|---|---|---|---|
+| L | `center_driver_lap_terms_by_team: true` (race rating, skill, elite bonus, race advantage) | -0.0085 [-0.0162, -0.0019] | +0.0317 | `worse` |
+| M | `final_blend` overtaking, race advantage, skill and elite scales 0 | -0.0017 | +0.0125 | `unresolvable`, leans worse |
+| L+M | both | -0.0079 [-0.0152, -0.0013] | +0.0373 | `worse` |
+| J2 | `stabilization_strength` 0, seed 43 | -0.0035 | +0.0045 | `unresolvable`; qualifying corr +0.0039 [-0.0010, +0.0116] `noise` |
+
+**Reading.** The team part of the driver terms carries real signal. [Likely] it compensates for team-strength errors already on record (RB under-rated, Williams over-rated): the largest driver offset sits on Red Bull. Two errors cancel, and removing one exposes the other, the same shape as the 2026-08-03 loss. J leans better for qualifying on both seeds (+0.0030, +0.0039) and worse for the race on both (-0.0026, -0.0035); neither resolves.
+
+**Next.** Fix team strength first (lap-time margins, C4), then re-test L on top of it. The L switch stays in the code, off, for that arm. Do not retry L alone against the current team strength.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

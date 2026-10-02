@@ -546,6 +546,10 @@ baseline_predictor:
     # times, where the car ahead had already run this lap, so every gap clamped to 0.
     # On since 3.1: accuracy-neutral, fixes the bug.
     overtake_gap_from_lap_start: true
+    # Centre the driver lap-time terms (race rating, skill, elite bonus, race
+    # advantage) within each team. Measured worse alone (race corr -0.0085,
+    # MODEL_LEDGER 2026-10-02). Off; re-test only after team strength is fixed.
+    center_driver_lap_terms_by_team: false
 
     # Intra-team variance
     # Split between a persistent per-race setup offset and smaller lap-to-lap noise.

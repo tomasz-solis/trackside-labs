@@ -444,6 +444,23 @@ def simulate_race_lap_by_lap(
             for driver in driver_states
         }
 
+    # Driver share of the lap time, seconds faster than neutral. Constant within a race.
+    driver_lap_bonus: dict[str, float] = {}
+    for driver in driver_states:
+        info = driver_info_map[driver]
+        skill = info["skill"]
+        elite_skill_normalized = max(0.0, (skill - _elite_skill_threshold) / _elite_denominator)
+        driver_lap_bonus[driver] = (
+            _resolve_driver_pace_delta_seconds(info)
+            + skill * _skill_improvement_max
+            + _elite_skill_lap_bonus_max * (elite_skill_normalized**_elite_skill_exponent)
+            + info.get("race_advantage", 0.0) * _race_advantage_lap_impact
+        )
+    if race_params.get("center_driver_lap_terms_by_team", False):
+        # Team pace is measured from lap times the drivers set, so it already holds
+        # their average. Keep only the teammate difference.
+        driver_lap_bonus = _center_by_team(driver_lap_bonus, driver_info_map)
+
     # Lap-by-lap progression
     for lap_num in range(1, race_distance + 1):
         active_order = sorted(
@@ -505,14 +522,12 @@ def simulate_race_lap_by_lap(
             fuel_load = state["fuel_load"]
 
             team_strength = info["team_strength_by_compound"].get(compound, info["team_strength"])
-            skill = info["skill"]
 
             # Base lap time from team strength. Phase 7 mappings provide a
             # direct seconds delta; older callers fall back to the legacy
             # compressed unit-strength penalty.
             reference_base = _reference_base
             team_pace_penalty_range = _team_pace_penalty_range
-            skill_improvement_max = _skill_improvement_max
             team_strength_compression = _team_strength_compression
 
             team_pace_delta_s = _resolve_team_pace_delta_seconds(
@@ -522,20 +537,6 @@ def simulate_race_lap_by_lap(
                 compressed_team_strength = 0.5 + ((team_strength - 0.5) * team_strength_compression)
                 compressed_team_strength = np.clip(compressed_team_strength, 0.0, 1.0)
                 team_pace_delta_s = -((1.0 - compressed_team_strength) * team_pace_penalty_range)
-            driver_pace_delta_s = _resolve_driver_pace_delta_seconds(info)
-            skill_improvement = skill * skill_improvement_max
-            elite_skill_threshold = _elite_skill_threshold
-            elite_skill_lap_bonus_max = _elite_skill_lap_bonus_max
-            elite_skill_exponent = _elite_skill_exponent
-            elite_denominator = _elite_denominator
-            elite_skill_normalized = max(0.0, (skill - elite_skill_threshold) / elite_denominator)
-            elite_skill_bonus = elite_skill_lap_bonus_max * (
-                elite_skill_normalized**elite_skill_exponent
-            )
-
-            # Reference lap time (track-specific if available in race_params)
-            race_advantage_lap_impact = _race_advantage_lap_impact
-            race_advantage_delta = -info.get("race_advantage", 0.0) * race_advantage_lap_impact
             wet_skill_delta = _compute_race_wet_skill_modifier(
                 skill_info=info,
                 weather=weather,
@@ -545,13 +546,7 @@ def simulate_race_lap_by_lap(
             )
 
             base_lap_time = (
-                reference_base
-                - team_pace_delta_s
-                - driver_pace_delta_s
-                - skill_improvement
-                - elite_skill_bonus
-                + race_advantage_delta
-                + wet_skill_delta
+                reference_base - team_pace_delta_s - driver_lap_bonus[driver] + wet_skill_delta
             )
 
             # Cache base pace (used for overtake opportunity modeling)
@@ -755,6 +750,20 @@ def _resolve_team_pace_delta_seconds(
     if np.isfinite(value):
         return value
     return None
+
+
+def _center_by_team(
+    values: dict[str, float], driver_info_map: dict[str, dict[str, Any]]
+) -> dict[str, float]:
+    """Subtract each team's mean so values only keep the difference between teammates."""
+    by_team: dict[str, list[float]] = {}
+    for driver, value in values.items():
+        by_team.setdefault(str(driver_info_map[driver].get("team", driver)), []).append(value)
+    team_mean = {team: float(np.mean(team_values)) for team, team_values in by_team.items()}
+    return {
+        driver: value - team_mean[str(driver_info_map[driver].get("team", driver))]
+        for driver, value in values.items()
+    }
 
 
 def _resolve_driver_pace_delta_seconds(info: dict[str, Any]) -> float:

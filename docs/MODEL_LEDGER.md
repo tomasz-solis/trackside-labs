@@ -988,6 +988,8 @@ The upgrade detector as designed does not work: practice against practice is too
 
 Next: (1) a config-only arm raising those caps; (2) a race arm adding a walk-forward weighted practice term to measured race pace at FP checkpoints.
 
+**Cap arm, same day: `never activated`.** `P_fp_cap_040_s42` / `_s43` (both caps 0.18 to 0.40) against new model 3.2 baselines `Z_base_32_s42` / `_s43`: all 51 checkpoints identical on every target and both seeds. The clamp reads both keys on both blend paths, so no session ever moved a team more than 0.18 from its prior in the replay. The cap is not what holds back practice in qualifying; the remaining under-use (+0.20) sits in how practice is weighted or measured. `Z_base_32_*` are the champion baselines from here on.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

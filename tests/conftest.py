@@ -80,6 +80,27 @@ def default_file_only_storage(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_team_race_pace_refresh(request, monkeypatch):
+    """Stop warmup tests from loading FastF1 laps and writing committed pace or mapping files.
+
+    Mark a test ``real_team_race_pace`` to run the real warmup stage.
+    """
+    if request.node.get_closest_marker("real_team_race_pace"):
+        return
+    monkeypatch.setattr(
+        "src.dashboard.warmup._stage_refresh_team_race_pace", lambda ctx: None, raising=False
+    )
+    monkeypatch.setattr(
+        "src.dashboard.warmup._stage_refresh_team_strength_mapping",
+        lambda ctx: None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "src.dashboard.warmup._stage_refresh_car_track_traits", lambda ctx: None, raising=False
+    )
+
+
+@pytest.fixture(autouse=True)
 def reset_fp_blending_circuit_breaker():
     """Prevent FastF1 circuit-breaker state from leaking between tests."""
     from src.utils.fp_blending import _circuit_breaker

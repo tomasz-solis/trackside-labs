@@ -65,6 +65,9 @@ class BaselineRaceParamsMixin:
             "center_driver_lap_terms_by_team": bool(
                 cfg.get("baseline_predictor.race.center_driver_lap_terms_by_team", False)
             ),
+            "track_trait_adjustment": bool(
+                cfg.get("baseline_predictor.race.track_trait_adjustment", False)
+            ),
             "pace_weight_track_modifier": cfg.get(
                 "baseline_predictor.race.pace_weight_track_modifier", 0.10
             ),

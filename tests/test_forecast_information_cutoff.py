@@ -358,10 +358,9 @@ def _measured_pace(monkeypatch, tmp_path: Path, payload: dict, race_name: str | 
     """Load measured team pace for ``race_name`` from a synthetic artifact."""
     from src.utils import lap_by_lap_simulator as simulator_module
 
-    pace_dir = tmp_path / "data" / "processed" / "team_race_pace"
-    pace_dir.mkdir(parents=True)
-    (pace_dir / "2026_team_race_pace.json").write_text(json.dumps(payload))
-    monkeypatch.setattr(simulator_module, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        "src.extractors.team_race_pace.load_team_race_pace", lambda year, store=None: payload
+    )
     monkeypatch.setattr("src.utils.weekend.get_schedule_rows", lambda year: SCHEDULE)
     simulator_module._load_measured_team_pace_deltas.cache_clear()
     try:

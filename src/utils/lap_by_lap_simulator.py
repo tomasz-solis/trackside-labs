@@ -15,10 +15,8 @@ aggregates many runs rather than trusting one simulated race, which is the same
 reason teams run thousands of strategy scenarios before a grand prix.
 """
 
-import json
 import logging
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, NamedTuple, cast
 
 import numpy as np
@@ -38,15 +36,13 @@ from src.utils.validation_helpers import normalize_weather_key
 
 logger = logging.getLogger(__name__)
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
 
 @lru_cache(maxsize=64)
 def _load_measured_team_pace_deltas(year: int, race_name: str | None) -> dict[str, float] | None:
     """Load and centre measured team race-pace deltas from races before ``race_name``.
 
-    Reads ``data/processed/team_race_pace/<year>_team_race_pace.json`` (built by
-    ``scripts/extract_team_race_pace.py``), which stores each team's per-race gap in
+    Reads the ``team_race_pace`` artifact (store first, then the committed file; see
+    ``src/extractors/team_race_pace.py``), which stores each team's per-race gap in
     seconds to that race's fastest team (smaller = faster). Only races the schedule
     places before the target are averaged, so a forecast never sees its own race or
     a later one. ``base_pace`` needs the opposite convention -- larger delta = faster
@@ -55,16 +51,12 @@ def _load_measured_team_pace_deltas(year: int, race_name: str | None) -> dict[st
     when the artifact is missing, has no per-race gaps, the target is not in the
     schedule, or no measured race precedes it.
     """
-    path = _PROJECT_ROOT / "data" / "processed" / "team_race_pace" / f"{year}_team_race_pace.json"
-    try:
-        with open(path) as f:
-            payload = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return None
+    from src.extractors.team_race_pace import load_team_race_pace
 
-    races = payload.get("races")
+    payload = load_team_race_pace(year)
+    races = payload.get("races") if payload else None
     if not isinstance(races, dict):
-        logger.warning("%s has no per-race gaps; ignoring measured team pace", path.name)
+        logger.warning("No per-race team pace for %s; ignoring measured team pace", year)
         return None
 
     from src.utils.weekend import get_schedule_rows
@@ -95,6 +87,23 @@ def _load_measured_team_pace_deltas(year: int, race_name: str | None) -> dict[st
     gaps = {team: sum(values) / len(values) for team, values in gaps_by_team.items()}
     mean_gap = sum(gaps.values()) / len(gaps)
     return {team: mean_gap - gap for team, gap in gaps.items()}
+
+
+def _with_track_trait_adjustment(
+    measured: dict[str, float] | None, year: int, race_name: str | None
+) -> dict[str, float] | None:
+    """Add the car traits x track adjustment to measured team pace deltas."""
+    if not measured:
+        return measured
+    adjustments = _load_track_trait_adjustments(year, race_name)
+    return {team: delta + adjustments.get(team, 0.0) for team, delta in measured.items()}
+
+
+def _load_track_trait_adjustments(year: int, race_name: str | None) -> dict[str, float]:
+    """Return the race-pace track trait adjustment (see ``src/models/track_traits.py``)."""
+    from src.models.track_traits import track_trait_adjustments
+
+    return track_trait_adjustments(year, race_name, "race")
 
 
 # Breaks the ordering tie when a blocked driver is held behind the car he could not
@@ -318,6 +327,10 @@ def simulate_race_lap_by_lap(
         measured_team_pace_deltas = _load_measured_team_pace_deltas(
             int(_race_year), race_params.get("track_name")
         )
+        if race_params.get("track_trait_adjustment", False):
+            measured_team_pace_deltas = _with_track_trait_adjustment(
+                measured_team_pace_deltas, int(_race_year), race_params.get("track_name")
+            )
     track_temperature_c = race_params.get("track_temperature_c")
     weather_feature_modifiers = race_params.get("weather_feature_modifiers", {})
     chaos_multiplier = float(

@@ -278,6 +278,23 @@ class ArtifactStore:
                     "learning_state", f"{learning_year}_learning_state.json"
                 )
             return self._contained_path("learning_state.json")
+        elif artifact_type == "team_race_pace":
+            year = self._year_token_from_artifact_key(artifact_key)
+            return self._contained_path(
+                "processed", "team_race_pace", f"{year}_team_race_pace.json"
+            )
+        elif artifact_type == "car_track_traits":
+            year = self._year_token_from_artifact_key(artifact_key)
+            return self._contained_path(
+                "processed", "car_track_traits", f"{year}_car_track_traits.json"
+            )
+        elif artifact_type == "team_strength_seconds_mapping":
+            return self._contained_path("processed", "team_strength_seconds_mapping", "latest.json")
+        elif artifact_type == "team_strength_observations":
+            year = self._year_token_from_artifact_key(artifact_key)
+            return self._contained_path(
+                "processed", "team_strength_seconds_mapping", f"{year}_live_observations.json"
+            )
         elif artifact_type == "practice_state":
             return self._contained_path("systems", "practice_characteristics_state.json")
         elif artifact_type == "prediction":

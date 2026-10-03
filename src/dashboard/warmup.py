@@ -633,6 +633,66 @@ def _stage_learn_completed_races(ctx: _WarmupRunState) -> None:
     )
 
 
+def _stage_refresh_team_race_pace(ctx: _WarmupRunState) -> None:
+    """Stage 0b: measure team race pace for any completed race the artifact lacks.
+
+    Runs every cycle, not only after new learning, so a race learned before this
+    stage existed is backfilled. Failure leaves the previous pace in place.
+    """
+    if ctx.dry_run:
+        return
+    try:
+        from src.extractors.team_race_pace import refresh_team_race_pace
+        from src.utils.auto_updater import get_completed_races
+
+        refresh_team_race_pace(ctx.year, get_completed_races(year=ctx.year))
+    except _WARMUP_ERRORS as exc:
+        logger.warning("Could not refresh team race pace: %s", exc)
+        ctx.summary.errors.append(f"team_race_pace: {exc}")
+
+
+def _stage_refresh_team_strength_mapping(ctx: _WarmupRunState) -> None:
+    """Stage 0c: add observations for completed Q and R sessions, refit the seconds mapping.
+
+    Idempotent like stage 0b. A refit the guardrail rejects keeps the old mapping and
+    is reported in the summary.
+    """
+    if ctx.dry_run:
+        return
+    try:
+        from src.models.team_strength_refresh import refresh_team_strength_mapping
+        from src.utils.auto_updater import get_completed_races
+
+        result = refresh_team_strength_mapping(ctx.year, get_completed_races(year=ctx.year))
+    except _WARMUP_ERRORS as exc:
+        logger.warning("Could not refresh the team strength mapping: %s", exc)
+        ctx.summary.errors.append(f"team_strength_mapping: {exc}")
+        return
+    if result.get("rejected"):
+        ctx.summary.errors.append(f"team_strength_mapping rejected: {result['rejected']}")
+
+
+def _stage_refresh_car_track_traits(ctx: _WarmupRunState) -> None:
+    """Stage 0d: measure car traits for completed races and the upcoming track's profile.
+
+    Idempotent; the upcoming profile comes from that weekend's latest completed session.
+    """
+    if ctx.dry_run:
+        return
+    try:
+        from src.extractors.car_track_traits import refresh_car_track_traits
+        from src.utils.auto_updater import get_completed_races
+
+        refresh_car_track_traits(
+            ctx.year,
+            get_completed_races(year=ctx.year),
+            upcoming_race=getattr(ctx.targets, "anchor_race_name", None),
+        )
+    except _WARMUP_ERRORS as exc:
+        logger.warning("Could not refresh car track traits: %s", exc)
+        ctx.summary.errors.append(f"car_track_traits: {exc}")
+
+
 def _stage_refresh_practice(ctx: _WarmupRunState) -> None:
     """Stage 1: pull any completed FP sessions and update car characteristics."""
     if ctx.dry_run:
@@ -1093,6 +1153,12 @@ def run_warmup_precompute_cycle(
 
     0. ``_stage_learn_completed_races`` - apply completed race learning before
        artifact hashing, when enabled.
+    0b. ``_stage_refresh_team_race_pace`` - measure team race pace for completed
+       races the artifact lacks.
+    0c. ``_stage_refresh_team_strength_mapping`` - add completed Q and R observations
+       and refit the team strength seconds mapping.
+    0d. ``_stage_refresh_car_track_traits`` - measure car traits for completed races
+       and the upcoming track's profile.
     1. ``_stage_refresh_practice`` - pull completed FP sessions and update
        car characteristics for the anchor race.
     2. ``_stage_load_predictor`` - resolve artifact hash and load the baseline
@@ -1227,6 +1293,9 @@ def run_warmup_precompute_cycle(
                 summary.race_learning_pending,
             )
             return summary
+        _stage_refresh_team_race_pace(ctx)
+        _stage_refresh_team_strength_mapping(ctx)
+        _stage_refresh_car_track_traits(ctx)
         _stage_refresh_practice(ctx)
         _stage_load_predictor(ctx)
         _stage_compute_predictions(ctx)

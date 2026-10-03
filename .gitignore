@@ -95,3 +95,6 @@ data/predictions/
 .impeccable/
 # `*.backup` above does NOT match `<name>.json.rebuild_backup`, hence this line.
 *.rebuild_backup
+
+# Live team strength observations, written by warmup in file mode
+data/processed/team_strength_seconds_mapping/*_live_observations.json

@@ -37,7 +37,7 @@ grid:
     #   LAW: TSU
 
 model:
-  version: "3.1"
+  version: "3.2"
   # Regulation eras for seconds calibration. The gap between a fast car and a slow
   # one is set by the regulations, so team_strength_seconds_mapping is fitted within
   # one era and never across a boundary: pooling 2022-2025 with 2026 produced a slope
@@ -307,6 +307,10 @@ baseline_predictor:
     # DNF/red-flag/limited run that leaves a strong car looking slow) can no longer drag a team
     # more than this far from its season-learned prior on the 0-1 strength scale.
     fp_max_strength_move: 0.18
+    # Add each team's car traits x track adjustment (fitted on qualifying gaps) to its
+    # qualifying seconds. On since model 3.2: qualifying corr +0.0048 / +0.0035 on
+    # seeds 42 / 43, both beyond the floor (MODEL_LEDGER 2026-10-03).
+    track_trait_adjustment: true
     testing_fallback_short_weight_min: 0.35
     testing_fallback_short_weight_max: 0.85
     testing_fallback_divergence_scale: 1.4
@@ -550,6 +554,10 @@ baseline_predictor:
     # advantage) within each team. Measured worse alone (race corr -0.0085,
     # MODEL_LEDGER 2026-10-02). Off; re-test only after team strength is fixed.
     center_driver_lap_terms_by_team: false
+    # Add each team's car traits x track composition adjustment (top speed, corner
+    # classes, braking, tyre deg) to measured race pace. Walk-forward sizing R2 0.113
+    # (MODEL_LEDGER 2026-10-03). Replay: unresolvable on seeds 42 and 43. Off.
+    track_trait_adjustment: false
 
     # Intra-team variance
     # Split between a persistent per-race setup offset and smaller lap-to-lap noise.

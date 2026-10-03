@@ -51,7 +51,7 @@ class RegulationEra(StrictConfigModel):
 class ModelConfig(StrictConfigModel):
     """Model release metadata shared across generated artifacts."""
 
-    version: str = Field(default="3.1", min_length=1)
+    version: str = Field(default="3.2", min_length=1)
     # The seconds gap between a fast car and a slow one is a property of the
     # regulations. Fitting a seconds mapping across a regulation boundary averages
     # two different fields and describes neither, so calibration is scoped to an era
@@ -423,6 +423,7 @@ class BaselineQualifyingConfig(StrictConfigModel):
     fp_align_spread_ratio: float = Field(default=1.0, ge=0.0)
     fp_min_driver_laps: int = Field(default=4, ge=0)
     fp_max_strength_move: float = Field(default=0.25, ge=0.0, le=1.0)
+    track_trait_adjustment: bool = Field(default=False)
     practice_data_team_weight_multiplier: float = Field(default=0.94, ge=0.0)
     practice_data_skill_weight_multiplier: float = Field(default=1.12, ge=0.0)
     practice_data_team_compression_multiplier: float = Field(default=0.88, ge=0.0)
@@ -954,6 +955,7 @@ class BaselineRaceConfig(StrictConfigModel):
     dnf_per_lap_hazard: bool = Field(default=False)
     overtake_gap_from_lap_start: bool = Field(default=False)
     center_driver_lap_terms_by_team: bool = Field(default=False)
+    track_trait_adjustment: bool = Field(default=False)
     teammate_variance_std: float = Field(default=0.13, ge=0.0)
     teammate_setup_offset_ratio: float = Field(default=0.30, ge=0.0)
     teammate_variance_lap_ratio: float = Field(default=0.45, ge=0.0)

@@ -90,11 +90,12 @@ def test_refresh_measures_only_missing_races_and_the_upcoming_track(monkeypatch)
         lambda y, r: measured.append(r) or {"traits": {}, "profile": {"deg_severity": 0.02}},
     )
     monkeypatch.setattr(ctt, "measure_weekend_profile", lambda y, r: {"full_throttle": 0.5})
+    monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have: {})
     store = _Store()
 
     added = ctt.refresh_car_track_traits(2026, ["R0", "R1"], upcoming_race="R2", store=store)
 
-    assert added == {"races": ["R1"], "profiles": ["R2"]}
+    assert added == {"races": ["R1"], "profiles": ["R2"], "fp_gaps": []}
     assert measured == ["R1"]
     assert store.payload["profiles"]["R2"]["deg_severity"] == pytest.approx(
         0.03
@@ -102,6 +103,7 @@ def test_refresh_measures_only_missing_races_and_the_upcoming_track(monkeypatch)
     assert ctt.refresh_car_track_traits(2026, ["R0", "R1"], upcoming_race="R2", store=store) == {
         "races": [],
         "profiles": [],
+        "fp_gaps": [],
     }
     assert store.saved == 1
 

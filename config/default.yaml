@@ -564,6 +564,11 @@ baseline_predictor:
     # stints (src/models/tyre_deg.py). Replay 2026-10-04: better at PRE, worse at FP
     # checkpoints (practice slopes carry weekend pace). Retest after the practice term.
     tyre_deg_model: practice
+    # Add this weekend's practice pace (best-lap gap vs the team's prior race pace,
+    # slope fitted on earlier races) to measured race pace, using only sessions the
+    # checkpoint may see (src/models/practice_pace.py). Replay 2026-10-04: unresolvable
+    # on both seeds; retest with a lighter grid anchor (MODEL_LEDGER).
+    practice_pace_adjustment: false
 
     # Intra-team variance
     # Split between a persistent per-race setup offset and smaller lap-to-lap noise.

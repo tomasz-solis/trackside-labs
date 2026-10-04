@@ -68,6 +68,9 @@ class BaselineRaceParamsMixin:
             "track_trait_adjustment": bool(
                 cfg.get("baseline_predictor.race.track_trait_adjustment", False)
             ),
+            "practice_pace_adjustment": bool(
+                cfg.get("baseline_predictor.race.practice_pace_adjustment", False)
+            ),
             "pace_weight_track_modifier": cfg.get(
                 "baseline_predictor.race.pace_weight_track_modifier", 0.10
             ),

@@ -89,6 +89,27 @@ def _load_measured_team_pace_deltas(year: int, race_name: str | None) -> dict[st
     return {team: mean_gap - gap for team, gap in gaps.items()}
 
 
+def _with_practice_adjustment(
+    measured: dict[str, float] | None, year: int, race_name: str | None
+) -> dict[str, float] | None:
+    """Add this weekend's practice-based race pace adjustment to measured team deltas.
+
+    Uses only practice sessions the active checkpoint may see (replay) or that are
+    stored (live, completed only). See ``src/models/practice_pace.py``.
+    """
+    if not measured:
+        return measured
+    from src.extractors.car_track_traits import load_car_track_traits
+    from src.models.practice_pace import allowed_sessions, practice_adjustments
+    from src.utils.prediction_context import get_active_prediction_context
+
+    context = get_active_prediction_context()
+    stored = list(load_car_track_traits(year)["fp_gaps"].get(str(race_name or "").strip(), {}))
+    sessions = allowed_sessions(context.checkpoint_session if context else None, stored)
+    adjustments = practice_adjustments(year, race_name, sessions)
+    return {team: delta + adjustments.get(team, 0.0) for team, delta in measured.items()}
+
+
 def _with_track_trait_adjustment(
     measured: dict[str, float] | None, year: int, race_name: str | None
 ) -> dict[str, float] | None:
@@ -327,6 +348,10 @@ def simulate_race_lap_by_lap(
         measured_team_pace_deltas = _load_measured_team_pace_deltas(
             int(_race_year), race_params.get("track_name")
         )
+        if race_params.get("practice_pace_adjustment", False):
+            measured_team_pace_deltas = _with_practice_adjustment(
+                measured_team_pace_deltas, int(_race_year), race_params.get("track_name")
+            )
         if race_params.get("track_trait_adjustment", False):
             measured_team_pace_deltas = _with_track_trait_adjustment(
                 measured_team_pace_deltas, int(_race_year), race_params.get("track_name")

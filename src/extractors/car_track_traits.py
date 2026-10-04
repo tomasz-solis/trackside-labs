@@ -271,7 +271,7 @@ def committed_path(year: int) -> Path:
 
 
 def load_car_track_traits(year: int, store: Any = None) -> dict[str, Any]:
-    """Return ``{"races": {race: {traits, profile}}, "profiles": {race: profile}}``."""
+    """Return ``{"races": {race: {...}}, "profiles": {race: profile}, "fp_gaps": {race: {FPn: gaps}}}``."""
     import json
 
     from src.persistence.artifact_store import ArtifactStore
@@ -291,6 +291,7 @@ def load_car_track_traits(year: int, store: Any = None) -> dict[str, Any]:
     return {
         "races": dict(payload.get("races") or {}),
         "profiles": dict(payload.get("profiles") or {}),
+        "fp_gaps": dict(payload.get("fp_gaps") or {}),
     }
 
 
@@ -354,6 +355,28 @@ def measure_weekend_profile(year: int, race_name: str) -> dict[str, float] | Non
     return None
 
 
+_PRACTICE_SESSIONS = ("FP1", "FP2", "FP3")
+
+
+def measure_practice_gaps(year: int, race_name: str, have: set[str]) -> dict[str, dict[str, float]]:
+    """Return team best-lap gaps for each completed FP session not in ``have``."""
+    import fastf1
+
+    out: dict[str, dict[str, float]] = {}
+    for code in _PRACTICE_SESSIONS:
+        if code in have:
+            continue
+        try:
+            session = fastf1.get_session(year, race_name, code)
+            session.load(laps=True, telemetry=False, weather=False, messages=False)
+            gaps = team_quali_gaps(session, _team_of(session))
+        except Exception:  # session not run yet or not on this weekend format
+            continue
+        if gaps:
+            out[code] = gaps
+    return out
+
+
 def refresh_car_track_traits(
     year: int,
     completed_races: list[str],
@@ -367,7 +390,15 @@ def refresh_car_track_traits(
 
     store = store or ArtifactStore(data_root="data")
     payload = load_car_track_traits(year, store=store)
-    added: dict[str, list[str]] = {"races": [], "profiles": []}
+    added: dict[str, list[str]] = {"races": [], "profiles": [], "fp_gaps": []}
+    for race_name in [*completed_races, *([upcoming_race] if upcoming_race else [])]:
+        have = set(payload["fp_gaps"].get(race_name, {}))
+        if have >= set(_PRACTICE_SESSIONS):
+            continue
+        new = measure_practice_gaps(year, race_name, have)
+        if new:
+            payload["fp_gaps"].setdefault(race_name, {}).update(new)
+            added["fp_gaps"].append(race_name)
     for race_name in completed_races:
         if race_name not in payload["races"]:
             measured = measure_completed_race(year, race_name)
@@ -386,7 +417,7 @@ def refresh_car_track_traits(
             profile["deg_severity"] = float(np.median(severities)) if severities else 0.0
             payload["profiles"][upcoming_race] = profile
             added["profiles"].append(upcoming_race)
-    if added["races"] or added["profiles"]:
+    if added["races"] or added["profiles"] or added["fp_gaps"]:
         store.save_artifact(
             ARTIFACT_TYPE,
             artifact_key(year),

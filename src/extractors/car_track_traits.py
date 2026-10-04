@@ -206,6 +206,33 @@ def track_profile(session: Any) -> dict[str, float]:
     }
 
 
+def race_compound_deg(session: Any) -> dict[str, float]:
+    """Return the field's median raw stint slope per compound (s/lap per lap of tyre age).
+
+    Raw: fuel burn is included, which is what a real stint shows on the timing screen.
+    """
+    laps = session.laps
+    green = laps[
+        (laps["TrackStatus"] == "1")
+        & laps["LapTime"].notna()
+        & laps["PitInTime"].isna()
+        & laps["PitOutTime"].isna()
+    ].copy()
+    green["t"] = green["LapTime"].dt.total_seconds()
+    slopes: dict[str, list[float]] = {}
+    for _, stint in green.groupby(["Driver", "Stint"]):
+        stint = stint[stint["TyreLife"] >= 2]
+        if len(stint) < _MIN_STINT_LAPS:
+            continue
+        y = stint["t"].to_numpy(dtype=float)
+        x = stint["TyreLife"].to_numpy(dtype=float)
+        keep = np.abs(y - np.median(y)) < 3.0
+        if keep.sum() >= _MIN_STINT_LAPS:
+            compound = str(stint["Compound"].iloc[0]).upper()
+            slopes.setdefault(compound, []).append(float(np.polyfit(x[keep], y[keep], 1)[0]))
+    return {c: round(float(np.median(v)), 4) for c, v in slopes.items()}
+
+
 def race_deg_severity(session: Any) -> float:
     """Return the field's median tyre degradation for a race (s/lap per lap)."""
     laps = session.laps
@@ -293,6 +320,7 @@ def measure_completed_race(year: int, race_name: str) -> dict[str, Any] | None:
         traits["deg"] = team_deg_from_race(race, _team_of(race))
         profile = {**track_profile(quali), "deg_severity": race_deg_severity(race)}
         quali_gaps = team_quali_gaps(quali, _team_of(quali))
+        compound_deg = race_compound_deg(race)
     except Exception as exc:  # laps not published yet or a malformed session
         import logging
 
@@ -302,6 +330,7 @@ def measure_completed_race(year: int, race_name: str) -> dict[str, Any] | None:
         "traits": traits.round(4).to_dict(orient="index"),
         "profile": profile,
         "quali_gaps": quali_gaps,
+        "compound_deg": compound_deg,
     }
 
 

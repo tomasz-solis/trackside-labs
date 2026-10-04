@@ -3,6 +3,11 @@
  "profiles": {},
  "races": {
   "Australian Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0055,
+    "MEDIUM": -0.111,
+    "SOFT": 0.0238
+   },
    "profile": {
     "braking": 0.1205240958449252,
     "deg_severity": -0.022560622914348866,
@@ -117,6 +122,11 @@
    }
   },
   "Austrian Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0441,
+    "MEDIUM": 0.0518,
+    "SOFT": 0.0173
+   },
    "profile": {
     "braking": 0.17621506682867563,
     "deg_severity": 0.04858088235293954,
@@ -231,6 +241,10 @@
    }
   },
   "Azerbaijan Grand Prix": {
+   "compound_deg": {
+    "MEDIUM": -0.0639,
+    "SOFT": -0.066
+   },
    "profile": {
     "braking": 0.20245212973817886,
     "deg_severity": -0.07893781414863024,
@@ -345,6 +359,11 @@
    }
   },
   "Barcelona Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0766,
+    "MEDIUM": 0.1302,
+    "SOFT": 0.1857
+   },
    "profile": {
     "braking": 0.1522437837038231,
     "deg_severity": 0.09575488721804455,
@@ -459,6 +478,11 @@
    }
   },
   "Belgian Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0041,
+    "MEDIUM": 0.0145,
+    "SOFT": 0.0293
+   },
    "profile": {
     "braking": 0.0994593344320121,
     "deg_severity": -0.004068182374992292,
@@ -573,6 +597,11 @@
    }
   },
   "British Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0014,
+    "MEDIUM": -0.0069,
+    "SOFT": 0.1258
+   },
    "profile": {
     "braking": 0.10622435020519831,
     "deg_severity": -0.0033676553603647534,
@@ -687,6 +716,11 @@
    }
   },
   "Canadian Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.038,
+    "MEDIUM": -0.0513,
+    "SOFT": -0.0528
+   },
    "profile": {
     "braking": 0.20543898398674773,
     "deg_severity": -0.07495334739061743,
@@ -801,6 +835,11 @@
    }
   },
   "Chinese Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0403,
+    "MEDIUM": -0.031,
+    "SOFT": -0.0527
+   },
    "profile": {
     "braking": 0.21707715780296416,
     "deg_severity": -0.04632641030057618,
@@ -915,6 +954,11 @@
    }
   },
   "Dutch Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0077,
+    "MEDIUM": 0.0444,
+    "SOFT": 0.0118
+   },
    "profile": {
     "braking": 0.16855737658713948,
     "deg_severity": 0.012333249454789552,
@@ -1029,6 +1073,11 @@
    }
   },
   "Hungarian Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.042,
+    "MEDIUM": 0.0282,
+    "SOFT": 0.0094
+   },
    "profile": {
     "braking": 0.22103771499889494,
     "deg_severity": 0.022792972493345724,
@@ -1143,6 +1192,11 @@
    }
   },
   "Italian Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0254,
+    "MEDIUM": -0.0213,
+    "SOFT": 0.0176
+   },
    "profile": {
     "braking": 0.13771519921298583,
     "deg_severity": -0.020175322430077552,
@@ -1257,6 +1311,10 @@
    }
   },
   "Japanese Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0286,
+    "MEDIUM": -0.0057
+   },
    "profile": {
     "braking": 0.4165915238954012,
     "deg_severity": -0.019986081700193205,
@@ -1371,6 +1429,11 @@
    }
   },
   "Miami Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0141,
+    "MEDIUM": -0.0031,
+    "SOFT": 0.0235
+   },
    "profile": {
     "braking": 0.17774097761534954,
     "deg_severity": 0.004928736438265606,
@@ -1485,6 +1548,11 @@
    }
   },
   "Monaco Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0386,
+    "MEDIUM": 0.0065,
+    "SOFT": -0.2918
+   },
    "profile": {
     "braking": 0.27738636205722544,
     "deg_severity": -0.027470299014716437,
@@ -1599,6 +1667,11 @@
    }
   },
   "Spanish Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.051,
+    "MEDIUM": -0.0285,
+    "SOFT": 0.0522
+   },
    "profile": {
     "braking": 0.1785227136325444,
     "deg_severity": -0.04898589341692776,

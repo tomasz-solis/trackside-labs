@@ -990,6 +990,14 @@ Next: (1) a config-only arm raising those caps; (2) a race arm adding a walk-for
 
 **Cap arm, same day: `never activated`.** `P_fp_cap_040_s42` / `_s43` (both caps 0.18 to 0.40) against new model 3.2 baselines `Z_base_32_s42` / `_s43`: all 51 checkpoints identical on every target and both seeds. The clamp reads both keys on both blend paths, so no session ever moved a team more than 0.18 from its prior in the replay. The cap is not what holds back practice in qualifying; the remaining under-use (+0.20) sits in how practice is weighted or measured. `Z_base_32_*` are the champion baselines from here on.
 
+## 2026-10-03: tyre deg: field slope per compound plus a carried team estimate, `open`
+
+**Why.** Race tyre slopes came per team from practice `compound_characteristics`: 1 to 3 sessions, no fuel or evolution correction, sometimes from another track (Sepang HARD measured at Baku). Live values 0.04 to 0.43 s/lap per lap, so simulated stints lost 3 to 6 s per lap by lap 20, and teams differed by up to about 4.5 s per stint. Observed 2026 race stints (median raw slope over 14 to 15 races, fuel burn included): SOFT +0.017, MEDIUM -0.006, HARD -0.001. Real team-to-team deg spread: sd 0.009 against one-race noise 0.032.
+
+**What.** `baseline_predictor.race.tyre_deg_model: carry_over` (default `practice`): slope per compound = median observed raw stint slope over earlier races + `tire_physics.fuel_burn_gain_s_per_lap` (0.05, about 1.6 kg/lap x 0.03 s/kg), i.e. true wear, because the simulator gives every car the same fuel on a lap so only tyre age separates them. Team delta = a 1-D Kalman filter over earlier races' race-measured deg (true sd 0.009, noise 0.032, drift 0.002 per race). Practice slopes are not used. Sepang now: SOFT 0.067, MEDIUM 0.044, HARD 0.049; teams from Audi -0.010 to Aston Martin +0.017 (0.55 s over a 20-lap stint). No track factor: the Pirelli stress score correlates only 0.4 with measured deg over 15 races. Stint-level realism (net slope about 0) still needs the fuel fix (work plan item 6). Not touched: the per-compound pace modifier from the same practice data.
+
+**Replay, 2026-10-04: `unresolvable`, leans worse, kept off.** Race corr -0.0057 [-0.0152, +0.0050] (17 better / 31 worse) on seed 42, -0.0041 [-0.0131, +0.0074] (20 / 29) on seed 43; MAE +0.039 / +0.016. Qualifying `never activated` (race only). By checkpoint, the same on both seeds: PRE improves (+0.0086, +0.0053) while FP1, FP3 and SQ get worse (FP1 -0.0099 / -0.0060, FP3 -0.0087 / -0.0072, SQ -0.0377 / -0.0178). Reading [Likely, 12 to 14 checkpoints each]: the practice slopes are implausible as tyre wear but are the one path by which this weekend's long runs reach the race model; removing them cuts it. Build the race practice term (work plan item 2) first, then re-run this arm on top.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

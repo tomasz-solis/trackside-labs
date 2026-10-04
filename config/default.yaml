@@ -558,6 +558,12 @@ baseline_predictor:
     # classes, braking, tyre deg) to measured race pace. Walk-forward sizing R2 0.113
     # (MODEL_LEDGER 2026-10-03). Replay: unresolvable on seeds 42 and 43. Off.
     track_trait_adjustment: false
+    # Tyre deg slopes. practice: per-team slopes from practice compound data (noisy,
+    # 0.04 to 0.43 s/lap per lap). carry_over: observed race stint slope per compound
+    # plus the real fuel-burn gain (true wear), plus a Kalman team estimate from race
+    # stints (src/models/tyre_deg.py). Replay 2026-10-04: better at PRE, worse at FP
+    # checkpoints (practice slopes carry weekend pace). Retest after the practice term.
+    tyre_deg_model: practice
 
     # Intra-team variance
     # Split between a persistent per-race setup offset and smaller lap-to-lap noise.
@@ -763,6 +769,10 @@ baseline_predictor:
         HARD: 2
 
       default_deg_slope: 0.15          # default tire_deg_slope if missing data
+      # Lap time gained per lap from burning fuel, used to turn observed raw stint
+      # slopes into true tyre wear (carry_over deg model). About 1.6 kg/lap x 0.03 s/kg;
+      # 2026 fuel rules may put it nearer 0.04 (unverified).
+      fuel_burn_gain_s_per_lap: 0.05
       traffic_deg_penalty: 0.05        # 5% worse tire life in dirty air (P16+)
       clean_air_bonus: 0.05            # 5% better tire life for leaders (P1-P5)
 

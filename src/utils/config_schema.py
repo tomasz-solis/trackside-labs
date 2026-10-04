@@ -733,6 +733,7 @@ class TirePhysicsConfig(StrictConfigModel):
         default_factory=lambda: CompoundIntConfig(SOFT=3, MEDIUM=3, HARD=2)
     )
     default_deg_slope: float = Field(default=0.15, ge=0.0)
+    fuel_burn_gain_s_per_lap: float = Field(default=0.05, ge=0.0)
     traffic_deg_penalty: float = Field(default=0.05, ge=0.0)
     clean_air_bonus: float = Field(default=0.05, ge=0.0)
     compound_max_age: CompoundIntConfig = Field(
@@ -956,6 +957,7 @@ class BaselineRaceConfig(StrictConfigModel):
     overtake_gap_from_lap_start: bool = Field(default=False)
     center_driver_lap_terms_by_team: bool = Field(default=False)
     track_trait_adjustment: bool = Field(default=False)
+    tyre_deg_model: Literal["practice", "carry_over"] = "practice"
     teammate_variance_std: float = Field(default=0.13, ge=0.0)
     teammate_setup_offset_ratio: float = Field(default=0.30, ge=0.0)
     teammate_variance_lap_ratio: float = Field(default=0.45, ge=0.0)

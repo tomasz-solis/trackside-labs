@@ -323,4 +323,37 @@ class BaselineRacePreparationMixin:
             resolve_effective_experience_tier_for_race_fn=self._resolve_effective_experience_tier_for_race,
             get_compound_performance_modifier_fn=get_compound_performance_modifier,
         )
+        cfg = getattr(self, "config", config_loader)
+        if cfg.get("baseline_predictor.race.tyre_deg_model", "practice") == "carry_over":
+            apply_carry_over_tyre_deg(
+                driver_info_map,
+                year=int(getattr(self, "season_year", getattr(self, "year", 2026))),
+                race_name=race_name,
+                cfg=cfg,
+            )
         return self._annotate_driver_assignment_context(driver_info_map), profile_count
+
+
+def apply_carry_over_tyre_deg(
+    driver_info_map: dict[str, Any], *, year: int, race_name: str | None, cfg: Any
+) -> None:
+    """Replace practice deg slopes with the field slope per compound plus the team estimate.
+
+    The slope is the observed raw stint slope plus the real per-lap fuel gain, i.e. true
+    tyre wear, because only tyre age separates cars on a given lap. See
+    ``src/models/tyre_deg.py``.
+    """
+    from src.models.tyre_deg import tyre_deg_slopes
+
+    fuel_gain = float(
+        cfg.get("baseline_predictor.race.tire_physics.fuel_burn_gain_s_per_lap", 0.05)
+    )
+    slopes = tyre_deg_slopes(year, race_name, fuel_gain)
+    if slopes is None:
+        return
+    field, team_delta = slopes
+    for info in driver_info_map.values():
+        delta = team_delta.get(str(info.get("team")), 0.0)
+        info["tire_deg_by_compound"] = {
+            compound: max(0.0, slope + delta) for compound, slope in field.items()
+        }

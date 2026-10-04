@@ -674,6 +674,24 @@ def apply_track_trait_adjustment(
             record["team_strength_seconds_delta"] += adjustments.get(record["team"], 0.0)
 
 
+def apply_practice_adjustment(
+    records: list[dict[str, Any]], year: int | None, race_name: str
+) -> None:
+    """Add this weekend's practice-based qualifying seconds to each team's seconds delta.
+
+    Only practice sessions the active checkpoint may see are used.
+    """
+    if year is None:
+        return
+    from src.models.practice_pace import practice_adjustments, sessions_for_active_checkpoint
+
+    sessions = sessions_for_active_checkpoint(int(year), race_name)
+    adjustments = practice_adjustments(int(year), race_name, sessions, "qualifying")
+    for record in records:
+        if "team_strength_seconds_delta" in record:
+            record["team_strength_seconds_delta"] += adjustments.get(record["team"], 0.0)
+
+
 def build_driver_list_with_strengths_core(
     *,
     lineups: dict[str, list[str]],
@@ -820,5 +838,7 @@ def build_driver_list_with_strengths_core(
 
     if bool(cfg.get("baseline_predictor.qualifying.track_trait_adjustment", False)):
         apply_track_trait_adjustment(all_drivers, prediction_year, race_name)
+    if bool(cfg.get("baseline_predictor.qualifying.practice_pace_adjustment", False)):
+        apply_practice_adjustment(all_drivers, prediction_year, race_name)
     center_rating_mu_by_team(all_drivers, field="quali_rating_mu_s")
     return all_drivers, teams_with_short_profile

@@ -447,6 +447,7 @@ def _resolve_qualifying_section_for_replay(
             year=year,
             race_name=race_name,
             target_session_name=target_session,
+            checkpoint_session=checkpoint_session,
         ),
     )
     section = deepcopy(section)

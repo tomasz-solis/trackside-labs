@@ -424,6 +424,7 @@ class BaselineQualifyingConfig(StrictConfigModel):
     fp_min_driver_laps: int = Field(default=4, ge=0)
     fp_max_strength_move: float = Field(default=0.25, ge=0.0, le=1.0)
     track_trait_adjustment: bool = Field(default=False)
+    practice_pace_adjustment: bool = Field(default=False)
     practice_data_team_weight_multiplier: float = Field(default=0.94, ge=0.0)
     practice_data_skill_weight_multiplier: float = Field(default=1.12, ge=0.0)
     practice_data_team_compression_multiplier: float = Field(default=0.88, ge=0.0)

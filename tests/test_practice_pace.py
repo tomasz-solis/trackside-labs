@@ -72,7 +72,9 @@ def test_replay_fp1_checkpoint_never_reads_later_practice(monkeypatch):
         },
     )
     monkeypatch.setattr(
-        pp, "practice_adjustments", lambda year, race, sessions: seen.append(sessions) or {"A": 0.1}
+        pp,
+        "practice_adjustments",
+        lambda year, race, sessions, kind="race": seen.append((sessions, kind)) or {"A": 0.1},
     )
 
     for checkpoint, expected in (("PRE", ()), ("FP1", ("FP1",)), ("FP3", ("FP1", "FP2", "FP3"))):
@@ -82,7 +84,7 @@ def test_replay_fp1_checkpoint_never_reads_later_practice(monkeypatch):
         )
         with activate_prediction_runtime(config=None, prediction_context=context):
             sim._with_practice_adjustment({"A": 0.5}, 2026, "X GP")
-        assert seen == [expected]
+        assert seen == [(expected, "race")]
 
 
 def test_replay_context_carries_the_checkpoint(monkeypatch):
@@ -102,3 +104,37 @@ def test_switch_is_off_by_default():
     from src.utils import config_loader
 
     assert config_loader.get("baseline_predictor.race.practice_pace_adjustment") is False
+
+
+def test_qualifying_fp2_checkpoint_never_reads_fp3(monkeypatch):
+    """Leak guard on the qualifying path: same checkpoint rule as the race."""
+    from src.predictors.baseline import qualifying_preparation as qp
+
+    seen = []
+    monkeypatch.setattr(
+        "src.extractors.car_track_traits.load_car_track_traits",
+        lambda year: {
+            "races": {},
+            "profiles": {},
+            "fp_gaps": {"X GP": {"FP1": {}, "FP2": {}, "FP3": {}}},
+        },
+    )
+    monkeypatch.setattr(
+        pp,
+        "practice_adjustments",
+        lambda year, race, sessions, kind="race": seen.append((sessions, kind)) or {"A": 0.2},
+    )
+    records = [{"team": "A", "team_strength_seconds_delta": 0.1}, {"team": "B"}]
+    context = PredictionContext(mode="historical", season_year=2026, checkpoint_session="FP2")
+    with activate_prediction_runtime(config=None, prediction_context=context):
+        qp.apply_practice_adjustment(records, 2026, "X GP")
+
+    assert seen == [(("FP1", "FP2"), "qualifying")]
+    assert records[0]["team_strength_seconds_delta"] == pytest.approx(0.3)
+    assert "team_strength_seconds_delta" not in records[1]
+
+
+def test_qualifying_switch_is_off_by_default():
+    from src.utils import config_loader
+
+    assert config_loader.get("baseline_predictor.qualifying.practice_pace_adjustment") is False

@@ -99,14 +99,10 @@ def _with_practice_adjustment(
     """
     if not measured:
         return measured
-    from src.extractors.car_track_traits import load_car_track_traits
-    from src.models.practice_pace import allowed_sessions, practice_adjustments
-    from src.utils.prediction_context import get_active_prediction_context
+    from src.models.practice_pace import practice_adjustments, sessions_for_active_checkpoint
 
-    context = get_active_prediction_context()
-    stored = list(load_car_track_traits(year)["fp_gaps"].get(str(race_name or "").strip(), {}))
-    sessions = allowed_sessions(context.checkpoint_session if context else None, stored)
-    adjustments = practice_adjustments(year, race_name, sessions)
+    sessions = sessions_for_active_checkpoint(year, race_name)
+    adjustments = practice_adjustments(year, race_name, sessions, "race")
     return {team: delta + adjustments.get(team, 0.0) for team, delta in measured.items()}
 
 

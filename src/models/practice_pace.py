@@ -1,9 +1,9 @@
 """Race pace adjustment from this weekend's practice.
 
-Signal per team: its average race pace gap over earlier races minus its best-lap gap
-in this weekend's practice sessions so far (positive = quicker in practice than its
-usual race pace). A single slope, fitted on earlier races only, turns that into
-seconds per lap of race pace. Sizing (MODEL_LEDGER 2026-10-03): the signal predicts
+Signal per team: its average gap over earlier races (race pace, or qualifying gap)
+minus its best-lap gap in this weekend's practice sessions so far (positive = quicker
+in practice than usual). A single slope, fitted on earlier races only, turns that into
+seconds per lap. Qualifying walk-forward R2: 0.227 (FP1) to 0.293 (FP1 to FP3). Sizing (MODEL_LEDGER 2026-10-03): the signal predicts
 the model's own race errors at FP checkpoints, corr +0.30 / +0.32.
 
 Only the sessions a checkpoint may see are used: the replay passes its checkpoint
@@ -83,9 +83,13 @@ def fit_and_predict(
 
 @lru_cache(maxsize=128)
 def practice_adjustments(
-    year: int, race_name: str | None, sessions: tuple[str, ...]
+    year: int, race_name: str | None, sessions: tuple[str, ...], kind: str = "race"
 ) -> dict[str, float]:
-    """Return the practice-based race pace adjustment for ``race_name`` using ``sessions``."""
+    """Return the practice-based pace adjustment for ``race_name`` using ``sessions``.
+
+    ``kind`` "race" fits against measured race pace; "qualifying" against each race's
+    team qualifying gaps.
+    """
     from src.extractors.car_track_traits import load_car_track_traits
     from src.extractors.team_race_pace import load_team_race_pace
     from src.utils.weekend import get_schedule_rows
@@ -101,8 +105,12 @@ def practice_adjustments(
         return {}
     if target not in schedule:
         return {}
-    fp_by_race: dict[str, Any] = load_car_track_traits(year)["fp_gaps"]
-    pace = (load_team_race_pace(year) or {}).get("races") or {}
+    data = load_car_track_traits(year)
+    fp_by_race: dict[str, Any] = data["fp_gaps"]
+    if kind == "qualifying":
+        pace = {r: v["quali_gaps"] for r, v in data["races"].items() if v.get("quali_gaps")}
+    else:
+        pace = (load_team_race_pace(year) or {}).get("races") or {}
     return fit_and_predict(
         fp_by_race,
         pace,
@@ -110,6 +118,16 @@ def practice_adjustments(
         fp_by_race.get(target, {}),
         sessions,
     )
+
+
+def sessions_for_active_checkpoint(year: int, race_name: str | None) -> tuple[str, ...]:
+    """Return the practice sessions the active prediction may use for ``race_name``."""
+    from src.extractors.car_track_traits import load_car_track_traits
+    from src.utils.prediction_context import get_active_prediction_context
+
+    context = get_active_prediction_context()
+    stored = list(load_car_track_traits(year)["fp_gaps"].get(str(race_name or "").strip(), {}))
+    return allowed_sessions(context.checkpoint_session if context else None, stored)
 
 
 def allowed_sessions(checkpoint: str | None, stored: Sequence[str]) -> tuple[str, ...]:

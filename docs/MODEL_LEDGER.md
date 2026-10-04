@@ -1020,6 +1020,14 @@ Against `Z_base_32_*`, seeds 42 / 43. A = `grid_anchor` halved (base 0.14, track
 
 The damping hypothesis (2026-10-04 practice entry) is rejected: a lighter anchor costs about 0.017 race correlation, and the pace changes add nothing measurable even with it. The predicted qualifying grid predicts race order better than the simulation's own pace, so race skill comes mostly through the grid. Biggest measured lead left: qualifying's use of practice (qualifying errors correlate +0.20 with the weekend practice signal; the 0.18 cap never binds). Do not retry a lighter anchor alone.
 
+## 2026-10-04: qualifying practice term, `open`
+
+**Why.** Biggest measured lead left: qualifying errors correlate +0.20 with the weekend practice signal, the 0.18 cap never binds, and the anchor arms showed race skill comes mostly through the predicted grid.
+
+**What.** `baseline_predictor.qualifying.practice_pace_adjustment` (off): the practice model from the race term (`src/models/practice_pace.py`, now with `kind`), fitted against each race's team qualifying gaps; per team, prior-races mean qualifying gap minus this weekend's mean practice best-lap gap, one walk-forward slope, added to `team_strength_seconds_delta` before the score projection (same slot as the 3.2 track traits). The qualifying replay context now carries `checkpoint_session` too, so the term only sees practice the checkpoint allows; a test pins FP2 never reading FP3. Walk-forward sizing on qualifying gaps, races 5 to 15: FP1 R2 0.227 (110 rows), FP1+FP2 0.253, FP1 to FP3 0.293 (88 rows). Risk: qualifying already blends practice, so a slope fitted on raw deviations may double-count.
+
+**Replay, 2026-10-04: `worse` on both seeds, kept off.** Qualifying corr -0.0094 [-0.0188, -0.0008] (12 better / 22 worse) on seed 42 and -0.0094 [-0.0186, -0.0010] (11 / 22) on seed 43; MAE +0.099 / +0.106. Race unresolvable (-0.0046 / -0.0070). Worst at FP1 (-0.029 on both seeds), shrinking by FP3 (-0.006 / -0.003): the double count. The slope was fitted on raw qualifying deviations, but qualifying already blends practice, so the term stacks practice on itself, hardest when FP1 is all there is. The +0.20 residual signal is real; using it needs a slope fitted against the model's own residuals (what the existing blend leaves), not raw gaps. Do not retry the raw-fitted version.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

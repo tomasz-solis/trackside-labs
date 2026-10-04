@@ -1008,6 +1008,18 @@ Next: (1) a config-only arm raising those caps; (2) a race arm adding a walk-for
 
 **Pattern across race-side pace changes.** Race track traits (sizing R2 0.113), carry-over tyre deg (physics fix) and this practice term (R2 0.15 to 0.25) all carry real lap-time signal and none moves finishing order; the qualifying track traits change, on a path with no grid anchor, won. [Likely] the race pipeline damps pace: 42 to 57% of each main-race position is pinned to the predicted grid (`grid_anchor.min` 0.42, `main_max` 0.57; sprint >= 0.85), then gain caps and the movement-floor re-rank. Next: config arms A (anchor halved) and B (anchor halved + practice term + carry-over deg) against `Z_base_32_*`.
 
+## 2026-10-04: grid anchor arms: the anchor earns its keep, pace changes are genuinely small
+
+Against `Z_base_32_*`, seeds 42 / 43. A = `grid_anchor` halved (base 0.14, track_scale 0.18, min 0.21, main_max 0.29; sprint untouched). B = A + `practice_pace_adjustment` + `tyre_deg_model: carry_over`.
+
+| Comparison | Race corr | Race MAE | Verdict |
+|---|---|---|---|
+| A vs base | -0.0156 [-0.0301, -0.0022] / -0.0191 [-0.0352, -0.0045] | +0.100 / +0.095 | `worse` both seeds |
+| B vs A | -0.0006 / +0.0041 | -0.011 / -0.023 | `unresolvable` |
+| B vs base | -0.0162 / -0.0150 | +0.089 / +0.072 | `worse` |
+
+The damping hypothesis (2026-10-04 practice entry) is rejected: a lighter anchor costs about 0.017 race correlation, and the pace changes add nothing measurable even with it. The predicted qualifying grid predicts race order better than the simulation's own pace, so race skill comes mostly through the grid. Biggest measured lead left: qualifying's use of practice (qualifying errors correlate +0.20 with the weekend practice signal; the 0.18 cap never binds). Do not retry a lighter anchor alone.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

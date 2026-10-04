@@ -515,6 +515,8 @@ def test_predict_race_podium_probability_matches_ranked_outcomes():
     assert by_position[1]["podium_probability"] == 100.0
     assert by_position[2]["podium_probability"] == 100.0
     assert by_position[3]["podium_probability"] == 0.0
+    # Win % comes from the same ranked draws: A always ranks first.
+    assert [row["win_probability"] for row in by_position] == [100.0, 0.0, 0.0, 0.0]
 
 
 def test_predict_race_widens_top_interval_when_input_confidence_is_low():

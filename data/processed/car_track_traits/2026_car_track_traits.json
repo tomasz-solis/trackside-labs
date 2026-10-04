@@ -1,0 +1,2267 @@
+{
+ "fp_gaps": {
+  "Australian Grand Prix": {
+   "FP1": {
+    "Alpine": 3.058,
+    "Aston Martin": 30.067,
+    "Audi": 1.429,
+    "Cadillac F1": 3.755,
+    "Ferrari": 0.0,
+    "Haas F1 Team": 1.894,
+    "McLaren": 1.075,
+    "Mercedes": 1.104,
+    "RB": 1.046,
+    "Red Bull Racing": 0.522,
+    "Williams": 2.056
+   },
+   "FP2": {
+    "Alpine": 2.438,
+    "Aston Martin": 4.933,
+    "Audi": 1.622,
+    "Cadillac F1": 3.931,
+    "Ferrari": 0.321,
+    "Haas F1 Team": 1.45,
+    "McLaren": 0.0,
+    "Mercedes": 0.214,
+    "RB": 1.193,
+    "Red Bull Racing": 0.637,
+    "Williams": 2.118
+   },
+   "FP3": {
+    "Alpine": 2.018,
+    "Aston Martin": 3.667,
+    "Audi": 1.406,
+    "Cadillac F1": 4.461,
+    "Ferrari": 0.616,
+    "Haas F1 Team": 1.725,
+    "McLaren": 1.034,
+    "Mercedes": 0.0,
+    "RB": 1.785,
+    "Red Bull Racing": 1.084,
+    "Williams": 2.611
+   }
+  },
+  "Austrian Grand Prix": {
+   "FP1": {
+    "Alpine": 1.166,
+    "Aston Martin": 3.406,
+    "Audi": 1.369,
+    "Cadillac F1": 1.725,
+    "Ferrari": 0.665,
+    "Haas F1 Team": 1.275,
+    "McLaren": 0.117,
+    "Mercedes": 0.0,
+    "RB": 0.93,
+    "Red Bull Racing": 0.281,
+    "Williams": 1.848
+   },
+   "FP2": {
+    "Alpine": 1.362,
+    "Aston Martin": 3.53,
+    "Audi": 1.286,
+    "Cadillac F1": 4.293,
+    "Ferrari": 0.597,
+    "Haas F1 Team": 1.518,
+    "McLaren": 0.237,
+    "Mercedes": 0.0,
+    "RB": 1.221,
+    "Red Bull Racing": 0.55,
+    "Williams": 1.824
+   },
+   "FP3": {
+    "Alpine": 1.097,
+    "Aston Martin": 3.325,
+    "Audi": 1.207,
+    "Cadillac F1": 2.436,
+    "Ferrari": 0.115,
+    "Haas F1 Team": 1.433,
+    "McLaren": 0.248,
+    "Mercedes": 0.0,
+    "RB": 0.935,
+    "Red Bull Racing": 0.273,
+    "Williams": 1.747
+   }
+  },
+  "Azerbaijan Grand Prix": {
+   "FP1": {
+    "Alpine": 1.656,
+    "Aston Martin": 2.448,
+    "Audi": 1.301,
+    "Cadillac F1": 1.866,
+    "Ferrari": 0.404,
+    "Haas F1 Team": 1.237,
+    "McLaren": 1.011,
+    "Mercedes": 0.0,
+    "RB": 1.053,
+    "Red Bull Racing": 0.4,
+    "Williams": 1.506
+   },
+   "FP2": {
+    "Alpine": 1.496,
+    "Aston Martin": 4.056,
+    "Audi": 2.447,
+    "Cadillac F1": 2.413,
+    "Ferrari": 1.126,
+    "Haas F1 Team": 1.943,
+    "McLaren": 1.484,
+    "Mercedes": 0.0,
+    "RB": 2.334,
+    "Red Bull Racing": 0.827,
+    "Williams": 2.776
+   },
+   "FP3": {
+    "Alpine": 0.715,
+    "Aston Martin": 2.59,
+    "Audi": 1.932,
+    "Cadillac F1": 2.082,
+    "Ferrari": 0.111,
+    "Haas F1 Team": 1.77,
+    "McLaren": 0.824,
+    "Mercedes": 0.099,
+    "RB": 2.3,
+    "Red Bull Racing": 0.0,
+    "Williams": 1.683
+   }
+  },
+  "Barcelona Grand Prix": {
+   "FP1": {
+    "": 0.0
+   },
+   "FP2": {
+    "Alpine": 1.625,
+    "Aston Martin": 3.86,
+    "Audi": 1.185,
+    "Cadillac F1": 2.799,
+    "Ferrari": 0.373,
+    "Haas F1 Team": 1.519,
+    "McLaren": 0.0,
+    "Mercedes": 0.009,
+    "RB": 0.985,
+    "Red Bull Racing": 0.895,
+    "Williams": 1.594
+   },
+   "FP3": {
+    "Alpine": 1.904,
+    "Aston Martin": 3.817,
+    "Audi": 1.282,
+    "Cadillac F1": 3.012,
+    "Ferrari": 0.243,
+    "Haas F1 Team": 2.361,
+    "McLaren": 0.214,
+    "Mercedes": 0.0,
+    "RB": 1.341,
+    "Red Bull Racing": 0.755,
+    "Williams": 2.051
+   }
+  },
+  "Belgian Grand Prix": {
+   "FP1": {
+    "Alpine": 2.333,
+    "Aston Martin": 5.738,
+    "Audi": 1.336,
+    "Cadillac F1": 2.769,
+    "Ferrari": 0.145,
+    "Haas F1 Team": 1.94,
+    "McLaren": 0.452,
+    "Mercedes": 0.533,
+    "RB": 1.164,
+    "Red Bull Racing": 0.0,
+    "Williams": 2.267
+   },
+   "FP2": {
+    "Alpine": 1.203,
+    "Aston Martin": 5.187,
+    "Audi": 2.008,
+    "Cadillac F1": 3.255,
+    "Ferrari": 0.747,
+    "Haas F1 Team": 1.848,
+    "McLaren": 0.19,
+    "Mercedes": 0.0,
+    "RB": 1.35,
+    "Red Bull Racing": 0.472,
+    "Williams": 2.075
+   },
+   "FP3": {
+    "Alpine": 1.914,
+    "Aston Martin": 4.165,
+    "Audi": 0.934,
+    "Cadillac F1": 2.654,
+    "Ferrari": 0.392,
+    "Haas F1 Team": 1.93,
+    "McLaren": 0.139,
+    "Mercedes": 0.0,
+    "RB": 1.186,
+    "Red Bull Racing": 0.148,
+    "Williams": 2.0
+   }
+  },
+  "British Grand Prix": {
+   "FP1": {
+    "Alpine": 1.706,
+    "Aston Martin": 3.697,
+    "Audi": 1.483,
+    "Cadillac F1": 2.89,
+    "Ferrari": 0.0,
+    "Haas F1 Team": 2.113,
+    "McLaren": 0.887,
+    "Mercedes": 0.213,
+    "RB": 1.59,
+    "Red Bull Racing": 0.98,
+    "Williams": 2.424
+   }
+  },
+  "Canadian Grand Prix": {
+   "FP1": {
+    "Alpine": 3.407,
+    "Aston Martin": 2.461,
+    "Audi": 2.296,
+    "Cadillac F1": 4.466,
+    "Ferrari": 0.774,
+    "Haas F1 Team": 3.095,
+    "McLaren": 1.397,
+    "Mercedes": 0.0,
+    "RB": 2.05,
+    "Red Bull Racing": 0.964,
+    "Williams": 3.24
+   }
+  },
+  "Chinese Grand Prix": {
+   "FP1": {
+    "Alpine": 1.935,
+    "Aston Martin": 3.115,
+    "Audi": 1.898,
+    "Cadillac F1": 3.316,
+    "Ferrari": 0.858,
+    "Haas F1 Team": 1.685,
+    "McLaren": 0.555,
+    "Mercedes": 0.0,
+    "RB": 2.032,
+    "Red Bull Racing": 1.8,
+    "Williams": 2.739
+   }
+  },
+  "Dutch Grand Prix": {
+   "FP1": {
+    "Alpine": 0.962,
+    "Aston Martin": 1.562,
+    "Audi": 0.835,
+    "Cadillac F1": 2.631,
+    "Ferrari": 0.19,
+    "Haas F1 Team": 1.925,
+    "McLaren": 0.121,
+    "Mercedes": 0.0,
+    "RB": 1.336,
+    "Red Bull Racing": 1.376,
+    "Williams": 2.408
+   }
+  },
+  "Hungarian Grand Prix": {
+   "FP1": {
+    "Alpine": 2.629,
+    "Aston Martin": 2.475,
+    "Audi": 1.285,
+    "Cadillac F1": 3.014,
+    "Ferrari": 0.0,
+    "Haas F1 Team": 1.976,
+    "McLaren": 1.949,
+    "Mercedes": 0.991,
+    "RB": 1.685,
+    "Red Bull Racing": 0.484,
+    "Williams": 2.744
+   },
+   "FP2": {
+    "Alpine": 2.087,
+    "Aston Martin": 2.619,
+    "Audi": 1.396,
+    "Cadillac F1": 2.713,
+    "Ferrari": 0.0,
+    "Haas F1 Team": 1.828,
+    "McLaren": 0.499,
+    "Mercedes": 0.933,
+    "RB": 1.312,
+    "Red Bull Racing": 0.692,
+    "Williams": 2.244
+   },
+   "FP3": {
+    "Alpine": 1.784,
+    "Aston Martin": 2.454,
+    "Audi": 1.221,
+    "Cadillac F1": 3.36,
+    "Ferrari": 0.117,
+    "Haas F1 Team": 2.356,
+    "McLaren": 0.0,
+    "Mercedes": 0.129,
+    "RB": 1.149,
+    "Red Bull Racing": 0.717,
+    "Williams": 2.684
+   }
+  },
+  "Italian Grand Prix": {
+   "FP1": {
+    "Alpine": 1.02,
+    "Aston Martin": 2.772,
+    "Audi": 0.998,
+    "Cadillac F1": 2.976,
+    "Ferrari": 0.0,
+    "Haas F1 Team": 1.638,
+    "McLaren": 0.711,
+    "Mercedes": 0.304,
+    "RB": 0.794,
+    "Red Bull Racing": 0.425,
+    "Williams": 1.732
+   },
+   "FP2": {
+    "Alpine": 1.06,
+    "Aston Martin": 2.468,
+    "Audi": 1.173,
+    "Cadillac F1": 2.523,
+    "Ferrari": 0.12,
+    "Haas F1 Team": 0.811,
+    "McLaren": 0.384,
+    "Mercedes": 0.0,
+    "RB": 0.79,
+    "Red Bull Racing": 0.818,
+    "Williams": 1.294
+   },
+   "FP3": {
+    "Alpine": 0.679,
+    "Aston Martin": 2.7,
+    "Audi": 0.907,
+    "Cadillac F1": 2.785,
+    "Ferrari": 0.226,
+    "Haas F1 Team": 1.366,
+    "McLaren": 0.406,
+    "Mercedes": 0.0,
+    "RB": 0.505,
+    "Red Bull Racing": 0.35,
+    "Williams": 1.656
+   }
+  },
+  "Japanese Grand Prix": {
+   "FP1": {
+    "Alpine": 1.312,
+    "Aston Martin": 3.628,
+    "Audi": 1.093,
+    "Cadillac F1": 2.555,
+    "Ferrari": 0.289,
+    "Haas F1 Team": 0.935,
+    "McLaren": 0.132,
+    "Mercedes": 0.0,
+    "RB": 0.863,
+    "Red Bull Racing": 0.791,
+    "Williams": 1.717
+   },
+   "FP2": {
+    "Alpine": 1.601,
+    "Aston Martin": 3.463,
+    "Audi": 1.308,
+    "Cadillac F1": 2.482,
+    "Ferrari": 0.713,
+    "Haas F1 Team": 1.365,
+    "McLaren": 0.0,
+    "Mercedes": 0.092,
+    "RB": 1.457,
+    "Red Bull Racing": 1.376,
+    "Williams": 1.363
+   },
+   "FP3": {
+    "Alpine": 1.72,
+    "Aston Martin": 4.123,
+    "Audi": 1.296,
+    "Cadillac F1": 3.141,
+    "Ferrari": 0.867,
+    "Haas F1 Team": 1.964,
+    "McLaren": 1.002,
+    "Mercedes": 0.0,
+    "RB": 1.735,
+    "Red Bull Racing": 1.548,
+    "Williams": 2.371
+   }
+  },
+  "Miami Grand Prix": {
+   "FP1": {
+    "Alpine": 1.277,
+    "Aston Martin": 3.283,
+    "Audi": 1.801,
+    "Cadillac F1": 2.737,
+    "Ferrari": 0.0,
+    "Haas F1 Team": 1.781,
+    "McLaren": 0.448,
+    "Mercedes": 0.769,
+    "RB": 2.338,
+    "Red Bull Racing": 0.297,
+    "Williams": 1.62
+   }
+  },
+  "Monaco Grand Prix": {
+   "FP1": {
+    "Alpine": 1.85,
+    "Aston Martin": 2.7,
+    "Audi": 1.365,
+    "Cadillac F1": 2.192,
+    "Ferrari": 0.0,
+    "Haas F1 Team": 2.314,
+    "McLaren": 1.313,
+    "Mercedes": 0.559,
+    "RB": 2.411,
+    "Red Bull Racing": 0.513,
+    "Williams": 2.011
+   },
+   "FP2": {
+    "Alpine": 1.471,
+    "Aston Martin": 2.268,
+    "Audi": 1.068,
+    "Cadillac F1": 2.09,
+    "Ferrari": 0.0,
+    "Haas F1 Team": 1.43,
+    "McLaren": 1.062,
+    "Mercedes": 0.379,
+    "RB": 1.722,
+    "Red Bull Racing": 0.168,
+    "Williams": 1.486
+   },
+   "FP3": {
+    "Alpine": 1.76,
+    "Aston Martin": 2.847,
+    "Audi": 1.1,
+    "Cadillac F1": 2.225,
+    "Ferrari": 0.327,
+    "Haas F1 Team": 1.558,
+    "McLaren": 0.978,
+    "Mercedes": 0.0,
+    "RB": 1.867,
+    "Red Bull Racing": 0.942,
+    "Williams": 1.616
+   }
+  },
+  "Spanish Grand Prix": {
+   "FP1": {
+    "Alpine": 1.68,
+    "Aston Martin": 2.396,
+    "Audi": 1.452,
+    "Cadillac F1": 4.073,
+    "Ferrari": 0.459,
+    "Haas F1 Team": 1.757,
+    "McLaren": 0.87,
+    "Mercedes": 0.0,
+    "RB": 0.956,
+    "Red Bull Racing": 0.626,
+    "Williams": 2.793
+   },
+   "FP2": {
+    "Alpine": 1.297,
+    "Aston Martin": 3.118,
+    "Audi": 1.398,
+    "Cadillac F1": 3.533,
+    "Ferrari": 0.113,
+    "Haas F1 Team": 1.205,
+    "McLaren": 0.538,
+    "Mercedes": 0.0,
+    "RB": 0.228,
+    "Red Bull Racing": 0.401,
+    "Williams": 2.629
+   },
+   "FP3": {
+    "Alpine": 1.549,
+    "Aston Martin": 2.223,
+    "Audi": 1.136,
+    "Cadillac F1": 3.644,
+    "Ferrari": 0.166,
+    "Haas F1 Team": 1.633,
+    "McLaren": 0.189,
+    "Mercedes": 0.0,
+    "RB": 1.708,
+    "Red Bull Racing": 0.375,
+    "Williams": 2.667
+   }
+  }
+ },
+ "last_updated": "2026-10-03T16:28:36.271004+00:00",
+ "profiles": {},
+ "races": {
+  "Australian Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0055,
+    "MEDIUM": -0.111,
+    "SOFT": 0.0238
+   },
+   "profile": {
+    "braking": 0.1205240958449252,
+    "deg_severity": -0.022560622914348866,
+    "fast": 0.12513942128947067,
+    "full_throttle": 0.6410430635504674,
+    "lap_time_s": 78.518,
+    "medium": 0.12562659453083916,
+    "slow": 0.10819092062922277
+   },
+   "quali_gaps": {
+    "Alpine": 1.983,
+    "Aston Martin": 3.451,
+    "Audi": 1.703,
+    "Cadillac F1": 4.087,
+    "Ferrari": 0.809,
+    "Haas F1 Team": 1.793,
+    "McLaren": 0.862,
+    "Mercedes": 0.0,
+    "RB": 1.453,
+    "Red Bull Racing": 0.785,
+    "Williams": 2.423
+   },
+   "traits": {
+    "Alpine": {
+     "braking": 0.5033,
+     "deg": 0.0043,
+     "fast": -3.0,
+     "medium": -4.6,
+     "slow": -2.8333,
+     "top_speed": -1.5
+    },
+    "Aston Martin": {
+     "braking": 0.1304,
+     "deg": 0.1143,
+     "fast": -7.1667,
+     "medium": -1.4,
+     "slow": -2.6667,
+     "top_speed": -8.0
+    },
+    "Audi": {
+     "braking": -0.1179,
+     "deg": -0.0322,
+     "fast": -1.5,
+     "medium": -0.7,
+     "slow": 0.5,
+     "top_speed": 4.5
+    },
+    "Cadillac F1": {
+     "braking": 0.6238,
+     "deg": 0.0,
+     "fast": -12.0833,
+     "medium": -10.0,
+     "slow": -4.6667,
+     "top_speed": -9.0
+    },
+    "Ferrari": {
+     "braking": -0.4865,
+     "deg": -0.0145,
+     "fast": 4.6667,
+     "medium": 7.9,
+     "slow": 5.5,
+     "top_speed": -6.0
+    },
+    "Haas F1 Team": {
+     "braking": 0.1485,
+     "deg": -0.0204,
+     "fast": 0.5833,
+     "medium": -1.1,
+     "slow": 1.3333,
+     "top_speed": 2.0
+    },
+    "McLaren": {
+     "braking": -0.2037,
+     "deg": -0.0302,
+     "fast": 3.6667,
+     "medium": 6.3,
+     "slow": 1.5,
+     "top_speed": -3.5
+    },
+    "Mercedes": {
+     "braking": -0.0404,
+     "deg": -0.016,
+     "fast": 5.6667,
+     "medium": 7.9,
+     "slow": 3.0,
+     "top_speed": 1.5
+    },
+    "RB": {
+     "braking": 0.188,
+     "deg": 0.0015,
+     "fast": -0.6667,
+     "medium": -1.4,
+     "slow": -2.1667,
+     "top_speed": 5.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.2257,
+     "deg": 0.0264,
+     "fast": 0.3333,
+     "medium": 4.8,
+     "slow": 0.6667,
+     "top_speed": 1.0
+    },
+    "Williams": {
+     "braking": 0.3787,
+     "deg": 0.0106,
+     "fast": -4.6667,
+     "medium": -0.8,
+     "slow": 0.6667,
+     "top_speed": -4.0
+    }
+   }
+  },
+  "Austrian Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0441,
+    "MEDIUM": 0.0518,
+    "SOFT": 0.0173
+   },
+   "profile": {
+    "braking": 0.17621506682867563,
+    "deg_severity": 0.04858088235293954,
+    "fast": 0.14641555285540714,
+    "full_throttle": 0.6002126366950182,
+    "lap_time_s": 66.113,
+    "medium": 0.13001215066828667,
+    "slow": 0.12335965978128802
+   },
+   "quali_gaps": {
+    "Alpine": 1.11,
+    "Aston Martin": 3.829,
+    "Audi": 1.18,
+    "Cadillac F1": 2.832,
+    "Ferrari": 0.236,
+    "Haas F1 Team": 1.41,
+    "McLaren": 0.389,
+    "Mercedes": 0.0,
+    "RB": 0.842,
+    "Red Bull Racing": 0.362,
+    "Williams": 2.139
+   },
+   "traits": {
+    "Alpine": {
+     "braking": 0.8109,
+     "deg": 0.0102,
+     "fast": -23.3333,
+     "medium": 8.875,
+     "slow": 14.8333,
+     "top_speed": 3.0
+    },
+    "Aston Martin": {
+     "braking": 1.3333,
+     "deg": 0.0263,
+     "fast": -41.1667,
+     "medium": 8.125,
+     "slow": 23.5,
+     "top_speed": -12.0
+    },
+    "Audi": {
+     "braking": -0.0771,
+     "deg": -0.0304,
+     "fast": -0.1667,
+     "medium": 0.25,
+     "slow": -1.8333,
+     "top_speed": 0.0
+    },
+    "Cadillac F1": {
+     "braking": 1.3064,
+     "deg": NaN,
+     "fast": -31.3333,
+     "medium": 7.0208,
+     "slow": 9.6667,
+     "top_speed": -3.0
+    },
+    "Ferrari": {
+     "braking": -0.3716,
+     "deg": 0.0027,
+     "fast": 3.1667,
+     "medium": 2.875,
+     "slow": 1.1667,
+     "top_speed": 0.0
+    },
+    "Haas F1 Team": {
+     "braking": 0.0029,
+     "deg": 0.0155,
+     "fast": -0.5,
+     "medium": 0.25,
+     "slow": -1.8333,
+     "top_speed": -2.5
+    },
+    "McLaren": {
+     "braking": -0.2141,
+     "deg": -0.0027,
+     "fast": 0.0,
+     "medium": -0.75,
+     "slow": 0.0,
+     "top_speed": 0.0
+    },
+    "Mercedes": {
+     "braking": -0.0341,
+     "deg": -0.0136,
+     "fast": 5.3333,
+     "medium": 3.125,
+     "slow": 0.5,
+     "top_speed": 4.5
+    },
+    "RB": {
+     "braking": -0.0116,
+     "deg": -0.0119,
+     "fast": -1.0,
+     "medium": -4.5,
+     "slow": -1.8333,
+     "top_speed": 3.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.2485,
+     "deg": -0.0033,
+     "fast": 2.8333,
+     "medium": -0.75,
+     "slow": -1.3333,
+     "top_speed": 3.5
+    },
+    "Williams": {
+     "braking": 1.2068,
+     "deg": 0.032,
+     "fast": -24.0,
+     "medium": 8.25,
+     "slow": 21.1667,
+     "top_speed": -0.5
+    }
+   }
+  },
+  "Azerbaijan Grand Prix": {
+   "compound_deg": {
+    "MEDIUM": -0.0639,
+    "SOFT": -0.066
+   },
+   "profile": {
+    "braking": 0.20245212973817886,
+    "deg_severity": -0.07893781414863024,
+    "fast": 0.036342321219226245,
+    "full_throttle": 0.6002246971473234,
+    "lap_time_s": 102.526,
+    "medium": 0.09378663540445484,
+    "slow": 0.26964634622899547
+   },
+   "quali_gaps": {
+    "Alpine": 1.521,
+    "Aston Martin": 4.067,
+    "Audi": 3.273,
+    "Cadillac F1": 4.132,
+    "Ferrari": 0.837,
+    "Haas F1 Team": 2.249,
+    "McLaren": 0.838,
+    "Mercedes": 0.0,
+    "RB": 2.334,
+    "Red Bull Racing": 0.974,
+    "Williams": 2.04
+   },
+   "traits": {
+    "Alpine": {
+     "braking": -0.0358,
+     "deg": 0.0048,
+     "fast": 1.25,
+     "medium": NaN,
+     "slow": 0.9643,
+     "top_speed": 4.5
+    },
+    "Aston Martin": {
+     "braking": 0.373,
+     "deg": 0.1016,
+     "fast": -4.5833,
+     "medium": NaN,
+     "slow": -1.5714,
+     "top_speed": -7.5
+    },
+    "Audi": {
+     "braking": 0.1027,
+     "deg": 0.0,
+     "fast": -3.0,
+     "medium": NaN,
+     "slow": 0.2857,
+     "top_speed": -3.0
+    },
+    "Cadillac F1": {
+     "braking": 0.3401,
+     "deg": 0.0257,
+     "fast": -5.1667,
+     "medium": NaN,
+     "slow": -2.5714,
+     "top_speed": 0.0
+    },
+    "Ferrari": {
+     "braking": -0.1485,
+     "deg": -0.0223,
+     "fast": 0.0833,
+     "medium": NaN,
+     "slow": 2.6071,
+     "top_speed": 1.0
+    },
+    "Haas F1 Team": {
+     "braking": -0.107,
+     "deg": 0.0189,
+     "fast": -2.0,
+     "medium": NaN,
+     "slow": 0.8571,
+     "top_speed": -0.5
+    },
+    "McLaren": {
+     "braking": -0.2199,
+     "deg": -0.0038,
+     "fast": 1.5833,
+     "medium": NaN,
+     "slow": 2.4286,
+     "top_speed": 1.5
+    },
+    "Mercedes": {
+     "braking": -0.0569,
+     "deg": -0.0266,
+     "fast": 3.0,
+     "medium": NaN,
+     "slow": 2.1429,
+     "top_speed": 6.0
+    },
+    "RB": {
+     "braking": -0.164,
+     "deg": -0.0201,
+     "fast": 1.1667,
+     "medium": NaN,
+     "slow": -1.6429,
+     "top_speed": 1.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.2813,
+     "deg": -0.0044,
+     "fast": 0.3333,
+     "medium": NaN,
+     "slow": 2.1071,
+     "top_speed": -1.5
+    },
+    "Williams": {
+     "braking": -0.1254,
+     "deg": 0.0043,
+     "fast": 4.75,
+     "medium": NaN,
+     "slow": -1.5714,
+     "top_speed": 5.0
+    }
+   }
+  },
+  "Barcelona Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0766,
+    "MEDIUM": 0.1302,
+    "SOFT": 0.1857
+   },
+   "profile": {
+    "braking": 0.1522437837038231,
+    "deg_severity": 0.09575488721804455,
+    "fast": 0.0823146541870066,
+    "full_throttle": 0.5836258253654469,
+    "lap_time_s": 74.679,
+    "medium": 0.2065598902650583,
+    "slow": 0.12749963018248814
+   },
+   "quali_gaps": {
+    "Alpine": 1.512,
+    "Aston Martin": 4.079,
+    "Audi": 1.089,
+    "Cadillac F1": 2.866,
+    "Ferrari": 0.064,
+    "Haas F1 Team": 1.71,
+    "McLaren": 0.322,
+    "Mercedes": 0.0,
+    "RB": 0.906,
+    "Red Bull Racing": 0.342,
+    "Williams": 2.202
+   },
+   "traits": {
+    "Alpine": {
+     "braking": -0.0929,
+     "deg": -0.0373,
+     "fast": -6.0,
+     "medium": -5.5,
+     "slow": 0.5,
+     "top_speed": 3.0
+    },
+    "Aston Martin": {
+     "braking": -0.0284,
+     "deg": 0.075,
+     "fast": -14.9,
+     "medium": -6.9167,
+     "slow": -3.1667,
+     "top_speed": -8.0
+    },
+    "Audi": {
+     "braking": 0.2179,
+     "deg": -0.0384,
+     "fast": 0.5,
+     "medium": 1.4167,
+     "slow": -1.5,
+     "top_speed": 0.5
+    },
+    "Cadillac F1": {
+     "braking": 0.5049,
+     "deg": 0.019,
+     "fast": -7.1,
+     "medium": -3.8333,
+     "slow": -3.3333,
+     "top_speed": 1.0
+    },
+    "Ferrari": {
+     "braking": -0.5463,
+     "deg": 0.0403,
+     "fast": 0.7,
+     "medium": 6.25,
+     "slow": 3.1667,
+     "top_speed": 0.5
+    },
+    "Haas F1 Team": {
+     "braking": 0.0003,
+     "deg": 0.0598,
+     "fast": -7.7,
+     "medium": -3.5833,
+     "slow": -1.0,
+     "top_speed": 1.0
+    },
+    "McLaren": {
+     "braking": -0.0065,
+     "deg": 0.0,
+     "fast": 4.0,
+     "medium": 5.25,
+     "slow": 0.8333,
+     "top_speed": -1.0
+    },
+    "Mercedes": {
+     "braking": -0.0729,
+     "deg": -0.0025,
+     "fast": 4.1,
+     "medium": 6.0,
+     "slow": 3.1667,
+     "top_speed": -0.5
+    },
+    "RB": {
+     "braking": 0.2072,
+     "deg": -0.0328,
+     "fast": 1.6,
+     "medium": 1.0,
+     "slow": 0.3333,
+     "top_speed": -0.5
+    },
+    "Red Bull Racing": {
+     "braking": 0.0824,
+     "deg": 0.0187,
+     "fast": 4.8,
+     "medium": 3.0,
+     "slow": -0.8333,
+     "top_speed": -1.0
+    },
+    "Williams": {
+     "braking": -0.2085,
+     "deg": -0.0175,
+     "fast": -6.4,
+     "medium": -7.0,
+     "slow": -1.5,
+     "top_speed": -5.5
+    }
+   }
+  },
+  "Belgian Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0041,
+    "MEDIUM": 0.0145,
+    "SOFT": 0.0293
+   },
+   "profile": {
+    "braking": 0.0994593344320121,
+    "deg_severity": -0.004068182374992292,
+    "fast": 0.030840103699848617,
+    "full_throttle": 0.7023833617640539,
+    "lap_time_s": 104.361,
+    "medium": 0.15537629745280013,
+    "slow": 0.11140023708329726
+   },
+   "quali_gaps": {
+    "Alpine": 1.97,
+    "Aston Martin": 5.641,
+    "Audi": 1.267,
+    "Cadillac F1": 3.462,
+    "Ferrari": 0.532,
+    "Haas F1 Team": 2.418,
+    "McLaren": 0.44,
+    "Mercedes": 0.0,
+    "RB": 0.782,
+    "Red Bull Racing": 0.317,
+    "Williams": 2.416
+   },
+   "traits": {
+    "Alpine": {
+     "braking": -0.0837,
+     "deg": -0.0417,
+     "fast": -1.5625,
+     "medium": -3.5714,
+     "slow": 1.375,
+     "top_speed": 0.0
+    },
+    "Aston Martin": {
+     "braking": 0.2309,
+     "deg": 0.0766,
+     "fast": -7.25,
+     "medium": -11.5714,
+     "slow": -3.875,
+     "top_speed": -7.5
+    },
+    "Audi": {
+     "braking": -0.3999,
+     "deg": -0.0404,
+     "fast": 0.75,
+     "medium": 3.2143,
+     "slow": 2.5,
+     "top_speed": 0.0
+    },
+    "Cadillac F1": {
+     "braking": -0.108,
+     "deg": 0.0053,
+     "fast": -3.4375,
+     "medium": -10.2857,
+     "slow": -0.5,
+     "top_speed": -3.5
+    },
+    "Ferrari": {
+     "braking": -0.5619,
+     "deg": 0.0,
+     "fast": 2.4375,
+     "medium": 7.7857,
+     "slow": 2.0,
+     "top_speed": 1.5
+    },
+    "Haas F1 Team": {
+     "braking": 0.4342,
+     "deg": 0.0004,
+     "fast": -2.3125,
+     "medium": -2.8571,
+     "slow": -1.875,
+     "top_speed": -0.5
+    },
+    "McLaren": {
+     "braking": -0.0904,
+     "deg": -0.0001,
+     "fast": 3.0,
+     "medium": 5.6429,
+     "slow": -1.0,
+     "top_speed": -1.5
+    },
+    "Mercedes": {
+     "braking": -0.3158,
+     "deg": -0.0064,
+     "fast": 5.3125,
+     "medium": 4.0714,
+     "slow": 0.0,
+     "top_speed": 3.5
+    },
+    "RB": {
+     "braking": 0.0597,
+     "deg": 0.0088,
+     "fast": 5.75,
+     "medium": 0.7857,
+     "slow": 0.0,
+     "top_speed": 2.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.288,
+     "deg": -0.0114,
+     "fast": 0.5625,
+     "medium": 2.3571,
+     "slow": 1.5,
+     "top_speed": 1.5
+    },
+    "Williams": {
+     "braking": 0.1624,
+     "deg": 0.0356,
+     "fast": -0.4375,
+     "medium": -4.0714,
+     "slow": -1.75,
+     "top_speed": -1.0
+    }
+   }
+  },
+  "British Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0014,
+    "MEDIUM": -0.0069,
+    "SOFT": 0.1258
+   },
+   "profile": {
+    "braking": 0.10622435020519831,
+    "deg_severity": -0.0033676553603647534,
+    "fast": 0.0898198814409484,
+    "full_throttle": 0.6589033287733698,
+    "lap_time_s": 88.111,
+    "medium": 0.08893068855449171,
+    "slow": 0.16234610123119012
+   },
+   "quali_gaps": {
+    "Alpine": 1.952,
+    "Aston Martin": 4.752,
+    "Audi": 1.35,
+    "Cadillac F1": 3.116,
+    "Ferrari": 0.175,
+    "Haas F1 Team": 2.39,
+    "McLaren": 0.766,
+    "Mercedes": 0.0,
+    "RB": 1.189,
+    "Red Bull Racing": 0.635,
+    "Williams": 2.451
+   },
+   "traits": {
+    "Alpine": {
+     "braking": 0.2451,
+     "deg": -0.0447,
+     "fast": -2.1667,
+     "medium": -0.625,
+     "slow": -2.1,
+     "top_speed": 3.5
+    },
+    "Aston Martin": {
+     "braking": 0.3341,
+     "deg": -0.0231,
+     "fast": -10.6667,
+     "medium": -7.375,
+     "slow": -1.9,
+     "top_speed": -14.0
+    },
+    "Audi": {
+     "braking": -0.1114,
+     "deg": -0.0296,
+     "fast": 3.6667,
+     "medium": 0.625,
+     "slow": 1.5,
+     "top_speed": -1.0
+    },
+    "Cadillac F1": {
+     "braking": 0.196,
+     "deg": 0.0007,
+     "fast": -9.3333,
+     "medium": -1.75,
+     "slow": -2.5,
+     "top_speed": 1.5
+    },
+    "Ferrari": {
+     "braking": -0.4226,
+     "deg": 0.0,
+     "fast": 3.6111,
+     "medium": 5.875,
+     "slow": 3.3,
+     "top_speed": 0.5
+    },
+    "Haas F1 Team": {
+     "braking": -0.0059,
+     "deg": -0.0365,
+     "fast": -3.1111,
+     "medium": -10.25,
+     "slow": 14.6,
+     "top_speed": -2.5
+    },
+    "McLaren": {
+     "braking": -0.1063,
+     "deg": 0.0372,
+     "fast": 1.8889,
+     "medium": 5.75,
+     "slow": 1.2,
+     "top_speed": -3.0
+    },
+    "Mercedes": {
+     "braking": -0.0358,
+     "deg": 0.019,
+     "fast": 5.5556,
+     "medium": 6.5,
+     "slow": 0.8,
+     "top_speed": 2.0
+    },
+    "RB": {
+     "braking": -0.1492,
+     "deg": -0.0173,
+     "fast": 1.3333,
+     "medium": -1.0,
+     "slow": -0.2,
+     "top_speed": 0.5
+    },
+    "Red Bull Racing": {
+     "braking": -0.2824,
+     "deg": 0.0095,
+     "fast": 3.4444,
+     "medium": 2.875,
+     "slow": 0.6,
+     "top_speed": 1.0
+    },
+    "Williams": {
+     "braking": 0.2549,
+     "deg": 0.0553,
+     "fast": -1.9444,
+     "medium": 1.75,
+     "slow": -2.9,
+     "top_speed": -0.5
+    }
+   }
+  },
+  "Canadian Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.038,
+    "MEDIUM": -0.0513,
+    "SOFT": -0.0528
+   },
+   "profile": {
+    "braking": 0.20543898398674773,
+    "deg_severity": -0.07495334739061743,
+    "fast": 0.04859193815571501,
+    "full_throttle": 0.5985505245720597,
+    "lap_time_s": 72.578,
+    "medium": 0.17948647156267256,
+    "slow": 0.1733710657095528
+   },
+   "quali_gaps": {
+    "Alpine": 1.119,
+    "Aston Martin": 2.618,
+    "Audi": 1.308,
+    "Cadillac F1": 2.851,
+    "Ferrari": 0.29,
+    "Haas F1 Team": 1.838,
+    "McLaren": 0.151,
+    "Mercedes": 0.0,
+    "RB": 0.702,
+    "Red Bull Racing": 0.329,
+    "Williams": 1.695
+   },
+   "traits": {
+    "Alpine": {
+     "braking": -0.0031,
+     "deg": -0.0042,
+     "fast": 1.0,
+     "medium": NaN,
+     "slow": -0.5833,
+     "top_speed": 0.5
+    },
+    "Aston Martin": {
+     "braking": 0.2416,
+     "deg": 0.1055,
+     "fast": -6.0,
+     "medium": NaN,
+     "slow": -5.0,
+     "top_speed": -3.5
+    },
+    "Audi": {
+     "braking": 0.27,
+     "deg": -0.0153,
+     "fast": -0.5,
+     "medium": NaN,
+     "slow": -0.875,
+     "top_speed": 1.5
+    },
+    "Cadillac F1": {
+     "braking": 0.3051,
+     "deg": -0.0412,
+     "fast": -3.75,
+     "medium": NaN,
+     "slow": -2.4167,
+     "top_speed": -4.5
+    },
+    "Ferrari": {
+     "braking": -0.253,
+     "deg": 0.0479,
+     "fast": 0.0,
+     "medium": NaN,
+     "slow": 2.7083,
+     "top_speed": 4.0
+    },
+    "Haas F1 Team": {
+     "braking": 0.0835,
+     "deg": -0.013,
+     "fast": -3.5,
+     "medium": NaN,
+     "slow": -3.3333,
+     "top_speed": -1.0
+    },
+    "McLaren": {
+     "braking": -0.1563,
+     "deg": -0.0346,
+     "fast": 3.0,
+     "medium": NaN,
+     "slow": 5.5833,
+     "top_speed": 0.0
+    },
+    "Mercedes": {
+     "braking": 0.2118,
+     "deg": 0.0586,
+     "fast": 0.75,
+     "medium": NaN,
+     "slow": 2.9167,
+     "top_speed": 3.5
+    },
+    "RB": {
+     "braking": 0.0417,
+     "deg": 0.004,
+     "fast": 1.25,
+     "medium": NaN,
+     "slow": -1.375,
+     "top_speed": 2.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.1964,
+     "deg": 0.005,
+     "fast": 0.25,
+     "medium": NaN,
+     "slow": 2.3333,
+     "top_speed": 2.5
+    },
+    "Williams": {
+     "braking": 0.3467,
+     "deg": 0.0,
+     "fast": -1.25,
+     "medium": NaN,
+     "slow": -2.4167,
+     "top_speed": -1.5
+    }
+   }
+  },
+  "Chinese Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0403,
+    "MEDIUM": -0.031,
+    "SOFT": -0.0527
+   },
+   "profile": {
+    "braking": 0.21707715780296416,
+    "deg_severity": -0.04632641030057618,
+    "fast": 0.046207497820401046,
+    "full_throttle": 0.5610069747166522,
+    "lap_time_s": 92.064,
+    "medium": 0.14123801220575408,
+    "slow": 0.25154751525719266
+   },
+   "quali_gaps": {
+    "Alpine": 0.809,
+    "Aston Martin": 3.139,
+    "Audi": 1.29,
+    "Cadillac F1": 3.372,
+    "Ferrari": 0.351,
+    "Haas F1 Team": 1.133,
+    "McLaren": 0.486,
+    "Mercedes": 0.0,
+    "RB": 1.701,
+    "Red Bull Racing": 0.938,
+    "Williams": 2.253
+   },
+   "traits": {
+    "Alpine": {
+     "braking": 0.1905,
+     "deg": 0.0097,
+     "fast": 1.0,
+     "medium": -2.2,
+     "slow": -4.625,
+     "top_speed": 8.5
+    },
+    "Aston Martin": {
+     "braking": -0.1036,
+     "deg": -0.0685,
+     "fast": -9.3333,
+     "medium": -4.9,
+     "slow": -4.0625,
+     "top_speed": -11.0
+    },
+    "Audi": {
+     "braking": 0.5222,
+     "deg": 0.0021,
+     "fast": 1.8333,
+     "medium": 1.5,
+     "slow": 15.0625,
+     "top_speed": 1.0
+    },
+    "Cadillac F1": {
+     "braking": 2.3582,
+     "deg": 0.0121,
+     "fast": -50.8333,
+     "medium": -0.7,
+     "slow": 45.3125,
+     "top_speed": 1.5
+    },
+    "Ferrari": {
+     "braking": -0.2637,
+     "deg": -0.0146,
+     "fast": -2.6667,
+     "medium": 6.0,
+     "slow": 1.25,
+     "top_speed": -3.5
+    },
+    "Haas F1 Team": {
+     "braking": 1.4402,
+     "deg": -0.0091,
+     "fast": -23.6667,
+     "medium": 7.3,
+     "slow": 22.8125,
+     "top_speed": -1.0
+    },
+    "McLaren": {
+     "braking": 0.0565,
+     "deg": NaN,
+     "fast": 3.8333,
+     "medium": 1.4,
+     "slow": 1.375,
+     "top_speed": -2.5
+    },
+    "Mercedes": {
+     "braking": 0.0638,
+     "deg": -0.0275,
+     "fast": -0.8333,
+     "medium": 1.5,
+     "slow": -4.125,
+     "top_speed": -0.5
+    },
+    "RB": {
+     "braking": 0.2032,
+     "deg": 0.031,
+     "fast": -0.6667,
+     "medium": -1.6,
+     "slow": 6.375,
+     "top_speed": -5.5
+    },
+    "Red Bull Racing": {
+     "braking": 0.0789,
+     "deg": -0.0021,
+     "fast": 3.8333,
+     "medium": 1.7,
+     "slow": 7.875,
+     "top_speed": 1.0
+    },
+    "Williams": {
+     "braking": 0.3373,
+     "deg": 0.0481,
+     "fast": -19.0,
+     "medium": 0.1,
+     "slow": -7.125,
+     "top_speed": 3.5
+    }
+   }
+  },
+  "Dutch Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0077,
+    "MEDIUM": 0.0444,
+    "SOFT": 0.0118
+   },
+   "profile": {
+    "braking": 0.16855737658713948,
+    "deg_severity": 0.012333249454789552,
+    "fast": 0.09977311480954329,
+    "full_throttle": 0.5287552317470159,
+    "lap_time_s": 71.163,
+    "medium": 0.18489029185045333,
+    "slow": 0.1865813615929876
+   },
+   "quali_gaps": {
+    "Alpine": 1.453,
+    "Aston Martin": 2.487,
+    "Audi": 0.916,
+    "Cadillac F1": 3.208,
+    "Ferrari": 0.331,
+    "Haas F1 Team": 1.974,
+    "McLaren": 0.0,
+    "Mercedes": 0.102,
+    "RB": 1.022,
+    "Red Bull Racing": 0.455,
+    "Williams": 2.019
+   },
+   "traits": {
+    "Alpine": {
+     "braking": 0.1029,
+     "deg": 0.0011,
+     "fast": 0.6,
+     "medium": -5.3333,
+     "slow": -0.75,
+     "top_speed": 12.5
+    },
+    "Aston Martin": {
+     "braking": 0.0494,
+     "deg": -0.0317,
+     "fast": -6.8,
+     "medium": -5.0,
+     "slow": -3.3333,
+     "top_speed": -6.5
+    },
+    "Audi": {
+     "braking": -0.1004,
+     "deg": 0.0,
+     "fast": 0.2,
+     "medium": 0.1667,
+     "slow": 0.3333,
+     "top_speed": -5.0
+    },
+    "Cadillac F1": {
+     "braking": 0.187,
+     "deg": -0.0157,
+     "fast": -4.9,
+     "medium": -9.6667,
+     "slow": -2.0833,
+     "top_speed": -2.5
+    },
+    "Ferrari": {
+     "braking": -0.3565,
+     "deg": 0.0698,
+     "fast": 0.9,
+     "medium": 7.6667,
+     "slow": 3.8333,
+     "top_speed": 0.0
+    },
+    "Haas F1 Team": {
+     "braking": 0.2975,
+     "deg": -0.0236,
+     "fast": -1.7,
+     "medium": -3.0,
+     "slow": -3.3333,
+     "top_speed": 0.5
+    },
+    "McLaren": {
+     "braking": -0.2025,
+     "deg": 0.0431,
+     "fast": 4.7,
+     "medium": 8.0,
+     "slow": 2.9167,
+     "top_speed": -0.5
+    },
+    "Mercedes": {
+     "braking": -0.1725,
+     "deg": 0.0507,
+     "fast": 2.5,
+     "medium": 7.1667,
+     "slow": 2.0833,
+     "top_speed": 4.0
+    },
+    "RB": {
+     "braking": 0.0051,
+     "deg": -0.0383,
+     "fast": -0.3,
+     "medium": -1.1667,
+     "slow": -0.8333,
+     "top_speed": -1.5
+    },
+    "Red Bull Racing": {
+     "braking": -0.1374,
+     "deg": 0.0127,
+     "fast": 4.2,
+     "medium": 6.0,
+     "slow": 2.1667,
+     "top_speed": 1.0
+    },
+    "Williams": {
+     "braking": 0.2239,
+     "deg": -0.0055,
+     "fast": 0.2,
+     "medium": -5.1667,
+     "slow": -2.0,
+     "top_speed": 3.0
+    }
+   }
+  },
+  "Hungarian Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.042,
+    "MEDIUM": 0.0282,
+    "SOFT": 0.0094
+   },
+   "profile": {
+    "braking": 0.22103771499889494,
+    "deg_severity": 0.022792972493345724,
+    "fast": 0.10499356465892702,
+    "full_throttle": 0.44667767391671737,
+    "lap_time_s": 77.207,
+    "medium": 0.2506922866911948,
+    "slow": 0.19763647473316076
+   },
+   "quali_gaps": {
+    "Alpine": 1.637,
+    "Aston Martin": 2.601,
+    "Audi": 1.432,
+    "Cadillac F1": 3.679,
+    "Ferrari": 0.012,
+    "Haas F1 Team": 2.527,
+    "McLaren": 0.0,
+    "Mercedes": 0.272,
+    "RB": 1.074,
+    "Red Bull Racing": 0.518,
+    "Williams": 3.414
+   },
+   "traits": {
+    "Alpine": {
+     "braking": 0.0711,
+     "deg": 0.0213,
+     "fast": -1.1667,
+     "medium": 0.125,
+     "slow": 0.2143,
+     "top_speed": 9.5
+    },
+    "Aston Martin": {
+     "braking": 0.0693,
+     "deg": -0.0162,
+     "fast": -2.5,
+     "medium": -3.375,
+     "slow": -2.5,
+     "top_speed": -10.5
+    },
+    "Audi": {
+     "braking": 0.0985,
+     "deg": -0.0201,
+     "fast": -1.6667,
+     "medium": -5.0,
+     "slow": 0.0,
+     "top_speed": 2.5
+    },
+    "Cadillac F1": {
+     "braking": 0.295,
+     "deg": -0.0114,
+     "fast": -9.0,
+     "medium": -5.75,
+     "slow": -2.2857,
+     "top_speed": 4.5
+    },
+    "Ferrari": {
+     "braking": -0.2126,
+     "deg": 0.0,
+     "fast": 8.0,
+     "medium": 7.75,
+     "slow": 2.2857,
+     "top_speed": -0.5
+    },
+    "Haas F1 Team": {
+     "braking": 0.1003,
+     "deg": 0.0115,
+     "fast": -3.3333,
+     "medium": 0.125,
+     "slow": -1.0714,
+     "top_speed": 3.5
+    },
+    "McLaren": {
+     "braking": -0.3997,
+     "deg": -0.0146,
+     "fast": 9.6667,
+     "medium": 5.125,
+     "slow": 3.1429,
+     "top_speed": -2.5
+    },
+    "Mercedes": {
+     "braking": -0.4401,
+     "deg": 0.014,
+     "fast": 9.5,
+     "medium": 4.375,
+     "slow": 1.7857,
+     "top_speed": -0.5
+    },
+    "RB": {
+     "braking": -0.0794,
+     "deg": -0.0035,
+     "fast": -2.5,
+     "medium": 0.125,
+     "slow": 2.4286,
+     "top_speed": -4.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.2406,
+     "deg": 0.0039,
+     "fast": 4.3333,
+     "medium": 4.0,
+     "slow": 2.0,
+     "top_speed": -3.5
+    },
+    "Williams": {
+     "braking": 0.3294,
+     "deg": 0.0021,
+     "fast": -6.3333,
+     "medium": -6.375,
+     "slow": -3.2857,
+     "top_speed": 5.0
+    }
+   }
+  },
+  "Italian Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0254,
+    "MEDIUM": -0.0213,
+    "SOFT": 0.0176
+   },
+   "profile": {
+    "braking": 0.13771519921298583,
+    "deg_severity": -0.020175322430077552,
+    "fast": 0.07722577471716681,
+    "full_throttle": 0.7732169208066895,
+    "lap_time_s": 81.786,
+    "medium": 0.06936792916871622,
+    "slow": 0.08018937530742745
+   },
+   "quali_gaps": {
+    "Alpine": 0.0,
+    "Aston Martin": 3.364,
+    "Audi": 0.731,
+    "Cadillac F1": 2.578,
+    "Ferrari": 0.218,
+    "Haas F1 Team": 0.97,
+    "McLaren": 0.18,
+    "Mercedes": 0.06,
+    "RB": 0.5,
+    "Red Bull Racing": 0.284,
+    "Williams": 1.667
+   },
+   "traits": {
+    "Alpine": {
+     "braking": -0.4532,
+     "deg": -0.0209,
+     "fast": -21.125,
+     "medium": -16.625,
+     "slow": 66.8333,
+     "top_speed": 5.0
+    },
+    "Aston Martin": {
+     "braking": 0.2886,
+     "deg": 0.0616,
+     "fast": -3.75,
+     "medium": 0.625,
+     "slow": -1.5,
+     "top_speed": -17.0
+    },
+    "Audi": {
+     "braking": 0.0084,
+     "deg": -0.0346,
+     "fast": 1.75,
+     "medium": 1.5,
+     "slow": 1.0,
+     "top_speed": 0.0
+    },
+    "Cadillac F1": {
+     "braking": 0.1258,
+     "deg": -0.0029,
+     "fast": -8.0,
+     "medium": -9.75,
+     "slow": -0.8333,
+     "top_speed": -0.5
+    },
+    "Ferrari": {
+     "braking": -0.1889,
+     "deg": 0.0118,
+     "fast": 1.125,
+     "medium": 0.625,
+     "slow": 0.1667,
+     "top_speed": 1.5
+    },
+    "Haas F1 Team": {
+     "braking": 0.1719,
+     "deg": 0.023,
+     "fast": 1.0,
+     "medium": -2.125,
+     "slow": -2.0,
+     "top_speed": 1.0
+    },
+    "McLaren": {
+     "braking": -0.0859,
+     "deg": -0.0014,
+     "fast": 3.125,
+     "medium": 0.875,
+     "slow": -0.3333,
+     "top_speed": -3.0
+    },
+    "Mercedes": {
+     "braking": 0.1314,
+     "deg": -0.0007,
+     "fast": 3.875,
+     "medium": 5.625,
+     "slow": -2.3333,
+     "top_speed": 5.5
+    },
+    "RB": {
+     "braking": -0.0681,
+     "deg": 0.0111,
+     "fast": -1.375,
+     "medium": -1.25,
+     "slow": 0.1667,
+     "top_speed": -8.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.0087,
+     "deg": 0.0146,
+     "fast": 1.0,
+     "medium": 3.5,
+     "slow": 2.1667,
+     "top_speed": -3.0
+    },
+    "Williams": {
+     "braking": -0.8218,
+     "deg": 0.0,
+     "fast": -38.25,
+     "medium": 43.0,
+     "slow": 65.0,
+     "top_speed": 0.5
+    }
+   }
+  },
+  "Japanese Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0286,
+    "MEDIUM": -0.0057
+   },
+   "profile": {
+    "braking": 0.4165915238954012,
+    "deg_severity": -0.019986081700193205,
+    "fast": 0.12759242560865644,
+    "full_throttle": 0.6677299368800721,
+    "lap_time_s": 88.778,
+    "medium": 0.15598512173128945,
+    "slow": 0.04869251577998197
+   },
+   "quali_gaps": {
+    "Alpine": 0.913,
+    "Aston Martin": 3.868,
+    "Audi": 1.212,
+    "Cadillac F1": 3.428,
+    "Ferrari": 0.525,
+    "Haas F1 Team": 1.531,
+    "McLaren": 0.354,
+    "Mercedes": 0.0,
+    "RB": 1.331,
+    "Red Bull Racing": 1.2,
+    "Williams": 2.149
+   },
+   "traits": {
+    "Alpine": {
+     "braking": 0.2657,
+     "deg": -0.0019,
+     "fast": 2.3125,
+     "medium": 6.2857,
+     "slow": 24.8333,
+     "top_speed": 5.5
+    },
+    "Aston Martin": {
+     "braking": 0.2576,
+     "deg": 0.0156,
+     "fast": -6.3125,
+     "medium": -8.1429,
+     "slow": -3.1667,
+     "top_speed": -8.0
+    },
+    "Audi": {
+     "braking": 0.9141,
+     "deg": -0.0378,
+     "fast": 4.125,
+     "medium": 15.5714,
+     "slow": 55.0,
+     "top_speed": -6.0
+    },
+    "Cadillac F1": {
+     "braking": 0.1758,
+     "deg": 0.0195,
+     "fast": -3.8125,
+     "medium": -9.7143,
+     "slow": -6.5,
+     "top_speed": 1.5
+    },
+    "Ferrari": {
+     "braking": -0.2823,
+     "deg": 0.0,
+     "fast": 2.0625,
+     "medium": 6.9286,
+     "slow": -0.8333,
+     "top_speed": 0.0
+    },
+    "Haas F1 Team": {
+     "braking": 0.9455,
+     "deg": 0.0044,
+     "fast": 0.625,
+     "medium": 16.4286,
+     "slow": 18.8333,
+     "top_speed": -4.0
+    },
+    "McLaren": {
+     "braking": -0.1714,
+     "deg": -0.0125,
+     "fast": -0.0625,
+     "medium": 5.5,
+     "slow": 11.3333,
+     "top_speed": -2.0
+    },
+    "Mercedes": {
+     "braking": 0.1826,
+     "deg": 0.0107,
+     "fast": -16.75,
+     "medium": 9.8571,
+     "slow": 16.3333,
+     "top_speed": -1.5
+    },
+    "RB": {
+     "braking": 0.5602,
+     "deg": 0.004,
+     "fast": 0.0625,
+     "medium": 13.6429,
+     "slow": 16.8333,
+     "top_speed": 2.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.469,
+     "deg": -0.0036,
+     "fast": 1.75,
+     "medium": -0.8571,
+     "slow": -1.0,
+     "top_speed": 2.5
+    },
+    "Williams": {
+     "braking": 1.4227,
+     "deg": -0.0314,
+     "fast": 0.8125,
+     "medium": -1.7857,
+     "slow": -10.6667,
+     "top_speed": 1.5
+    }
+   }
+  },
+  "Miami Grand Prix": {
+   "compound_deg": {
+    "HARD": 0.0141,
+    "MEDIUM": -0.0031,
+    "SOFT": 0.0235
+   },
+   "profile": {
+    "braking": 0.17774097761534954,
+    "deg_severity": 0.004928736438265606,
+    "fast": 0.08542713567839197,
+    "full_throttle": 0.5262448606669713,
+    "lap_time_s": 87.798,
+    "medium": 0.11052992233896754,
+    "slow": 0.27779808131566924
+   },
+   "quali_gaps": {
+    "Alpine": 0.964,
+    "Aston Martin": 3.3,
+    "Audi": 1.641,
+    "Cadillac F1": 3.831,
+    "Ferrari": 0.345,
+    "Haas F1 Team": 1.542,
+    "McLaren": 0.385,
+    "Mercedes": 0.0,
+    "RB": 1.701,
+    "Red Bull Racing": 0.166,
+    "Williams": 1.742
+   },
+   "traits": {
+    "Alpine": {
+     "braking": -0.635,
+     "deg": -0.0015,
+     "fast": 1.1667,
+     "medium": -1.5,
+     "slow": 0.4583,
+     "top_speed": 2.0
+    },
+    "Aston Martin": {
+     "braking": -0.0162,
+     "deg": 0.0075,
+     "fast": -7.25,
+     "medium": -12.5,
+     "slow": -1.75,
+     "top_speed": -6.0
+    },
+    "Audi": {
+     "braking": -0.2724,
+     "deg": -0.013,
+     "fast": -12.1667,
+     "medium": -2.5,
+     "slow": -1.0417,
+     "top_speed": -13.0
+    },
+    "Cadillac F1": {
+     "braking": 0.2933,
+     "deg": 0.0,
+     "fast": -6.9167,
+     "medium": -7.0,
+     "slow": -6.6667,
+     "top_speed": -1.5
+    },
+    "Ferrari": {
+     "braking": -1.317,
+     "deg": 0.0332,
+     "fast": 3.75,
+     "medium": 4.5,
+     "slow": 1.25,
+     "top_speed": -3.0
+    },
+    "Haas F1 Team": {
+     "braking": -0.054,
+     "deg": 0.0047,
+     "fast": -1.1667,
+     "medium": -4.5,
+     "slow": 0.75,
+     "top_speed": -0.5
+    },
+    "McLaren": {
+     "braking": -0.7205,
+     "deg": -0.0027,
+     "fast": 2.25,
+     "medium": 4.0,
+     "slow": 3.0833,
+     "top_speed": -1.0
+    },
+    "Mercedes": {
+     "braking": -0.1128,
+     "deg": 0.0067,
+     "fast": 4.75,
+     "medium": 5.0,
+     "slow": 0.2917,
+     "top_speed": 0.5
+    },
+    "RB": {
+     "braking": 0.3512,
+     "deg": -0.0016,
+     "fast": -2.3333,
+     "medium": -1.0,
+     "slow": -1.25,
+     "top_speed": 1.0
+    },
+    "Red Bull Racing": {
+     "braking": -0.2538,
+     "deg": 0.0298,
+     "fast": 4.0,
+     "medium": 3.0,
+     "slow": 0.375,
+     "top_speed": 2.0
+    },
+    "Williams": {
+     "braking": 0.5113,
+     "deg": -0.0032,
+     "fast": -2.6667,
+     "medium": -1.5,
+     "slow": 0.2083,
+     "top_speed": 0.5
+    }
+   }
+  },
+  "Monaco Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.0386,
+    "MEDIUM": 0.0065,
+    "SOFT": -0.2918
+   },
+   "profile": {
+    "braking": 0.27738636205722544,
+    "deg_severity": -0.027470299014716437,
+    "fast": 0.05558566445713644,
+    "full_throttle": 0.37523102791790014,
+    "lap_time_s": 72.051,
+    "medium": 0.16839677047289517,
+    "slow": 0.4007865371520683
+   },
+   "quali_gaps": {
+    "Alpine": 1.175,
+    "Aston Martin": 3.298,
+    "Audi": 1.851,
+    "Cadillac F1": 2.696,
+    "Ferrari": 0.228,
+    "Haas F1 Team": 2.671,
+    "McLaren": 0.573,
+    "Mercedes": 0.0,
+    "RB": 1.361,
+    "Red Bull Racing": 0.043,
+    "Williams": 1.736
+   },
+   "traits": {
+    "Alpine": {
+     "braking": -0.0884,
+     "deg": 0.0,
+     "fast": -1.5,
+     "medium": -0.6667,
+     "slow": 0.1538,
+     "top_speed": 1.5
+    },
+    "Aston Martin": {
+     "braking": 0.0256,
+     "deg": -0.0409,
+     "fast": -6.1667,
+     "medium": -7.5,
+     "slow": -3.7308,
+     "top_speed": -4.0
+    },
+    "Audi": {
+     "braking": 0.1557,
+     "deg": 0.0295,
+     "fast": -5.8333,
+     "medium": 0.6667,
+     "slow": -1.2692,
+     "top_speed": 2.5
+    },
+    "Cadillac F1": {
+     "braking": 0.2616,
+     "deg": -0.0061,
+     "fast": -1.6667,
+     "medium": -4.8333,
+     "slow": -0.7692,
+     "top_speed": -0.5
+    },
+    "Ferrari": {
+     "braking": -0.3533,
+     "deg": 0.0185,
+     "fast": 5.3333,
+     "medium": 8.0,
+     "slow": 1.8077,
+     "top_speed": -0.5
+    },
+    "Haas F1 Team": {
+     "braking": 0.4439,
+     "deg": -0.0828,
+     "fast": -7.0,
+     "medium": -1.3333,
+     "slow": -2.3462,
+     "top_speed": 0.0
+    },
+    "McLaren": {
+     "braking": -0.1267,
+     "deg": 0.0014,
+     "fast": 6.8333,
+     "medium": 5.0,
+     "slow": 2.2308,
+     "top_speed": -1.5
+    },
+    "Mercedes": {
+     "braking": -0.2269,
+     "deg": 0.0204,
+     "fast": 3.0,
+     "medium": 9.0,
+     "slow": 1.1154,
+     "top_speed": 0.5
+    },
+    "RB": {
+     "braking": 0.0041,
+     "deg": -0.0309,
+     "fast": 0.8333,
+     "medium": -1.0,
+     "slow": -1.1154,
+     "top_speed": 0.5
+    },
+    "Red Bull Racing": {
+     "braking": -0.3297,
+     "deg": 0.0067,
+     "fast": 1.0,
+     "medium": 4.3333,
+     "slow": 2.1538,
+     "top_speed": -1.0
+    },
+    "Williams": {
+     "braking": -0.1254,
+     "deg": -0.138,
+     "fast": 1.0,
+     "medium": -1.6667,
+     "slow": -1.2692,
+     "top_speed": 1.5
+    }
+   }
+  },
+  "Spanish Grand Prix": {
+   "compound_deg": {
+    "HARD": -0.051,
+    "MEDIUM": -0.0285,
+    "SOFT": 0.0522
+   },
+   "profile": {
+    "braking": 0.1785227136325444,
+    "deg_severity": -0.04898589341692776,
+    "fast": 0.1593173361268426,
+    "full_throttle": 0.5285734551128866,
+    "lap_time_s": 91.824,
+    "medium": 0.09384445826649646,
+    "slow": 0.2182647504937745
+   },
+   "quali_gaps": {
+    "Alpine": 1.079,
+    "Aston Martin": 3.564,
+    "Audi": 1.399,
+    "Cadillac F1": 4.089,
+    "Ferrari": 0.189,
+    "Haas F1 Team": 1.843,
+    "McLaren": 0.0,
+    "Mercedes": 0.011,
+    "RB": 1.217,
+    "Red Bull Racing": 0.14,
+    "Williams": 3.483
+   },
+   "traits": {
+    "Alpine": {
+     "braking": 0.0571,
+     "deg": 0.0053,
+     "fast": 7.5,
+     "medium": 1.5,
+     "slow": -0.1667,
+     "top_speed": -1.5
+    },
+    "Aston Martin": {
+     "braking": 0.0144,
+     "deg": -0.0135,
+     "fast": -7.0,
+     "medium": -6.75,
+     "slow": -3.6667,
+     "top_speed": -3.0
+    },
+    "Audi": {
+     "braking": -0.1625,
+     "deg": 0.0103,
+     "fast": -4.0,
+     "medium": -2.0,
+     "slow": 0.5833,
+     "top_speed": 8.0
+    },
+    "Cadillac F1": {
+     "braking": 0.4315,
+     "deg": 0.0645,
+     "fast": -1.0,
+     "medium": -10.5,
+     "slow": -4.25,
+     "top_speed": -4.0
+    },
+    "Ferrari": {
+     "braking": -0.1882,
+     "deg": 0.1137,
+     "fast": -1.0,
+     "medium": 7.25,
+     "slow": 2.0,
+     "top_speed": 6.0
+    },
+    "Haas F1 Team": {
+     "braking": 0.0601,
+     "deg": 0.0,
+     "fast": 6.0,
+     "medium": -0.75,
+     "slow": 0.0,
+     "top_speed": 6.0
+    },
+    "McLaren": {
+     "braking": -0.0311,
+     "deg": -0.0227,
+     "fast": 0.0,
+     "medium": 8.75,
+     "slow": 1.4167,
+     "top_speed": 6.5
+    },
+    "Mercedes": {
+     "braking": -0.0886,
+     "deg": -0.0298,
+     "fast": -11.0,
+     "medium": 2.0,
+     "slow": 2.0,
+     "top_speed": -1.0
+    },
+    "RB": {
+     "braking": -0.0458,
+     "deg": -0.0087,
+     "fast": 4.0,
+     "medium": -3.5,
+     "slow": -2.5833,
+     "top_speed": -0.5
+    },
+    "Red Bull Racing": {
+     "braking": -0.1086,
+     "deg": 0.0051,
+     "fast": 2.5,
+     "medium": 5.0,
+     "slow": 1.0833,
+     "top_speed": 1.0
+    },
+    "Williams": {
+     "braking": 0.563,
+     "deg": -0.0011,
+     "fast": -0.5,
+     "medium": -6.25,
+     "slow": -2.8333,
+     "top_speed": -5.5
+    }
+   }
+  }
+ },
+ "year": 2026
+}

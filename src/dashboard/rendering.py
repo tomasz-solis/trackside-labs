@@ -3,10 +3,34 @@
 import pandas as pd
 
 from src.dashboard import rendering_html, rendering_qualifying, rendering_race
+from src.predictors.baseline.race.result_processing import assign_likely_range
+from src.utils import config_loader
 
 render_notice_banner = rendering_html.render_notice_banner
 render_page_hero_deck = rendering_html.render_page_hero_deck
 render_prediction_hero_deck = rendering_html.render_prediction_hero_deck
+
+
+def _attach_likely_range(df: pd.DataFrame, result: dict, *, is_race: bool) -> pd.DataFrame:
+    """Set ``likely_lo``/``likely_hi`` from the shown position and the current config.
+
+    Recomputed at display time so a payload saved before the band existed, or with
+    an older band, still shows the current calibrated range around its shown place.
+    """
+    if not is_race:
+        table_name = "qualifying"
+    elif str(result.get("starting_session_name", "")).strip().upper() == "SQ":
+        table_name = "sprint"
+    else:
+        table_name = "race"
+    rows = df[["position"]].to_dict("records")
+    assign_likely_range(
+        finish_order=rows, field_size=len(rows), cfg=config_loader, table_name=table_name
+    )
+    if rows and "likely_lo" in rows[0]:
+        df["likely_lo"] = [row["likely_lo"] for row in rows]
+        df["likely_hi"] = [row["likely_hi"] for row in rows]
+    return df
 
 
 def display_prediction_result(result: dict, prediction_name: str, is_race: bool = False) -> None:
@@ -16,6 +40,8 @@ def display_prediction_result(result: dict, prediction_name: str, is_race: bool 
     df["position"] = df["position"].astype(int)
     df.attrs["input_confidence"] = result.get("input_confidence")
     result_mode = str(result.get("result_mode", "")).strip().upper()
+    if result_mode != "ACTUAL" and not df.empty:
+        df = _attach_likely_range(df, result, is_race=is_race)
     rendering_html.render_surface_header(
         title=prediction_name,
         summary=rendering_html._prediction_section_summary(result, is_race=is_race),
@@ -103,17 +129,6 @@ def display_prediction_result(result: dict, prediction_name: str, is_race: bool 
                 )
         else:
             mean_qualifying_confidence = None
-
-        has_quali_ci = "p5" in df.columns and "p95" in df.columns
-        if has_quali_ci and not df.empty:
-            interval_width = (
-                pd.to_numeric(df["p95"], errors="coerce") - pd.to_numeric(df["p5"], errors="coerce")
-            ).fillna(0.0)
-            wide_ranges = int((interval_width >= 8.0).sum())
-            if wide_ranges >= max(6, int(len(df) * 0.35)):
-                qualifying_warning_messages.append(
-                    f"Wide position ranges: {wide_ranges} drivers have 90% ranges spanning 8+ places."
-                )
 
         team_cluster_warning = rendering_html._build_team_clustering_warning(
             df,

@@ -1,15 +1,14 @@
-"""Fit calibrated 50% likely-range offsets (q25/q75) for race finish predictions.
+"""Fit calibrated 50% likely-range offsets (q25/q75) for race and qualifying predictions.
 
 Reads embedded actuals from replay checkpoint prediction files and computes,
-per target (`grand_prix_race`, `sprint_race`) and per predicted-position
-bucket (1-5, 6-10, 11-16, 17-22), the 25th/75th percentile of
-`actual_position - point_prediction` among sims where the driver actually
-finished (dnf is False). The point prediction is each row's
-`position_blend_score`, and the bucket is the row's predicted `position`
-(the ordinal rank the finish order was sorted by).
+per target (`grand_prix_race`, `sprint_race`, `main_qualifying`) and per
+predicted-position bucket (1-5, 6-10, 11-16, 17-22), the 25th/75th percentile
+of `actual_position - predicted_position`. Race targets use actual finishers
+only (dnf is False). The point is the row's shown `position`, so the band
+always sits around the place the dashboard prints.
 
-The offsets pair with a row's own point prediction at output time:
-`likely_lo = point + q25`, `likely_hi = point + q75`.
+The offsets pair with a row's shown position at output time:
+`likely_lo = position + q25`, `likely_hi = position + q75`.
 
 Also reports leave-one-race-out coverage of the fitted band: for each race,
 fit q25/q75 on the other races and check whether the held-out race's
@@ -25,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from collections import defaultdict
 from pathlib import Path
 from typing import NamedTuple
@@ -32,7 +32,7 @@ from typing import NamedTuple
 import numpy as np
 
 BUCKET_EDGES = [(1, 5), (6, 10), (11, 16), (17, 22)]
-TARGETS = ("grand_prix_race", "sprint_race")
+TARGETS = ("grand_prix_race", "sprint_race", "main_qualifying")
 MIN_SPRINT_BUCKET_N = 40
 
 
@@ -56,7 +56,7 @@ def load_residuals(replay_root: Path, year: int, target: str) -> list[Residual]:
     """Pair predicted rows with embedded actuals and return finisher residuals.
 
     Only actual finishers (``dnf`` False) are used. ``residual = actual_position
-    - position_blend_score``, bucketed by the row's predicted ``position``.
+    - position``, bucketed by the same predicted ``position``.
     """
     residuals: list[Residual] = []
     pred_root = replay_root / "predictions" / str(year)
@@ -76,16 +76,15 @@ def load_residuals(replay_root: Path, year: int, target: str) -> list[Residual]:
                 actual = actual_by_driver.get(row.get("driver"))
                 if actual is None or bool(actual.get("dnf", False)):
                     continue
-                point = row.get("position_blend_score")
                 pred_rank = row.get("position")
                 actual_pos = actual.get("position")
-                if point is None or pred_rank is None or actual_pos is None:
+                if pred_rank is None or actual_pos is None:
                     continue
                 residuals.append(
                     Residual(
                         race=race_dir.name,
                         bucket=bucket_of(int(pred_rank)),
-                        residual=float(actual_pos) - float(point),
+                        residual=float(actual_pos) - float(pred_rank),
                     )
                 )
     return residuals
@@ -106,8 +105,17 @@ def fit_quantiles(residuals: list[Residual]) -> dict[str, dict[str, float]]:
     }
 
 
+def displayed_offsets(q25: float, q75: float) -> tuple[int, int]:
+    """Return the whole-place offsets the dashboard shows for a fitted q25/q75.
+
+    Mirrors ``assign_likely_range``: floor/ceil to whole places and always
+    include the shown position (offset 0).
+    """
+    return min(0, math.floor(q25)), max(0, math.ceil(q75))
+
+
 def leave_one_race_out_coverage(residuals: list[Residual]) -> dict[str, float]:
-    """Return pooled out-of-sample coverage (%) of the band, per bucket.
+    """Return pooled out-of-sample coverage (%) of the band as displayed, per bucket.
 
     For each race, fit q25/q75 on the other races and check whether the
     held-out race's residuals fall inside that band, pooling hits across
@@ -125,9 +133,8 @@ def leave_one_race_out_coverage(residuals: list[Residual]) -> dict[str, float]:
             bounds = fitted.get(residual.bucket)
             if bounds is None:
                 continue
-            covered_by_bucket[residual.bucket].append(
-                bounds["q25"] <= residual.residual <= bounds["q75"]
-            )
+            lo_offset, hi_offset = displayed_offsets(bounds["q25"], bounds["q75"])
+            covered_by_bucket[residual.bucket].append(lo_offset <= residual.residual <= hi_offset)
     return {
         bucket: round(100.0 * sum(flags) / len(flags), 1)
         for bucket, flags in covered_by_bucket.items()
@@ -146,6 +153,7 @@ def _bucket_sort_key(bucket: str) -> tuple[int, int]:
 def _format_yaml_snippet(
     race_table: dict[str, dict[str, float]],
     sprint_table: dict[str, dict[str, float]],
+    qualifying_table: dict[str, dict[str, float]],
     *,
     replay_root: Path,
     year: int,
@@ -159,7 +167,8 @@ def _format_yaml_snippet(
         f"      # Fitted {fitted_date} by scripts/fit_race_band_quantiles.py",
         f"      # against {replay_root.as_posix()} ({year})",
     ]
-    for table_name, table in (("race", race_table), ("sprint", sprint_table)):
+    tables = (("race", race_table), ("sprint", sprint_table), ("qualifying", qualifying_table))
+    for table_name, table in tables:
         lines.append(f"      {table_name}:")
         buckets = sorted((b for b in table if b != "23+"), key=_bucket_sort_key)
         for bucket in buckets:
@@ -225,6 +234,7 @@ def main() -> None:
         _format_yaml_snippet(
             race_table,
             sprint_table,
+            tables.get("main_qualifying", {}),
             replay_root=args.replay_root,
             year=args.year,
             fitted_date=args.fitted_date,

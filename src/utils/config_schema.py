@@ -7,7 +7,7 @@ drift visible when a new key appears without a matching typed home.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -51,7 +51,7 @@ class RegulationEra(StrictConfigModel):
 class ModelConfig(StrictConfigModel):
     """Model release metadata shared across generated artifacts."""
 
-    version: str = Field(default="3.0", min_length=1)
+    version: str = Field(default="3.2", min_length=1)
     # The seconds gap between a fast car and a slow one is a property of the
     # regulations. Fitting a seconds mapping across a regulation boundary averages
     # two different fields and describes neither, so calibration is scoped to an era
@@ -423,6 +423,8 @@ class BaselineQualifyingConfig(StrictConfigModel):
     fp_align_spread_ratio: float = Field(default=1.0, ge=0.0)
     fp_min_driver_laps: int = Field(default=4, ge=0)
     fp_max_strength_move: float = Field(default=0.25, ge=0.0, le=1.0)
+    track_trait_adjustment: bool = Field(default=False)
+    practice_pace_adjustment: bool = Field(default=False)
     practice_data_team_weight_multiplier: float = Field(default=0.94, ge=0.0)
     practice_data_skill_weight_multiplier: float = Field(default=1.12, ge=0.0)
     practice_data_team_compression_multiplier: float = Field(default=0.88, ge=0.0)
@@ -732,6 +734,7 @@ class TirePhysicsConfig(StrictConfigModel):
         default_factory=lambda: CompoundIntConfig(SOFT=3, MEDIUM=3, HARD=2)
     )
     default_deg_slope: float = Field(default=0.15, ge=0.0)
+    fuel_burn_gain_s_per_lap: float = Field(default=0.05, ge=0.0)
     traffic_deg_penalty: float = Field(default=0.05, ge=0.0)
     clean_air_bonus: float = Field(default=0.05, ge=0.0)
     compound_max_age: CompoundIntConfig = Field(
@@ -836,11 +839,13 @@ class LikelyRangeConfig(StrictConfigModel):
     Fitted by scripts/fit_race_band_quantiles.py from real finish-position
     error on the replay; see config/default.yaml for the fit provenance.
     Keyed by bucket label ("1-5", "6-10", "11-16", "17-22"); ``race`` covers
-    grand_prix_race, ``sprint`` covers sprint_race.
+    grand_prix_race, ``sprint`` covers sprint_race, ``qualifying`` covers
+    main and sprint qualifying.
     """
 
     race: dict[str, LikelyRangeBucketConfig] = Field(default_factory=dict)
     sprint: dict[str, LikelyRangeBucketConfig] = Field(default_factory=dict)
+    qualifying: dict[str, LikelyRangeBucketConfig] = Field(default_factory=dict)
 
 
 class OvertakingTransitionConfig(StrictConfigModel):
@@ -949,6 +954,12 @@ class BaselineRaceConfig(StrictConfigModel):
     pace_weight_base: float = Field(default=0.40, ge=0.0)
     pace_weight_track_modifier: float = Field(default=0.10, ge=0.0)
     track_pass_cap_enabled: bool = Field(default=True)
+    dnf_per_lap_hazard: bool = Field(default=False)
+    overtake_gap_from_lap_start: bool = Field(default=False)
+    center_driver_lap_terms_by_team: bool = Field(default=False)
+    track_trait_adjustment: bool = Field(default=False)
+    tyre_deg_model: Literal["practice", "carry_over"] = "practice"
+    practice_pace_adjustment: bool = Field(default=False)
     teammate_variance_std: float = Field(default=0.13, ge=0.0)
     teammate_setup_offset_ratio: float = Field(default=0.30, ge=0.0)
     teammate_variance_lap_ratio: float = Field(default=0.45, ge=0.0)
@@ -1007,6 +1018,9 @@ class BaselineRaceConfig(StrictConfigModel):
         default_factory=PositionIntervalFloorConfig
     )
     likely_range: LikelyRangeConfig = Field(default_factory=LikelyRangeConfig)
+    # How the finish order is sorted before movement constraints. ``mean_rank``
+    # lets a driver's DNF tail push him down; ``median_rank`` (mean as tie-break) does not.
+    finish_order_sort: Literal["mean_rank", "median_rank"] = "mean_rank"
     overtaking_transition: OvertakingTransitionConfig = Field(
         default_factory=OvertakingTransitionConfig
     )

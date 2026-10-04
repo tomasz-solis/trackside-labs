@@ -56,6 +56,21 @@ class BaselineRaceParamsMixin:
             "track_pass_cap_enabled": bool(
                 cfg.get("baseline_predictor.race.track_pass_cap_enabled", True)
             ),
+            "dnf_per_lap_hazard": bool(
+                cfg.get("baseline_predictor.race.dnf_per_lap_hazard", False)
+            ),
+            "overtake_gap_from_lap_start": bool(
+                cfg.get("baseline_predictor.race.overtake_gap_from_lap_start", False)
+            ),
+            "center_driver_lap_terms_by_team": bool(
+                cfg.get("baseline_predictor.race.center_driver_lap_terms_by_team", False)
+            ),
+            "track_trait_adjustment": bool(
+                cfg.get("baseline_predictor.race.track_trait_adjustment", False)
+            ),
+            "practice_pace_adjustment": bool(
+                cfg.get("baseline_predictor.race.practice_pace_adjustment", False)
+            ),
             "pace_weight_track_modifier": cfg.get(
                 "baseline_predictor.race.pace_weight_track_modifier", 0.10
             ),

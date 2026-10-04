@@ -63,7 +63,10 @@ def test_fetch_actual_session_results_avoids_laps_for_race_like_sessions():
     mock_session = MagicMock()
     mock_session.results = pd.DataFrame(rows)
 
-    with patch("src.data.actual_results_fetcher.fastf1.get_session", return_value=mock_session):
+    with (
+        patch("src.data.actual_results_fetcher.fastf1.get_session", return_value=mock_session),
+        patch("src.data.actual_results_fetcher.is_sprint_weekend", return_value=True),
+    ):
         results = fetch_actual_session_results(2026, "Miami Grand Prix", "Sprint")
 
     mock_session.load.assert_called_once_with(
@@ -240,3 +243,33 @@ def test_fetch_actual_session_results_recomputes_partial_qualifying_positions_be
     assert results is not None
     assert [entry["driver"] for entry in results[-6:]] == ["ALO", "PER", "BOT", "VER", "STR", "SAI"]
     assert [entry["position"] for entry in results[-6:]] == [17, 18, 19, 20, 21, 22]
+
+
+def test_sprint_session_on_conventional_weekend_skips_fastf1_quietly(caplog):
+    """A Sprint or SQ fetch on a conventional weekend is an expected absence, not an error."""
+    with (
+        patch("src.data.actual_results_fetcher.fastf1.get_session") as get_session,
+        patch("src.data.actual_results_fetcher.is_sprint_weekend", return_value=False),
+    ):
+        assert fetch_actual_session_results(2026, "Italian Grand Prix", "Sprint") is None
+        assert fetch_actual_session_results(2026, "Italian Grand Prix", "SQ") is None
+
+    get_session.assert_not_called()
+    assert not [r for r in caplog.records if r.levelname == "ERROR"]
+
+
+def test_sprint_session_for_unknown_race_still_fetches():
+    """An unresolvable race must not be silently skipped."""
+    with (
+        patch(
+            "src.data.actual_results_fetcher.fastf1.get_session",
+            side_effect=ValueError("no such event"),
+        ) as get_session,
+        patch(
+            "src.data.actual_results_fetcher.is_sprint_weekend",
+            side_effect=ValueError("not in schedule"),
+        ),
+    ):
+        assert fetch_actual_session_results(2026, "Made Up Grand Prix", "Sprint") is None
+
+    assert get_session.called

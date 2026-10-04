@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
@@ -342,21 +343,50 @@ def fit_linear_team_strength_mapping(
 def load_live_team_strength_mappings(
     artifact_path: str | Path | None = None,
 ) -> dict[str, LinearTeamStrengthMapping]:
-    """Load the frozen live team-strength seconds mappings.
+    """Load the live team-strength seconds mappings.
 
-    Missing artifacts return an empty mapping so prediction code can fall back to
-    the older unit-scale path instead of failing a live prediction.
+    An explicit path or the env override (the replay) reads that file. Otherwise the
+    mapping comes from the store, which ``refresh_team_strength_mapping`` refits after
+    every session, cached in process for a few minutes and falling back to the
+    committed ``latest.json``. Missing artifacts return an empty mapping so prediction
+    code falls back to the older unit-scale path instead of failing.
     """
-    path = (
-        Path(artifact_path)
-        if artifact_path is not None
-        else Path(override_path)
-        if (override_path := os.environ.get(TEAM_STRENGTH_SECONDS_MAPPING_PATH_ENV))
-        else DEFAULT_TEAM_STRENGTH_SECONDS_MAPPING_PATH
-    )
+    override_path = os.environ.get(TEAM_STRENGTH_SECONDS_MAPPING_PATH_ENV)
+    if artifact_path is None and not override_path:
+        return dict(_load_store_team_strength_mappings())
+    path = Path(artifact_path) if artifact_path is not None else Path(str(override_path))
     if not path.is_absolute():
         path = Path(__file__).resolve().parents[2] / path
     return dict(_load_live_team_strength_mappings_cached(str(path)))
+
+
+# How long a web process keeps a store-read mapping before checking for a refit.
+_STORE_MAPPING_TTL_S = 600.0
+_store_mapping_cache: dict[str, Any] = {"loaded_at": None, "mappings": None}
+
+
+def _load_store_team_strength_mappings() -> dict[str, LinearTeamStrengthMapping]:
+    """Return the store mapping, refreshed at most every ``_STORE_MAPPING_TTL_S``."""
+    loaded_at = _store_mapping_cache["loaded_at"]
+    if loaded_at is not None and time.monotonic() - loaded_at < _STORE_MAPPING_TTL_S:
+        return _store_mapping_cache["mappings"]
+
+    from src.persistence.artifact_store import ArtifactStore
+
+    try:
+        payload = ArtifactStore(data_root="data").load_artifact(
+            "team_strength_seconds_mapping", "latest"
+        )
+    except Exception:  # store outage must not stop a forecast
+        payload = None
+    if isinstance(payload, Mapping) and isinstance(payload.get("mappings"), Mapping):
+        mappings = _parse_mapping_payload(payload, source="store")
+    else:
+        mappings = _load_live_team_strength_mappings_cached(
+            str(DEFAULT_TEAM_STRENGTH_SECONDS_MAPPING_PATH)
+        )
+    _store_mapping_cache.update(loaded_at=time.monotonic(), mappings=mappings)
+    return mappings
 
 
 def team_strength_seconds_components(
@@ -389,7 +419,14 @@ def _load_live_team_strength_mappings_cached(path_str: str) -> dict[str, LinearT
     if not path.exists():
         return {}
 
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    return _parse_mapping_payload(json.loads(path.read_text(encoding="utf-8")), source=str(path))
+
+
+def _parse_mapping_payload(
+    payload: Mapping[str, Any], *, source: str
+) -> dict[str, LinearTeamStrengthMapping]:
+    """Parse a mapping artifact payload into one mapping per session kind."""
+    path = source
     mappings_payload = payload.get("mappings", {})
     if not isinstance(mappings_payload, Mapping):
         raise ValueError(f"Invalid team-strength mapping artifact: {path}")

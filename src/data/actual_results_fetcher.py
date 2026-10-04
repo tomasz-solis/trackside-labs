@@ -10,6 +10,7 @@ from src.utils.fastf1_resilience import call_with_resilience
 from src.utils.grid_validation import validate_qualifying_grid
 from src.utils.operational_observability import record_counter
 from src.utils.team_mapping import map_team_to_characteristics
+from src.utils.weekend import is_sprint_weekend
 
 logger = logging.getLogger(__name__)
 SessionCompletionState = Literal["completed", "incomplete", "unknown"]
@@ -186,10 +187,27 @@ def _refresh_partial_qualifying_results(
     return getattr(session, "results", results)
 
 
+def _sprint_session_on_conventional_weekend(year: int, race_name: str, session_name: str) -> bool:
+    """Return True when a sprint-only session is asked for on a known conventional weekend.
+
+    An unknown race returns False so the fetch still runs and fails loudly.
+    """
+    if str(session_name).strip().upper() not in {"SQ", "SPRINT"}:
+        return False
+    try:
+        return not is_sprint_weekend(year, race_name)
+    except ValueError:
+        return False
+
+
 def fetch_actual_session_results(
     year: int, race_name: str, session_name: str
 ) -> list[QualifyingGridEntry] | None:
     """Fetch actual results from competitive session (SQ, Sprint, Q, R)."""
+    if _sprint_session_on_conventional_weekend(year, race_name, session_name):
+        # Expected absence, not a failure: skip FastF1 and its retries.
+        logger.debug("No %s on conventional weekend %s %s", session_name, race_name, year)
+        return None
     try:
         labels = {"year": year, "race_name": race_name, "session_name": session_name}
         session = call_with_resilience(

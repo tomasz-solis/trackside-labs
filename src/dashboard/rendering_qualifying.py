@@ -27,13 +27,12 @@ def _render_qualifying_result(df: pd.DataFrame) -> None:
     """Render qualifying prediction grouped by elimination stage."""
     df_display = df[["position", "driver", "team"]].copy()
     df_display.columns = ["Grid", "Driver", "Team"]
-    has_ci = "p5" in df.columns and "p95" in df.columns
+    has_ci = "likely_lo" in df.columns and "likely_hi" in df.columns
     if has_ci:
-        df_display["90% Range"] = df.apply(lambda r: f"P{int(r['p5'])}-P{int(r['p95'])}", axis=1)
-        st.caption(
-            "`90% Range` is where each driver lands in 90% of qualifying simulations. "
-            "Ranges narrow as more weekend and season data arrives."
+        df_display["Likely range"] = df.apply(
+            lambda r: f"P{int(r['likely_lo'])}-P{int(r['likely_hi'])}", axis=1
         )
+        st.caption("`Likely range`: past results for this spot landed here about 6 times in 10.")
     confidence_col = (
         "order_confidence"
         if "order_confidence" in df.columns
@@ -56,10 +55,10 @@ def _render_qualifying_result(df: pd.DataFrame) -> None:
         top_b = df.iloc[1]
         same_team = str(top_a.get("team", "")) == str(top_b.get("team", ""))
         try:
-            a_p5 = int(top_a["p5"])
-            a_p95 = int(top_a["p95"])
-            b_p5 = int(top_b["p5"])
-            b_p95 = int(top_b["p95"])
+            a_p5 = int(top_a["likely_lo"])
+            a_p95 = int(top_a["likely_hi"])
+            b_p5 = int(top_b["likely_lo"])
+            b_p95 = int(top_b["likely_hi"])
         except (TypeError, ValueError, KeyError):
             same_team = False
             a_p5 = a_p95 = b_p5 = b_p95 = 0

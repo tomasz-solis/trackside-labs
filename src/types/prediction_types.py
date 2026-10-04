@@ -12,6 +12,9 @@ class QualifyingGridEntry(TypedDict):
     median_position: NotRequired[int]
     p5: NotRequired[int]
     p95: NotRequired[int]
+    # Calibrated ~50% range around ``position`` (see assign_likely_range).
+    likely_lo: NotRequired[int]
+    likely_hi: NotRequired[int]
     confidence: NotRequired[float]
     # Calibrated probability (0-100) that the entrant finishes within the configured
     # tolerance of its predicted position. Supplements the legacy ``confidence`` heuristic

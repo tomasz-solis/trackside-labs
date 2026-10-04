@@ -7,7 +7,7 @@ import logging
 from collections.abc import Mapping
 from hashlib import sha256
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -17,6 +17,7 @@ from src.predictors.baseline.early_season_uncertainty import (
     resolve_early_season_interval_extension,
     resolve_effective_learning_min_samples,
 )
+from src.predictors.baseline.race.result_processing import assign_likely_range
 from src.types.prediction_types import QualifyingGridEntry
 from src.utils import config_loader
 from src.utils.fp_blending import (
@@ -901,6 +902,12 @@ class BaselineQualifyingMixin:
                 conf_max=oc_max,
             )
 
+        assign_likely_range(
+            finish_order=cast(list[dict[str, Any]], grid),
+            field_size=field_size,
+            cfg=cfg,
+            table_name="qualifying",
+        )
         return grid
 
     def _aggregate_grid_results_with_compat(

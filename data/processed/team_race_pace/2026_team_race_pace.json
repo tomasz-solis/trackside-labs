@@ -1,5 +1,6 @@
 {
-  "built_at": "2026-09-24T07:49:22.217463+00:00",
+  "year": 2026,
+  "last_updated": "2026-10-03T07:17:42.675648+00:00",
   "races": {
     "Australian Grand Prix": {
       "Alpine": 2.3595,
@@ -180,53 +181,65 @@
       "RB": 1.8218,
       "Red Bull Racing": 0.5148,
       "Williams": 3.8573
+    },
+    "Azerbaijan Grand Prix": {
+      "Williams": 1.6245,
+      "Aston Martin": 4.4895,
+      "Mercedes": 0.0,
+      "Haas F1 Team": 1.324,
+      "Audi": 1.8225,
+      "Cadillac F1": 3.093,
+      "Alpine": 1.0392,
+      "Red Bull Racing": 0.0945,
+      "Ferrari": 0.2827,
+      "RB": 1.439,
+      "McLaren": 0.4522
     }
   },
   "teams": {
     "Alpine": {
-      "gap_s": 1.6648,
-      "races": 14
+      "gap_s": 1.6231,
+      "races": 15
     },
     "Aston Martin": {
-      "gap_s": 3.8858,
-      "races": 14
+      "gap_s": 3.926,
+      "races": 15
     },
     "Audi": {
-      "gap_s": 1.8002,
-      "races": 14
+      "gap_s": 1.8017,
+      "races": 15
     },
     "Cadillac F1": {
-      "gap_s": 3.9051,
-      "races": 13
+      "gap_s": 3.8471,
+      "races": 14
     },
     "Ferrari": {
-      "gap_s": 0.2141,
-      "races": 14
+      "gap_s": 0.2187,
+      "races": 15
     },
     "Haas F1 Team": {
-      "gap_s": 2.2191,
-      "races": 14
+      "gap_s": 2.1595,
+      "races": 15
     },
     "McLaren": {
-      "gap_s": 0.5186,
-      "races": 13
+      "gap_s": 0.5139,
+      "races": 14
     },
     "Mercedes": {
-      "gap_s": 0.0817,
-      "races": 14
+      "gap_s": 0.0762,
+      "races": 15
     },
     "RB": {
-      "gap_s": 1.7547,
-      "races": 14
+      "gap_s": 1.7337,
+      "races": 15
     },
     "Red Bull Racing": {
-      "gap_s": 0.7151,
-      "races": 14
+      "gap_s": 0.6737,
+      "races": 15
     },
     "Williams": {
-      "gap_s": 2.4834,
-      "races": 14
+      "gap_s": 2.4262,
+      "races": 15
     }
-  },
-  "year": 2026
+  }
 }

@@ -78,6 +78,8 @@ Older floors (2026-09-12, 13 rounds; 2026-09-21, 14 rounds) were measured on a r
 |---|---|---|---|
 | 2026-07-28 | Centre `quali_rating_mu_s` within each team when building the qualifying field. It carried a team component on top of team strength, so car pace counted twice. | Qualifying MAE 3.525 -> 2.828; mean per-driver \|bias\| 2.889 -> 1.677. HUL +6.11 -> +1.67, ALB -5.78 -> +0.11, GAS +4.33 -> +0.33 | `93bfbeb0` |
 | 2026-08-04 | Refit `team_strength_seconds_mapping` on 2026 only. The 2022 to 2025 fit had never seen a 2026 lap and compressed team gaps all season. | Qualifying MAE 2.6599 -> 2.5724, \|bias\| 1.5017 -> 1.2997; race MAE 4.0606 -> 3.9192, \|bias\| 2.4242 -> 2.3434 (60 simulations). Slopes: qualifying 1.77417 -> 2.76281, race 1.97077 -> 3.89727 | `fdf7be6f` |
+| 2026-10-02 | Model 3.1: finish order sorted by median rank; overtake gaps read from the start-of-lap snapshot. | Both `unresolvable` (below the seed floor), adopted on correctness. See the 2026-10-02 entry | 3.1 commit |
+| 2026-10-03 | Model 3.2: qualifying adds each team's car traits x track adjustment (top speed, corner classes, braking, deg, fitted walk-forward on qualifying gaps). | Qualifying corr +0.0048 / +0.0035 on seeds 42 / 43, both `better` beyond the floor; race unresolvable | 3.2 commit |
 
 Residual after that, same measurement: SAI -5.67, LAW +6.44, BOR +4.44, ALO -4.11, VER -4.11. Team-strength errors (Williams over-rated, RB under-rated), which the centring fix does not touch.
 
@@ -853,6 +855,178 @@ Not a model change: a display and config addition. No simulation or learning pat
 Close to the nominal 50% in every bucket. Offsets are pooled over checkpoints (PRE, FP1, FP2, FP3, SQ); PRE likely under-covers and FP3 likely over-covers, but that split is inferred, not measured separately.
 
 **Consequence.** The config change invalidates the prediction cache fingerprint, so predictions regenerate on the next deploy.
+
+Partly superseded by 2026-10-01: the band is now anchored on the shown position, not `position_blend_score`.
+
+## 2026-10-01: "Likely range" around the shown position, for qualifying too, plus Win %
+
+Not a model change. Display and config only; the finish order, p5/p95 and the simulation are unchanged.
+
+**Why.** The 2026-09-27 band sat around `position_blend_score` (mean rank). With the top four near-tied that score is about 3.9 for everyone, so the Sepang PRE showed P1 RUS with a "Likely range" of P2-P5. Qualifying still showed p5/p95, which covers 95.3% on the replay (n=784, target 90%).
+
+**What changed.**
+
+- `assign_likely_range` adds the offsets to the row's shown `position`. It takes `table_name` (`race`, `sprint`, `qualifying`). Qualifying rows now carry `likely_lo`/`likely_hi`.
+- The dashboard recomputes the band from the shown position and current config at display time, so a cached or fallback payload never shows an old band or falls back to "90%". Sprint races use the sprint table (`starting_session_name` SQ).
+- Qualifying table shows "Likely range". The "90% ranges spanning 8+ places" warnings are gone from both tables while the band is shown.
+- Race rows carry `win_probability`: share of ranked draws a driver finishes first. Not smoothed, so the driver shown second can have the higher Win %.
+
+**Refit** with `scripts/fit_race_band_quantiles.py` on `data/historical_replay_m1s42_r14`, residual = actual minus shown position, race and sprint finishers only. The band as shown is the shown position plus floor(q25) to ceil(q75), always including the shown position. Without that rule the race 17-22 band (q75 -1.25) excluded the driver's own place. Leave-one-race-out coverage of that displayed band:
+
+| Bucket | Race | Sprint | Qualifying |
+|---|---|---|---|
+| 1-5 | 62.1% | 66.7% | 52.9% |
+| 6-10 | 60.9% | 59.7% | 57.4% |
+| 11-16 | 58.5% | 57.9% | 63.1% |
+| 17-22 | 73.7% | 64.2% | 60.8% |
+| Pooled | 63.3% | 62.2% | 58.9% |
+
+Whole places and the include-the-shown-place rule push coverage above 50%, so the caption says "about 6 times in 10". The 2026-09-27 table measured 49-50% on fractional residuals, not on the band as shown. A 75% qualifying band was 4 to 8 places wide by bucket, so 50% stays. Sprint qualifying (10 checkpoints) uses the main qualifying table.
+
+## 2026-10-02: model 3.1, five single-change arms, two adopted on correctness
+
+Baseline `data/historical_replay_arms/Z_base_30` (3.0 code at `4c04c9a9` plus the switch commit, all switches off). Each arm changes one config line. Seed 42, `--through-round 14`, floor `data/historical_replay_m1s42_r14` vs `m1s43_r14` (race corr 0.0067 / MAE 0.076, qualifying 0.0027 / 0.054, sprint 0.0080 / 0.100).
+
+| Arm | Change | Race corr | Race MAE | Qualifying | Verdict |
+|---|---|---|---|---|---|
+| G | Sort by median rank, mean as tie-break | +0.0006 | +0.0001 (42/51 tied) | not touched | `unresolvable`, adopted on correctness |
+| H | Per-lap DNF hazard `1-(1-p)^(1/N)` | -0.0019 | +0.0119 | not touched | `unresolvable`, leans worse, off |
+| I | `qualifying.session_confidence.fp1` 0.2 to 0.45 | +0.0001 | +0.0056 | identical | `never activated` for qualifying: the replay path does not read the key |
+| J | `stabilization_strength` 1.0 to 0.0 | -0.0026 | -0.0131 | corr +0.0030, MAE -0.043 | `unresolvable` (qualifying corr inside the floor's CI) |
+| K | Overtake gap from the start-of-lap snapshot | -0.0011 | -0.0154 | not touched | `unresolvable`, adopted on correctness |
+
+**Why G and K ship without a measured gain.** Both fix logic, not a tuned number, and neither costs anything measurable. K: the lap loop runs the leader first, so a follower read the car ahead's time after it had already run the lap; every gap clamped to 0 and every follower paid dirty air and tried a pass every lap. G: mean rank let a driver's DNF tail push the usual winner down (Sepang 3.0 PRE: VER median P2 shown behind RUS median P3). Decision by Tomasz, 2026-10-02.
+
+**What this does not show.** No arm resolves at n=14 races. K changed the pass mechanics the 3.0 overtaking calibration was tuned on, yet scored neutral: the calibration was not as coupled to the bug as expected. I needs a different test, because qualifying in the replay uses stored checkpoint profiles. J's qualifying lean is worth a seed-43 repeat before anyone reads it.
+
+## 2026-10-02: C3, centring driver lap-time terms within each team: `worse`
+
+Baseline `data/historical_replay_arms/Z_base_31_s42` (3.1 at `3d08b75d`, switches off). Seed 42, `--through-round 14`, same floor as the 3.1 entry. J2 is a seed-43 repeat against `Z_base_31_s43`.
+
+**Premise.** Race team pace comes from measured lap times that already hold the drivers' average, yet the driver terms add a team-level offset on top. Live state 2026-10-02: driver-term spread sd 0.39 s/lap, 73% between teams, correlation with car strength 0.22 (Red Bull drivers +2.00 s/lap on average, Alpine +0.78; PER +0.93 at Cadillac from a Red Bull-era seed).
+
+| Arm | Change | Race corr | Race MAE | Verdict |
+|---|---|---|---|---|
+| L | `center_driver_lap_terms_by_team: true` (race rating, skill, elite bonus, race advantage) | -0.0085 [-0.0162, -0.0019] | +0.0317 | `worse` |
+| M | `final_blend` overtaking, race advantage, skill and elite scales 0 | -0.0017 | +0.0125 | `unresolvable`, leans worse |
+| L+M | both | -0.0079 [-0.0152, -0.0013] | +0.0373 | `worse` |
+| J2 | `stabilization_strength` 0, seed 43 | -0.0035 | +0.0045 | `unresolvable`; qualifying corr +0.0039 [-0.0010, +0.0116] `noise` |
+
+**Reading.** The team part of the driver terms carries real signal. [Likely] it compensates for team-strength errors already on record (RB under-rated, Williams over-rated): the largest driver offset sits on Red Bull. Two errors cancel, and removing one exposes the other, the same shape as the 2026-08-03 loss. J leans better for qualifying on both seeds (+0.0030, +0.0039) and worse for the race on both (-0.0026, -0.0035); neither resolves.
+
+**Next.** Fix team strength first (lap-time margins, C4), then re-test L on top of it. The L switch stays in the code, off, for that arm. Do not retry L alone against the current team strength.
+
+## 2026-10-03: measured team race pace refreshes itself after each race
+
+Not a model change: a data freshness fix. Live race forecasts read team pace from a committed file that only a manual script run updated, so the Sepang forecast used 14 races and missed Azerbaijan, and every later race would have gone stale too. The replay never saw this: its file already held every race, filtered to those before the target.
+
+Now the measurement lives in `src/extractors/team_race_pace.py` and the pace sits in `ArtifactStore` (`team_race_pace`, `<year>::team_race_pace`; in file mode it is the committed file). Each warmup measures any completed race the artifact lacks, so live matches what the replay already assumed. The prediction cache fingerprint tracks the artifact. The committed file now holds 15 races; the 14 earlier gaps are byte-identical, and Azerbaijan has Mercedes fastest, Red Bull +0.09 s.
+
+Still frozen the same way: `team_strength_seconds_mapping/latest.json` (fitted on 11 rounds) while the replay refits it per race. Next to fix. (Fixed the same day, entry below.)
+
+## 2026-10-03: team strength seconds mapping refits itself after every Q and R
+
+Not a model change in kind: the same fit on more rows. The mapping (team strength scalar to seconds, one slope per session kind) was frozen by hand at 11 rounds (Australia to Hungary, 2026-08-04).
+
+`src/models/team_strength_refresh.py` now runs in warmup after the race pace refresh: it extracts matched-lap observations for every completed Q and R the store lacks, attaches the teammate-network prior mus, refits both slopes on this season, and saves the mapping to `ArtifactStore` (`team_strength_seconds_mapping`, key `latest`). The loader reads the store with a 10-minute in-process cache, falling back to the committed `latest.json`; the replay keeps its env-override file path. The admin trigger runs the same warmup.
+
+**Parity, checked.** On the committed rows the live refit reproduces `latest.json` to 1e-15. Live extraction of Hungary Q and R reproduces the batch rows to 1e-16 (one extra row per session is the driver with no prior, dropped at fit as before). The same-session proxy is stored per session, computed on the full field, because recomputing it on post-drop rows moved it by up to 0.25.
+
+**Size.** Refit on 15 rounds (adds Dutch, Italian, Spanish, Azerbaijan): race slope 3.897 to 3.889 (-0.2%), qualifying 2.763 to 2.749 (-0.5%). The staleness cost almost nothing this season; no replay pair was run because a change this size is far below the seed floor. The value is the mechanism for the next car change or season.
+
+**Guardrails.** No save with fewer than 3 rounds, a non-positive slope, or a slope moving more than 2x from the current one; the rows are kept and the warmup summary names the reason. Main Q and R only, as in the batch construct; practice laps are not used (fuel and run plans make them noisy, and they already reach the forecast through the checkpoint blend).
+
+## 2026-10-03: sizing, car traits x track composition: top speed carries a real track effect
+
+Research only, nothing built. Target: each team's measured race pace at a track minus its own season average (`team_race_pace`, 15 races, 163 team-races, sd 0.473 s/lap). Track composition from each race's fastest-lap telemetry: share of lap time at full throttle (>=98%) and in slow (<140 km/h), medium and fast (>210) corners; full-throttle share runs from 0.36 (Hungary, Monaco) to 0.70 (Monza). Car traits from production `short_run` profiles. Scored leave-one-race-out against a 500 to 1000 draw track-shuffle null.
+
+| Feature | LORO R2 | Predicted sd (s/lap) |
+|---|---|---|
+| Four traits x four shares | 0.159 | 0.253 |
+| Overall pace x shares (does the field just spread more at some tracks?) | -0.001 | 0.143 |
+| Top speed with overall pace regressed out, x full-throttle share | **0.163** (0.172 in % of lap) | 0.210 |
+| Raw top speed x full-throttle share | 0.050 | 0.164 |
+
+Null 95th percentile 0.042, p < 0.001. One sd of top-speed residual is worth 0.76 s/lap between the least and the most full-throttle track. Gainers at Monza and Spa: Alpine (+0.19), RB (+0.12); losers: Aston Martin (-0.31), Red Bull (-0.14), McLaren (-0.12).
+
+**Corner traits carry nothing of their own.** Slow, medium and fast-corner scores correlate 0.99 to 1.00 with `overall_pace`; they are overall pace relabelled. The `testing_profile_weights` entries for them are overall-pace weight in disguise.
+
+**Upper bound, not a result.** The profiles blend about 96 sessions including these races, and a team's top speed partly reflects its low-drag setup at the fast tracks themselves. A build must use the trait as known before each race, and track shares from that circuit's earlier races (Sepang has none from 2026), then pass a replay arm.
+
+## 2026-10-03: car traits measured from telemetry; track trait adjustment built, `open`
+
+The profile corner traits were overall pace relabelled, so traits are now measured directly (`src/extractors/car_track_traits.py`), per team relative to the field: top speed and apex speed at each circuit corner by class (slow < 140, medium, fast > 210 km/h) from fastest qualifying laps; time from brake onset to apex into heavy-braking corners; race tyre degradation per lap of tyre age after removing the field's per-lap trend. Track composition from a reference lap: full-throttle, corner-class and braking shares, plus the field's degradation. New circuits without FastF1 corner data (Madrid) find corners from the speed trace (10 of 14 Hungary corners recovered, the misses are flat-out kinks). Seed: 15 races in `data/processed/car_track_traits/2026_car_track_traits.json`.
+
+**Walk-forward sizing** (traits from earlier races only, ridge coefficients fitted on earlier races only, scored on races 5 to 15, 200-draw shuffled-track null):
+
+| Features | R2 | Null 95th | p |
+|---|---|---|---|
+| All six | 0.113 | 0.048 | 0.015 |
+| Top speed | 0.100 | 0.051 | 0.005 |
+| Corner classes | 0.016 | 0.031 | 0.135 |
+| Braking | 0.008 | 0.024 | 0.25 |
+| Tyre deg | 0.005 | 0.010 | 0.135 |
+
+Built as `baseline_predictor.race.track_trait_adjustment` (off): `src/models/track_traits.py` refits the six-feature ridge on races before the target and adds the per-team seconds to measured race pace; no adjustment before 4 prior races or without a track profile. The upcoming track's profile comes from that weekend's latest completed session (warmup stage 0d); the replay uses each race's own qualifying lap, which is geometry, not a result. Race only; qualifying untested.
+
+**Replay result, same day: `unresolvable` on both seeds, kept off.** Against `Z_base_31_s42`: race corr -0.0041 [-0.0065, -0.0018], MAE +0.0177. Against `Z_base_31_s43`: corr +0.0001 [-0.0045, +0.0047], MAE +0.0059. Floor 0.0067. Qualifying `never activated` (race only, by design).
+
+Why the sizing and the replay disagree: the sizing explains 11% of track-specific lap-time deviation (about 0.14 s/lap); finishing order carries DNFs, strategy, safety cars and overtaking that dwarf that shift. The adjustment also only exists from round 5, on coefficients fitted on 4 to 13 races. The pace signal is real and too small to move positions at n=14. Worth one more test where pace dominates the order: qualifying.
+
+**Qualifying version, same day.** Target: each team's best qualifying lap minus the fastest team's, per race (now stored as `quali_gaps` in the traits artifact). Walk-forward sizing on races 5 to 15: all six features R2 0.060 (null 95th 0.028, p 0.005), predicted sd 0.071 s/lap; top speed 0.041 (p < 0.005); corner classes 0.032 (p 0.005), which matter here unlike the race; braking and deg about 0. Built as `baseline_predictor.qualifying.track_trait_adjustment` (off), adding the per-team seconds to `team_strength_seconds_delta` before the qualifying score projection. **Replay: `adopted` as model 3.2.** Against `Z_base_31_s42`: qualifying corr +0.0048 [+0.0013, +0.0084] (21 better / 10 worse / 20 tied), MAE -0.0581 [-0.0985, -0.0213], both `better`. Against `Z_base_31_s43`: corr +0.0035 [+0.0007, +0.0063] (23 / 7 / 21) `better`, MAE -0.0497 `unresolvable` (just inside the 0.054 floor). Race leans slightly negative on both seeds (-0.0027, -0.0014) and resolves on neither; the race starts from the qualifying grid, so watch it. Sprint neutral.
+
+## 2026-10-03: sizing, practice pace: the model under-uses this weekend's practice
+
+Research only. Per team per weekend: best-lap gap to the fastest team in each FP session (sprint weekends have FP1 only). Walk-forward, races 5 to 15, single ridge slope, 300-draw shuffled-weekend null.
+
+| Signal | Race R2 | Qualifying R2 | Null 95th |
+|---|---|---|---|
+| Team-relative FP change (this FP vs the team's own earlier FPs of the same type; the upgrade idea) | 0.010 (p 0.07) | 0.008 | 0.018 / 0.031 |
+| This weekend's FP gap vs the team's prior race pace | 0.151 | 0.283 | 0.013 / 0.018 |
+
+The upgrade detector as designed does not work: practice against practice is too noisy. The second signal is strong, so the question was whether the model already has it. **Incremental test** on the existing baseline replays, FP checkpoints only: correlation between that signal and the model's own team-level position error (positive = team beat the forecast): race +0.30 (seed 42) and +0.32 (seed 43), qualifying +0.20 and +0.20, against a permutation 95th of about 0.115. The model leaves weekend practice pace on the table, the race far more than qualifying. Race team pace is the mean of earlier races; practice only enters through a long-run modifier clipped to +/-0.04 and through the predicted grid. Qualifying blends practice but caps its move at `fp_max_strength_move` / `stored_checkpoint_max_strength_move` 0.18.
+
+Next: (1) a config-only arm raising those caps; (2) a race arm adding a walk-forward weighted practice term to measured race pace at FP checkpoints.
+
+**Cap arm, same day: `never activated`.** `P_fp_cap_040_s42` / `_s43` (both caps 0.18 to 0.40) against new model 3.2 baselines `Z_base_32_s42` / `_s43`: all 51 checkpoints identical on every target and both seeds. The clamp reads both keys on both blend paths, so no session ever moved a team more than 0.18 from its prior in the replay. The cap is not what holds back practice in qualifying; the remaining under-use (+0.20) sits in how practice is weighted or measured. `Z_base_32_*` are the champion baselines from here on.
+
+## 2026-10-03: tyre deg: field slope per compound plus a carried team estimate, `open`
+
+**Why.** Race tyre slopes came per team from practice `compound_characteristics`: 1 to 3 sessions, no fuel or evolution correction, sometimes from another track (Sepang HARD measured at Baku). Live values 0.04 to 0.43 s/lap per lap, so simulated stints lost 3 to 6 s per lap by lap 20, and teams differed by up to about 4.5 s per stint. Observed 2026 race stints (median raw slope over 14 to 15 races, fuel burn included): SOFT +0.017, MEDIUM -0.006, HARD -0.001. Real team-to-team deg spread: sd 0.009 against one-race noise 0.032.
+
+**What.** `baseline_predictor.race.tyre_deg_model: carry_over` (default `practice`): slope per compound = median observed raw stint slope over earlier races + `tire_physics.fuel_burn_gain_s_per_lap` (0.05, about 1.6 kg/lap x 0.03 s/kg), i.e. true wear, because the simulator gives every car the same fuel on a lap so only tyre age separates them. Team delta = a 1-D Kalman filter over earlier races' race-measured deg (true sd 0.009, noise 0.032, drift 0.002 per race). Practice slopes are not used. Sepang now: SOFT 0.067, MEDIUM 0.044, HARD 0.049; teams from Audi -0.010 to Aston Martin +0.017 (0.55 s over a 20-lap stint). No track factor: the Pirelli stress score correlates only 0.4 with measured deg over 15 races. Stint-level realism (net slope about 0) still needs the fuel fix (work plan item 6). Not touched: the per-compound pace modifier from the same practice data.
+
+**Replay, 2026-10-04: `unresolvable`, leans worse, kept off.** Race corr -0.0057 [-0.0152, +0.0050] (17 better / 31 worse) on seed 42, -0.0041 [-0.0131, +0.0074] (20 / 29) on seed 43; MAE +0.039 / +0.016. Qualifying `never activated` (race only). By checkpoint, the same on both seeds: PRE improves (+0.0086, +0.0053) while FP1, FP3 and SQ get worse (FP1 -0.0099 / -0.0060, FP3 -0.0087 / -0.0072, SQ -0.0377 / -0.0178). Reading [Likely, 12 to 14 checkpoints each]: the practice slopes are implausible as tyre wear but are the one path by which this weekend's long runs reach the race model; removing them cuts it. Build the race practice term (work plan item 2) first, then re-run this arm on top.
+
+## 2026-10-04: race practice term, `open`
+
+**Why.** This weekend's practice pace against a team's prior race pace predicts the model's own race errors at FP checkpoints (corr +0.30 / +0.32, 2026-10-03 entry), and the race path barely uses practice. The tyre deg arm showed the practice slopes were the only channel left for it.
+
+**What.** `baseline_predictor.race.practice_pace_adjustment` (off): per team, prior-races mean race pace gap minus its mean best-lap gap in this weekend's practice so far, centred; one slope fitted on earlier races (ridge) turns it into seconds per lap added to measured race pace (`src/models/practice_pace.py`). Practice gaps per session are stored as `fp_gaps` in the traits artifact (seed 15 races) and refreshed in warmup. **Information cutoff:** the replay gave every race prediction a context anchored to the race start, so a time cutoff would have let PRE see all practice. `PredictionContext` now carries `checkpoint_session`; the replay sets it for race predictions and the term keeps only sessions `session_is_available_at_checkpoint` allows (PRE none, FP1 FP1 only, ...). Live stores completed sessions only. A test pins that an FP1 checkpoint never reads FP2 or FP3.
+
+**Walk-forward sizing of the module** (races 5 to 15): FP1 only R2 0.151 (109 rows), FP1+FP2 0.240, FP1 to FP3 0.252 (87 rows). **Replay, 2026-10-04: `unresolvable`, kept off.** Race corr +0.0008 [-0.0030, +0.0042] (MAE -0.018) on seed 42, -0.0017 [-0.0053, +0.0018] (MAE +0.003) on seed 43; qualifying `never activated` (race only). No consistent checkpoint pattern (FP3 +0.004 on 42, -0.013 on 43). Leak check: some PRE race forecasts moved (5 of 33 / 7 of 33), first at round 7; the cause is legitimate propagation, not leakage: `learning_state.json` differs only in `adaptive_calibration/driver_position_error` EMAs learned from earlier checkpoints' race errors, which feed later forecasts.
+
+**Pattern across race-side pace changes.** Race track traits (sizing R2 0.113), carry-over tyre deg (physics fix) and this practice term (R2 0.15 to 0.25) all carry real lap-time signal and none moves finishing order; the qualifying track traits change, on a path with no grid anchor, won. [Likely] the race pipeline damps pace: 42 to 57% of each main-race position is pinned to the predicted grid (`grid_anchor.min` 0.42, `main_max` 0.57; sprint >= 0.85), then gain caps and the movement-floor re-rank. Next: config arms A (anchor halved) and B (anchor halved + practice term + carry-over deg) against `Z_base_32_*`.
+
+## 2026-10-04: grid anchor arms: the anchor earns its keep, pace changes are genuinely small
+
+Against `Z_base_32_*`, seeds 42 / 43. A = `grid_anchor` halved (base 0.14, track_scale 0.18, min 0.21, main_max 0.29; sprint untouched). B = A + `practice_pace_adjustment` + `tyre_deg_model: carry_over`.
+
+| Comparison | Race corr | Race MAE | Verdict |
+|---|---|---|---|
+| A vs base | -0.0156 [-0.0301, -0.0022] / -0.0191 [-0.0352, -0.0045] | +0.100 / +0.095 | `worse` both seeds |
+| B vs A | -0.0006 / +0.0041 | -0.011 / -0.023 | `unresolvable` |
+| B vs base | -0.0162 / -0.0150 | +0.089 / +0.072 | `worse` |
+
+The damping hypothesis (2026-10-04 practice entry) is rejected: a lighter anchor costs about 0.017 race correlation, and the pace changes add nothing measurable even with it. The predicted qualifying grid predicts race order better than the simulation's own pace, so race skill comes mostly through the grid. Biggest measured lead left: qualifying's use of practice (qualifying errors correlate +0.20 with the weekend practice signal; the 0.18 cap never binds). Do not retry a lighter anchor alone.
+
+## 2026-10-04: qualifying practice term, `open`
+
+**Why.** Biggest measured lead left: qualifying errors correlate +0.20 with the weekend practice signal, the 0.18 cap never binds, and the anchor arms showed race skill comes mostly through the predicted grid.
+
+**What.** `baseline_predictor.qualifying.practice_pace_adjustment` (off): the practice model from the race term (`src/models/practice_pace.py`, now with `kind`), fitted against each race's team qualifying gaps; per team, prior-races mean qualifying gap minus this weekend's mean practice best-lap gap, one walk-forward slope, added to `team_strength_seconds_delta` before the score projection (same slot as the 3.2 track traits). The qualifying replay context now carries `checkpoint_session` too, so the term only sees practice the checkpoint allows; a test pins FP2 never reading FP3. Walk-forward sizing on qualifying gaps, races 5 to 15: FP1 R2 0.227 (110 rows), FP1+FP2 0.253, FP1 to FP3 0.293 (88 rows). Risk: qualifying already blends practice, so a slope fitted on raw deviations may double-count.
+
+**Replay, 2026-10-04: `worse` on both seeds, kept off.** Qualifying corr -0.0094 [-0.0188, -0.0008] (12 better / 22 worse) on seed 42 and -0.0094 [-0.0186, -0.0010] (11 / 22) on seed 43; MAE +0.099 / +0.106. Race unresolvable (-0.0046 / -0.0070). Worst at FP1 (-0.029 on both seeds), shrinking by FP3 (-0.006 / -0.003): the double count. The slope was fitted on raw qualifying deviations, but qualifying already blends practice, so the term stacks practice on itself, hardest when FP1 is all there is. The +0.20 residual signal is real; using it needs a slope fitted against the model's own residuals (what the existing blend leaves), not raw gaps. Do not retry the raw-fitted version.
 
 ## Adding an entry
 

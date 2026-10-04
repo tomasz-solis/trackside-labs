@@ -48,7 +48,7 @@ Fix: extract per-circuit safety car and lap 1 incident rates from past races and
 
 Each driver gets a p5 to p95 interval, and the learning system can widen it once enough residuals exist. The last calibration report (2026-04-20, 3 events, 66 intervals) showed 80.3% qualifying coverage against a 90% target.
 
-Race p5/p95 has the same problem: measured 2026-09-27 on `data/historical_replay_m1s42_r14` (895 race finishers), coverage is 86% overall (92/95/89/67% by predicted-position bucket 1-5/6-10/11-16/17-22, the back of the field worst). An honest 90% band there needs about 10 to 11 positions, too wide to show as "the range a driver is likely to finish in". The dashboard's race table now shows a separate, narrower "Likely range" (a fitted 50% band, 3 to 5 positions wide, see `docs/MODEL_LEDGER.md` 2026-09-27) instead of p5/p95 for that purpose. p5/p95 itself is unchanged and still used for evaluation.
+Race p5/p95 has the same problem: measured 2026-09-27 on `data/historical_replay_m1s42_r14` (895 race finishers), coverage is 86% overall (92/95/89/67% by predicted-position bucket 1-5/6-10/11-16/17-22, the back of the field worst). An honest 90% band there needs about 10 to 11 positions, too wide to show as "the range a driver is likely to finish in". Qualifying p5/p95 over-covers on the same replay: 95.3% (n=784). The dashboard's race and qualifying tables show a separate "Likely range" instead: a fitted band around the shown position that held about 6 in 10 past results (59-63% leave-one-race-out, see `docs/MODEL_LEDGER.md` 2026-10-01). p5/p95 itself is unchanged and still used for evaluation.
 
 Fix: more races, then replay the widening before tightening anything.
 

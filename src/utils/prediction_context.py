@@ -59,6 +59,9 @@ class PredictionContext:
     target_session_datetime: datetime | None = None
     seed: int | None = None
     season_year: int | None = None
+    # Replay checkpoint (PRE, FP1, ...) for paths that read weekend data directly; live
+    # leaves it unset because only completed sessions exist.
+    checkpoint_session: str | None = None
 
     def normalized(self) -> PredictionContext:
         """Return a UTC-normalized copy of this context."""
@@ -71,6 +74,7 @@ class PredictionContext:
             target_session_datetime=normalize_utc_datetime(self.target_session_datetime),
             seed=self.seed,
             season_year=self.season_year,
+            checkpoint_session=self.checkpoint_session,
         )
 
     @property
@@ -188,6 +192,7 @@ def build_historical_prediction_context(
     target_session_name: str,
     seed: int | None = None,
     as_of_offset: timedelta = timedelta(0),
+    checkpoint_session: str | None = None,
 ) -> PredictionContext:
     """Build historical replay context anchored to one scheduled session."""
     session_name = _SESSION_NAME_ALIASES.get(
@@ -211,6 +216,7 @@ def build_historical_prediction_context(
             target_session_datetime=None,
             seed=seed,
             season_year=year,
+            checkpoint_session=checkpoint_session,
         )
 
     target_session_datetime = normalize_utc_datetime(raw_session_datetime)
@@ -224,4 +230,5 @@ def build_historical_prediction_context(
         target_session_datetime=target_session_datetime,
         seed=seed,
         season_year=year,
+        checkpoint_session=checkpoint_session,
     )

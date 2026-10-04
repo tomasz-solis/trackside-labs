@@ -94,8 +94,9 @@ flowchart TD
 | `data/processed/car_characteristics/2026_car_characteristics.json` | Per team: baseline performance, testing metrics, in-season results, uncertainty, compound pace and wear by circuit |
 | `data/processed/track_characteristics/2026_track_characteristics.json` | Track profile, overtaking difficulty and rate, pit loss, safety car odds |
 | `data/processed/driver_characteristics.json` | Pre-season driver ratings: racecraft, pace, experience, DNF inputs |
-| `data/processed/team_race_pace/2026_team_race_pace.json` | Per-race team pace gaps from green-flag laps |
-| `data/processed/team_strength_seconds_mapping/latest.json` | Team strength to seconds conversion, fitted on 2026 |
+| `data/processed/team_race_pace/2026_team_race_pace.json` | Per-race team pace gaps from green-flag laps. Seeds the `team_race_pace` store artifact, which warmup refreshes after each race (`src/extractors/team_race_pace.py`) |
+| `data/processed/car_track_traits/2026_car_track_traits.json` | Per race: team traits (top speed, slow/medium/fast corner apex speed, braking, tyre deg) and track composition. Seeds the `car_track_traits` store artifact, refreshed in warmup (`src/extractors/car_track_traits.py`) |
+| `data/processed/team_strength_seconds_mapping/latest.json` | Team strength to seconds conversion, fitted on 2026. Seeds the `team_strength_seconds_mapping` store artifact, which warmup refits after every Q and R (`src/models/team_strength_refresh.py`) |
 
 ## Qualifying flow
 

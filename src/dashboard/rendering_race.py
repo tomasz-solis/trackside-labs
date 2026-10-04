@@ -738,6 +738,7 @@ def _style_race_table(df_display: pd.DataFrame):
         for column, template in {
             "Expected Pos": "{:.2f}",
             "Order Confidence %": "{:.1f}",
+            "Win %": "{:.1f}",
             "Podium %": "{:.1f}",
             "DNF Risk %": "{:.1f}",
         }.items()
@@ -768,6 +769,11 @@ def _render_race_result(df: pd.DataFrame) -> None:
         race_df["confidence"] = order_conf
     has_confidence = "confidence" in race_df.columns
     has_podium_probability = "podium_probability" in race_df.columns
+    has_win_probability = "win_probability" in race_df.columns
+    if has_win_probability:
+        race_df["win_probability"] = pd.to_numeric(
+            race_df["win_probability"], errors="coerce"
+        ).round(1)
     has_dnf_probability = SHOW_DNF_RISK and "dnf_probability" in race_df.columns
     if SHOW_DNF_RISK and not has_dnf_probability and "dnf_risk" in race_df.columns:
         race_df["dnf_probability"] = race_df["dnf_risk"]
@@ -817,7 +823,7 @@ def _render_race_result(df: pd.DataFrame) -> None:
             "This run leans heavily on priors."
         )
 
-    if has_ci:
+    if has_ci and not has_likely_range:
         interval_width = (race_df["p95"] - race_df["p5"]).astype(float)
         median_width = float(interval_width.median())
         wide_ranges = int((interval_width >= 8.0).sum())
@@ -866,7 +872,7 @@ def _render_race_result(df: pd.DataFrame) -> None:
     if has_range_column:
         if has_likely_range:
             ci_caption = (
-                "`Likely range`: half of past results for this spot landed here. "
+                "`Likely range`: past results for this spot landed here about 6 times in 10. "
                 "`DNF Risk %` is separate."
             )
         else:
@@ -885,6 +891,13 @@ def _render_race_result(df: pd.DataFrame) -> None:
     if has_range_column:
         display_cols.append("ci_range")
         display_names.append(range_label)
+    if has_win_probability:
+        display_cols.append("win_probability")
+        display_names.append("Win %")
+        st.caption(
+            "`Win %` is the share of simulations a driver wins. In a close fight the "
+            "driver shown second can have the higher `Win %`."
+        )
     if has_podium_probability:
         display_cols.append("podium_probability")
         display_names.append("Podium %")

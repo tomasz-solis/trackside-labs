@@ -15,10 +15,8 @@ aggregates many runs rather than trusting one simulated race, which is the same
 reason teams run thousands of strategy scenarios before a grand prix.
 """
 
-import json
 import logging
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, NamedTuple, cast
 
 import numpy as np
@@ -38,15 +36,13 @@ from src.utils.validation_helpers import normalize_weather_key
 
 logger = logging.getLogger(__name__)
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
 
 @lru_cache(maxsize=64)
 def _load_measured_team_pace_deltas(year: int, race_name: str | None) -> dict[str, float] | None:
     """Load and centre measured team race-pace deltas from races before ``race_name``.
 
-    Reads ``data/processed/team_race_pace/<year>_team_race_pace.json`` (built by
-    ``scripts/extract_team_race_pace.py``), which stores each team's per-race gap in
+    Reads the ``team_race_pace`` artifact (store first, then the committed file; see
+    ``src/extractors/team_race_pace.py``), which stores each team's per-race gap in
     seconds to that race's fastest team (smaller = faster). Only races the schedule
     places before the target are averaged, so a forecast never sees its own race or
     a later one. ``base_pace`` needs the opposite convention -- larger delta = faster
@@ -55,16 +51,12 @@ def _load_measured_team_pace_deltas(year: int, race_name: str | None) -> dict[st
     when the artifact is missing, has no per-race gaps, the target is not in the
     schedule, or no measured race precedes it.
     """
-    path = _PROJECT_ROOT / "data" / "processed" / "team_race_pace" / f"{year}_team_race_pace.json"
-    try:
-        with open(path) as f:
-            payload = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return None
+    from src.extractors.team_race_pace import load_team_race_pace
 
-    races = payload.get("races")
+    payload = load_team_race_pace(year)
+    races = payload.get("races") if payload else None
     if not isinstance(races, dict):
-        logger.warning("%s has no per-race gaps; ignoring measured team pace", path.name)
+        logger.warning("No per-race team pace for %s; ignoring measured team pace", year)
         return None
 
     from src.utils.weekend import get_schedule_rows
@@ -95,6 +87,40 @@ def _load_measured_team_pace_deltas(year: int, race_name: str | None) -> dict[st
     gaps = {team: sum(values) / len(values) for team, values in gaps_by_team.items()}
     mean_gap = sum(gaps.values()) / len(gaps)
     return {team: mean_gap - gap for team, gap in gaps.items()}
+
+
+def _with_practice_adjustment(
+    measured: dict[str, float] | None, year: int, race_name: str | None
+) -> dict[str, float] | None:
+    """Add this weekend's practice-based race pace adjustment to measured team deltas.
+
+    Uses only practice sessions the active checkpoint may see (replay) or that are
+    stored (live, completed only). See ``src/models/practice_pace.py``.
+    """
+    if not measured:
+        return measured
+    from src.models.practice_pace import practice_adjustments, sessions_for_active_checkpoint
+
+    sessions = sessions_for_active_checkpoint(year, race_name)
+    adjustments = practice_adjustments(year, race_name, sessions, "race")
+    return {team: delta + adjustments.get(team, 0.0) for team, delta in measured.items()}
+
+
+def _with_track_trait_adjustment(
+    measured: dict[str, float] | None, year: int, race_name: str | None
+) -> dict[str, float] | None:
+    """Add the car traits x track adjustment to measured team pace deltas."""
+    if not measured:
+        return measured
+    adjustments = _load_track_trait_adjustments(year, race_name)
+    return {team: delta + adjustments.get(team, 0.0) for team, delta in measured.items()}
+
+
+def _load_track_trait_adjustments(year: int, race_name: str | None) -> dict[str, float]:
+    """Return the race-pace track trait adjustment (see ``src/models/track_traits.py``)."""
+    from src.models.track_traits import track_trait_adjustments
+
+    return track_trait_adjustments(year, race_name, "race")
 
 
 # Breaks the ordering tie when a blocked driver is held behind the car he could not
@@ -318,6 +344,14 @@ def simulate_race_lap_by_lap(
         measured_team_pace_deltas = _load_measured_team_pace_deltas(
             int(_race_year), race_params.get("track_name")
         )
+        if race_params.get("practice_pace_adjustment", False):
+            measured_team_pace_deltas = _with_practice_adjustment(
+                measured_team_pace_deltas, int(_race_year), race_params.get("track_name")
+            )
+        if race_params.get("track_trait_adjustment", False):
+            measured_team_pace_deltas = _with_track_trait_adjustment(
+                measured_team_pace_deltas, int(_race_year), race_params.get("track_name")
+            )
     track_temperature_c = race_params.get("track_temperature_c")
     weather_feature_modifiers = race_params.get("weather_feature_modifiers", {})
     chaos_multiplier = float(
@@ -427,6 +461,40 @@ def simulate_race_lap_by_lap(
     _elite_denominator = max(1e-6, 1.0 - _elite_skill_threshold)
     _lap_time_bounds = _lt_cfg.get("bounds", [70.0, 120.0])
 
+    overtake_gap_from_lap_start = bool(race_params.get("overtake_gap_from_lap_start", False))
+
+    # Per-lap retirement chance. p / N per lap only retires ~1 - e^-p of drivers over
+    # the race (9% short at p 0.2); the hazard form delivers p exactly.
+    if race_params.get("dnf_per_lap_hazard", False):
+        per_lap_dnf = {
+            driver: _calculate_safety_car_lap_probability(
+                float(driver_info_map[driver]["dnf_probability"]), race_distance
+            )
+            for driver in driver_states
+        }
+    else:
+        per_lap_dnf = {
+            driver: float(driver_info_map[driver]["dnf_probability"]) / race_distance
+            for driver in driver_states
+        }
+
+    # Driver share of the lap time, seconds faster than neutral. Constant within a race.
+    driver_lap_bonus: dict[str, float] = {}
+    for driver in driver_states:
+        info = driver_info_map[driver]
+        skill = info["skill"]
+        elite_skill_normalized = max(0.0, (skill - _elite_skill_threshold) / _elite_denominator)
+        driver_lap_bonus[driver] = (
+            _resolve_driver_pace_delta_seconds(info)
+            + skill * _skill_improvement_max
+            + _elite_skill_lap_bonus_max * (elite_skill_normalized**_elite_skill_exponent)
+            + info.get("race_advantage", 0.0) * _race_advantage_lap_impact
+        )
+    if race_params.get("center_driver_lap_terms_by_team", False):
+        # Team pace is measured from lap times the drivers set, so it already holds
+        # their average. Keep only the teammate difference.
+        driver_lap_bonus = _center_by_team(driver_lap_bonus, driver_info_map)
+
     # Lap-by-lap progression
     for lap_num in range(1, race_distance + 1):
         active_order = sorted(
@@ -463,6 +531,11 @@ def simulate_race_lap_by_lap(
         )
 
         active_neutralization = _neutralization_by_lap.get(lap_num)  # "SC", "VSC", or None
+        lap_start_times = (
+            {d: s["cumulative_time"] for d, s in driver_states.items()}
+            if overtake_gap_from_lap_start
+            else None
+        )
 
         for driver in lap_driver_order:
             state = driver_states[driver]
@@ -472,7 +545,7 @@ def simulate_race_lap_by_lap(
             if state["has_dnf"]:
                 continue
 
-            if rng.random() < info["dnf_probability"] / race_distance:
+            if rng.random() < per_lap_dnf[driver]:
                 state["has_dnf"] = True
                 state["dnf_lap"] = lap_num
                 logger.debug("%s DNF on lap %s", driver, lap_num)
@@ -483,14 +556,12 @@ def simulate_race_lap_by_lap(
             fuel_load = state["fuel_load"]
 
             team_strength = info["team_strength_by_compound"].get(compound, info["team_strength"])
-            skill = info["skill"]
 
             # Base lap time from team strength. Phase 7 mappings provide a
             # direct seconds delta; older callers fall back to the legacy
             # compressed unit-strength penalty.
             reference_base = _reference_base
             team_pace_penalty_range = _team_pace_penalty_range
-            skill_improvement_max = _skill_improvement_max
             team_strength_compression = _team_strength_compression
 
             team_pace_delta_s = _resolve_team_pace_delta_seconds(
@@ -500,20 +571,6 @@ def simulate_race_lap_by_lap(
                 compressed_team_strength = 0.5 + ((team_strength - 0.5) * team_strength_compression)
                 compressed_team_strength = np.clip(compressed_team_strength, 0.0, 1.0)
                 team_pace_delta_s = -((1.0 - compressed_team_strength) * team_pace_penalty_range)
-            driver_pace_delta_s = _resolve_driver_pace_delta_seconds(info)
-            skill_improvement = skill * skill_improvement_max
-            elite_skill_threshold = _elite_skill_threshold
-            elite_skill_lap_bonus_max = _elite_skill_lap_bonus_max
-            elite_skill_exponent = _elite_skill_exponent
-            elite_denominator = _elite_denominator
-            elite_skill_normalized = max(0.0, (skill - elite_skill_threshold) / elite_denominator)
-            elite_skill_bonus = elite_skill_lap_bonus_max * (
-                elite_skill_normalized**elite_skill_exponent
-            )
-
-            # Reference lap time (track-specific if available in race_params)
-            race_advantage_lap_impact = _race_advantage_lap_impact
-            race_advantage_delta = -info.get("race_advantage", 0.0) * race_advantage_lap_impact
             wet_skill_delta = _compute_race_wet_skill_modifier(
                 skill_info=info,
                 weather=weather,
@@ -523,13 +580,7 @@ def simulate_race_lap_by_lap(
             )
 
             base_lap_time = (
-                reference_base
-                - team_pace_delta_s
-                - driver_pace_delta_s
-                - skill_improvement
-                - elite_skill_bonus
-                + race_advantage_delta
-                + wet_skill_delta
+                reference_base - team_pace_delta_s - driver_lap_bonus[driver] + wet_skill_delta
             )
 
             # Cache base pace (used for overtake opportunity modeling)
@@ -606,6 +657,7 @@ def simulate_race_lap_by_lap(
                 race_params=race_params,
                 contending_pairs=contending_pairs,
                 rng=rng,
+                lap_start_times=lap_start_times,
             )
 
             lap_time = (
@@ -734,6 +786,20 @@ def _resolve_team_pace_delta_seconds(
     return None
 
 
+def _center_by_team(
+    values: dict[str, float], driver_info_map: dict[str, dict[str, Any]]
+) -> dict[str, float]:
+    """Subtract each team's mean so values only keep the difference between teammates."""
+    by_team: dict[str, list[float]] = {}
+    for driver, value in values.items():
+        by_team.setdefault(str(driver_info_map[driver].get("team", driver)), []).append(value)
+    team_mean = {team: float(np.mean(team_values)) for team, team_values in by_team.items()}
+    return {
+        driver: value - team_mean[str(driver_info_map[driver].get("team", driver))]
+        for driver, value in values.items()
+    }
+
+
 def _resolve_driver_pace_delta_seconds(info: dict[str, Any]) -> float:
     """Return a seconds-native race driver residual or a neutral fallback."""
     raw_value = info.get("race_rating_mu_s")
@@ -801,11 +867,14 @@ def _get_traffic_overtake_effect(
     race_params: dict[str, Any],
     contending_pairs: int,
     rng: np.random.Generator,
+    lap_start_times: dict[str, float] | None = None,
 ) -> TrafficOvertakeResult:
     """Return lap-time delta from traffic and overtake attempts.
 
     Positive values are time losses (dirty air), negative values are gains
-    from successful overtakes.
+    from successful overtakes. ``lap_start_times`` gives the gap from the
+    start-of-lap snapshot. Without it the gap reads live cumulative times, and
+    because the car ahead runs its lap first that gap is negative and clamps to 0.
     """
     ahead_driver = driver_ahead_map.get(driver)
     if ahead_driver is None:
@@ -816,7 +885,10 @@ def _get_traffic_overtake_effect(
     if ahead_state.get("has_dnf", False):
         return TrafficOvertakeResult(0.0, False)
 
-    gap_to_ahead = max(0.0, state["cumulative_time"] - ahead_state["cumulative_time"])
+    if lap_start_times is not None:
+        gap_to_ahead = max(0.0, lap_start_times[driver] - lap_start_times[ahead_driver])
+    else:
+        gap_to_ahead = max(0.0, state["cumulative_time"] - ahead_state["cumulative_time"])
     track_overtaking = race_params.get("track_overtaking", 0.5)
     overtake_cfg = race_params.get("overtake_model", {})
 

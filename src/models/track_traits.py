@@ -45,11 +45,14 @@ def _features(
     traits: pd.DataFrame, profile: Mapping[str, float], mean_profile: pd.Series
 ) -> pd.DataFrame:
     """Return trait x (track share - mean share) per team, one column per trait."""
+
+    def deviation(share: str) -> float:
+        # A share that could not be measured counts as average: no effect.
+        value = profile.get(share)
+        return 0.0 if value is None else float(value) - float(mean_profile[share])
+
     return pd.DataFrame(
-        {
-            trait: traits[trait] * (float(profile[share]) - float(mean_profile[share]))
-            for trait, share in TRAIT_TO_SHARE.items()
-        }
+        {trait: traits[trait] * deviation(share) for trait, share in TRAIT_TO_SHARE.items()}
     ).fillna(0.0)
 
 

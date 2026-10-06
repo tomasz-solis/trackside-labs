@@ -653,7 +653,7 @@
     },
     "Cadillac F1": {
      "braking": 1.3064,
-     "deg": NaN,
+     "deg": null,
      "fast": -31.3333,
      "medium": 7.0208,
      "slow": 9.6667,
@@ -749,7 +749,7 @@
      "braking": -0.0358,
      "deg": 0.0048,
      "fast": 1.25,
-     "medium": NaN,
+     "medium": null,
      "slow": 0.9643,
      "top_speed": 4.5
     },
@@ -757,7 +757,7 @@
      "braking": 0.373,
      "deg": 0.1016,
      "fast": -4.5833,
-     "medium": NaN,
+     "medium": null,
      "slow": -1.5714,
      "top_speed": -7.5
     },
@@ -765,7 +765,7 @@
      "braking": 0.1027,
      "deg": 0.0,
      "fast": -3.0,
-     "medium": NaN,
+     "medium": null,
      "slow": 0.2857,
      "top_speed": -3.0
     },
@@ -773,7 +773,7 @@
      "braking": 0.3401,
      "deg": 0.0257,
      "fast": -5.1667,
-     "medium": NaN,
+     "medium": null,
      "slow": -2.5714,
      "top_speed": 0.0
     },
@@ -781,7 +781,7 @@
      "braking": -0.1485,
      "deg": -0.0223,
      "fast": 0.0833,
-     "medium": NaN,
+     "medium": null,
      "slow": 2.6071,
      "top_speed": 1.0
     },
@@ -789,7 +789,7 @@
      "braking": -0.107,
      "deg": 0.0189,
      "fast": -2.0,
-     "medium": NaN,
+     "medium": null,
      "slow": 0.8571,
      "top_speed": -0.5
     },
@@ -797,7 +797,7 @@
      "braking": -0.2199,
      "deg": -0.0038,
      "fast": 1.5833,
-     "medium": NaN,
+     "medium": null,
      "slow": 2.4286,
      "top_speed": 1.5
     },
@@ -805,7 +805,7 @@
      "braking": -0.0569,
      "deg": -0.0266,
      "fast": 3.0,
-     "medium": NaN,
+     "medium": null,
      "slow": 2.1429,
      "top_speed": 6.0
     },
@@ -813,7 +813,7 @@
      "braking": -0.164,
      "deg": -0.0201,
      "fast": 1.1667,
-     "medium": NaN,
+     "medium": null,
      "slow": -1.6429,
      "top_speed": 1.0
     },
@@ -821,7 +821,7 @@
      "braking": -0.2813,
      "deg": -0.0044,
      "fast": 0.3333,
-     "medium": NaN,
+     "medium": null,
      "slow": 2.1071,
      "top_speed": -1.5
     },
@@ -829,7 +829,7 @@
      "braking": -0.1254,
      "deg": 0.0043,
      "fast": 4.75,
-     "medium": NaN,
+     "medium": null,
      "slow": -1.5714,
      "top_speed": 5.0
     }
@@ -1225,7 +1225,7 @@
      "braking": -0.0031,
      "deg": -0.0042,
      "fast": 1.0,
-     "medium": NaN,
+     "medium": null,
      "slow": -0.5833,
      "top_speed": 0.5
     },
@@ -1233,7 +1233,7 @@
      "braking": 0.2416,
      "deg": 0.1055,
      "fast": -6.0,
-     "medium": NaN,
+     "medium": null,
      "slow": -5.0,
      "top_speed": -3.5
     },
@@ -1241,7 +1241,7 @@
      "braking": 0.27,
      "deg": -0.0153,
      "fast": -0.5,
-     "medium": NaN,
+     "medium": null,
      "slow": -0.875,
      "top_speed": 1.5
     },
@@ -1249,7 +1249,7 @@
      "braking": 0.3051,
      "deg": -0.0412,
      "fast": -3.75,
-     "medium": NaN,
+     "medium": null,
      "slow": -2.4167,
      "top_speed": -4.5
     },
@@ -1257,7 +1257,7 @@
      "braking": -0.253,
      "deg": 0.0479,
      "fast": 0.0,
-     "medium": NaN,
+     "medium": null,
      "slow": 2.7083,
      "top_speed": 4.0
     },
@@ -1265,7 +1265,7 @@
      "braking": 0.0835,
      "deg": -0.013,
      "fast": -3.5,
-     "medium": NaN,
+     "medium": null,
      "slow": -3.3333,
      "top_speed": -1.0
     },
@@ -1273,7 +1273,7 @@
      "braking": -0.1563,
      "deg": -0.0346,
      "fast": 3.0,
-     "medium": NaN,
+     "medium": null,
      "slow": 5.5833,
      "top_speed": 0.0
     },
@@ -1281,7 +1281,7 @@
      "braking": 0.2118,
      "deg": 0.0586,
      "fast": 0.75,
-     "medium": NaN,
+     "medium": null,
      "slow": 2.9167,
      "top_speed": 3.5
     },
@@ -1289,7 +1289,7 @@
      "braking": 0.0417,
      "deg": 0.004,
      "fast": 1.25,
-     "medium": NaN,
+     "medium": null,
      "slow": -1.375,
      "top_speed": 2.0
     },
@@ -1297,7 +1297,7 @@
      "braking": -0.1964,
      "deg": 0.005,
      "fast": 0.25,
-     "medium": NaN,
+     "medium": null,
      "slow": 2.3333,
      "top_speed": 2.5
     },
@@ -1305,7 +1305,7 @@
      "braking": 0.3467,
      "deg": 0.0,
      "fast": -1.25,
-     "medium": NaN,
+     "medium": null,
      "slow": -2.4167,
      "top_speed": -1.5
     }
@@ -1390,7 +1390,7 @@
     },
     "McLaren": {
      "braking": 0.0565,
-     "deg": NaN,
+     "deg": null,
      "fast": 3.8333,
      "medium": 1.4,
      "slow": 1.375,

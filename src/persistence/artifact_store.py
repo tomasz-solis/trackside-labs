@@ -21,6 +21,7 @@ from src.utils.artifact_paths import (
     safe_session_slug,
 )
 from src.utils.data_paths import resolve_data_root
+from src.utils.json_io import json_safe
 
 from .config import (
     get_storage_mode,
@@ -63,6 +64,16 @@ class ArtifactStore:
         start_time = time.time()
         file_success = db_success = False
         last_error: Exception | None = None
+
+        # Strict JSON: the database rejects NaN/Infinity, which Python's json writes.
+        data, non_finite = json_safe(data)
+        if non_finite:
+            logger.warning(
+                "Replaced %d NaN/Infinity value(s) with null in %s::%s",
+                non_finite,
+                artifact_type,
+                artifact_key,
+            )
 
         # Determine version
         if version is None:

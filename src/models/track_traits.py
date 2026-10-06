@@ -34,15 +34,27 @@ MIN_PRIOR_RACES = 4
 RIDGE_LAMBDA = 1.0
 
 
-def _standardised_traits(traits_by_race: Mapping[str, Any], races: Sequence[str]) -> pd.DataFrame:
+def _mapping(features: Sequence[str] | None) -> dict[str, str]:
+    """Return the trait-to-share map for ``features`` (all traits when None)."""
+    if features is None:
+        return TRAIT_TO_SHARE
+    return {trait: TRAIT_TO_SHARE[trait] for trait in features if trait in TRAIT_TO_SHARE}
+
+
+def _standardised_traits(
+    traits_by_race: Mapping[str, Any], races: Sequence[str], mapping: Mapping[str, str]
+) -> pd.DataFrame:
     """Return each team's mean trait over ``races``, standardised across teams."""
     frames = [pd.DataFrame(traits_by_race[r]["traits"]).T for r in races]
-    traits = pd.concat(frames).groupby(level=0).mean().reindex(columns=list(TRAIT_TO_SHARE))
+    traits = pd.concat(frames).groupby(level=0).mean().reindex(columns=list(mapping))
     return (traits - traits.mean()) / traits.std(ddof=1).replace(0.0, np.nan)
 
 
 def _features(
-    traits: pd.DataFrame, profile: Mapping[str, float], mean_profile: pd.Series
+    traits: pd.DataFrame,
+    profile: Mapping[str, float],
+    mean_profile: pd.Series,
+    mapping: Mapping[str, str],
 ) -> pd.DataFrame:
     """Return trait x (track share - mean share) per team, one column per trait."""
 
@@ -52,7 +64,7 @@ def _features(
         return 0.0 if value is None else float(value) - float(mean_profile[share])
 
     return pd.DataFrame(
-        {trait: traits[trait] * deviation(share) for trait, share in TRAIT_TO_SHARE.items()}
+        {trait: traits[trait] * deviation(share) for trait, share in mapping.items()}
     ).fillna(0.0)
 
 
@@ -61,12 +73,15 @@ def fit_and_predict(
     race_pace_gaps: Mapping[str, Mapping[str, float]],
     prior_races: Sequence[str],
     target_profile: Mapping[str, float] | None,
+    features: Sequence[str] | None = None,
 ) -> dict[str, float]:
     """Return seconds per lap each team gains at the target track (positive = faster).
 
     ``prior_races`` are the races before the target, in calendar order, that have both
-    traits and measured pace. Returns {} when there are too few or no target profile.
+    traits and measured pace. ``features`` limits the traits used (all when None).
+    Returns {} when there are too few or no target profile.
     """
+    mapping = _mapping(features)
     races = [r for r in prior_races if r in traits_by_race and r in race_pace_gaps]
     if target_profile is None or len(races) < MIN_PRIOR_RACES:
         return {}
@@ -75,12 +90,12 @@ def fit_and_predict(
     rows_y: list[pd.Series] = []
     for k in range(1, len(races)):
         earlier, race = races[:k], races[k]
-        traits = _standardised_traits(traits_by_race, earlier)
+        traits = _standardised_traits(traits_by_race, earlier, mapping)
         mean_profile = pd.DataFrame([traits_by_race[r]["profile"] for r in earlier]).mean()
         gaps = pd.Series(race_pace_gaps[race], dtype=float)
         base = pd.DataFrame([race_pace_gaps[r] for r in earlier]).mean()
         dev = -(gaps - base.reindex(gaps.index))
-        x = _features(traits, traits_by_race[race]["profile"], mean_profile)
+        x = _features(traits, traits_by_race[race]["profile"], mean_profile, mapping)
         common = x.index.intersection(dev.dropna().index)
         rows_x.append(x.loc[common])
         rows_y.append(dev.loc[common] - dev.loc[common].mean())
@@ -91,16 +106,19 @@ def fit_and_predict(
         x_train.T @ x_train + RIDGE_LAMBDA * np.eye(x_train.shape[1]), x_train.T @ y_train
     )
 
-    traits = _standardised_traits(traits_by_race, races)
+    traits = _standardised_traits(traits_by_race, races, mapping)
     mean_profile = pd.DataFrame([traits_by_race[r]["profile"] for r in races]).mean()
-    adjustment = _features(traits, target_profile, mean_profile) @ coef
+    adjustment = _features(traits, target_profile, mean_profile, mapping) @ coef
     adjustment -= adjustment.mean()
     return {str(team): float(value) for team, value in adjustment.items()}
 
 
 @lru_cache(maxsize=64)
 def track_trait_adjustments(
-    year: int, race_name: str | None, session_kind: str
+    year: int,
+    race_name: str | None,
+    session_kind: str,
+    features: tuple[str, ...] | None = None,
 ) -> dict[str, float]:
     """Return seconds per lap each team gains at ``race_name`` for ``race`` or ``qualifying``.
 
@@ -130,4 +148,6 @@ def track_trait_adjustments(
 
         gaps = (load_team_race_pace(year) or {}).get("races") or {}
     profile = (data["races"].get(target) or {}).get("profile") or data["profiles"].get(target)
-    return fit_and_predict(data["races"], gaps, schedule[: schedule.index(target)], profile)
+    return fit_and_predict(
+        data["races"], gaps, schedule[: schedule.index(target)], profile, features
+    )

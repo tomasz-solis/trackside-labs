@@ -137,7 +137,7 @@ def test_qualifying_adjustment_moves_team_seconds(monkeypatch):
 
     monkeypatch.setattr(
         "src.models.track_traits.track_trait_adjustments",
-        lambda year, race, kind: {"A": 0.1} if kind == "qualifying" else {},
+        lambda year, race, kind, features=None: {"A": 0.1} if kind == "qualifying" else {},
     )
     records = [
         {"team": "A", "team_strength_seconds_delta": 0.3},
@@ -186,3 +186,30 @@ def test_unmeasurable_traits_are_saved_as_null_without_a_warning(monkeypatch, ca
     assert store.saved["races"]["R1"]["traits"]["A"]["fast"] is None
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
     assert "1 car trait value(s) not measurable" in caplog.text
+
+
+def test_feature_list_none_equals_all_six_and_dropping_one_changes_the_fit():
+    traits, pace = _season(10)
+    for race in traits.values():  # give braking its own varying signal
+        for i, team in enumerate(TEAMS):
+            race["traits"][team]["braking"] = float(i % 3)
+        race["profile"]["braking"] = race["profile"]["full_throttle"] / 2
+    prior = [f"R{k}" for k in range(10)]
+    target = {**traits["R0"]["profile"], "full_throttle": 0.75, "braking": 0.5}
+
+    default = tt.fit_and_predict(traits, pace, prior, target)
+    explicit = tt.fit_and_predict(traits, pace, prior, target, tuple(tt.TRAIT_TO_SHARE))
+    without = tt.fit_and_predict(
+        traits, pace, prior, target, ("top_speed", "slow", "medium", "fast", "deg")
+    )
+
+    assert default == pytest.approx(explicit)
+    assert without != pytest.approx(default)
+
+
+def test_live_config_lists_all_six_traits():
+    from src.utils import config_loader
+
+    assert set(config_loader.get("baseline_predictor.qualifying.track_trait_features")) == set(
+        tt.TRAIT_TO_SHARE
+    )

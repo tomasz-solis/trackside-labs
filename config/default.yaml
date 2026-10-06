@@ -311,6 +311,9 @@ baseline_predictor:
     # qualifying seconds. On since model 3.2: qualifying corr +0.0048 / +0.0035 on
     # seeds 42 / 43, both beyond the floor (MODEL_LEDGER 2026-10-03).
     track_trait_adjustment: true
+    # Traits the qualifying adjustment uses. Braking is suspect (FastF1 Brake channel
+    # unreliable; sizing without it R2 0.064 vs 0.060, MODEL_LEDGER 2026-10-06).
+    track_trait_features: [top_speed, slow, medium, fast, braking, deg]
     # Add this weekend's practice pace (best-lap gap vs the team's prior qualifying gap,
     # slope fitted on earlier races) to qualifying seconds, using only sessions the
     # checkpoint may see. Replay 2026-10-04: worse on both seeds (double counts the

@@ -18,11 +18,16 @@ All functions take loaded FastF1 sessions, so callers control caching and leakag
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
+
+from src.utils.json_io import json_safe
+
+logger = logging.getLogger(__name__)
 
 SLOW_MAX_KPH = 140.0
 FAST_MIN_KPH = 210.0
@@ -418,9 +423,15 @@ def refresh_car_track_traits(
             payload["profiles"][upcoming_race] = profile
             added["profiles"].append(upcoming_race)
     if added["races"] or added["profiles"] or added["fp_gaps"]:
+        # A trait that cannot be measured (no fast corner at this track, no long stint
+        # for a team) is an expected absence: store it as null and log it at INFO, so
+        # the store's NaN warning stays reserved for real faults.
+        clean, unmeasured = json_safe(payload)
+        if unmeasured:
+            logger.info("%d car trait value(s) not measurable, stored as null", unmeasured)
         store.save_artifact(
             ARTIFACT_TYPE,
             artifact_key(year),
-            {"year": int(year), "last_updated": datetime.now(UTC).isoformat(), **payload},
+            {"year": int(year), "last_updated": datetime.now(UTC).isoformat(), **clean},
         )
     return added

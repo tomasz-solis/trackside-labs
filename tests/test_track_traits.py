@@ -156,3 +156,33 @@ def test_qualifying_switch_is_on_since_model_32():
     from src.utils import config_loader
 
     assert config_loader.get("baseline_predictor.qualifying.track_trait_adjustment") is True
+
+
+def test_unmeasurable_traits_are_saved_as_null_without_a_warning(monkeypatch, caplog):
+    import logging
+
+    class _Store:
+        def __init__(self):
+            self.payload = {"races": {}}
+            self.saved = None
+
+        def load_artifact(self, artifact_type, artifact_key):
+            return self.payload
+
+        def save_artifact(self, artifact_type, artifact_key, data):
+            self.saved = data
+
+    monkeypatch.setattr(
+        ctt,
+        "measure_completed_race",
+        lambda y, r: {"traits": {"A": {"fast": float("nan"), "top_speed": 3.0}}, "profile": {}},
+    )
+    monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have: {})
+    store = _Store()
+
+    with caplog.at_level(logging.INFO):
+        ctt.refresh_car_track_traits(2026, ["R1"], store=store)
+
+    assert store.saved["races"]["R1"]["traits"]["A"]["fast"] is None
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert "1 car trait value(s) not measurable" in caplog.text

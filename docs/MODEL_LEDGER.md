@@ -1028,6 +1028,16 @@ The damping hypothesis (2026-10-04 practice entry) is rejected: a lighter anchor
 
 **Replay, 2026-10-04: `worse` on both seeds, kept off.** Qualifying corr -0.0094 [-0.0188, -0.0008] (12 better / 22 worse) on seed 42 and -0.0094 [-0.0186, -0.0010] (11 / 22) on seed 43; MAE +0.099 / +0.106. Race unresolvable (-0.0046 / -0.0070). Worst at FP1 (-0.029 on both seeds), shrinking by FP3 (-0.006 / -0.003): the double count. The slope was fitted on raw qualifying deviations, but qualifying already blends practice, so the term stacks practice on itself, hardest when FP1 is all there is. The +0.20 residual signal is real; using it needs a slope fitted against the model's own residuals (what the existing blend leaves), not raw gaps. Do not retry the raw-fitted version.
 
+## 2026-10-06: car traits v2 (geometric corners, time per class): measures better, predicts worse; shelved
+
+**Why.** v1 finds corners as speed dips, so corners taken flat or nearly flat are invisible (Sepang: zero fast corners; its T5-6, T7-8, T12-13 are aero corners), and it reads one apex sample at about 4 Hz (slow-corner apex: real spread 0, noise 10.6 km/h).
+
+**v2** (`shelved/car-traits-v2`, `src/extractors/car_track_traits_v2.py`): corners from the reference lap's X/Y curvature (radius < 500 m, >= 30 m), classed by minimum speed; straights and braking zones from the same trace; each team's seconds gained per class versus the field median, on fastest qualifying laps, positions as lap fractions. Found Sepang's 11 corners incl. 3 fast (2 flat), Hungary 15 (official map 14).
+
+**Gate 1, measurement: passed.** Real spread vs one-race noise, weight on a team's own data after 1 race: slow 0.07 (v1: 0, pure noise), medium 0.47 (v1 0.28), fast 0.45 (v1 0.27), braking 0.47 (v1 0.31), straight 0.22 (v1 top speed 0.43). **But** v2 class gains correlate 0.85 to 0.98 with overall pace; after removing it, the character left is braking 0.31 s, slow 0.14 s, straight 0.07 s, medium and fast 0.04 s.
+
+**Gate 2, prediction: failed.** Walk-forward on qualifying gaps, races 5 to 15: v1 as adopted R2 0.060; v2 raw -0.005; v2 character -0.038; hybrid (v1 top speed + v2 corner character) 0.036; v1 top speed + deg only 0.042; **v1 without braking 0.064**. v1 stays; v2 not built into the model. Braking is noise (consistent with the Brake-channel check, r -0.09): dropping it from the adopted 3.2 adjustment is work-plan item 7 and needs a replay pair. v2 may pay off with more races or measured from the same weekend's practice at the same track.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

@@ -80,6 +80,7 @@ Older floors (2026-09-12, 13 rounds; 2026-09-21, 14 rounds) were measured on a r
 | 2026-08-04 | Refit `team_strength_seconds_mapping` on 2026 only. The 2022 to 2025 fit had never seen a 2026 lap and compressed team gaps all season. | Qualifying MAE 2.6599 -> 2.5724, \|bias\| 1.5017 -> 1.2997; race MAE 4.0606 -> 3.9192, \|bias\| 2.4242 -> 2.3434 (60 simulations). Slopes: qualifying 1.77417 -> 2.76281, race 1.97077 -> 3.89727 | `fdf7be6f` |
 | 2026-10-02 | Model 3.1: finish order sorted by median rank; overtake gaps read from the start-of-lap snapshot. | Both `unresolvable` (below the seed floor), adopted on correctness. See the 2026-10-02 entry | 3.1 commit |
 | 2026-10-03 | Model 3.2: qualifying adds each team's car traits x track adjustment (top speed, corner classes, braking, deg, fitted walk-forward on qualifying gaps). | Qualifying corr +0.0048 / +0.0035 on seeds 42 / 43, both `better` beyond the floor; race unresolvable | 3.2 commit |
+| 2026-10-07 | Model 3.3: braking removed from the qualifying track trait adjustment (`track_trait_features`). | Neutral on both seeds (quali corr -0.0000 / -0.0004), adopted on correctness: FastF1 Brake channel unreliable | 3.3 commit |
 
 Residual after that, same measurement: SAI -5.67, LAW +6.44, BOR +4.44, ALO -4.11, VER -4.11. Team-strength errors (Williams over-rated, RB under-rated), which the centring fix does not touch.
 
@@ -1037,6 +1038,17 @@ The damping hypothesis (2026-10-04 practice entry) is rejected: a lighter anchor
 **Gate 1, measurement: passed.** Real spread vs one-race noise, weight on a team's own data after 1 race: slow 0.07 (v1: 0, pure noise), medium 0.47 (v1 0.28), fast 0.45 (v1 0.27), braking 0.47 (v1 0.31), straight 0.22 (v1 top speed 0.43). **But** v2 class gains correlate 0.85 to 0.98 with overall pace; after removing it, the character left is braking 0.31 s, slow 0.14 s, straight 0.07 s, medium and fast 0.04 s.
 
 **Gate 2, prediction: failed.** Walk-forward on qualifying gaps, races 5 to 15: v1 as adopted R2 0.060; v2 raw -0.005; v2 character -0.038; hybrid (v1 top speed + v2 corner character) 0.036; v1 top speed + deg only 0.042; **v1 without braking 0.064**. v1 stays; v2 not built into the model. Braking is noise (consistent with the Brake-channel check, r -0.09): dropping it from the adopted 3.2 adjustment is work-plan item 7 and needs a replay pair. v2 may pay off with more races or measured from the same weekend's practice at the same track.
+
+## 2026-10-07: qualifying track traits without braking: neutral
+
+Arm `Q_traits_no_braking_s42` / `_s43`: `baseline_predictor.qualifying.track_trait_features` without `braking`, against `Z_base_32_*`.
+
+| Seed | Quali corr | Quali MAE | Tied checkpoints | Race corr |
+|---|---|---|---|---|
+| 42 | -0.0000 | -0.001 | 38 / 51 | -0.0020 |
+| 43 | -0.0004 | +0.009 | 33 / 51 | +0.0025 |
+
+`unresolvable` everywhere, no consistent direction: the fitted ridge already gave braking almost no weight. Braking is measured from FastF1's Brake channel, shown unreliable (practice vs qualifying braking share r -0.09). **Adopted as model 3.3 on correctness** (Tomasz, 2026-10-07): neutral, and it removes an input from a channel shown to be noise.
 
 ## Adding an entry
 

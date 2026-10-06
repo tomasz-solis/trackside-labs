@@ -207,9 +207,8 @@ def test_feature_list_none_equals_all_six_and_dropping_one_changes_the_fit():
     assert without != pytest.approx(default)
 
 
-def test_live_config_lists_all_six_traits():
+def test_live_config_drops_braking_since_model_33():
     from src.utils import config_loader
 
-    assert set(config_loader.get("baseline_predictor.qualifying.track_trait_features")) == set(
-        tt.TRAIT_TO_SHARE
-    )
+    features = set(config_loader.get("baseline_predictor.qualifying.track_trait_features"))
+    assert features == set(tt.TRAIT_TO_SHARE) - {"braking"}

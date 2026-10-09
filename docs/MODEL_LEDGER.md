@@ -1050,6 +1050,19 @@ Arm `Q_traits_no_braking_s42` / `_s43`: `baseline_predictor.qualifying.track_tra
 
 `unresolvable` everywhere, no consistent direction: the fitted ridge already gave braking almost no weight. Braking is measured from FastF1's Brake channel, shown unreliable (practice vs qualifying braking share r -0.09). **Adopted as model 3.3 on correctness** (Tomasz, 2026-10-07): neutral, and it removes an input from a channel shown to be noise.
 
+## 2026-10-08: ML challenger on all pace data: does not beat the live model; shelved as a probe
+
+`src/models/ml_challenger.py`, `scripts/probe_ml_challenger.py`, report `data/model_diagnostics/2026/ml_challenger_probe.md`. One row per driver per race at the last checkpoint before qualifying: practice pace, corners, top speed, deg and teammate split (the team comparison tab data), recent results, DNF rate, measured race pace and quali gap, traits x track, track. Ridge and gradient boosting refitted before every race on earlier races only. Rounds 5 to 14, replay roots `Z_base_32_s42` / `_s43`.
+
+| Target | Live model corr / MAE | Best challenger | Corr / MAE |
+|---|---|---|---|
+| Qualifying | 0.930 / 1.76 | Ridge, 7 simple features (incl. live forecast) | 0.935 / 1.64 |
+| Race | 0.721 / 3.07 | 50/50 blend live + ridge | 0.725 / 3.04 |
+
+Qualifying ridge MAE change -0.17 / -0.14 per race, CI crosses zero on both seeds (6 better, 4 worse): `unresolvable`. Race: every pure ML variant is worse (simple ridge +0.45 MAE, CI above zero); gradient boosting is worst everywhere (308 rows is too few). The blend is within noise.
+
+Feature importance (pace-only ridge, group permutation): qualifying practice share falls from 56% (Canada) to 34% (Spain) while recent results rise from 26% to 47%; race follows the same pattern (practice 45% to 35%, results 36% to 49%). Practice pace and practice car traits are collinear, so their split between groups is not meaningful. Car traits x track and track features stay near 0%.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

@@ -1,0 +1,353 @@
+{
+  "importance_by_round": {
+    "Qualifying": {
+      "Austrian Grand Prix": {
+        "Car traits x track": 0.0098,
+        "Measured pace history (race pace, quali gap)": 0.1189,
+        "Practice car traits (corners, top speed, deg)": 0.3543,
+        "Practice pace (short and long run)": 0.1322,
+        "Practice teammate split": 0.0298,
+        "Recent results (driver and team form)": 0.3442,
+        "Reliability (DNF rate)": 0.0006,
+        "Track and conditions": 0.01
+      },
+      "Barcelona Grand Prix": {
+        "Car traits x track": 0.008,
+        "Measured pace history (race pace, quali gap)": 0.1309,
+        "Practice car traits (corners, top speed, deg)": 0.3179,
+        "Practice pace (short and long run)": 0.1571,
+        "Practice teammate split": 0.04,
+        "Recent results (driver and team form)": 0.3376,
+        "Reliability (DNF rate)": 0.0036,
+        "Track and conditions": 0.0049
+      },
+      "Belgian Grand Prix": {
+        "Car traits x track": 0.0044,
+        "Measured pace history (race pace, quali gap)": 0.124,
+        "Practice car traits (corners, top speed, deg)": 0.292,
+        "Practice pace (short and long run)": 0.1128,
+        "Practice teammate split": 0.0267,
+        "Recent results (driver and team form)": 0.4358,
+        "Reliability (DNF rate)": 0.0043,
+        "Track and conditions": 0.0
+      },
+      "British Grand Prix": {
+        "Car traits x track": 0.0057,
+        "Measured pace history (race pace, quali gap)": 0.1202,
+        "Practice car traits (corners, top speed, deg)": 0.3239,
+        "Practice pace (short and long run)": 0.1331,
+        "Practice teammate split": 0.0325,
+        "Recent results (driver and team form)": 0.3757,
+        "Reliability (DNF rate)": 0.0024,
+        "Track and conditions": 0.0065
+      },
+      "Canadian Grand Prix": {
+        "Car traits x track": 0.0,
+        "Measured pace history (race pace, quali gap)": 0.1094,
+        "Practice car traits (corners, top speed, deg)": 0.3901,
+        "Practice pace (short and long run)": 0.1708,
+        "Practice teammate split": 0.0464,
+        "Recent results (driver and team form)": 0.2594,
+        "Reliability (DNF rate)": 0.0062,
+        "Track and conditions": 0.0176
+      },
+      "Dutch Grand Prix": {
+        "Car traits x track": 0.0038,
+        "Measured pace history (race pace, quali gap)": 0.1332,
+        "Practice car traits (corners, top speed, deg)": 0.2541,
+        "Practice pace (short and long run)": 0.0946,
+        "Practice teammate split": 0.0264,
+        "Recent results (driver and team form)": 0.4856,
+        "Reliability (DNF rate)": 0.001,
+        "Track and conditions": 0.0013
+      },
+      "Hungarian Grand Prix": {
+        "Car traits x track": 0.0015,
+        "Measured pace history (race pace, quali gap)": 0.1291,
+        "Practice car traits (corners, top speed, deg)": 0.2611,
+        "Practice pace (short and long run)": 0.0972,
+        "Practice teammate split": 0.029,
+        "Recent results (driver and team form)": 0.4782,
+        "Reliability (DNF rate)": 0.0024,
+        "Track and conditions": 0.0014
+      },
+      "Italian Grand Prix": {
+        "Car traits x track": 0.0021,
+        "Measured pace history (race pace, quali gap)": 0.1336,
+        "Practice car traits (corners, top speed, deg)": 0.2427,
+        "Practice pace (short and long run)": 0.0951,
+        "Practice teammate split": 0.0333,
+        "Recent results (driver and team form)": 0.4899,
+        "Reliability (DNF rate)": 0.0014,
+        "Track and conditions": 0.0019
+      },
+      "Monaco Grand Prix": {
+        "Car traits x track": 0.0005,
+        "Measured pace history (race pace, quali gap)": 0.1277,
+        "Practice car traits (corners, top speed, deg)": 0.3337,
+        "Practice pace (short and long run)": 0.1818,
+        "Practice teammate split": 0.0488,
+        "Recent results (driver and team form)": 0.292,
+        "Reliability (DNF rate)": 0.0052,
+        "Track and conditions": 0.0103
+      },
+      "Spanish Grand Prix": {
+        "Car traits x track": 0.0111,
+        "Measured pace history (race pace, quali gap)": 0.1364,
+        "Practice car traits (corners, top speed, deg)": 0.2546,
+        "Practice pace (short and long run)": 0.0864,
+        "Practice teammate split": 0.0324,
+        "Recent results (driver and team form)": 0.471,
+        "Reliability (DNF rate)": 0.0021,
+        "Track and conditions": 0.0059
+      }
+    },
+    "Race": {
+      "Austrian Grand Prix": {
+        "Car traits x track": 0.0022,
+        "Measured pace history (race pace, quali gap)": 0.1196,
+        "Practice car traits (corners, top speed, deg)": 0.2905,
+        "Practice pace (short and long run)": 0.1241,
+        "Practice teammate split": 0.0523,
+        "Recent results (driver and team form)": 0.3904,
+        "Reliability (DNF rate)": 0.0191,
+        "Track and conditions": 0.0017
+      },
+      "Barcelona Grand Prix": {
+        "Car traits x track": 0.0,
+        "Measured pace history (race pace, quali gap)": 0.1035,
+        "Practice car traits (corners, top speed, deg)": 0.2628,
+        "Practice pace (short and long run)": 0.1638,
+        "Practice teammate split": 0.0763,
+        "Recent results (driver and team form)": 0.3692,
+        "Reliability (DNF rate)": 0.0217,
+        "Track and conditions": 0.0027
+      },
+      "Belgian Grand Prix": {
+        "Car traits x track": 0.0039,
+        "Measured pace history (race pace, quali gap)": 0.1087,
+        "Practice car traits (corners, top speed, deg)": 0.2644,
+        "Practice pace (short and long run)": 0.1156,
+        "Practice teammate split": 0.0378,
+        "Recent results (driver and team form)": 0.4524,
+        "Reliability (DNF rate)": 0.0165,
+        "Track and conditions": 0.0007
+      },
+      "British Grand Prix": {
+        "Car traits x track": 0.0046,
+        "Measured pace history (race pace, quali gap)": 0.1144,
+        "Practice car traits (corners, top speed, deg)": 0.2469,
+        "Practice pace (short and long run)": 0.1313,
+        "Practice teammate split": 0.0356,
+        "Recent results (driver and team form)": 0.4595,
+        "Reliability (DNF rate)": 0.0063,
+        "Track and conditions": 0.0014
+      },
+      "Canadian Grand Prix": {
+        "Car traits x track": 0.0,
+        "Measured pace history (race pace, quali gap)": 0.1025,
+        "Practice car traits (corners, top speed, deg)": 0.287,
+        "Practice pace (short and long run)": 0.1568,
+        "Practice teammate split": 0.065,
+        "Recent results (driver and team form)": 0.3573,
+        "Reliability (DNF rate)": 0.0257,
+        "Track and conditions": 0.0056
+      },
+      "Dutch Grand Prix": {
+        "Car traits x track": 0.0039,
+        "Measured pace history (race pace, quali gap)": 0.1191,
+        "Practice car traits (corners, top speed, deg)": 0.1988,
+        "Practice pace (short and long run)": 0.1463,
+        "Practice teammate split": 0.0382,
+        "Recent results (driver and team form)": 0.4845,
+        "Reliability (DNF rate)": 0.0091,
+        "Track and conditions": 0.0001
+      },
+      "Hungarian Grand Prix": {
+        "Car traits x track": 0.0042,
+        "Measured pace history (race pace, quali gap)": 0.1321,
+        "Practice car traits (corners, top speed, deg)": 0.226,
+        "Practice pace (short and long run)": 0.1359,
+        "Practice teammate split": 0.0424,
+        "Recent results (driver and team form)": 0.4465,
+        "Reliability (DNF rate)": 0.0129,
+        "Track and conditions": 0.0
+      },
+      "Italian Grand Prix": {
+        "Car traits x track": 0.0056,
+        "Measured pace history (race pace, quali gap)": 0.0974,
+        "Practice car traits (corners, top speed, deg)": 0.2098,
+        "Practice pace (short and long run)": 0.1514,
+        "Practice teammate split": 0.0301,
+        "Recent results (driver and team form)": 0.5007,
+        "Reliability (DNF rate)": 0.0043,
+        "Track and conditions": 0.0007
+      },
+      "Monaco Grand Prix": {
+        "Car traits x track": 0.0039,
+        "Measured pace history (race pace, quali gap)": 0.1243,
+        "Practice car traits (corners, top speed, deg)": 0.2435,
+        "Practice pace (short and long run)": 0.154,
+        "Practice teammate split": 0.0518,
+        "Recent results (driver and team form)": 0.3867,
+        "Reliability (DNF rate)": 0.0318,
+        "Track and conditions": 0.0039
+      },
+      "Spanish Grand Prix": {
+        "Car traits x track": 0.0196,
+        "Measured pace history (race pace, quali gap)": 0.1076,
+        "Practice car traits (corners, top speed, deg)": 0.2021,
+        "Practice pace (short and long run)": 0.1453,
+        "Practice teammate split": 0.0285,
+        "Recent results (driver and team form)": 0.4904,
+        "Reliability (DNF rate)": 0.0061,
+        "Track and conditions": 0.0003
+      }
+    }
+  },
+  "races": 14,
+  "roots": [
+    "data/historical_replay_arms/Z_base_32_s42",
+    "data/historical_replay_arms/Z_base_32_s43"
+  ],
+  "rows": 308,
+  "scored_from_round": 5,
+  "scores": [
+    {
+      "corr": 0.9299,
+      "mae": 1.7623,
+      "model": "Live model",
+      "target": "Qualifying",
+      "top3": 0.5333
+    },
+    {
+      "corr": 0.9139,
+      "mae": 1.7545,
+      "model": "Ridge, pace features only",
+      "target": "Qualifying",
+      "top3": 0.4667
+    },
+    {
+      "corr": 0.9138,
+      "mae": 1.9,
+      "model": "Boosting, pace features only",
+      "target": "Qualifying",
+      "top3": 0.4333
+    },
+    {
+      "corr": 0.9108,
+      "mae": 1.7409,
+      "model": "Ridge, pace + live forecast",
+      "target": "Qualifying",
+      "top3": 0.5667
+    },
+    {
+      "corr": 0.915,
+      "mae": 1.9455,
+      "model": "Boosting, pace + live forecast",
+      "target": "Qualifying",
+      "top3": 0.4667
+    },
+    {
+      "corr": 0.9352,
+      "mae": 1.6364,
+      "model": "Ridge, 7 simple features",
+      "target": "Qualifying",
+      "top3": 0.5667
+    },
+    {
+      "corr": 0.9295,
+      "mae": 1.6755,
+      "model": "50/50 blend live + ridge",
+      "target": "Qualifying",
+      "top3": 0.5667
+    },
+    {
+      "corr": 0.7214,
+      "mae": 3.0725,
+      "model": "Live model",
+      "target": "Race",
+      "top3": 0.6
+    },
+    {
+      "corr": 0.6508,
+      "mae": 3.6182,
+      "model": "Ridge, pace features only",
+      "target": "Race",
+      "top3": 0.5
+    },
+    {
+      "corr": 0.5658,
+      "mae": 4.2636,
+      "model": "Boosting, pace features only",
+      "target": "Race",
+      "top3": 0.3333
+    },
+    {
+      "corr": 0.6741,
+      "mae": 3.5,
+      "model": "Ridge, pace + live forecast",
+      "target": "Race",
+      "top3": 0.5833
+    },
+    {
+      "corr": 0.5879,
+      "mae": 4.1636,
+      "model": "Boosting, pace + live forecast",
+      "target": "Race",
+      "top3": 0.45
+    },
+    {
+      "corr": 0.6638,
+      "mae": 3.5,
+      "model": "Ridge, 7 simple features",
+      "target": "Race",
+      "top3": 0.5
+    },
+    {
+      "corr": 0.7251,
+      "mae": 3.0392,
+      "model": "50/50 blend live + ridge",
+      "target": "Race",
+      "top3": 0.6167
+    }
+  ],
+  "simple_ridge_vs_live_mae": {
+    "Qualifying Z_base_32_s42": {
+      "better": 6,
+      "ci": [
+        -0.3844480519480519,
+        0.04978354978354962
+      ],
+      "mae_delta": -0.16839826839826844,
+      "worse": 4
+    },
+    "Qualifying Z_base_32_s43": {
+      "better": 6,
+      "ci": [
+        -0.37186147186147184,
+        0.08659090909090905
+      ],
+      "mae_delta": -0.14069264069264073,
+      "worse": 4
+    },
+    "Race Z_base_32_s42": {
+      "better": 0,
+      "ci": [
+        0.21818181818181834,
+        0.6913419913419915
+      ],
+      "mae_delta": 0.445887445887446,
+      "worse": 9
+    },
+    "Race Z_base_32_s43": {
+      "better": 1,
+      "ci": [
+        0.16492424242424247,
+        0.7212121212121213
+      ],
+      "mae_delta": 0.4471861471861473,
+      "worse": 9
+    }
+  }
+}

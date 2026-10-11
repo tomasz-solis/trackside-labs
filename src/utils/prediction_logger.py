@@ -57,7 +57,8 @@ class PredictionLogger:
         data_root = self.predictions_dir.parent
         self.artifact_store = ArtifactStore(data_root=data_root)
         self.learning_system = SystematicLearningSystem(
-            state_file=data_root / "learning_state.json"
+            state_file=data_root / "learning_state.json",
+            artifact_store=self.artifact_store,
         )
 
     def save_prediction(
@@ -149,6 +150,11 @@ class PredictionLogger:
                         "team": result["team"],
                         "confidence": result.get("confidence"),
                         "order_confidence": result.get("order_confidence"),
+                        # The learner reads these rows. Without the band it records no
+                        # race interval residuals, so race bands never get widened.
+                        "median_position": result.get("median_position"),
+                        "p5": result.get("p5"),
+                        "p95": result.get("p95"),
                         # predict_race emits the per-driver DNF probability under
                         # "dnf_probability"; persist it so DNF calibration (Brier) can score it.
                         # Keep the legacy "dnf_risk" key for backward compatibility.

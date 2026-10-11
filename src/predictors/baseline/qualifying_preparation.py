@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 import numpy as np
@@ -851,3 +851,55 @@ def build_driver_list_with_strengths_core(
         apply_practice_adjustment(all_drivers, prediction_year, race_name)
     center_rating_mu_by_team(all_drivers, field="quali_rating_mu_s")
     return all_drivers, teams_with_short_profile
+
+
+_SPRINT_RESULT_CHECKPOINTS = frozenset({"SQ", "SPRINT"})
+
+
+def blend_sprint_qualifying_result(
+    position_records: dict[str, list[int]],
+    sprint_qualifying_result: Sequence[Mapping[str, Any]] | None,
+    *,
+    weight: float,
+    qualifying_stage: str,
+    checkpoint_session_name: str | None,
+) -> dict[str, list[int]]:
+    """Pull each simulated main qualifying order toward the actual sprint qualifying order.
+
+    Sprint qualifying is the same cars on the same track a day earlier. The stored
+    checkpoint profile only carries it at team level, capped like a practice session.
+    Each simulation is re-ranked on ``(1 - weight) * simulated + weight * sprint place``,
+    so the median and the p5 to p95 band stay consistent with the new order.
+
+    Does nothing unless this is the main qualifying forecast at a checkpoint where
+    sprint qualifying has already run. A driver with no sprint qualifying place keeps
+    the simulated one.
+    """
+    if (
+        weight <= 0.0
+        or not sprint_qualifying_result
+        or str(qualifying_stage).strip().lower() != "main"
+        or str(checkpoint_session_name or "").strip().upper() not in _SPRINT_RESULT_CHECKPOINTS
+    ):
+        return position_records
+
+    sprint_places: dict[str, float] = {}
+    for row in sprint_qualifying_result:
+        try:
+            sprint_places[str(row["driver"]).strip()] = float(row["position"])
+        except (KeyError, TypeError, ValueError):
+            continue
+    drivers = list(position_records)
+    if not drivers or not sprint_places:
+        return position_records
+
+    samples = np.asarray([position_records[driver] for driver in drivers], dtype=float)
+    anchor = np.asarray([sprint_places.get(driver, np.nan) for driver in drivers])[:, None]
+    share = float(np.clip(weight, 0.0, 1.0))
+    blended = np.where(np.isnan(anchor), samples, (1.0 - share) * samples + share * anchor)
+    # Ties go to the driver who was ahead in that simulation.
+    order = np.lexsort((samples, blended), axis=0)
+    ranks = np.empty_like(order)
+    places = np.arange(1, len(drivers) + 1)[:, None]
+    np.put_along_axis(ranks, order, np.broadcast_to(places, order.shape), axis=0)
+    return {driver: ranks[index].astype(int).tolist() for index, driver in enumerate(drivers)}

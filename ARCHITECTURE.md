@@ -4,11 +4,9 @@
 
 Data is scarce at the start of a season and grows every race. Three choices follow from that:
 
-1. **Blend signals, do not train a model.** Mid-season there is too little data to train one. The predictor blends three explicit signals (baseline, testing, current season) with a weight schedule that depends on the race number. The trust shift stays visible and auditable.
+1. **Blend signals, do not train a model.** Mid-season there is too little data to train one. The predictor blends three explicit signals (baseline, testing, current season) with a weight schedule that depends on the race number. The trust shift stays visible and auditable. Checked on 2026-10-08: ridge and gradient boosting, refitted before each race, did not beat the blend (`docs/MODEL_LEDGER.md`).
 2. **The dashboard only reads.** Background workers generate every forecast ahead of time, so users never wait on a simulation.
 3. **One storage interface.** `ArtifactStore` writes local files in development and Supabase in production (Render), with the same code in both.
-
-Model version: `3.0`.
 
 ## Runtime map
 
@@ -20,6 +18,8 @@ flowchart TD
     C --> D["Prediction tab"]
     C --> E["Team Comparison tab"]
     C --> F["Prediction Accuracy tab"]
+    C --> F2["Checkpoint Viewer tab"]
+    C --> F3["Model Diagnostics tab"]
     C --> G["Model & Learning tab"]
     C --> H["Contact tab"]
 
@@ -104,9 +104,10 @@ flowchart TD
 lineups
   -> blended team strength (weight schedule)
   -> session pace blend (practice or sprint sessions)
+  -> car traits x track adjustment (from race 5)
   -> team + driver skill
   -> Monte Carlo
-  -> median grid position and interval
+  -> projected grid and likely range
 ```
 
 ## Race flow
@@ -118,7 +119,8 @@ grid (actual or predicted)
   -> lap-by-lap simulation: tyre wear, fuel, fresh tyre window,
      traffic, pit loss, safety car, lap 1 incidents, retirements
   -> aggregate across simulations
-  -> finish order, strategy mix, podium probability
+  -> finish order (median simulated place), likely range,
+     win and podium probability, strategy mix
 ```
 
 ## Caches

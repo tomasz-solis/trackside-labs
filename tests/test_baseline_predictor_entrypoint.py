@@ -87,8 +87,9 @@ def test_predictor_initialization_loads_data(patcher, tmp_path):
             self.data_root = data_root
 
     class _StubLearningSystem:
-        def __init__(self, state_file):
+        def __init__(self, state_file, artifact_store=None):
             calls["state_file"] = state_file
+            calls["learning_store"] = artifact_store
 
     def _fake_load_data(self):
         calls["load_data_called"] = True
@@ -108,7 +109,28 @@ def test_predictor_initialization_loads_data(patcher, tmp_path):
 
     predictor = Baseline2026Predictor(data_dir=str(tmp_path / "processed"), seed=99)
 
+    # Learning must share the predictor's store, or its state stays on local disk.
+    assert calls["learning_store"] is predictor.artifact_store
+
     assert calls["data_dir"] == Path(tmp_path / "processed")
     assert calls["load_data_called"] is True
     assert calls["state_file"] == Path(tmp_path) / "learning_state.json"
     assert predictor.seed == 99
+
+
+def test_adaptive_calibration_switch_turns_learned_corrections_off(patcher, tmp_path):
+    """With the switch off the predictor reads no learned state, so every correction is zero."""
+
+    class _Config:
+        def get(self, key, default=None):
+            return False if key == "learning.apply_adaptive_calibration" else default
+
+    patcher.setattr(predictor_module, "create_baseline_if_missing", lambda data_dir: None)
+    patcher.setattr(BaselineDataMixin, "load_data", lambda self: None)
+
+    off = Baseline2026Predictor(data_dir=str(tmp_path / "processed"), config=_Config())
+    on = Baseline2026Predictor(data_dir=str(tmp_path / "processed"))
+
+    assert off.calibration_system is None
+    assert off._get_learned_interval_radius(session="qualifying") == 0.0
+    assert on.calibration_system is not None

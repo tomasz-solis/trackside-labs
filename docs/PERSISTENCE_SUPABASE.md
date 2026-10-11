@@ -33,6 +33,8 @@ Any mode except `file_only` needs `SUPABASE_URL` (checked at startup, must be `h
 
 Baseline artifact keys: `2026::car_characteristics`, `2026::driver_characteristics`, `2026::track_characteristics`, `driver_debuts`.
 
+Adaptive learning state (driver errors, teammate gaps, interval residuals) is the artifact `learning_state::learning_state`. Rebuild it from saved forecasts with `uv run python scripts/rebuild_learning_state.py --env-file .env.local` (dry run; `--apply` saves, never during a race weekend).
+
 ## Accuracy artifacts
 
 `prediction` is the source of truth: legacy `qualifying` and `race` fields, `targets`, `actuals.targets` and metadata with `weekend_format`.

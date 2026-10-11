@@ -39,6 +39,7 @@ from src.dashboard.prediction_flow import (
     build_starting_grid_note,
     fetch_actual_competitive_results_if_completed,
     fetch_grid_if_available,
+    has_pending_results,
 )
 from src.dashboard.update_flow import (
     auto_update_practice_characteristics_if_needed,
@@ -49,6 +50,7 @@ from src.data.circuit_registry import CircuitResolutionError, resolve_circuit
 from src.persistence.config import should_read_db_first, should_write_to_db
 from src.persistence.runtime_state_store import RuntimeStateStore
 from src.utils.accuracy_targets import legacy_target_keys_for_prediction, weekend_format_name
+from src.utils.model_version import get_model_version
 from src.utils.prediction_logger import PredictionLogger
 from src.utils.race_input_confidence import cap_predicted_main_race_input_confidence
 from src.utils.session_detector import SessionDetector
@@ -60,6 +62,8 @@ from . import warmup_prediction_builders as _warmup_prediction_builders
 logger = logging.getLogger(__name__)
 
 _NOT_READY_STATUS_NAMESPACE = "prediction_precompute_not_ready"
+# A race counts as finished this long after its scheduled start.
+_RACE_FINISH_BUFFER = timedelta(hours=4)
 _NOT_READY_MIN_WRITE_INTERVAL = timedelta(minutes=45)
 _STATE_NAMESPACE_PRECOMPUTED_PREDICTIONS = "precomputed_predictions"
 _STATE_NAMESPACE_PRECOMPUTED_BASE_FEATURES = "precomputed_prediction_base_features"
@@ -489,6 +493,53 @@ def _can_verify_db_writes() -> bool:
     return should_write_to_db() and should_read_db_first()
 
 
+def _logged_pre_is_stale(
+    logger_inst: Any,
+    *,
+    year: int,
+    race_name: str,
+    checkpoint_session: str,
+    now_utc: datetime,
+) -> bool:
+    """Return whether a logged PRE forecast should be replaced before the weekend starts.
+
+    A PRE forecast can be logged weeks ahead. It goes stale when the model version
+    changes or another race finishes in between. Once the weekend's first session has
+    started it is frozen, and every later checkpoint is always kept.
+    """
+    if str(checkpoint_session).strip().upper() != "PRE":
+        return False
+    try:
+        existing = logger_inst.load_prediction(year, race_name, "PRE")
+        schedule = fastf1.get_event_schedule(year)
+    except _WARMUP_ERRORS as exc:
+        logger.debug("Could not check the logged PRE forecast for %s: %s", race_name, exc)
+        return False
+    metadata = (existing or {}).get("metadata") or {}
+    predicted_at = _parse_schedule_datetime(metadata.get("predicted_at"))
+    if predicted_at is None:
+        return False
+
+    first_session: datetime | None = None
+    other_race_starts: list[datetime] = []
+    for _, event in schedule.iterrows():
+        if str(event.get("EventName", "")).strip() == str(race_name).strip():
+            first_session = _coerce_utc_datetime(event.get("Session1DateUtc"))
+            continue
+        race_start = _coerce_utc_datetime(event.get("Session5DateUtc"))
+        if race_start is not None:
+            other_race_starts.append(race_start)
+    if first_session is None or now_utc >= first_session:
+        return False
+
+    if str(metadata.get("model_version", "")).strip() != get_model_version():
+        return True
+    return any(
+        predicted_at < race_start and race_start + _RACE_FINISH_BUFFER < now_utc
+        for race_start in other_race_starts
+    )
+
+
 def _save_warmup_prediction_to_logger(
     *,
     year: int,
@@ -500,7 +551,15 @@ def _save_warmup_prediction_to_logger(
 ) -> None:
     """Mirror one warmup payload into the prediction logger for accuracy scoring."""
     logger_inst = PredictionLogger()
-    if logger_inst.has_prediction_for_session(year, race_name, checkpoint_session):
+    if logger_inst.has_prediction_for_session(
+        year, race_name, checkpoint_session
+    ) and not _logged_pre_is_stale(
+        logger_inst,
+        year=year,
+        race_name=race_name,
+        checkpoint_session=checkpoint_session,
+        now_utc=datetime.now(UTC),
+    ):
         return
 
     target_predictions = prediction_targets_for_checkpoint(
@@ -868,6 +927,10 @@ def _process_weather_scenario(
         artifact_hash=ctx.artifact_hash,
         boundary_signature=target_boundary_signature,
     )
+    if has_pending_results(persisted):
+        # A classification was not published when this was stored. Compute again
+        # so the stored payload picks it up once it is.
+        persisted = None
     if persisted is not None:
         ctx.summary.predictions_reused += 1
         ctx.race_weather_coverage.setdefault(target_race, set()).add(target_weather)

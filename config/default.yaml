@@ -120,6 +120,13 @@ learning:
   interval_min_samples: 20
   interval_target_coverage: 0.90
   interval_max_adjustment: 6.0
+  # false: forecasts ignore the learned driver, teammate and interval corrections.
+  # Replay arm only (what production ran before the state was persisted).
+  apply_adaptive_calibration: true
+  # Widen race and sprint p5-p95 with the learned radius, as qualifying already does.
+  # The radius was always zero before 2026-10-11 because no race residuals were
+  # recorded. Bands only; the order is untouched. Off until replayed (Singapore item D).
+  race_interval_widening: false
 
 # Track Characteristics
 track_defaults:
@@ -320,6 +327,10 @@ baseline_predictor:
     # checkpoint may see. Replay 2026-10-04: worse on both seeds (double counts the
     # existing practice blend). Off; a residual-fitted version is the next idea.
     practice_pace_adjustment: false
+    # Share of the actual sprint qualifying order blended into each simulated main
+    # qualifying order, once sprint qualifying has run. 0 is off. Sized 2026-10-11 on
+    # 5 sprint weekends; not replayed yet (MODEL_LEDGER, Singapore item C).
+    sprint_quali_result_blend_weight: 0.0
     testing_fallback_short_weight_min: 0.35
     testing_fallback_short_weight_max: 0.85
     testing_fallback_divergence_scale: 1.4
@@ -563,6 +574,9 @@ baseline_predictor:
     # advantage) within each team. Measured worse alone (race corr -0.0085,
     # MODEL_LEDGER 2026-10-02). Off; re-test only after team strength is fixed.
     center_driver_lap_terms_by_team: false
+    # Scale sprint retirement and safety car odds by sprint laps over Grand Prix laps.
+    # Off: sprints carry a full Grand Prix's risk. Not measured yet (work list item 3).
+    sprint_distance_scaling: false
     # Add each team's car traits x track composition adjustment (top speed, corner
     # classes, braking, tyre deg) to measured race pace. Walk-forward sizing R2 0.113
     # (MODEL_LEDGER 2026-10-03). Replay: unresolvable on seeds 42 and 43. Off.

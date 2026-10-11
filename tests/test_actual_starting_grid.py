@@ -60,6 +60,22 @@ def test_pit_lane_starter_holds_no_grid_slot_and_lines_up_behind():
     assert [row["position"] for row in grid] == list(range(1, 21))
 
 
+def test_two_pit_lane_starters_are_not_ordered_by_the_race_result():
+    # D05 finished last and D09 won. The grid must not know that.
+    overrides = {
+        "D05": {"GridPosition": 0.0, "Position": 20.0},
+        "D09": {"GridPosition": 0.0, "Position": 1.0},
+    }
+    gridded = [i for i in range(1, 21) if i not in (5, 9)]
+    overrides.update({f"D{i:02d}": {"GridPosition": float(n)} for n, i in enumerate(gridded, 1)})
+
+    grid = _fetch(_results(overrides))
+
+    assert grid is not None
+    assert [row["driver"] for row in grid[-2:]] == ["D05", "D09"]
+    assert [row["position"] for row in grid] == list(range(1, 21))
+
+
 def test_a_grid_that_does_not_reconcile_fails_closed():
     # Two cars cannot share slot 4.
     grid = _fetch(_results({"D05": {"GridPosition": 4.0}}))

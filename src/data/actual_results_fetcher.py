@@ -377,7 +377,6 @@ def fetch_actual_starting_grid(year: int, race_name: str) -> list[QualifyingGrid
             entry: dict[str, Any] = {
                 "driver": driver,
                 "team": map_team_to_characteristics(team_raw) or team_raw,
-                "classification": _coerce_optional_position(row.get("Position")),
             }
             slot = _coerce_optional_position(row.get("GridPosition"))
             if slot is None:
@@ -403,12 +402,11 @@ def fetch_actual_starting_grid(year: int, race_name: str) -> list[QualifyingGrid
                 }
             )
         # Pit-lane starters hold no grid slot. They take the places behind the last
-        # gridded car, in classification order, so the grid stays a 1-N permutation.
+        # gridded car so the grid stays a 1-N permutation. Two or more are ordered by
+        # driver code: ordering them by the race result would put the outcome of the
+        # race into the grid it started from.
         next_position = len(grid_rows) + 1
-        for entry in sorted(
-            pit_lane,
-            key=lambda item: (item["classification"] is None, item["classification"] or 0),
-        ):
+        for entry in sorted(pit_lane, key=lambda item: str(item["driver"])):
             grid_rows.append(
                 {
                     "driver": entry["driver"],

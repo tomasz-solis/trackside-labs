@@ -78,6 +78,6 @@ Main qualifying and the Grand Prix lead. Sprint targets are secondary.
 
 ## Limits
 
-1. Actual grids depend on FastF1 publishing results.
+1. Actual grids depend on FastF1 publishing results. A finished sprint or race without a published classification shows as pending until it arrives; a missing qualifying result stops the chain.
 2. Weekend format comes from the FastF1 schedule, with a local fallback.
 3. Early sprint weekends may have gaps where a target was never saved at the time.

@@ -4,7 +4,7 @@ If a doc and the code disagree, trust the code.
 
 ## Start here
 
-- `../README.md`: what the model does and how to run it
+- `../README.md`: what the model does, the plan against the outcome, and how to run it
 - `../ARCHITECTURE.md`: components and data flow
 - `../CONFIGURATION.md`: config files and environment variables
 - `../LIMITATIONS.md`: what the model does badly
@@ -37,5 +37,5 @@ If a doc and the code disagree, trust the code.
 
 - `fixes/`: design and fix records, mostly the May 2026 work to separate driver ratings from car pace. Start with `fixes/master_execution_plan.md`.
 - `QUALIFYING_RACE_CHALLENGER.md` and `RAW_LAPS_REPLAY_HANDOFF.md`: shelved research; the code is on `shelved/challenger-research`.
-
-Supporting notebooks: `../notebooks/model_development/validate_testing_predictions.ipynb` and `test_weight_schedules.ipynb`.
+- `../data/model_diagnostics/2026/ml_challenger_probe.md`: the ML challenger that did not beat the live model.
+- Other shelved branches: `shelved/car-traits-v2`, `shelved/dnf-calibration`.

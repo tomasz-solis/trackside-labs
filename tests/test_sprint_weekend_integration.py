@@ -350,3 +350,30 @@ def test_normal_weekend_does_not_have_sprint_stage():
     # Result should not have sprint-specific metadata
     metadata = result.get("metadata", {})
     assert metadata.get("format", "qualifying") == "qualifying"
+
+
+def test_sprint_risk_scales_with_distance_and_leaves_inputs_untouched():
+    """A 19-lap sprint at a 62-lap circuit carries 19/62 of the Grand Prix risk."""
+    from src.predictors.baseline.race.race_simulation import _scale_sprint_risk_to_distance
+
+    drivers = {"VER": {"dnf_probability": 0.20, "grid_pos": 1}}
+    race_params = {"sc_probability": 0.62, "lap1_chaos": {"front_row": 0.15}}
+
+    scaled = _scale_sprint_risk_to_distance(
+        driver_info_map=drivers,
+        race_params=race_params,
+        sprint_distance=19,
+        grand_prix_distance=62,
+    )
+
+    assert scaled["VER"]["dnf_probability"] == pytest.approx(0.20 * 19 / 62)
+    assert scaled["VER"]["grid_pos"] == 1
+    assert race_params["sc_probability"] == pytest.approx(0.62 * 19 / 62)
+    assert race_params["lap1_chaos"] == {"front_row": 0.15}
+    assert drivers["VER"]["dnf_probability"] == 0.20
+
+
+def test_sprint_distance_scaling_is_off_by_default():
+    from src.utils import config_loader
+
+    assert config_loader.get("baseline_predictor.race.sprint_distance_scaling") is False

@@ -65,9 +65,17 @@ class Baseline2026Predictor(
         self.artifact_store = artifact_store or ArtifactStore(
             data_root=self.data_dir.parent if self.data_dir.name == "processed" else self.data_dir
         )
-        self.calibration_system = SystematicLearningSystem(
-            state_file=self.artifact_store.data_root / "learning_state.json"
+        self.calibration_system: SystematicLearningSystem | None = SystematicLearningSystem(
+            state_file=self.artifact_store.data_root / "learning_state.json",
+            artifact_store=self.artifact_store,
         )
         self.config = config or Config()
+        # Off makes forecasts ignore the learned state, as production did before it was
+        # persisted (docs/MODEL_LEDGER.md, 2026-10-10). Results are still learned from.
+        get_setting = getattr(self.config, "get", None)
+        if callable(get_setting) and not bool(
+            get_setting("learning.apply_adaptive_calibration", True)
+        ):
+            self.calibration_system = None
 
         self.load_data()

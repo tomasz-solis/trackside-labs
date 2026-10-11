@@ -37,6 +37,7 @@ from .qualifying_preparation import (
     apply_testing_fallback_adjustment as _apply_testing_fallback_adjustment_impl,
 )
 from .qualifying_preparation import (
+    blend_sprint_qualifying_result,
     build_driver_list_with_strengths_core,
 )
 from .qualifying_preparation import (
@@ -446,6 +447,10 @@ class BaselineQualifyingMixin:
             return 0.0
 
         cfg = getattr(self, "config", config_loader)
+        # The live predictor resolves this method, not the race mixin's copy, so the
+        # race and sprint switch has to be checked here too.
+        if session != "qualifying" and not bool(cfg.get("learning.race_interval_widening", False)):
+            return 0.0
         min_samples = int(cfg.get("learning.interval_min_samples", 20))
         target_coverage = float(cfg.get("learning.interval_target_coverage", 0.90))
         max_adjustment = float(cfg.get("learning.interval_max_adjustment", 6.0))
@@ -1026,8 +1031,14 @@ class BaselineQualifyingMixin:
         checkpoint_session_name: str | None = None,
         weather: str = "dry",
         prediction_context: PredictionContext | None = None,
+        sprint_qualifying_result: list[QualifyingGridEntry] | None = None,
     ) -> dict[str, Any]:
-        """Predict qualifying with Monte Carlo simulation (sprint/normal weekends)."""
+        """Predict qualifying with Monte Carlo simulation (sprint/normal weekends).
+
+        ``sprint_qualifying_result`` is the actual sprint qualifying classification. It is
+        only read for the main qualifying forecast once sprint qualifying has run, and
+        only when ``sprint_quali_result_blend_weight`` is above zero.
+        """
         cfg = getattr(self, "config", config_loader)
         with activate_prediction_runtime(config=cfg, prediction_context=prediction_context):
             validate_year(year, "year", min_year=2020, max_year=2030)
@@ -1114,6 +1125,19 @@ class BaselineQualifyingMixin:
                 weather=weather,
             )
 
+            sprint_result_weight = float(
+                cfg.get("baseline_predictor.qualifying.sprint_quali_result_blend_weight", 0.0)
+            )
+            blended_records = blend_sprint_qualifying_result(
+                position_records,
+                sprint_qualifying_result,
+                weight=sprint_result_weight,
+                qualifying_stage=qualifying_stage,
+                checkpoint_session_name=checkpoint_session_name,
+            )
+            sprint_result_blended = blended_records is not position_records
+            position_records = blended_records
+
             grid = self._aggregate_grid_results_with_compat(
                 position_records,
                 all_drivers,
@@ -1143,6 +1167,9 @@ class BaselineQualifyingMixin:
                 "characteristics_profile_used": "short_run",
                 "teams_with_characteristics_profile": teams_with_short_profile,
                 "teammate_head_to_head": teammate_head_to_head,
+                "sprint_quali_result_blend_weight": (
+                    round(sprint_result_weight, 3) if sprint_result_blended else 0.0
+                ),
                 "qualifying_residual_model_used": qualifying_residual_model is not None,
                 "qualifying_residual_mean_abs_adjustment": round(
                     float(np.mean([abs(value) for value in residual_adjustments.values()]))

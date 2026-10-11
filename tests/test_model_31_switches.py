@@ -86,3 +86,47 @@ def test_per_lap_hazard_delivers_the_race_level_probability():
     assert np.isclose(1 - (1 - hazard) ** laps, p)
     # The old p / N form under-delivers by ~9% at p 0.2.
     assert 1 - (1 - p / laps) ** laps < 0.92 * p
+
+
+def test_learned_race_radius_widens_bands_and_never_moves_the_order():
+    """Singapore item D: the widening is a band floor. Positions stay where they were."""
+    from src.predictors.baseline.race.result_processing import apply_learned_interval_radius
+
+    rows = [
+        {"driver": "A", "position": 1, "median_position": 1, "p5": 1, "p95": 2},
+        {"driver": "B", "position": 2, "median_position": 2, "p5": 1, "p95": 3},
+        {"driver": "C", "position": 22, "median_position": 22, "p5": 21, "p95": 22},
+    ]
+    before = [(row["driver"], row["position"]) for row in rows]
+
+    apply_learned_interval_radius(finish_order=rows, learned_interval_radius=5.0, field_size=22)
+
+    assert [(row["driver"], row["position"]) for row in rows] == before
+    assert (rows[0]["p5"], rows[0]["p95"]) == (1, 6)
+    assert (rows[2]["p5"], rows[2]["p95"]) == (17, 22)
+    assert all(row["p5"] <= row["position"] <= row["p95"] for row in rows)
+
+
+def test_race_interval_widening_is_off_by_default():
+    assert config_loader.get("learning.race_interval_widening") is False
+    assert config_loader.get("learning.apply_adaptive_calibration") is True
+
+
+def test_race_interval_widening_switch_gates_the_live_predictor():
+    """The predictor class resolves one radius getter; the switch must gate that one."""
+    from types import SimpleNamespace
+
+    from src.predictors.baseline_2026 import Baseline2026Predictor
+
+    def radius(switch: bool, session: str) -> float:
+        stub = SimpleNamespace(
+            calibration_system=SimpleNamespace(get_interval_radius=lambda **_: 5.0),
+            config={"learning.race_interval_widening": switch},
+        )
+        return Baseline2026Predictor._get_learned_interval_radius(stub, session=session)
+
+    assert radius(False, "race") == 0.0
+    assert radius(False, "sprint") == 0.0
+    assert radius(True, "race") == 5.0
+    assert radius(True, "sprint") == 5.0
+    assert radius(False, "qualifying") == 5.0

@@ -1481,3 +1481,69 @@ def test_warmup_gate_accepts_2026_bahrain_at_sepang(patcher):
     )
 
     warmup._validate_target_circuits(("Bahrain Grand Prix",), 2026)
+
+
+class _PreLogger:
+    """Stand-in logger holding one PRE forecast."""
+
+    def __init__(self, predicted_at: str, model_version: str):
+        self.metadata = {"predicted_at": predicted_at, "model_version": model_version}
+
+    def load_prediction(self, year, race_name, session_name):
+        del year, race_name, session_name
+        return {"metadata": dict(self.metadata)}
+
+
+def _pre_schedule():
+    import pandas as pd
+
+    return pd.DataFrame(
+        [
+            {
+                "EventName": "Singapore Grand Prix",
+                "Session1DateUtc": pd.Timestamp("2026-10-09 08:30"),
+                "Session5DateUtc": pd.Timestamp("2026-10-11 12:00"),
+            },
+            {
+                "EventName": "United States Grand Prix",
+                "Session1DateUtc": pd.Timestamp("2026-10-23 17:30"),
+                "Session5DateUtc": pd.Timestamp("2026-10-25 20:00"),
+            },
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("checkpoint", "predicted_at", "version", "now", "expected"),
+    [
+        # Logged before the Singapore race finished: refresh it.
+        ("PRE", "2026-09-13T17:04:13+00:00", None, "2026-10-12T09:00:00+00:00", True),
+        # Logged on an older model version: refresh it.
+        ("PRE", "2026-10-12T09:00:00+00:00", "2.9", "2026-10-13T09:00:00+00:00", True),
+        # Current version, no race since: keep it.
+        ("PRE", "2026-10-12T09:00:00+00:00", None, "2026-10-13T09:00:00+00:00", False),
+        # The weekend has started: PRE is frozen, however old.
+        ("PRE", "2026-09-13T17:04:13+00:00", "2.9", "2026-10-23T18:00:00+00:00", False),
+        # Later checkpoints are never replaced.
+        ("FP1", "2026-09-13T17:04:13+00:00", "2.9", "2026-10-12T09:00:00+00:00", False),
+        ("SQ", "2026-09-13T17:04:13+00:00", "2.9", "2026-10-12T09:00:00+00:00", False),
+        ("Q", "2026-09-13T17:04:13+00:00", "2.9", "2026-10-12T09:00:00+00:00", False),
+    ],
+)
+def test_logged_pre_forecast_is_refreshed_only_before_the_weekend(
+    patcher, checkpoint, predicted_at, version, now, expected
+):
+    from datetime import datetime
+
+    patcher.setattr(warmup.fastf1, "get_event_schedule", lambda year: _pre_schedule())
+    current = warmup.get_model_version()
+
+    stale = warmup._logged_pre_is_stale(
+        _PreLogger(predicted_at, version or current),
+        year=2026,
+        race_name="United States Grand Prix",
+        checkpoint_session=checkpoint,
+        now_utc=datetime.fromisoformat(now),
+    )
+
+    assert stale is expected

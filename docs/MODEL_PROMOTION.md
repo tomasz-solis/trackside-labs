@@ -4,7 +4,7 @@ A model change is a challenger until it proves it helps. Reset-year signals are 
 
 ## Current model
 
-Version `3.0`. It changed a mechanism, not a calibration. Positions in the race simulation used to change whenever a faster car's cumulative time passed another's, whether or not a pass happened (98.4% of simulated position changes at Monaco had no pass). Now a position change needs a completed pass. The same release measured team race pace from green-flag laps, fitted `skill_improvement_max` to the real teammate gap, and stopped re-anchoring a penalised driver to his penalty grid slot. Numbers are in `docs/MODEL_LEDGER.md`.
+Version `3.3`. 3.1 to 3.3 are small: median-rank finish order, car traits by track for qualifying, braking dropped from those traits (champion history in `docs/MODEL_LEDGER.md`). 3.0 was the big one. It changed a mechanism, not a calibration. Positions in the race simulation used to change whenever a faster car's cumulative time passed another's, whether or not a pass happened (98.4% of simulated position changes at Monaco had no pass). Now a position change needs a completed pass. 3.0 also measured team race pace from green-flag laps, fitted `skill_improvement_max` to the real teammate gap, and stopped re-anchoring a penalised driver to his penalty grid slot. Numbers are in `docs/MODEL_LEDGER.md`.
 
 Targets are judged separately: `main_qualifying`, `grand_prix_race`, `sprint_qualifying`, `sprint_race`. A challenger can win one target without being promoted for all.
 
@@ -16,7 +16,7 @@ Targets are judged separately: `main_qualifying`, `grand_prix_race`, `sprint_qua
 
 ## Production gate
 
-`scripts/generate_evaluation_report.py` writes `production_gate` to `data/evaluation/2026_evaluation_report.json` and `docs/MODEL_CALIBRATION.md`. It needs:
+`scripts/generate_evaluation_report.py` writes `production_gate` to `data/evaluation/2026_evaluation_report.json` and `docs/MODEL_CALIBRATION.md`. It scores the forecasts as served, every round, each by the model version live at the time. It needs:
 
 - a report newer than the last finished race
 - at least 5 scored race weekends

@@ -1110,6 +1110,7 @@ def test_predict_race_applies_learned_position_adjustment():
                 "baseline_predictor.race.grid_anchor.track_scale": 0.0,
                 "baseline_predictor.race.grid_anchor.min": 0.4,
                 "baseline_predictor.race.grid_anchor.sprint_min": 0.4,
+                "learning.race_interval_widening": True,
                 "learning.interval_min_samples": 1,
                 "learning.interval_target_coverage": 0.9,
                 "learning.interval_max_adjustment": 4.0,

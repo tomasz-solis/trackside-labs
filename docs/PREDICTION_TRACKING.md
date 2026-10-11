@@ -69,7 +69,7 @@ uv run python scripts/prune_stale_precompute_state.py --env-file .env.local --ye
 
 ## Learning
 
-Attaching actuals (`PredictionLogger.update_actuals()`) also updates the learner in `src/systems/systematic_learning.py`: per-driver and teammate-gap errors for qualifying and race, saved to `data/learning_state.json`.
+Attaching actuals (`PredictionLogger.update_actuals()`) also updates the learner in `src/systems/systematic_learning.py`: per-driver and teammate-gap errors for qualifying and race, saved to `data/learning_state.json` and, in database modes, to the `learning_state` artifact.
 
 It skips retrospective runs, duplicate run IDs, missing actuals and payloads with too few matching drivers. A skipped run is not marked processed, so a later complete result can still train it.
 

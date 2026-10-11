@@ -11,17 +11,33 @@ from typing import Any
 
 import numpy as np
 
+from src.persistence.config import should_read_db_first, should_write_to_db
 from src.utils.driver_name_mapper import DriverNameMapper
 
 logger = logging.getLogger(__name__)
 
 
+# The yearless key maps to <data_root>/learning_state.json, the file used before.
+_ARTIFACT_TYPE = "learning_state"
+_ARTIFACT_KEY = "learning_state"
+
+
 class SystematicLearningSystem:
     """Persist and serve calibration learned from prediction outcomes."""
 
-    def __init__(self, state_file: str | Path = "data/learning_state.json"):
+    def __init__(
+        self,
+        state_file: str | Path = "data/learning_state.json",
+        artifact_store: Any | None = None,
+    ):
+        """Load state from the store's database when one is configured, else from the file.
+
+        Without an artifact store the state lives only in ``state_file``. A deployment
+        with no shared disk must pass the store, or every process starts from empty.
+        """
         self.state_file = Path(state_file)
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.artifact_store = artifact_store
         self.state = self._load_state()
 
     def _default_state(self) -> dict[str, Any]:
@@ -40,18 +56,32 @@ class SystematicLearningSystem:
             },
         }
 
-    def _load_state(self) -> dict[str, Any]:
-        if not self.state_file.exists():
-            return self._default_state()
-
+    def _load_db_state(self) -> Any | None:
+        """Return the stored state in database modes, or None to fall back to the file."""
+        if self.artifact_store is None or not should_read_db_first():
+            return None
         try:
-            with open(self.state_file) as f:
-                data = json.load(f)
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning(
-                "Failed to load learning state from %s (%s); resetting state.", self.state_file, exc
-            )
-            return self._default_state()
+            return self.artifact_store.load_artifact(_ARTIFACT_TYPE, _ARTIFACT_KEY)
+        except Exception as exc:  # noqa: BLE001 - a store failure must not stop a forecast
+            logger.warning("Could not load learning state from the artifact store: %s", exc)
+            return None
+
+    def _load_state(self) -> dict[str, Any]:
+        data = self._load_db_state()
+        if data is None:
+            if not self.state_file.exists():
+                return self._default_state()
+
+            try:
+                with open(self.state_file) as f:
+                    data = json.load(f)
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning(
+                    "Failed to load learning state from %s (%s); resetting state.",
+                    self.state_file,
+                    exc,
+                )
+                return self._default_state()
 
         if not isinstance(data, dict):
             logger.warning("Learning state at %s is not a JSON object; resetting.", self.state_file)
@@ -92,7 +122,7 @@ class SystematicLearningSystem:
         if not isinstance(interval_history, dict):
             interval_history = {"qualifying": [], "race": []}
             adaptive["interval_residual_history"] = interval_history
-        for session_name in ("qualifying", "race"):
+        for session_name in ("qualifying", "race", "sprint"):
             if not isinstance(interval_history.get(session_name), list):
                 interval_history[session_name] = []
 
@@ -107,6 +137,11 @@ class SystematicLearningSystem:
         adaptive["last_updated"] = datetime.now(UTC).isoformat()
         with open(self.state_file, "w") as f:
             json.dump(self.state, f, indent=2)
+        if self.artifact_store is not None and should_write_to_db():
+            try:
+                self.artifact_store.save_artifact(_ARTIFACT_TYPE, _ARTIFACT_KEY, self.state)
+            except Exception as exc:  # noqa: BLE001 - keep the local copy and say so
+                logger.error("Learning state not saved to the artifact store: %s", exc)
 
     def reset_state(self, season: int | None = None) -> None:
         """Reset learning state to a clean default payload for one season."""
@@ -468,8 +503,13 @@ class SystematicLearningSystem:
             )
             race_update["interval_samples"] = 0
             if not race_update.get("skipped"):
+                # A sprint starts from a known grid and runs a third of the distance, so
+                # its misses are smaller. It keeps its own history and its own radius.
+                race_target = str(
+                    (prediction_data.get("metadata") or {}).get("top_level_race_target", "")
+                )
                 race_update["interval_samples"] = self._update_interval_residual_history(
-                    session="race",
+                    session="sprint" if race_target == "sprint_race" else "race",
                     predicted=predicted_race,
                     actual=actual_race,
                     history_limit=interval_history_limit,

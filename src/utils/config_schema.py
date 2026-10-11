@@ -112,6 +112,8 @@ class LearningConfig(StrictConfigModel):
     interval_min_samples: int = Field(default=20, ge=1)
     interval_target_coverage: float = Field(default=0.90, ge=0.0, le=1.0)
     interval_max_adjustment: float = Field(default=6.0, ge=0.0)
+    apply_adaptive_calibration: bool = True
+    race_interval_widening: bool = False
 
 
 class TrackDefaultsConfig(StrictConfigModel):
@@ -428,6 +430,7 @@ class BaselineQualifyingConfig(StrictConfigModel):
         list[Literal["top_speed", "slow", "medium", "fast", "braking", "deg"]] | None
     ) = None
     practice_pace_adjustment: bool = Field(default=False)
+    sprint_quali_result_blend_weight: float = Field(default=0.0, ge=0.0, le=1.0)
     practice_data_team_weight_multiplier: float = Field(default=0.94, ge=0.0)
     practice_data_skill_weight_multiplier: float = Field(default=1.12, ge=0.0)
     practice_data_team_compression_multiplier: float = Field(default=0.88, ge=0.0)
@@ -960,6 +963,7 @@ class BaselineRaceConfig(StrictConfigModel):
     dnf_per_lap_hazard: bool = Field(default=False)
     overtake_gap_from_lap_start: bool = Field(default=False)
     center_driver_lap_terms_by_team: bool = Field(default=False)
+    sprint_distance_scaling: bool = Field(default=False)
     track_trait_adjustment: bool = Field(default=False)
     tyre_deg_model: Literal["practice", "carry_over"] = "practice"
     practice_pace_adjustment: bool = Field(default=False)

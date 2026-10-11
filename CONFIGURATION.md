@@ -9,7 +9,7 @@ Current values live in `config/default.yaml`. This page lists where to look, not
 
 ## Sections that drive predictions
 
-- `model.version` (currently `3.0`) and `model.regulation_eras`
+- `model.version` and `model.regulation_eras`
 - `baseline_predictor.qualifying.*`
 - `baseline_predictor.race.*`
 - `baseline_predictor.compound_selection.*`
@@ -23,6 +23,10 @@ Current values live in `config/default.yaml`. This page lists where to look, not
 | Change | Keys |
 |---|---|
 | Qualifying team vs driver weight | `baseline_predictor.qualifying.team_weight`, `skill_weight` (must sum to 1.0) |
+| Car traits by track (qualifying, on since 3.2) | `baseline_predictor.qualifying.track_trait_adjustment`, `track_trait_features` (no braking since 3.3) |
+| Measured and kept off | `baseline_predictor.race.track_trait_adjustment`, `tyre_deg_model`, `center_driver_lap_terms_by_team`, `practice_pace_adjustment` (race and qualifying). Verdicts are in `docs/MODEL_LEDGER.md` |
+| Built 2026-10-11, off until replayed | `baseline_predictor.qualifying.sprint_quali_result_blend_weight` (0 is off), `baseline_predictor.race.sprint_distance_scaling`, `learning.race_interval_widening` |
+| Adaptive learning on or off | `learning.apply_adaptive_calibration` (on; off is a replay arm only) |
 | Tyre compound choice | `baseline_predictor.compound_selection.*_threshold`, `default_stress_fallback` |
 | Race randomness | `baseline_predictor.race.base_chaos.*`, `lap1_chaos.*`, `teammate_variance_std`, `track_chaos_multiplier` |
 | Overtaking | `baseline_predictor.race.overtake_model.*`, `overtaking_transition.*`, `grid_weight_*`, `overtaking_skill_multiplier`, `final_blend.*`, `track_pass_cap_enabled` (A/B switch, on by default), `overtake_gap_from_lap_start` (on since 3.1) |

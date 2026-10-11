@@ -36,6 +36,18 @@ def _attach_likely_range(df: pd.DataFrame, result: dict, *, is_race: bool) -> pd
 def display_prediction_result(result: dict, prediction_name: str, is_race: bool = False) -> None:
     """Display a single prediction result (qualifying or race)."""
     results_key = "finish_order" if is_race else "grid"
+    if result.get("results_pending"):
+        rendering_html.render_surface_header(
+            title=prediction_name,
+            summary=str(result.get("classification_note", "")).strip(),
+            eyebrow="Race projection" if is_race else "Qualifying projection",
+        )
+        render_notice_banner(
+            str(result.get("classification_note", "")).strip(),
+            tone="info",
+            label="Results pending",
+        )
+        return
     df = pd.DataFrame(result[results_key])
     df["position"] = df["position"].astype(int)
     df.attrs["input_confidence"] = result.get("input_confidence")

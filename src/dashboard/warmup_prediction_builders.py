@@ -13,6 +13,7 @@ from .prediction_checkpointing import (
     resolve_prediction_checkpoint_session,
     session_is_within_prediction_boundary,
 )
+from .prediction_flow import resolve_completed_race_section
 from .race_context import attach_starting_grid_context
 
 logger = logging.getLogger(__name__)
@@ -152,6 +153,11 @@ def compute_base_features(
                 n_simulations=qualifying_n_simulations,
                 practice_signal_mode="stored_profiles",
                 checkpoint_session_name=checkpoint_session,
+                **(
+                    {"sprint_qualifying_result": sprint_actual_results}
+                    if sprint_actual_results
+                    else {}
+                ),
             )
             if allow_main_quali_results:
                 main_grid, main_grid_source = fetch_grid_if_available_fn(
@@ -293,14 +299,14 @@ def compute_weather_predictions(
     section_timing: dict[str, float] = {}
     if bool(base_features.get("is_sprint")):
         sprint_race_start = time.time()
-        sprint_actual_results, _ = fetch_actual_competitive_results_if_completed_fn(
+        sprint_race = resolve_completed_race_section(
             year=year,
             race_name=target_race,
             session_name="Sprint",
+            fetch_fn=fetch_actual_competitive_results_if_completed_fn,
+            build_fn=build_actual_race_section_fn,
         )
-        if sprint_actual_results is not None:
-            sprint_race = build_actual_race_section_fn(sprint_actual_results, session_name="Sprint")
-        else:
+        if sprint_race is None:
             sprint_race = predict_sprint_race_with_optional_confidence_fn(
                 predictor,
                 sprint_quali_grid=deepcopy(base_features["sprint_grid_for_race"]),
@@ -324,14 +330,14 @@ def compute_weather_predictions(
             sprint_race["input_confidence"] = round(sprint_input_confidence, 3)
 
         main_race_start = time.time()
-        main_actual_results, _ = fetch_actual_competitive_results_if_completed_fn(
+        main_race = resolve_completed_race_section(
             year=year,
             race_name=target_race,
             session_name="R",
+            fetch_fn=fetch_actual_competitive_results_if_completed_fn,
+            build_fn=build_actual_race_section_fn,
         )
-        if main_actual_results is not None:
-            main_race = build_actual_race_section_fn(main_actual_results, session_name="R")
-        else:
+        if main_race is None:
             main_race = predict_race_with_optional_confidence_fn(
                 predictor,
                 qualifying_grid=deepcopy(base_features["main_grid_for_race"]),
@@ -375,14 +381,14 @@ def compute_weather_predictions(
         return _merge_section_timing(prediction_results, section_timing)
 
     race_start = time.time()
-    actual_race_results, _ = fetch_actual_competitive_results_if_completed_fn(
+    race = resolve_completed_race_section(
         year=year,
         race_name=target_race,
         session_name="R",
+        fetch_fn=fetch_actual_competitive_results_if_completed_fn,
+        build_fn=build_actual_race_section_fn,
     )
-    if actual_race_results is not None:
-        race = build_actual_race_section_fn(actual_race_results, session_name="R")
-    else:
+    if race is None:
         race = predict_race_with_optional_confidence_fn(
             predictor,
             qualifying_grid=deepcopy(base_features["qualifying_grid_for_race"]),

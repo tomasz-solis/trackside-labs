@@ -151,6 +151,8 @@ class BaselineRacePredictionMixin:
             return 0.0
 
         cfg = getattr(self, "config", config_loader)
+        if not bool(cfg.get("learning.race_interval_widening", False)):
+            return 0.0
         min_samples = int(cfg.get("learning.interval_min_samples", 20))
         target_coverage = float(cfg.get("learning.interval_target_coverage", 0.90))
         max_adjustment = float(cfg.get("learning.interval_max_adjustment", 6.0))

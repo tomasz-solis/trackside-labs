@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from scripts.generate_evaluation_report import (
-    _apply_qualifying_production_adjustments,
+    _apply_qualifying_stabilizer_candidate,
     _build_dnf_calibration_section,
     _sanitize_non_finite,
     _sort_selected_predictions,
@@ -202,7 +202,7 @@ def test_selected_predictions_are_sorted_by_calendar_order():
     ]
 
 
-def test_qualifying_production_adjustment_uses_previous_actuals_only():
+def test_qualifying_stabilizer_candidate_uses_previous_actuals_only():
     first_actual = [
         {"driver": "AAA", "team": "A", "position": 1},
         {"driver": "BBB", "team": "B", "position": 2},
@@ -228,7 +228,7 @@ def test_qualifying_production_adjustment_uses_previous_actuals_only():
         second_actual,
     )
 
-    adjusted, metadata = _apply_qualifying_production_adjustments(
+    adjusted, metadata = _apply_qualifying_stabilizer_candidate(
         [first_prediction, second_prediction]
     )
 
@@ -512,3 +512,39 @@ def test_track_type_is_read_by_circuit_for_a_moved_race():
 
     assert _track_type_for_race(track_types, "Bahrain Grand Prix", 2026) == "permanent"
     assert _track_type_for_race(track_types, "Bahrain Grand Prix", 2025) == "street"
+
+
+def test_build_report_scores_served_qualifying_not_the_stabilizer(tmp_path):
+    """Headline qualifying numbers are the served forecasts; the stabilizer is a side score."""
+    predictions_dir = tmp_path / "predictions"
+    actual = [
+        {"position": 1, "driver": "VER", "team": "Red Bull Racing"},
+        {"position": 2, "driver": "NOR", "team": "McLaren"},
+        {"position": 3, "driver": "LEC", "team": "Ferrari"},
+    ]
+    served_right = [dict(row, p5=1, p95=3) for row in actual]
+    served_wrong = [
+        {"position": 1, "driver": "NOR", "team": "McLaren", "p5": 1, "p95": 3},
+        {"position": 2, "driver": "VER", "team": "Red Bull Racing", "p5": 1, "p95": 3},
+        {"position": 3, "driver": "LEC", "team": "Ferrari", "p5": 1, "p95": 3},
+    ]
+    for race_slug, rows in (
+        ("australian_grand_prix", served_right),
+        ("chinese_grand_prix", served_wrong),
+    ):
+        _write_prediction(
+            predictions_dir,
+            race_slug=race_slug,
+            weekend_format="normal",
+            weather="dry",
+            qualifying_rows=rows,
+            race_rows=rows,
+            actual_quali=actual,
+            actual_race=actual,
+        )
+
+    report = build_report(2026, predictions_dir)
+
+    # The previous-race blend would fix the second forecast; the served one stays wrong.
+    assert report["stabilizer_candidate_accuracy"]["mae"] == 0.0
+    assert report["qualifying_accuracy"]["mae"] > 0.0

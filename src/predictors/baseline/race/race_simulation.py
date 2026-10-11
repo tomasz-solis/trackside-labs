@@ -74,6 +74,45 @@ def _build_weather_feature_context(
     )
 
 
+def _resolve_grand_prix_distance(
+    deps: Any, *, year: int, race_name: str | None, location: str | None
+) -> int:
+    """Return the Grand Prix distance in laps at the same circuit."""
+    try:
+        return int(
+            deps.resolve_race_distance_laps(
+                year=year, race_name=race_name, is_sprint=False, location=location
+            )
+        )
+    except TypeError:
+        return int(deps.resolve_race_distance_laps(year=year, race_name=race_name, is_sprint=False))
+
+
+def _scale_sprint_risk_to_distance(
+    *,
+    driver_info_map: dict[str, dict[str, Any]],
+    race_params: dict[str, Any],
+    sprint_distance: int,
+    grand_prix_distance: int,
+) -> dict[str, dict[str, Any]]:
+    """Scale retirement and safety car odds from a Grand Prix to a sprint's distance.
+
+    Both inputs are per-Grand-Prix probabilities. A sprint covers about a third of the
+    laps, so without this every car carries a full race's risk into a short one.
+    Lap 1 incidents are not scaled: a sprint has a full start.
+    """
+    if grand_prix_distance <= 0 or sprint_distance <= 0:
+        return driver_info_map
+    scale = min(1.0, float(sprint_distance) / float(grand_prix_distance))
+    for key in ("sc_probability", "vsc_probability"):
+        if key in race_params:
+            race_params[key] = float(race_params[key]) * scale
+    return {
+        driver: {**info, "dnf_probability": float(info.get("dnf_probability", 0.0)) * scale}
+        for driver, info in driver_info_map.items()
+    }
+
+
 def _prepare_grid_uncertainty_profile(
     *,
     validated_grid: list[QualifyingGridEntry],
@@ -326,6 +365,15 @@ def predict_race_core(
     race_params["sc_probability"] = race_params.get(
         "sc_probability", np.clip(default_sc_probability, 0.0, 1.0)
     )
+    if is_sprint and bool(cfg.get("baseline_predictor.race.sprint_distance_scaling", False)):
+        driver_info_map = _scale_sprint_risk_to_distance(
+            driver_info_map=driver_info_map,
+            race_params=race_params,
+            sprint_distance=race_distance,
+            grand_prix_distance=_resolve_grand_prix_distance(
+                deps, year=year, race_name=race_name, location=location
+            ),
+        )
     race_params["sc_pit_loss_reduction_s"] = float(
         race_params.get(
             "sc_pit_loss_reduction_s",
@@ -435,7 +483,7 @@ def predict_race_core(
         weather_feature_modifiers=weather_feature_modifiers,
         get_learned_position_adjustment=deps.get_learned_position_adjustment,
         learned_interval_radius=max(
-            float(deps.get_learned_interval_radius(session="race")),
+            float(deps.get_learned_interval_radius(session="sprint" if is_sprint else "race")),
             float(
                 deps.get_conformal_interval_radius(session="race", regime=data_regime)
                 if callable(deps.get_conformal_interval_radius)

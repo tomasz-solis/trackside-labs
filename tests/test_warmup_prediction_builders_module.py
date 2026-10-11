@@ -324,3 +324,55 @@ def test_compute_weather_predictions_uses_actual_race_for_normal_weekend():
     assert result["race"]["starting_grid"] == [{"position": 1, "driver": "RUS", "team": "Mercedes"}]
     assert result["race"]["starting_session_name"] == "Q"
     assert "input_confidence" not in result["race"]
+
+
+def test_finished_sprint_without_published_results_does_not_block_the_checkpoint():
+    """Singapore 2026: the sprint was over, FastF1 had no positions for hours.
+
+    The main race forecast must still be built, and the sprint must show as pending,
+    never as a forecast.
+    """
+    from src.dashboard.prediction_flow import (
+        CompletedSessionResultsPendingError,
+        has_pending_results,
+    )
+
+    def _results(year, race_name, session_name):
+        del year, race_name
+        if session_name == "Sprint":
+            raise CompletedSessionResultsPendingError("FastF1 returned no Sprint results")
+        return (None, "INCOMPLETE")
+
+    result = warmup_prediction_builders.compute_weather_predictions(
+        {
+            "is_sprint": True,
+            "sprint_quali": {"grid_source": "ACTUAL"},
+            "sprint_grid_for_race": [{"position": 1, "driver": "NOR", "team": "McLaren"}],
+            "sprint_race_input_confidence": 1.0,
+            "main_quali": {"grid_source": "ACTUAL"},
+            "main_grid_for_race": [{"position": 1, "driver": "VER", "team": "Red Bull"}],
+            "main_race_input_confidence": 1.0,
+            "timing": {"sprint_quali": 0.1, "main_quali": 0.2},
+        },
+        "dry",
+        predictor=object(),
+        year=2026,
+        target_race="Singapore Grand Prix",
+        valid_weather_scenarios={"dry", "mixed", "rain"},
+        fetch_actual_competitive_results_if_completed_fn=_results,
+        build_actual_race_section_fn=lambda *args, **kwargs: {"result_mode": "ACTUAL"},
+        predict_sprint_race_with_optional_confidence_fn=lambda *args, **kwargs: pytest.fail(
+            "a finished sprint must not be forecast"
+        ),
+        predict_race_with_optional_confidence_fn=lambda *args, **kwargs: {
+            "finish_order": [{"position": 1, "driver": "VER", "team": "Red Bull"}]
+        },
+        build_starting_grid_note_fn=lambda session_name: session_name,
+    )
+
+    assert result["sprint_race"]["results_pending"] is True
+    assert result["sprint_race"]["result_mode"] == "ACTUAL"
+    assert result["sprint_race"]["finish_order"] == []
+    assert result["main_race"]["finish_order"][0]["driver"] == "VER"
+    assert has_pending_results(result)
+    assert not has_pending_results({"main_race": result["main_race"]})

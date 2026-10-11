@@ -16,7 +16,7 @@ Fix: a prior on how much each team gets disrupted, built from past rule changes.
 
 ## 3. Testing sandbagging is not detected
 
-Teams hide pace in testing with fuel, engine modes and setup. The model cannot tell slow from sandbagging. Testing gets the smallest weight (20% at race 1, 10% at race 2, 0% from race 3), so a misleading test corrects itself quickly.
+Teams hide pace in testing with fuel, engine modes and setup. The model cannot tell slow from sandbagging. Track suitability from testing lost out of sample and was removed, so the testing weight (20% at race 1, 10% at race 2, 5% at race 3, 0% after) now carries the baseline. Testing still feeds the qualifying forecast when a weekend has no practice yet.
 
 Fix: correct testing laps for fuel load using telemetry. Real engineering work.
 
@@ -44,11 +44,11 @@ Each circuit has its own safety car probability and overtaking difficulty in `20
 
 Fix: extract per-circuit safety car and lap 1 incident rates from past races and test them against the current values in a backtest.
 
-## 8. Intervals are too narrow
+## 8. Intervals are off in both directions
 
-Each driver gets a p5 to p95 interval, and the learning system can widen it once enough residuals exist. The last calibration report (2026-04-20, 3 events, 66 intervals) showed 80.3% qualifying coverage against a 90% target.
+Each driver gets a p5 to p95 interval, and the learning system can widen it once enough residuals exist. The target is 90% coverage.
 
-Race p5/p95 has the same problem: measured 2026-09-27 on `data/historical_replay_m1s42_r14` (895 race finishers), coverage is 86% overall (92/95/89/67% by predicted-position bucket 1-5/6-10/11-16/17-22, the back of the field worst). An honest 90% band there needs about 10 to 11 positions, too wide to show as "the range a driver is likely to finish in". Qualifying p5/p95 over-covers on the same replay: 95.3% (n=784). The dashboard's race and qualifying tables show a separate "Likely range" instead: a fitted band around the shown position that held about 6 in 10 past results (59-63% leave-one-race-out, see `docs/MODEL_LEDGER.md` 2026-10-01). p5/p95 itself is unchanged and still used for evaluation.
+Race p5/p95 is too narrow: measured 2026-09-27 on `data/historical_replay_m1s42_r14` (895 race finishers), coverage is 86% overall (92/95/89/67% by predicted-position bucket 1-5/6-10/11-16/17-22, the back of the field worst). An honest 90% band there needs about 10 to 11 positions, too wide to show as "the range a driver is likely to finish in". Qualifying p5/p95 covers 95.3% on the same replay (n=784) and 75.5% on the forecasts actually published (`docs/MODEL_CALIBRATION.md`). The difference is the learned widening: the replay applied it, production never did, because the learning state was not persisted there (`docs/MODEL_LEDGER.md`, 2026-10-10). With the widening the published bands would have covered 90.3%. The dashboard's race and qualifying tables show a separate "Likely range" instead: a fitted band around the shown position that held about 6 in 10 past results (59-63% leave-one-race-out, see `docs/MODEL_LEDGER.md` 2026-10-01). p5/p95 itself is unchanged and still used for evaluation.
 
 Fix: more races, then replay the widening before tightening anything.
 
@@ -69,3 +69,9 @@ The aggregate rate is roughly right: measured 2026-09-27 from `wf42_r14` PRE che
 Separately, the per-driver rate's learning path (`_update_dnf_rate_ema` in `src/systems/updater.py`) had its own bug: a session with a NaN or missing `Status` and no `ClassifiedPosition` used to count as a DNF for every driver in it, permanently biasing `dnf_rate` toward 1.0 even though the race still counted as learned. Fixed 2026-09-27 to share the scoring rule (`ClassifiedPosition` authoritative, else `Status`; missing means no signal, not a DNF). See `docs/DNF_CALIBRATION_BRIEF.md`.
 
 Fix: the planned DNF revamp. It has to beat the flat base rate on 2026, measured through the replay with the seed floor.
+
+## 11. The race forecast is mostly the grid
+
+The predicted grid predicts race order better than simulated pace. Halving the grid anchor cost 0.016 to 0.019 race correlation on both seeds. Three race pace additions with real lap-time signal (car traits by track, carried tyre wear, weekend practice) did not move finishing order past the seed floor. Qualifying still leaves practice on the table: its errors correlate +0.20 with the weekend practice signal.
+
+Fix: fit a practice term on the model's own residuals. The version fitted on raw gaps double counted practice and lost (`docs/MODEL_LEDGER.md`, 2026-10-04).

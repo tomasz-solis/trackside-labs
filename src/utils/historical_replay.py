@@ -424,6 +424,7 @@ def _resolve_qualifying_section_for_replay(
     target_session: str,
     qualifying_stage: str,
     actual_cache: dict[tuple[int, str, str], list[QualifyingGridEntry]],
+    sprint_qualifying_result: list[QualifyingGridEntry] | None = None,
 ) -> tuple[dict[str, Any], list[QualifyingGridEntry], str]:
     """Return the checkpoint-appropriate qualifying payload for one target session."""
     if session_is_available_at_checkpoint(checkpoint_session, target_session):
@@ -448,6 +449,11 @@ def _resolve_qualifying_section_for_replay(
             race_name=race_name,
             target_session_name=target_session,
             checkpoint_session=checkpoint_session,
+        ),
+        **(
+            {"sprint_qualifying_result": sprint_qualifying_result}
+            if sprint_qualifying_result
+            else {}
         ),
     )
     section = deepcopy(section)
@@ -585,6 +591,8 @@ def build_checkpoint_prediction_results(
             target_session="Q",
             qualifying_stage="main",
             actual_cache=actual_cache,
+            # Only set once sprint qualifying is inside the checkpoint.
+            sprint_qualifying_result=sprint_grid if sprint_grid_source == "ACTUAL" else None,
         )
         main_race_input_confidence = derive_race_input_confidence(
             main_quali,

@@ -27,6 +27,15 @@ class CompetitiveSessionStatusUnavailableError(RuntimeError):
     """Raised when competitive-session status cannot be verified from FastF1."""
 
 
+class CompletedSessionResultsPendingError(RuntimeError):
+    """Raised when a session has finished but its classification is not published yet.
+
+    FastF1 has no race or sprint positions until the official results feed publishes,
+    which can take hours. Positions rebuilt from timing data are not reliable enough
+    to score against (2026 Monaco: 12 of 22 differ from the official result).
+    """
+
+
 def _session_display_name(session_name: str) -> str:
     """Return a human-readable name for a competitive session code."""
     session_key = str(session_name).strip().upper()
@@ -77,6 +86,60 @@ def build_actual_race_section(
         ),
         "classification_caption": "This table shows the completed-session classification from FastF1.",
     }
+
+
+def build_pending_race_section(session_name: str) -> dict[str, Any]:
+    """Build the payload for a finished race whose classification is not published yet.
+
+    It is marked ACTUAL so nothing saves or scores it as a forecast.
+    """
+    session_label = _session_display_name(session_name)
+    return {
+        "finish_order": [],
+        "result_mode": "ACTUAL",
+        "results_pending": True,
+        "session_name": str(session_name).strip().upper(),
+        "classification_note": (
+            f"The {session_label.lower()} has finished. "
+            "The official classification is not published yet."
+        ),
+        "classification_caption": "The classification appears here once FastF1 has it.",
+    }
+
+
+def resolve_completed_race_section(
+    *,
+    year: int,
+    race_name: str,
+    session_name: str,
+    fetch_fn: Any = None,
+    build_fn: Any = None,
+) -> dict[str, Any] | None:
+    """Return the actual race section, a pending one, or None when the race has not finished.
+
+    Only race-style results go through here. A missing qualifying result still stops
+    the chain, because a later forecast needs it as its grid.
+    """
+    fetch = fetch_fn or fetch_actual_competitive_results_if_completed
+    build = build_fn or build_actual_race_section
+    try:
+        actual_results, _ = fetch(year=year, race_name=race_name, session_name=session_name)
+    except CompletedSessionResultsPendingError as exc:
+        logger.warning("%s Showing it as pending and continuing.", exc)
+        return build_pending_race_section(session_name)
+    if actual_results is None:
+        return None
+    return build(actual_results, session_name=session_name)
+
+
+def has_pending_results(prediction_results: Any) -> bool:
+    """Return whether any section still waits for a published classification."""
+    if not isinstance(prediction_results, dict):
+        return False
+    return any(
+        isinstance(section, dict) and bool(section.get("results_pending"))
+        for section in prediction_results.values()
+    )
 
 
 def build_starting_grid_note(session_name: str) -> str:
@@ -162,7 +225,7 @@ def fetch_actual_competitive_results_if_completed(
                 len(validated_results),
             )
             return validated_results, "ACTUAL"
-        raise RuntimeError(
+        raise CompletedSessionResultsPendingError(
             f"FastF1 returned no {session_name} results for completed session at "
             f"{race_name} {year}; refusing to fall back to predicted output."
         )
@@ -300,8 +363,13 @@ def _resolve_qualifying_section(
     qualifying_stage: str,
     checkpoint_session_name: str,
     is_sprint: bool,
+    sprint_qualifying_result: list[QualifyingGridEntry] | None = None,
 ) -> tuple[dict[str, Any], list[QualifyingGridEntry], str]:
-    """Return actual completed-session results or a predicted qualifying payload."""
+    """Return actual completed-session results or a predicted qualifying payload.
+
+    ``sprint_qualifying_result`` is the actual sprint qualifying classification, passed
+    only for the main qualifying forecast once sprint qualifying has run.
+    """
     resolved_checkpoint = resolve_prediction_checkpoint_session(
         checkpoint_session_name,
         is_sprint=is_sprint,
@@ -331,6 +399,11 @@ def _resolve_qualifying_section(
         n_simulations=_resolve_dashboard_simulation_count("qualifying"),
         practice_signal_mode="stored_profiles",
         checkpoint_session_name=resolved_checkpoint,
+        **(
+            {"sprint_qualifying_result": sprint_qualifying_result}
+            if sprint_qualifying_result
+            else {}
+        ),
     )
     if allow_completed_session_results:
         qualifying_grid, grid_source = fetch_grid_if_available(
@@ -379,13 +452,12 @@ def _resolve_race_section(
         qualifying_grid, applied_penalties = apply_grid_penalties(
             qualifying_grid, race_name=race_name, year=year
         )
-    actual_results, _ = fetch_actual_competitive_results_if_completed(
+    actual_payload = resolve_completed_race_section(
         year=year,
         race_name=race_name,
         session_name=session_name,
     )
-    if actual_results is not None:
-        actual_payload = build_actual_race_section(actual_results, session_name=session_name)
+    if actual_payload is not None:
         actual_payload["grid_source"] = qualifying_grid_source
         attach_starting_grid_context(actual_payload, qualifying_grid, grid_session_name)
         _attach_grid_penalties(actual_payload, applied_penalties)
@@ -508,6 +580,7 @@ def run_prediction(
             qualifying_stage="main",
             checkpoint_session_name=checkpoint_session_name,
             is_sprint=True,
+            sprint_qualifying_result=sq_grid if sprint_grid_source == "ACTUAL" else None,
         )
         timing["main_quali"] = time.time() - mq_start
         results["main_quali"] = mq_result

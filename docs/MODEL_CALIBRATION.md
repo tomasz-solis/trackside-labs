@@ -1,6 +1,6 @@
 # Model calibration report, 2026 season
 
-*Generated: 2026-06-16T19:46:42.011345+00:00*
+*Generated: 2026-10-10T21:17:28.465284+00:00*
 
 Checks three things: are the uncertainty intervals honest, is the model biased
 for or against any driver or team, and does it beat a naive baseline.
@@ -12,17 +12,19 @@ after each race.
 
 ## Production Readiness Gate
 
-- Status: **PASS**
-- Score estimate: **95/100**
+- Status: **FAIL**
+- Score estimate: **88/100**
 
-No blocking reasons.
+Blocking reasons:
+- qualifying MAE does not beat the previous-race naive baseline
+- qualifying interval coverage 0.755 is outside [0.870, 0.930]
 
 | Metric | Value |
 |---|---|
-| Scored race weekends | 7 |
-| Qualifying MAE improvement vs naive | 0.12 |
-| Race MAE improvement vs naive | 0.52 |
-| Qualifying interval coverage | 90.3% |
+| Scored race weekends | 16 |
+| Qualifying MAE improvement vs naive | -0.18 |
+| Race MAE improvement vs naive | 0.93 |
+| Qualifying interval coverage | 75.5% |
 
 ---
 
@@ -30,28 +32,30 @@ No blocking reasons.
 
 - Prediction source: **artifact_store**
 - Event order: **season_calendar**
-- Prediction artifacts analyzed: **27**
-- Latest qualifying checkpoints selected: **7**
-- Latest race checkpoints selected: **7**
-- Qualifying races with actuals: **7**
-- Race results with actuals: **7**
-- Intermediate qualifying checkpoints ignored in canonical evaluation: **20**
-- Intermediate race checkpoints ignored in canonical evaluation: **20**
+- Prediction artifacts analyzed: **72**
+- Latest qualifying checkpoints selected: **16**
+- Latest race checkpoints selected: **18**
+- Qualifying races with actuals: **16**
+- Race results with actuals: **18**
+- Intermediate qualifying checkpoints ignored in canonical evaluation: **56**
+- Intermediate race checkpoints ignored in canonical evaluation: **54**
 
 ---
 
 ## 0. Accuracy Overview
 
-Production qualifying metrics include the documented time-aware rank stabilizer
-and conformal interval widening described below. Raw qualifying diagnostics
-are retained for audit comparison.
+Both rows score the forecasts as the site served them.
 
 | Session | Events | MAE | Exact match | Within-3 | Spearman rho | Kendall tau |
 |---|---|---|---|---|---|---|
-| Qualifying | 7 | 2.86 | 14.29% | 70.78% | 0.81 | 0.66 |
-| Race | 7 | 4.01 | 11.04% | 57.14% | 0.62 | 0.48 |
+| Qualifying | 16 | 2.90 | 18.22% | 67.57% | 0.80 | 0.63 |
+| Race | 18 | 3.38 | 14.39% | 67.17% | 0.70 | 0.57 |
 
-### Production Qualifying Stabilizer
+### Candidate: qualifying stabilizer (not live)
+
+A what-if on the same forecasts. The site does not run it and the gate ignores it.
+The weights were set on this season, so the gain is partly in-sample.
+Replayed on the current model it loses (`docs/MODEL_LEDGER.md`, 2026-10-10).
 
 - Rank method: previous-race rank blend using only completed prior-race actuals.
 - Model rank weight: **0.40**
@@ -59,12 +63,12 @@ are retained for audit comparison.
 - Interval method: conformal widening from past interval residuals only.
 - Default margin before history is sufficient: **1.00 position(s)**
 - Minimum history events before learned margins: **3**
-- Raw qualifying MAE: **3.21**
-- Production qualifying MAE: **2.86**
-- Raw qualifying MAE improvement vs naive: **-0.29**
-- Production qualifying MAE improvement vs naive: **0.12**
-- Raw qualifying interval coverage: **77.3%**
-- Production qualifying interval coverage: **90.3%**
+- Served qualifying MAE: **2.90**
+- With stabilizer: **2.64**
+- Served MAE improvement vs naive: **-0.18**
+- With stabilizer: **0.09**
+- Served interval coverage: **75.5%**
+- With stabilizer: **88.6%**
 
 | Race | Target | Margin | Prior events available |
 |---|---|---|---|
@@ -75,13 +79,22 @@ are retained for audit comparison.
 | Canadian Grand Prix | sprint_qualifying | 1.00 | 4 |
 | Monaco Grand Prix | main_qualifying | 2.00 | 5 |
 | Barcelona Grand Prix | main_qualifying | 2.00 | 6 |
+| Austrian Grand Prix | main_qualifying | 2.00 | 7 |
+| British Grand Prix | sprint_qualifying | 2.00 | 8 |
+| Belgian Grand Prix | main_qualifying | 1.00 | 9 |
+| Hungarian Grand Prix | main_qualifying | 1.00 | 10 |
+| Dutch Grand Prix | sprint_qualifying | 1.00 | 11 |
+| Italian Grand Prix | main_qualifying | 1.00 | 12 |
+| Spanish Grand Prix | main_qualifying | 2.00 | 13 |
+| Azerbaijan Grand Prix | main_qualifying | 2.00 | 14 |
+| Bahrain Grand Prix | main_qualifying | 2.00 | 15 |
 
 ### Weekend Format Coverage
 
 | Format | Prediction artifacts | Qualifying pairs | Race pairs |
 |---|---|---|---|
-| normal | 17 | 14 | 14 |
-| sprint | 10 | 6 | 9 |
+| normal | 52 | 41 | 48 |
+| sprint | 20 | 10 | 17 |
 
 ---
 
@@ -93,21 +106,22 @@ Canonical evaluation uses `latest_checkpoint_per_race_and_target` so each race/t
 
 | Session | Checkpoint | Count |
 |---|---|---|
-| qualifying | FP1 | 3 |
+| qualifying | FP1 | 5 |
 | qualifying | FP2 | 1 |
-| qualifying | FP3 | 3 |
+| qualifying | FP3 | 10 |
 | race | FP2 | 1 |
 | race | FP3 | 3 |
-| race | SQ | 3 |
+| race | Q | 9 |
+| race | SQ | 5 |
 
 ### Selected Targets
 
 | Session | Target | Count |
 |---|---|---|
-| qualifying | main_qualifying | 4 |
-| qualifying | sprint_qualifying | 3 |
-| race | grand_prix_race | 4 |
-| race | sprint_race | 3 |
+| qualifying | main_qualifying | 11 |
+| qualifying | sprint_qualifying | 5 |
+| race | grand_prix_race | 13 |
+| race | sprint_race | 5 |
 
 ---
 
@@ -119,22 +133,22 @@ Canonical evaluation uses `latest_checkpoint_per_race_and_target` so each race/t
 
 | Bucket | Events | MAE | Exact match | Within-3 | Spearman rho |
 |---|---|---|---|---|---|
-| normal | 4 | 2.84 | 12.50% | 72.73% | 0.81 |
-| sprint | 3 | 2.88 | 16.67% | 68.18% | 0.82 |
+| normal | 11 | 2.92 | 19.01% | 67.77% | 0.79 |
+| sprint | 5 | 2.85 | 16.49% | 67.14% | 0.81 |
 
 #### Weather
 
 | Bucket | Events | MAE | Exact match | Within-3 | Spearman rho |
 |---|---|---|---|---|---|
-| dry | 7 | 2.86 | 14.29% | 70.78% | 0.81 |
+| dry | 16 | 2.90 | 18.22% | 67.57% | 0.80 |
 
 #### Track Type
 
 | Bucket | Events | MAE | Exact match | Within-3 | Spearman rho |
 |---|---|---|---|---|---|
-| permanent | 3 | 2.82 | 12.12% | 72.73% | 0.83 |
-| street | 3 | 2.85 | 19.70% | 71.21% | 0.79 |
-| unknown | 1 | 3.00 | 4.55% | 63.64% | 0.84 |
+| permanent | 11 | 2.79 | 18.65% | 66.88% | 0.82 |
+| street | 4 | 3.43 | 14.77% | 64.77% | 0.71 |
+| unknown | 1 | 1.91 | 27.27% | 86.36% | 0.92 |
 
 ### Race
 
@@ -142,22 +156,22 @@ Canonical evaluation uses `latest_checkpoint_per_race_and_target` so each race/t
 
 | Bucket | Events | MAE | Exact match | Within-3 | Spearman rho |
 |---|---|---|---|---|---|
-| normal | 4 | 4.73 | 7.95% | 50.00% | 0.50 |
-| sprint | 3 | 3.06 | 15.15% | 66.67% | 0.78 |
+| normal | 11 | 3.79 | 10.33% | 63.22% | 0.64 |
+| sprint | 7 | 2.73 | 20.78% | 73.38% | 0.79 |
 
 #### Weather
 
 | Bucket | Events | MAE | Exact match | Within-3 | Spearman rho |
 |---|---|---|---|---|---|
-| dry | 7 | 4.01 | 11.04% | 57.14% | 0.62 |
+| dry | 18 | 3.38 | 14.39% | 67.17% | 0.70 |
 
 #### Track Type
 
 | Bucket | Events | MAE | Exact match | Within-3 | Spearman rho |
 |---|---|---|---|---|---|
-| permanent | 3 | 3.03 | 13.64% | 69.70% | 0.78 |
-| street | 3 | 4.76 | 6.06% | 51.52% | 0.47 |
-| unknown | 1 | 4.73 | 18.18% | 36.36% | 0.56 |
+| permanent | 13 | 3.01 | 17.48% | 70.98% | 0.75 |
+| street | 4 | 4.75 | 5.68% | 50.00% | 0.51 |
+| unknown | 1 | 2.64 | 9.09% | 86.36% | 0.74 |
 
 ---
 
@@ -168,14 +182,14 @@ should land inside it.
 
 | Metric | Value |
 |---|---|
-| Races with interval data | 7 |
-| Driver-race predictions covered | 154 |
+| Races with interval data | 16 |
+| Driver-race predictions covered | 351 |
 | Nominal coverage (target) | 90.0% |
-| Empirical coverage (actual) | 90.3% |
-| Calibration error | 0.00 (+0.3%) |
-| Mean interval width | 9.63 positions |
+| Empirical coverage (actual) | 75.5% |
+| Calibration error | -0.15 (-14.5%) |
+| Mean interval width | 6.80 positions |
 
-OK Well-calibrated (within 3% of nominal).
+Warning: Intervals are too **tight** - model is overconfident by 14.5pp.
 
 Negative calibration error: intervals too narrow (overconfident).
 Positive: intervals too wide.
@@ -186,31 +200,31 @@ Positive: intervals too wide.
 
 ### Qualifying
 
-Evaluated **7** event(s).
+Evaluated **16** event(s).
 
 Worst weekends:
-- Canadian Grand Prix (`permanent`, `sprint`, `dry`) MAE=3.55, winner=NOR -> RUS
-- Monaco Grand Prix (`street`, `normal`, `dry`) MAE=3.36, winner=ANT -> ANT
-- Barcelona Grand Prix (`unknown`, `normal`, `dry`) MAE=3.00, winner=ANT -> RUS
+- Monaco Grand Prix (`street`, `normal`, `dry`) MAE=4.36, winner=ANT -> ANT
+- Barcelona Grand Prix (`permanent`, `normal`, `dry`) MAE=3.64, winner=VER -> RUS
+- Canadian Grand Prix (`permanent`, `sprint`, `dry`) MAE=3.55, winner=VER -> RUS
 
 Drivers that show up repeatedly among the largest misses:
-- VER: appearances=3, avg_abs_error=10.00
-- LAW: appearances=3, avg_abs_error=9.00
-- LIN: appearances=3, avg_abs_error=6.33
+- SAI: appearances=8, avg_abs_error=6.88
+- LAW: appearances=5, avg_abs_error=9.00
+- ALB: appearances=4, avg_abs_error=7.75
 
 ### Race
 
-Evaluated **7** event(s).
+Evaluated **18** event(s).
 
 Worst weekends:
 - Monaco Grand Prix (`street`, `normal`, `dry`) MAE=6.91, winner=VER -> ANT
-- Barcelona Grand Prix (`unknown`, `normal`, `dry`) MAE=4.73, winner=VER -> HAM
-- Australian Grand Prix (`street`, `normal`, `dry`) MAE=4.18, winner=LEC -> RUS
+- Barcelona Grand Prix (`permanent`, `normal`, `dry`) MAE=4.73, winner=VER -> HAM
+- Azerbaijan Grand Prix (`street`, `normal`, `dry`) MAE=4.73, winner=LEC -> RUS
 
 Drivers that show up repeatedly among the largest misses:
-- HAD: appearances=3, avg_abs_error=11.33
-- HUL: appearances=3, avg_abs_error=9.33
-- LAW: appearances=2, avg_abs_error=13.50
+- VER: appearances=4, avg_abs_error=14.25
+- PIA: appearances=4, avg_abs_error=11.75
+- HUL: appearances=4, avg_abs_error=9.00
 
 ---
 
@@ -222,41 +236,41 @@ Positive = model predicted *worse* than reality (underestimated the driver).
 
 ### Qualifying
 
-Based on 7 races.
+Based on 16 races.
 
 **Most overestimated teams:**
-- Williams: mean signed error -1.50 (MAE 4.50, n=14)
-- Ferrari: mean signed error -1.29 (MAE 2.14, n=14)
-- Red Bull Racing: mean signed error -1.21 (MAE 3.64, n=14)
+- Williams: mean signed error -2.12 (MAE 4.44, n=32)
+- Red Bull Racing: mean signed error -1.58 (MAE 2.87, n=31)
+- Haas F1 Team: mean signed error -1.34 (MAE 3.16, n=32)
 
 **Most underestimated teams:**
-- Mercedes: mean signed error 1.14 (MAE 2.29, n=14)
-- McLaren: mean signed error 1.07 (MAE 2.07, n=14)
-- Alpine: mean signed error 1.07 (MAE 3.21, n=14)
+- McLaren: mean signed error 2.12 (MAE 3.00, n=32)
+- Audi: mean signed error 2.06 (MAE 3.44, n=32)
+- Alpine: mean signed error 1.97 (MAE 3.28, n=32)
 
 **Most overestimated drivers:**
-- LEC: mean signed error -2.43 (MAE 2.71, n=7)
-- VER: mean signed error -2.29 (MAE 5.71, n=7)
-- ALB: mean signed error -2.00 (MAE 4.86, n=7)
+- TSU: mean signed error -4.00 (MAE 4.00, n=2)
+- VER: mean signed error -2.50 (MAE 3.38, n=16)
+- SAI: mean signed error -2.50 (MAE 4.62, n=16)
 
 **Most underestimated drivers:**
-- COL: mean signed error 2.43 (MAE 2.71, n=7)
-- ANT: mean signed error 1.43 (MAE 2.00, n=7)
-- PER: mean signed error 1.29 (MAE 1.86, n=7)
+- COL: mean signed error 2.69 (MAE 3.69, n=16)
+- PIA: mean signed error 2.44 (MAE 2.81, n=16)
+- BOR: mean signed error 2.06 (MAE 3.31, n=16)
 
 ### Race
 
-Based on 7 races.
+Based on 18 races.
 
 **Most overestimated drivers:**
-- HUL: mean signed error -5.71 (MAE 6.86, n=7)
-- VER: mean signed error -5.43 (MAE 5.43, n=7)
-- HAD: mean signed error -4.29 (MAE 5.71, n=7)
+- VER: mean signed error -3.72 (MAE 4.72, n=18)
+- LEC: mean signed error -2.56 (MAE 3.78, n=18)
+- HAD: mean signed error -2.29 (MAE 3.29, n=14)
 
 **Most underestimated drivers:**
-- LAW: mean signed error 5.14 (MAE 6.86, n=7)
-- OCO: mean signed error 3.71 (MAE 3.71, n=7)
-- GAS: mean signed error 3.71 (MAE 4.29, n=7)
+- STR: mean signed error 2.67 (MAE 2.67, n=18)
+- LAW: mean signed error 2.61 (MAE 4.17, n=18)
+- OCO: mean signed error 2.56 (MAE 3.22, n=18)
 
 ---
 
@@ -267,27 +281,27 @@ Naive baseline: predict race N using the actual results of race N-1
 
 ### Qualifying
 
-Based on 6 races.
+Based on 15 races.
 
 | Metric | Model | Naive baseline | Delta |
 |---|---|---|---|
-| MAE | 2.86 | 2.98 | 0.12 |
-| Within-3 rate | 68.2% | 62.9% | - |
-| Spearman rho | 0.82 | 0.81 | 0.01 |
-| Kendall tau | 0.66 | 0.63 | 0.02 |
+| MAE | 2.90 | 2.72 | -0.18 |
+| Within-3 rate | 66.3% | 68.8% | - |
+| Spearman rho | 0.80 | 0.83 | -0.02 |
+| Kendall tau | 0.63 | 0.66 | -0.04 |
 
-OK Model beats naive baseline on MAE
+Failed Model does not beat naive baseline on MAE
 
 ### Race
 
-Based on 6 races.
+Based on 17 races.
 
 | Metric | Model | Naive baseline | Delta |
 |---|---|---|---|
-| MAE | 3.98 | 4.50 | 0.52 |
-| Within-3 rate | 56.8% | 56.1% | - |
-| Spearman rho | 0.62 | 0.51 | 0.11 |
-| Kendall tau | 0.48 | 0.38 | 0.10 |
+| MAE | 3.33 | 4.26 | 0.93 |
+| Within-3 rate | 67.6% | 58.0% | - |
+| Spearman rho | 0.70 | 0.54 | 0.16 |
+| Kendall tau | 0.58 | 0.42 | 0.16 |
 
 OK Model beats naive baseline on MAE
 

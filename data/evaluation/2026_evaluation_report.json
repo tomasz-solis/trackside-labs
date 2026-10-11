@@ -1,265 +1,262 @@
 {
-  "generated_at": "2026-06-16T19:46:42.011345+00:00",
+  "generated_at": "2026-10-10T21:17:28.465284+00:00",
   "year": 2026,
-  "predictions_analyzed": 27,
+  "predictions_analyzed": 72,
   "evaluation_scope": {
     "selection_policy": "latest_checkpoint_per_race_and_target",
     "prediction_source": "artifact_store",
     "event_order": "season_calendar",
-    "production_adjustments_applied": {
-      "qualifying": true,
-      "race": false
-    },
     "ignored_intermediate_checkpoints": {
-      "qualifying": 20,
-      "race": 20
+      "qualifying": 56,
+      "race": 54
     },
     "selected_prediction_counts": {
-      "qualifying": 7,
-      "race": 7
+      "qualifying": 16,
+      "race": 18
     },
     "selected_checkpoint_breakdown": {
       "qualifying": {
-        "FP1": 3,
+        "FP1": 5,
         "FP2": 1,
-        "FP3": 3
+        "FP3": 10
       },
       "race": {
         "FP2": 1,
         "FP3": 3,
-        "SQ": 3
+        "Q": 9,
+        "SQ": 5
       }
     },
     "selected_target_breakdown": {
       "qualifying": {
-        "main_qualifying": 4,
-        "sprint_qualifying": 3
+        "main_qualifying": 11,
+        "sprint_qualifying": 5
       },
       "race": {
-        "grand_prix_race": 4,
-        "sprint_race": 3
+        "grand_prix_race": 13,
+        "sprint_race": 5
       }
     }
   },
-  "qualifying_pairs": 7,
-  "race_pairs": 7,
+  "qualifying_pairs": 16,
+  "race_pairs": 18,
   "format_breakdown": {
     "sprint": {
-      "prediction_files": 10,
-      "qualifying_pairs": 6,
-      "race_pairs": 9
+      "prediction_files": 20,
+      "qualifying_pairs": 10,
+      "race_pairs": 17
     },
     "normal": {
-      "prediction_files": 17,
-      "qualifying_pairs": 14,
-      "race_pairs": 14
+      "prediction_files": 52,
+      "qualifying_pairs": 41,
+      "race_pairs": 48
     }
   },
   "segment_breakdown": {
     "qualifying": {
       "weekend_format": {
         "normal": {
-          "events": 4,
-          "mae": 2.840909090909091,
-          "exact_match_rate": 12.5,
-          "within_3_rate": 72.72727272727272,
-          "spearman_rank": 0.8054771315640881,
-          "kendall_tau": 0.6666666666666667
+          "events": 11,
+          "mae": 2.9173553719008267,
+          "exact_match_rate": 19.008264462809915,
+          "within_3_rate": 67.76859504132231,
+          "spearman_rank": 0.793234433550639,
+          "kendall_tau": 0.6284927194018103
         },
         "sprint": {
-          "events": 3,
-          "mae": 2.878787878787879,
-          "exact_match_rate": 16.666666666666664,
-          "within_3_rate": 68.18181818181819,
-          "spearman_rank": 0.818934688499906,
-          "kendall_tau": 0.6507936507936507
+          "events": 5,
+          "mae": 2.8536796536796536,
+          "exact_match_rate": 16.493506493506494,
+          "within_3_rate": 67.14285714285714,
+          "spearman_rank": 0.8059853190287974,
+          "kendall_tau": 0.6387878787878788
         }
       },
       "weather": {
         "dry": {
-          "events": 7,
-          "mae": 2.857142857142857,
-          "exact_match_rate": 14.285714285714288,
-          "within_3_rate": 70.77922077922078,
-          "spearman_rank": 0.8112446559651528,
-          "kendall_tau": 0.6598639455782314
+          "events": 16,
+          "mae": 2.8974567099567103,
+          "exact_match_rate": 18.222402597402592,
+          "within_3_rate": 67.57305194805194,
+          "spearman_rank": 0.7972190852625635,
+          "kendall_tau": 0.6317099567099568
         }
       },
       "track_type": {
         "permanent": {
-          "events": 3,
-          "mae": 2.818181818181818,
-          "exact_match_rate": 12.12121212121212,
-          "within_3_rate": 72.72727272727273,
-          "spearman_rank": 0.8272162619988707,
-          "kendall_tau": 0.6623376623376623
+          "events": 11,
+          "mae": 2.792994883903975,
+          "exact_match_rate": 18.654073199527744,
+          "within_3_rate": 66.88311688311688,
+          "spearman_rank": 0.8178738257789643,
+          "kendall_tau": 0.6398268398268399
         },
         "street": {
-          "events": 3,
-          "mae": 2.848484848484848,
-          "exact_match_rate": 19.696969696969695,
-          "within_3_rate": 71.2121212121212,
-          "spearman_rank": 0.785055524185959,
-          "kendall_tau": 0.6594516594516594
+          "events": 4,
+          "mae": 3.431818181818182,
+          "exact_match_rate": 14.772727272727272,
+          "within_3_rate": 64.77272727272727,
+          "spearman_rank": 0.7106154714850368,
+          "kendall_tau": 0.5735930735930737
         },
         "unknown": {
           "events": 1,
-          "mae": 3.0,
-          "exact_match_rate": 4.545454545454546,
-          "within_3_rate": 63.63636363636363,
-          "spearman_rank": 0.8418972332015812,
-          "kendall_tau": 0.6536796536796536
+          "mae": 1.9090909090909092,
+          "exact_match_rate": 27.27272727272727,
+          "within_3_rate": 86.36363636363636,
+          "spearman_rank": 0.9164313946922643,
+          "kendall_tau": 0.774891774891775
         }
       }
     },
     "race": {
       "weekend_format": {
         "normal": {
-          "events": 4,
-          "mae": 4.7272727272727275,
-          "exact_match_rate": 7.954545454545455,
-          "within_3_rate": 50.0,
-          "spearman_rank": 0.49717673630717113,
-          "kendall_tau": 0.37662337662337664
+          "events": 11,
+          "mae": 3.793388429752066,
+          "exact_match_rate": 10.330578512396697,
+          "within_3_rate": 63.223140495867774,
+          "spearman_rank": 0.6398542169293159,
+          "kendall_tau": 0.51357733175915
         },
         "sprint": {
-          "events": 3,
-          "mae": 3.0606060606060606,
-          "exact_match_rate": 15.15151515151515,
-          "within_3_rate": 66.66666666666667,
-          "spearman_rank": 0.7760210803689066,
-          "kendall_tau": 0.6219336219336219
+          "events": 7,
+          "mae": 2.727272727272727,
+          "exact_match_rate": 20.779220779220775,
+          "within_3_rate": 73.37662337662337,
+          "spearman_rank": 0.7865612648221345,
+          "kendall_tau": 0.6598639455782312
         }
       },
       "weather": {
         "dry": {
-          "events": 7,
-          "mae": 4.012987012987013,
-          "exact_match_rate": 11.03896103896104,
-          "within_3_rate": 57.142857142857146,
-          "spearman_rank": 0.616681455190772,
-          "kendall_tau": 0.48175633889919606
+          "events": 18,
+          "mae": 3.378787878787878,
+          "exact_match_rate": 14.393939393939396,
+          "within_3_rate": 67.17171717171716,
+          "spearman_rank": 0.6969069577765229,
+          "kendall_tau": 0.5704665704665705
         }
       },
       "track_type": {
         "permanent": {
-          "events": 3,
-          "mae": 3.03030303030303,
-          "exact_match_rate": 13.636363636363635,
-          "within_3_rate": 69.69696969696969,
-          "spearman_rank": 0.7771503858460381,
-          "kendall_tau": 0.6190476190476191
+          "events": 13,
+          "mae": 3.0139860139860133,
+          "exact_match_rate": 17.482517482517483,
+          "within_3_rate": 70.97902097902097,
+          "spearman_rank": 0.7525083612040137,
+          "kendall_tau": 0.621045621045621
         },
         "street": {
-          "events": 3,
-          "mae": 4.757575757575758,
-          "exact_match_rate": 6.060606060606061,
-          "within_3_rate": 51.51515151515152,
-          "spearman_rank": 0.47374364765669125,
-          "kendall_tau": 0.36219336219336223
+          "events": 4,
+          "mae": 4.75,
+          "exact_match_rate": 5.6818181818181825,
+          "within_3_rate": 50.0,
+          "spearman_rank": 0.5050818746470922,
+          "kendall_tau": 0.37878787878787884
         },
         "unknown": {
           "events": 1,
-          "mae": 4.7272727272727275,
-          "exact_match_rate": 18.181818181818183,
-          "within_3_rate": 36.36363636363637,
-          "spearman_rank": 0.5640880858272164,
-          "kendall_tau": 0.4285714285714286
+          "mae": 2.6363636363636362,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 86.36363636363636,
+          "spearman_rank": 0.7413890457368719,
+          "kendall_tau": 0.6796536796536796
         }
       }
     }
   },
   "qualifying_accuracy": {
     "label": "qualifying",
-    "events_evaluated": 7,
-    "mae": 2.857142857142857,
-    "weighted_mae": 2.740877177881328,
-    "finisher_mae": 2.857142857142857,
+    "events_evaluated": 16,
+    "mae": 2.8974567099567103,
+    "weighted_mae": 3.158945675504138,
+    "finisher_mae": 2.8974567099567103,
     "total_dnf_count": 0,
-    "exact_match_rate": 14.285714285714288,
-    "within_3_rate": 70.77922077922078,
-    "spearman_rank": 0.8112446559651528,
-    "kendall_tau": 0.6598639455782314
+    "exact_match_rate": 18.222402597402592,
+    "within_3_rate": 67.57305194805194,
+    "spearman_rank": 0.7972190852625635,
+    "kendall_tau": 0.6317099567099568
   },
   "race_accuracy": {
     "label": "race",
-    "events_evaluated": 7,
-    "mae": 4.012987012987013,
-    "weighted_mae": 3.7723761751825178,
-    "finisher_mae": 4.0939648586707404,
-    "total_dnf_count": 5,
-    "exact_match_rate": 11.03896103896104,
-    "within_3_rate": 57.142857142857146,
-    "spearman_rank": 0.616681455190772,
-    "kendall_tau": 0.48175633889919606
+    "events_evaluated": 18,
+    "mae": 3.378787878787878,
+    "weighted_mae": 3.266793304465459,
+    "finisher_mae": 3.1783610218852734,
+    "total_dnf_count": 38,
+    "exact_match_rate": 14.393939393939396,
+    "within_3_rate": 67.17171717171716,
+    "spearman_rank": 0.6969069577765229,
+    "kendall_tau": 0.5704665704665705
   },
   "race_dnf_calibration": {
-    "events_scored": 7,
-    "scored_drivers": 154,
-    "actual_dnf_count": 5,
-    "brier_score": 0.03895302597402597,
-    "baseline_brier": 0.025088547815820542,
-    "brier_skill_score": NaN
+    "events_scored": 18,
+    "scored_drivers": 396,
+    "actual_dnf_count": 38,
+    "brier_score": 0.08865706818181816,
+    "baseline_brier": 0.07828282828282829,
+    "brier_skill_score": -0.13252254838709643
   },
   "calibration": {
-    "interval_count": 154.0,
-    "empirical_coverage": 0.9025974025974026,
+    "interval_count": 351.0,
+    "empirical_coverage": 0.7549857549857549,
     "nominal_coverage": 0.9,
-    "calibration_error": 0.0025974025974025983,
-    "mean_interval_width": 9.62987012987013,
-    "average_miss_distance": 3.0,
-    "races_with_band_data": 7.0,
-    "total_races_evaluated": 7.0
+    "calibration_error": -0.1450142450142451,
+    "mean_interval_width": 6.800569800569801,
+    "average_miss_distance": 2.616279069767442,
+    "races_with_band_data": 16.0,
+    "total_races_evaluated": 16.0
   },
-  "raw_qualifying_accuracy": {
-    "label": "raw_qualifying",
-    "events_evaluated": 7,
-    "mae": 3.2077922077922083,
-    "weighted_mae": 3.4485432711731785,
-    "finisher_mae": 3.2077922077922083,
+  "stabilizer_candidate_accuracy": {
+    "label": "qualifying_stabilizer_candidate",
+    "events_evaluated": 16,
+    "mae": 2.6420454545454546,
+    "weighted_mae": 3.068510594375587,
+    "finisher_mae": 2.6420454545454546,
     "total_dnf_count": 0,
-    "exact_match_rate": 18.18181818181818,
-    "within_3_rate": 64.93506493506494,
-    "spearman_rank": 0.7438089860450109,
-    "kendall_tau": 0.588126159554731
+    "exact_match_rate": 13.676948051948049,
+    "within_3_rate": 72.65963203463203,
+    "spearman_rank": 0.8392398362507059,
+    "kendall_tau": 0.6804112554112555
   },
-  "raw_qualifying_calibration": {
-    "interval_count": 154.0,
-    "empirical_coverage": 0.7727272727272727,
+  "stabilizer_candidate_calibration": {
+    "interval_count": 351.0,
+    "empirical_coverage": 0.886039886039886,
     "nominal_coverage": 0.9,
-    "calibration_error": -0.12727272727272732,
-    "mean_interval_width": 7.759740259740259,
-    "average_miss_distance": 3.057142857142857,
-    "races_with_band_data": 7.0,
-    "total_races_evaluated": 7.0
+    "calibration_error": -0.013960113960113985,
+    "mean_interval_width": 8.957264957264957,
+    "average_miss_distance": 2.45,
+    "races_with_band_data": 16.0,
+    "total_races_evaluated": 16.0
   },
-  "raw_qualifying_vs_baseline": {
-    "events_compared": 6,
+  "stabilizer_candidate_vs_baseline": {
+    "events_compared": 15,
     "model_metrics": {
-      "mae": 3.272727272727273,
-      "exact_match_rate": 19.696969696969695,
-      "within_3_rate": 61.363636363636374,
-      "spearman_rank": 0.7440240918501789,
-      "kendall_tau": 0.5728715728715729
+      "mae": 2.6303030303030304,
+      "exact_match_rate": 13.982683982683977,
+      "within_3_rate": 71.74603174603175,
+      "spearman_rank": 0.8456879352531528,
+      "kendall_tau": 0.6804617604617604
     },
     "baseline_metrics": {
-      "mae": 2.984848484848485,
-      "exact_match_rate": 14.393939393939396,
-      "within_3_rate": 62.87878787878788,
-      "spearman_rank": 0.8080180688876343,
-      "kendall_tau": 0.634920634920635
+      "mae": 2.719191919191919,
+      "exact_match_rate": 17.085137085137085,
+      "within_3_rate": 68.83116883116882,
+      "spearman_rank": 0.8254244306418222,
+      "kendall_tau": 0.6637229437229438
     },
     "improvement": {
-      "mae_improvement": -0.28787878787878807,
-      "exact_match_rate_delta": 5.303030303030299,
-      "within_3_rate_delta": -1.5151515151515085,
-      "spearman_rank_delta": -0.06399397703745535,
-      "kendall_tau_delta": -0.06204906204906213
+      "mae_improvement": 0.08888888888888857,
+      "exact_match_rate_delta": -3.102453102453108,
+      "within_3_rate_delta": 2.9148629148629226,
+      "spearman_rank_delta": 0.02026350461133053,
+      "kendall_tau_delta": 0.01673881673881661
     },
-    "model_beats_baseline_on_mae": false,
-    "label": "raw_qualifying"
+    "model_beats_baseline_on_mae": true,
+    "label": "qualifying_stabilizer_candidate"
   },
-  "production_adjustments": {
+  "qualifying_stabilizer_candidate": {
     "qualifying_rank_stabilizer": {
       "method": "previous_race_rank_blend",
       "model_rank_weight": 0.4,
@@ -315,44 +312,136 @@
         "target": "main_qualifying",
         "margin": 2.0,
         "history_events_available": 6
+      },
+      {
+        "race_name": "Austrian Grand Prix",
+        "target": "main_qualifying",
+        "margin": 2.0,
+        "history_events_available": 7
+      },
+      {
+        "race_name": "British Grand Prix",
+        "target": "sprint_qualifying",
+        "margin": 2.0,
+        "history_events_available": 8
+      },
+      {
+        "race_name": "Belgian Grand Prix",
+        "target": "main_qualifying",
+        "margin": 1.0,
+        "history_events_available": 9
+      },
+      {
+        "race_name": "Hungarian Grand Prix",
+        "target": "main_qualifying",
+        "margin": 1.0,
+        "history_events_available": 10
+      },
+      {
+        "race_name": "Dutch Grand Prix",
+        "target": "sprint_qualifying",
+        "margin": 1.0,
+        "history_events_available": 11
+      },
+      {
+        "race_name": "Italian Grand Prix",
+        "target": "main_qualifying",
+        "margin": 1.0,
+        "history_events_available": 12
+      },
+      {
+        "race_name": "Spanish Grand Prix",
+        "target": "main_qualifying",
+        "margin": 2.0,
+        "history_events_available": 13
+      },
+      {
+        "race_name": "Azerbaijan Grand Prix",
+        "target": "main_qualifying",
+        "margin": 2.0,
+        "history_events_available": 14
+      },
+      {
+        "race_name": "Bahrain Grand Prix",
+        "target": "main_qualifying",
+        "margin": 2.0,
+        "history_events_available": 15
       }
     ]
   },
   "error_analysis": {
     "qualifying": {
-      "events_evaluated": 7,
+      "events_evaluated": 16,
       "worst_events": [
         {
-          "race_name": "Canadian Grand Prix",
-          "weekend_format": "sprint",
+          "race_name": "Monaco Grand Prix",
+          "weekend_format": "normal",
+          "weather": "dry",
+          "track_type": "street",
+          "mae": 4.363636363636363,
+          "exact_match_rate": 27.27272727272727,
+          "within_3_rate": 40.909090909090914,
+          "predicted_winner": "ANT",
+          "actual_winner": "ANT",
+          "winner_correct": true,
+          "top_misses": [
+            {
+              "driver": "PIA",
+              "team": "McLaren",
+              "predicted_position": 20,
+              "actual_position": 7,
+              "signed_error": 13.0,
+              "absolute_error": 13.0
+            },
+            {
+              "driver": "LAW",
+              "team": "RB",
+              "predicted_position": 21,
+              "actual_position": 10,
+              "signed_error": 11.0,
+              "absolute_error": 11.0
+            },
+            {
+              "driver": "BEA",
+              "team": "Haas F1 Team",
+              "predicted_position": 8,
+              "actual_position": 19,
+              "signed_error": -11.0,
+              "absolute_error": 11.0
+            }
+          ]
+        },
+        {
+          "race_name": "Barcelona Grand Prix",
+          "weekend_format": "normal",
           "weather": "dry",
           "track_type": "permanent",
-          "mae": 3.5454545454545454,
+          "mae": 3.6363636363636362,
           "exact_match_rate": 13.636363636363635,
-          "within_3_rate": 59.09090909090909,
-          "predicted_winner": "NOR",
+          "within_3_rate": 54.54545454545454,
+          "predicted_winner": "VER",
           "actual_winner": "RUS",
           "winner_correct": false,
           "top_misses": [
             {
-              "driver": "ALB",
+              "driver": "SAI",
               "team": "Williams",
-              "predicted_position": 9,
-              "actual_position": 21,
-              "signed_error": -12.0,
-              "absolute_error": 12.0
-            },
-            {
-              "driver": "LIN",
-              "team": "RB",
-              "predicted_position": 17,
-              "actual_position": 9,
-              "signed_error": 8.0,
+              "predicted_position": 8,
+              "actual_position": 16,
+              "signed_error": -8.0,
               "absolute_error": 8.0
             },
             {
               "driver": "LAW",
               "team": "RB",
+              "predicted_position": 16,
+              "actual_position": 8,
+              "signed_error": 8.0,
+              "absolute_error": 8.0
+            },
+            {
+              "driver": "ALO",
+              "team": "Aston Martin",
               "predicted_position": 14,
               "actual_position": 22,
               "signed_error": -8.0,
@@ -361,154 +450,116 @@
           ]
         },
         {
-          "race_name": "Monaco Grand Prix",
-          "weekend_format": "normal",
+          "race_name": "Canadian Grand Prix",
+          "weekend_format": "sprint",
           "weather": "dry",
-          "track_type": "street",
-          "mae": 3.3636363636363638,
-          "exact_match_rate": 22.727272727272727,
-          "within_3_rate": 54.54545454545454,
-          "predicted_winner": "ANT",
-          "actual_winner": "ANT",
-          "winner_correct": true,
+          "track_type": "permanent",
+          "mae": 3.5454545454545454,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 59.09090909090909,
+          "predicted_winner": "VER",
+          "actual_winner": "RUS",
+          "winner_correct": false,
           "top_misses": [
             {
               "driver": "LAW",
               "team": "RB",
-              "predicted_position": 22,
-              "actual_position": 10,
-              "signed_error": 12.0,
-              "absolute_error": 12.0
-            },
-            {
-              "driver": "GAS",
-              "team": "Alpine",
-              "predicted_position": 17,
-              "actual_position": 9,
-              "signed_error": 8.0,
-              "absolute_error": 8.0
+              "predicted_position": 9,
+              "actual_position": 22,
+              "signed_error": -13.0,
+              "absolute_error": 13.0
             },
             {
               "driver": "ALB",
               "team": "Williams",
-              "predicted_position": 19,
-              "actual_position": 11,
+              "predicted_position": 10,
+              "actual_position": 21,
+              "signed_error": -11.0,
+              "absolute_error": 11.0
+            },
+            {
+              "driver": "COL",
+              "team": "Alpine",
+              "predicted_position": 21,
+              "actual_position": 13,
               "signed_error": 8.0,
               "absolute_error": 8.0
             }
           ]
         },
         {
-          "race_name": "Barcelona Grand Prix",
+          "race_name": "Belgian Grand Prix",
           "weekend_format": "normal",
           "weather": "dry",
-          "track_type": "unknown",
-          "mae": 3.0,
+          "track_type": "permanent",
+          "mae": 3.3636363636363638,
           "exact_match_rate": 4.545454545454546,
-          "within_3_rate": 63.63636363636363,
-          "predicted_winner": "ANT",
-          "actual_winner": "RUS",
+          "within_3_rate": 54.54545454545454,
+          "predicted_winner": "RUS",
+          "actual_winner": "ANT",
           "winner_correct": false,
           "top_misses": [
-            {
-              "driver": "SAI",
-              "team": "Williams",
-              "predicted_position": 9,
-              "actual_position": 16,
-              "signed_error": -7.0,
-              "absolute_error": 7.0
-            },
-            {
-              "driver": "LEC",
-              "team": "Ferrari",
-              "predicted_position": 4,
-              "actual_position": 10,
-              "signed_error": -6.0,
-              "absolute_error": 6.0
-            },
             {
               "driver": "BOR",
               "team": "Audi",
               "predicted_position": 18,
-              "actual_position": 12,
-              "signed_error": 6.0,
-              "absolute_error": 6.0
-            }
-          ]
-        },
-        {
-          "race_name": "Australian Grand Prix",
-          "weekend_format": "normal",
-          "weather": "dry",
-          "track_type": "street",
-          "mae": 2.8181818181818183,
-          "exact_match_rate": 9.090909090909092,
-          "within_3_rate": 86.36363636363636,
-          "predicted_winner": "LEC",
-          "actual_winner": "RUS",
-          "winner_correct": false,
-          "top_misses": [
+              "actual_position": 9,
+              "signed_error": 9.0,
+              "absolute_error": 9.0
+            },
             {
-              "driver": "VER",
-              "team": "Red Bull Racing",
-              "predicted_position": 2,
-              "actual_position": 20,
-              "signed_error": -18.0,
-              "absolute_error": 18.0
+              "driver": "HUL",
+              "team": "Audi",
+              "predicted_position": 21,
+              "actual_position": 14,
+              "signed_error": 7.0,
+              "absolute_error": 7.0
             },
             {
               "driver": "SAI",
               "team": "Williams",
-              "predicted_position": 16,
-              "actual_position": 22,
+              "predicted_position": 9,
+              "actual_position": 15,
               "signed_error": -6.0,
               "absolute_error": 6.0
-            },
-            {
-              "driver": "PER",
-              "team": "Cadillac F1",
-              "predicted_position": 22,
-              "actual_position": 18,
-              "signed_error": 4.0,
-              "absolute_error": 4.0
             }
           ]
         },
         {
-          "race_name": "Chinese Grand Prix",
+          "race_name": "Miami Grand Prix",
           "weekend_format": "sprint",
           "weather": "dry",
-          "track_type": "permanent",
-          "mae": 2.727272727272727,
+          "track_type": "street",
+          "mae": 3.272727272727273,
           "exact_match_rate": 9.090909090909092,
-          "within_3_rate": 72.72727272727273,
-          "predicted_winner": "RUS",
-          "actual_winner": "RUS",
-          "winner_correct": true,
+          "within_3_rate": 63.63636363636363,
+          "predicted_winner": "LEC",
+          "actual_winner": "NOR",
+          "winner_correct": false,
           "top_misses": [
             {
-              "driver": "VER",
-              "team": "Red Bull Racing",
-              "predicted_position": 16,
-              "actual_position": 8,
-              "signed_error": 8.0,
-              "absolute_error": 8.0
+              "driver": "ANT",
+              "team": "Mercedes",
+              "predicted_position": 13,
+              "actual_position": 2,
+              "signed_error": 11.0,
+              "absolute_error": 11.0
             },
             {
-              "driver": "LAW",
-              "team": "RB",
-              "predicted_position": 6,
-              "actual_position": 13,
+              "driver": "ALB",
+              "team": "Williams",
+              "predicted_position": 7,
+              "actual_position": 14,
               "signed_error": -7.0,
               "absolute_error": 7.0
             },
             {
-              "driver": "HAD",
-              "team": "Red Bull Racing",
-              "predicted_position": 4,
-              "actual_position": 10,
-              "signed_error": -6.0,
-              "absolute_error": 6.0
+              "driver": "SAI",
+              "team": "Williams",
+              "predicted_position": 10,
+              "actual_position": 15,
+              "signed_error": -5.0,
+              "absolute_error": 5.0
             }
           ]
         }
@@ -557,36 +608,36 @@
           "weekend_format": "normal",
           "weather": "dry",
           "track_type": "permanent",
-          "mae": 2.1818181818181817,
-          "exact_match_rate": 13.636363636363635,
-          "within_3_rate": 86.36363636363636,
+          "mae": 2.272727272727273,
+          "exact_match_rate": 27.27272727272727,
+          "within_3_rate": 77.27272727272727,
           "predicted_winner": "RUS",
           "actual_winner": "ANT",
           "winner_correct": false,
           "top_misses": [
             {
-              "driver": "BEA",
-              "team": "Haas F1 Team",
-              "predicted_position": 11,
-              "actual_position": 18,
-              "signed_error": -7.0,
-              "absolute_error": 7.0
-            },
-            {
-              "driver": "LIN",
-              "team": "RB",
-              "predicted_position": 16,
-              "actual_position": 10,
-              "signed_error": 6.0,
-              "absolute_error": 6.0
+              "driver": "ALB",
+              "team": "Williams",
+              "predicted_position": 8,
+              "actual_position": 17,
+              "signed_error": -9.0,
+              "absolute_error": 9.0
             },
             {
               "driver": "VER",
               "team": "Red Bull Racing",
-              "predicted_position": 7,
+              "predicted_position": 5,
               "actual_position": 11,
-              "signed_error": -4.0,
-              "absolute_error": 4.0
+              "signed_error": -6.0,
+              "absolute_error": 6.0
+            },
+            {
+              "driver": "OCO",
+              "team": "Haas F1 Team",
+              "predicted_position": 18,
+              "actual_position": 12,
+              "signed_error": 6.0,
+              "absolute_error": 6.0
             }
           ]
         },
@@ -595,34 +646,34 @@
           "weekend_format": "sprint",
           "weather": "dry",
           "track_type": "street",
-          "mae": 2.3636363636363638,
-          "exact_match_rate": 27.27272727272727,
-          "within_3_rate": 72.72727272727273,
+          "mae": 3.272727272727273,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 63.63636363636363,
           "predicted_winner": "LEC",
           "actual_winner": "NOR",
           "winner_correct": false,
           "top_misses": [
             {
-              "driver": "COL",
-              "team": "Alpine",
-              "predicted_position": 15,
-              "actual_position": 8,
-              "signed_error": 7.0,
+              "driver": "ANT",
+              "team": "Mercedes",
+              "predicted_position": 13,
+              "actual_position": 2,
+              "signed_error": 11.0,
+              "absolute_error": 11.0
+            },
+            {
+              "driver": "ALB",
+              "team": "Williams",
+              "predicted_position": 7,
+              "actual_position": 14,
+              "signed_error": -7.0,
               "absolute_error": 7.0
             },
             {
-              "driver": "OCO",
-              "team": "Haas F1 Team",
-              "predicted_position": 13,
-              "actual_position": 18,
-              "signed_error": -5.0,
-              "absolute_error": 5.0
-            },
-            {
-              "driver": "LIN",
-              "team": "RB",
-              "predicted_position": 11,
-              "actual_position": 16,
+              "driver": "SAI",
+              "team": "Williams",
+              "predicted_position": 10,
+              "actual_position": 15,
               "signed_error": -5.0,
               "absolute_error": 5.0
             }
@@ -634,34 +685,34 @@
           "weather": "dry",
           "track_type": "permanent",
           "mae": 3.5454545454545454,
-          "exact_match_rate": 13.636363636363635,
+          "exact_match_rate": 9.090909090909092,
           "within_3_rate": 59.09090909090909,
-          "predicted_winner": "NOR",
+          "predicted_winner": "VER",
           "actual_winner": "RUS",
           "winner_correct": false,
           "top_misses": [
             {
-              "driver": "ALB",
-              "team": "Williams",
-              "predicted_position": 9,
-              "actual_position": 21,
-              "signed_error": -12.0,
-              "absolute_error": 12.0
-            },
-            {
-              "driver": "LIN",
-              "team": "RB",
-              "predicted_position": 17,
-              "actual_position": 9,
-              "signed_error": 8.0,
-              "absolute_error": 8.0
-            },
-            {
               "driver": "LAW",
               "team": "RB",
-              "predicted_position": 14,
+              "predicted_position": 9,
               "actual_position": 22,
-              "signed_error": -8.0,
+              "signed_error": -13.0,
+              "absolute_error": 13.0
+            },
+            {
+              "driver": "ALB",
+              "team": "Williams",
+              "predicted_position": 10,
+              "actual_position": 21,
+              "signed_error": -11.0,
+              "absolute_error": 11.0
+            },
+            {
+              "driver": "COL",
+              "team": "Alpine",
+              "predicted_position": 21,
+              "actual_position": 13,
+              "signed_error": 8.0,
               "absolute_error": 8.0
             }
           ]
@@ -670,71 +721,71 @@
           "race_name": "Barcelona Grand Prix",
           "weekend_format": "normal",
           "weather": "dry",
-          "track_type": "unknown",
-          "mae": 3.0,
-          "exact_match_rate": 4.545454545454546,
-          "within_3_rate": 63.63636363636363,
-          "predicted_winner": "ANT",
+          "track_type": "permanent",
+          "mae": 3.6363636363636362,
+          "exact_match_rate": 13.636363636363635,
+          "within_3_rate": 54.54545454545454,
+          "predicted_winner": "VER",
           "actual_winner": "RUS",
           "winner_correct": false,
           "top_misses": [
             {
               "driver": "SAI",
               "team": "Williams",
-              "predicted_position": 9,
+              "predicted_position": 8,
               "actual_position": 16,
-              "signed_error": -7.0,
-              "absolute_error": 7.0
+              "signed_error": -8.0,
+              "absolute_error": 8.0
             },
             {
-              "driver": "LEC",
-              "team": "Ferrari",
-              "predicted_position": 4,
-              "actual_position": 10,
-              "signed_error": -6.0,
-              "absolute_error": 6.0
+              "driver": "LAW",
+              "team": "RB",
+              "predicted_position": 16,
+              "actual_position": 8,
+              "signed_error": 8.0,
+              "absolute_error": 8.0
             },
             {
-              "driver": "BOR",
-              "team": "Audi",
-              "predicted_position": 18,
-              "actual_position": 12,
-              "signed_error": 6.0,
-              "absolute_error": 6.0
+              "driver": "ALO",
+              "team": "Aston Martin",
+              "predicted_position": 14,
+              "actual_position": 22,
+              "signed_error": -8.0,
+              "absolute_error": 8.0
             }
           ]
         }
       ],
       "frequent_top_miss_drivers": [
         {
-          "driver": "VER",
-          "appearances": 3.0,
-          "avg_abs_error": 10.0
+          "driver": "SAI",
+          "appearances": 8.0,
+          "avg_abs_error": 6.875
         },
         {
           "driver": "LAW",
-          "appearances": 3.0,
+          "appearances": 5.0,
           "avg_abs_error": 9.0
         },
         {
-          "driver": "LIN",
-          "appearances": 3.0,
-          "avg_abs_error": 6.333333333333333
-        },
-        {
           "driver": "ALB",
-          "appearances": 2.0,
-          "avg_abs_error": 10.0
+          "appearances": 4.0,
+          "avg_abs_error": 7.75
         },
         {
-          "driver": "SAI",
-          "appearances": 2.0,
-          "avg_abs_error": 6.5
+          "driver": "COL",
+          "appearances": 4.0,
+          "avg_abs_error": 6.25
+        },
+        {
+          "driver": "VER",
+          "appearances": 3.0,
+          "avg_abs_error": 9.666666666666666
         }
       ]
     },
     "race": {
-      "events_evaluated": 7,
+      "events_evaluated": 18,
       "worst_events": [
         {
           "race_name": "Monaco Grand Prix",
@@ -778,7 +829,7 @@
           "race_name": "Barcelona Grand Prix",
           "weekend_format": "normal",
           "weather": "dry",
-          "track_type": "unknown",
+          "track_type": "permanent",
           "mae": 4.7272727272727275,
           "exact_match_rate": 18.181818181818183,
           "within_3_rate": 36.36363636363637,
@@ -809,6 +860,44 @@
               "actual_position": 11,
               "signed_error": 9.0,
               "absolute_error": 9.0
+            }
+          ]
+        },
+        {
+          "race_name": "Azerbaijan Grand Prix",
+          "weekend_format": "normal",
+          "weather": "dry",
+          "track_type": "street",
+          "mae": 4.7272727272727275,
+          "exact_match_rate": 4.545454545454546,
+          "within_3_rate": 45.45454545454545,
+          "predicted_winner": "LEC",
+          "actual_winner": "RUS",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "NOR",
+              "team": "McLaren",
+              "predicted_position": 6,
+              "actual_position": 19,
+              "signed_error": -13.0,
+              "absolute_error": 13.0
+            },
+            {
+              "driver": "OCO",
+              "team": "Haas F1 Team",
+              "predicted_position": 18,
+              "actual_position": 8,
+              "signed_error": 10.0,
+              "absolute_error": 10.0
+            },
+            {
+              "driver": "GAS",
+              "team": "Alpine",
+              "predicted_position": 8,
+              "actual_position": 18,
+              "signed_error": -10.0,
+              "absolute_error": 10.0
             }
           ]
         },
@@ -851,78 +940,40 @@
           ]
         },
         {
-          "race_name": "Chinese Grand Prix",
+          "race_name": "British Grand Prix",
           "weekend_format": "sprint",
           "weather": "dry",
           "track_type": "permanent",
-          "mae": 3.1818181818181817,
-          "exact_match_rate": 13.636363636363635,
+          "mae": 4.181818181818182,
+          "exact_match_rate": 18.181818181818183,
           "within_3_rate": 63.63636363636363,
-          "predicted_winner": "RUS",
-          "actual_winner": "RUS",
-          "winner_correct": true,
+          "predicted_winner": "ANT",
+          "actual_winner": "LEC",
+          "winner_correct": false,
           "top_misses": [
             {
-              "driver": "HUL",
-              "team": "Audi",
-              "predicted_position": 9,
-              "actual_position": 20,
-              "signed_error": -11.0,
-              "absolute_error": 11.0
-            },
-            {
-              "driver": "LIN",
-              "team": "RB",
-              "predicted_position": 15,
-              "actual_position": 22,
-              "signed_error": -7.0,
-              "absolute_error": 7.0
-            },
-            {
-              "driver": "HAD",
+              "driver": "VER",
               "team": "Red Bull Racing",
-              "predicted_position": 8,
-              "actual_position": 15,
-              "signed_error": -7.0,
-              "absolute_error": 7.0
-            }
-          ]
-        },
-        {
-          "race_name": "Miami Grand Prix",
-          "weekend_format": "sprint",
-          "weather": "dry",
-          "track_type": "street",
-          "mae": 3.1818181818181817,
-          "exact_match_rate": 9.090909090909092,
-          "within_3_rate": 59.09090909090909,
-          "predicted_winner": "NOR",
-          "actual_winner": "NOR",
-          "winner_correct": true,
-          "top_misses": [
-            {
-              "driver": "BOR",
-              "team": "Audi",
-              "predicted_position": 11,
-              "actual_position": 22,
-              "signed_error": -11.0,
-              "absolute_error": 11.0
-            },
-            {
-              "driver": "HUL",
-              "team": "Audi",
-              "predicted_position": 12,
+              "predicted_position": 3,
               "actual_position": 20,
-              "signed_error": -8.0,
-              "absolute_error": 8.0
+              "signed_error": -17.0,
+              "absolute_error": 17.0
             },
             {
-              "driver": "OCO",
-              "team": "Haas F1 Team",
+              "driver": "ANT",
+              "team": "Mercedes",
+              "predicted_position": 1,
+              "actual_position": 16,
+              "signed_error": -15.0,
+              "absolute_error": 15.0
+            },
+            {
+              "driver": "COL",
+              "team": "Alpine",
               "predicted_position": 18,
-              "actual_position": 11,
-              "signed_error": 7.0,
-              "absolute_error": 7.0
+              "actual_position": 9,
+              "signed_error": 9.0,
+              "absolute_error": 9.0
             }
           ]
         }
@@ -1046,7 +1097,7 @@
           "race_name": "Barcelona Grand Prix",
           "weekend_format": "normal",
           "weather": "dry",
-          "track_type": "unknown",
+          "track_type": "permanent",
           "mae": 4.7272727272727275,
           "exact_match_rate": 18.181818181818183,
           "within_3_rate": 36.36363636363637,
@@ -1079,826 +1130,879 @@
               "absolute_error": 9.0
             }
           ]
+        },
+        {
+          "race_name": "British Grand Prix",
+          "weekend_format": "sprint",
+          "weather": "dry",
+          "track_type": "permanent",
+          "mae": 1.4545454545454546,
+          "exact_match_rate": 13.636363636363635,
+          "within_3_rate": 95.45454545454545,
+          "predicted_winner": "HAM",
+          "actual_winner": "ANT",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "VER",
+              "team": "Red Bull Racing",
+              "predicted_position": 2,
+              "actual_position": 6,
+              "signed_error": -4.0,
+              "absolute_error": 4.0
+            },
+            {
+              "driver": "PER",
+              "team": "Cadillac F1",
+              "predicted_position": 19,
+              "actual_position": 22,
+              "signed_error": -3.0,
+              "absolute_error": 3.0
+            },
+            {
+              "driver": "NOR",
+              "team": "McLaren",
+              "predicted_position": 6,
+              "actual_position": 3,
+              "signed_error": 3.0,
+              "absolute_error": 3.0
+            }
+          ]
         }
       ],
       "frequent_top_miss_drivers": [
         {
-          "driver": "HAD",
-          "appearances": 3.0,
-          "avg_abs_error": 11.333333333333334
-        },
-        {
-          "driver": "HUL",
-          "appearances": 3.0,
-          "avg_abs_error": 9.333333333333334
-        },
-        {
-          "driver": "LAW",
-          "appearances": 2.0,
-          "avg_abs_error": 13.5
+          "driver": "VER",
+          "appearances": 4.0,
+          "avg_abs_error": 14.25
         },
         {
           "driver": "PIA",
-          "appearances": 2.0,
-          "avg_abs_error": 13.5
+          "appearances": 4.0,
+          "avg_abs_error": 11.75
         },
         {
-          "driver": "BOR",
-          "appearances": 2.0,
-          "avg_abs_error": 10.0
+          "driver": "HUL",
+          "appearances": 4.0,
+          "avg_abs_error": 9.0
+        },
+        {
+          "driver": "OCO",
+          "appearances": 4.0,
+          "avg_abs_error": 7.25
+        },
+        {
+          "driver": "ALO",
+          "appearances": 4.0,
+          "avg_abs_error": 7.0
         }
       ]
     }
   },
   "qualifying_bias": {
-    "races_compared": 7,
-    "driver_observations": 154,
+    "races_compared": 16,
+    "driver_observations": 351,
     "team_bias": {
       "Ferrari": {
-        "samples": 14.0,
-        "mean_signed_error": -1.2857142857142858,
-        "mean_abs_error": 2.142857142857143,
+        "samples": 32.0,
+        "mean_signed_error": -0.6875,
+        "mean_abs_error": 2.0625,
         "tendency": "overestimated"
       },
       "Red Bull Racing": {
-        "samples": 14.0,
-        "mean_signed_error": -1.2142857142857142,
-        "mean_abs_error": 3.642857142857143,
+        "samples": 31.0,
+        "mean_signed_error": -1.5806451612903225,
+        "mean_abs_error": 2.870967741935484,
         "tendency": "overestimated"
       },
       "Mercedes": {
-        "samples": 14.0,
-        "mean_signed_error": 1.1428571428571428,
-        "mean_abs_error": 2.2857142857142856,
+        "samples": 32.0,
+        "mean_signed_error": 0.375,
+        "mean_abs_error": 3.25,
         "tendency": "underestimated"
       },
       "McLaren": {
-        "samples": 14.0,
-        "mean_signed_error": 1.0714285714285714,
-        "mean_abs_error": 2.0714285714285716,
+        "samples": 32.0,
+        "mean_signed_error": 2.125,
+        "mean_abs_error": 3.0,
         "tendency": "underestimated"
       },
       "RB": {
-        "samples": 14.0,
-        "mean_signed_error": -0.07142857142857142,
-        "mean_abs_error": 4.928571428571429,
-        "tendency": "balanced"
-      },
-      "Audi": {
-        "samples": 14.0,
-        "mean_signed_error": 0.5,
-        "mean_abs_error": 2.642857142857143,
-        "tendency": "underestimated"
-      },
-      "Haas F1 Team": {
-        "samples": 14.0,
-        "mean_signed_error": -0.2857142857142857,
+        "samples": 32.0,
+        "mean_signed_error": -0.5,
         "mean_abs_error": 3.0,
         "tendency": "overestimated"
       },
+      "Audi": {
+        "samples": 32.0,
+        "mean_signed_error": 2.0625,
+        "mean_abs_error": 3.4375,
+        "tendency": "underestimated"
+      },
+      "Haas F1 Team": {
+        "samples": 32.0,
+        "mean_signed_error": -1.34375,
+        "mean_abs_error": 3.15625,
+        "tendency": "overestimated"
+      },
       "Alpine": {
-        "samples": 14.0,
-        "mean_signed_error": 1.0714285714285714,
-        "mean_abs_error": 3.2142857142857144,
+        "samples": 32.0,
+        "mean_signed_error": 1.96875,
+        "mean_abs_error": 3.28125,
         "tendency": "underestimated"
       },
       "Williams": {
-        "samples": 14.0,
-        "mean_signed_error": -1.5,
-        "mean_abs_error": 4.5,
+        "samples": 32.0,
+        "mean_signed_error": -2.125,
+        "mean_abs_error": 4.4375,
         "tendency": "overestimated"
       },
       "Aston Martin": {
-        "samples": 14.0,
-        "mean_signed_error": -0.14285714285714285,
-        "mean_abs_error": 1.7142857142857142,
-        "tendency": "balanced"
+        "samples": 32.0,
+        "mean_signed_error": -0.40625,
+        "mean_abs_error": 2.09375,
+        "tendency": "overestimated"
       },
       "Cadillac F1": {
-        "samples": 14.0,
-        "mean_signed_error": 0.7142857142857143,
-        "mean_abs_error": 1.2857142857142858,
-        "tendency": "underestimated"
+        "samples": 32.0,
+        "mean_signed_error": 0.1875,
+        "mean_abs_error": 1.3125,
+        "tendency": "balanced"
       }
     },
     "driver_bias": {
       "LEC": {
-        "samples": 7.0,
-        "mean_signed_error": -2.4285714285714284,
-        "mean_abs_error": 2.7142857142857144,
+        "samples": 16.0,
+        "mean_signed_error": -1.4375,
+        "mean_abs_error": 2.0625,
         "tendency": "overestimated"
       },
       "VER": {
-        "samples": 7.0,
-        "mean_signed_error": -2.2857142857142856,
-        "mean_abs_error": 5.714285714285714,
+        "samples": 16.0,
+        "mean_signed_error": -2.5,
+        "mean_abs_error": 3.375,
         "tendency": "overestimated"
       },
       "RUS": {
-        "samples": 7.0,
-        "mean_signed_error": 0.8571428571428571,
-        "mean_abs_error": 2.5714285714285716,
+        "samples": 16.0,
+        "mean_signed_error": 0.6875,
+        "mean_abs_error": 2.8125,
         "tendency": "underestimated"
       },
       "HAM": {
-        "samples": 7.0,
-        "mean_signed_error": -0.14285714285714285,
-        "mean_abs_error": 1.5714285714285714,
+        "samples": 16.0,
+        "mean_signed_error": 0.0625,
+        "mean_abs_error": 2.0625,
         "tendency": "balanced"
       },
       "ANT": {
-        "samples": 7.0,
-        "mean_signed_error": 1.4285714285714286,
-        "mean_abs_error": 2.0,
-        "tendency": "underestimated"
-      },
-      "HAD": {
-        "samples": 7.0,
-        "mean_signed_error": -0.14285714285714285,
-        "mean_abs_error": 1.5714285714285714,
+        "samples": 16.0,
+        "mean_signed_error": 0.0625,
+        "mean_abs_error": 3.6875,
         "tendency": "balanced"
       },
+      "HAD": {
+        "samples": 13.0,
+        "mean_signed_error": -0.3076923076923077,
+        "mean_abs_error": 2.1538461538461537,
+        "tendency": "overestimated"
+      },
       "PIA": {
-        "samples": 7.0,
-        "mean_signed_error": 1.1428571428571428,
-        "mean_abs_error": 1.7142857142857142,
+        "samples": 16.0,
+        "mean_signed_error": 2.4375,
+        "mean_abs_error": 2.8125,
         "tendency": "underestimated"
       },
       "LAW": {
-        "samples": 7.0,
-        "mean_signed_error": -0.5714285714285714,
-        "mean_abs_error": 4.857142857142857,
+        "samples": 16.0,
+        "mean_signed_error": -0.6875,
+        "mean_abs_error": 3.4375,
         "tendency": "overestimated"
       },
       "NOR": {
-        "samples": 7.0,
-        "mean_signed_error": 1.0,
-        "mean_abs_error": 2.4285714285714284,
+        "samples": 16.0,
+        "mean_signed_error": 1.8125,
+        "mean_abs_error": 3.1875,
         "tendency": "underestimated"
       },
       "BOR": {
-        "samples": 7.0,
-        "mean_signed_error": 0.14285714285714285,
-        "mean_abs_error": 2.4285714285714284,
-        "tendency": "balanced"
-      },
-      "LIN": {
-        "samples": 7.0,
-        "mean_signed_error": 0.42857142857142855,
-        "mean_abs_error": 5.0,
+        "samples": 16.0,
+        "mean_signed_error": 2.0625,
+        "mean_abs_error": 3.3125,
         "tendency": "underestimated"
       },
+      "LIN": {
+        "samples": 16.0,
+        "mean_signed_error": -0.125,
+        "mean_abs_error": 2.5,
+        "tendency": "balanced"
+      },
       "HUL": {
-        "samples": 7.0,
-        "mean_signed_error": 0.8571428571428571,
-        "mean_abs_error": 2.857142857142857,
+        "samples": 16.0,
+        "mean_signed_error": 2.0625,
+        "mean_abs_error": 3.5625,
         "tendency": "underestimated"
       },
       "BEA": {
-        "samples": 7.0,
-        "mean_signed_error": -0.42857142857142855,
-        "mean_abs_error": 3.2857142857142856,
+        "samples": 16.0,
+        "mean_signed_error": -2.1875,
+        "mean_abs_error": 3.6875,
         "tendency": "overestimated"
       },
       "OCO": {
-        "samples": 7.0,
-        "mean_signed_error": -0.14285714285714285,
-        "mean_abs_error": 2.7142857142857144,
-        "tendency": "balanced"
-      },
-      "GAS": {
-        "samples": 7.0,
-        "mean_signed_error": -0.2857142857142857,
-        "mean_abs_error": 3.7142857142857144,
+        "samples": 16.0,
+        "mean_signed_error": -0.5,
+        "mean_abs_error": 2.625,
         "tendency": "overestimated"
       },
+      "GAS": {
+        "samples": 16.0,
+        "mean_signed_error": 1.25,
+        "mean_abs_error": 2.875,
+        "tendency": "underestimated"
+      },
       "SAI": {
-        "samples": 7.0,
-        "mean_signed_error": -1.0,
-        "mean_abs_error": 4.142857142857143,
+        "samples": 16.0,
+        "mean_signed_error": -2.5,
+        "mean_abs_error": 4.625,
         "tendency": "overestimated"
       },
       "ALB": {
-        "samples": 7.0,
-        "mean_signed_error": -2.0,
-        "mean_abs_error": 4.857142857142857,
+        "samples": 16.0,
+        "mean_signed_error": -1.75,
+        "mean_abs_error": 4.25,
         "tendency": "overestimated"
       },
       "ALO": {
-        "samples": 7.0,
-        "mean_signed_error": -1.0,
-        "mean_abs_error": 2.142857142857143,
+        "samples": 16.0,
+        "mean_signed_error": -1.875,
+        "mean_abs_error": 2.875,
         "tendency": "overestimated"
       },
       "COL": {
-        "samples": 7.0,
-        "mean_signed_error": 2.4285714285714284,
-        "mean_abs_error": 2.7142857142857144,
+        "samples": 16.0,
+        "mean_signed_error": 2.6875,
+        "mean_abs_error": 3.6875,
         "tendency": "underestimated"
       },
       "STR": {
-        "samples": 7.0,
-        "mean_signed_error": 0.7142857142857143,
-        "mean_abs_error": 1.2857142857142858,
+        "samples": 16.0,
+        "mean_signed_error": 1.0625,
+        "mean_abs_error": 1.3125,
         "tendency": "underestimated"
       },
       "BOT": {
-        "samples": 7.0,
-        "mean_signed_error": 0.14285714285714285,
-        "mean_abs_error": 0.7142857142857143,
-        "tendency": "balanced"
+        "samples": 16.0,
+        "mean_signed_error": -0.3125,
+        "mean_abs_error": 0.9375,
+        "tendency": "overestimated"
       },
       "PER": {
-        "samples": 7.0,
-        "mean_signed_error": 1.2857142857142858,
-        "mean_abs_error": 1.8571428571428572,
+        "samples": 16.0,
+        "mean_signed_error": 0.6875,
+        "mean_abs_error": 1.6875,
         "tendency": "underestimated"
+      },
+      "TSU": {
+        "samples": 2.0,
+        "mean_signed_error": -4.0,
+        "mean_abs_error": 4.0,
+        "tendency": "overestimated"
       }
     },
     "most_underestimated_teams": [
       {
-        "entity": "Mercedes",
-        "samples": 14.0,
-        "mean_signed_error": 1.1428571428571428,
-        "mean_abs_error": 2.2857142857142856,
-        "tendency": "underestimated"
-      },
-      {
         "entity": "McLaren",
-        "samples": 14.0,
-        "mean_signed_error": 1.0714285714285714,
-        "mean_abs_error": 2.0714285714285716,
-        "tendency": "underestimated"
-      },
-      {
-        "entity": "Alpine",
-        "samples": 14.0,
-        "mean_signed_error": 1.0714285714285714,
-        "mean_abs_error": 3.2142857142857144,
-        "tendency": "underestimated"
-      },
-      {
-        "entity": "Cadillac F1",
-        "samples": 14.0,
-        "mean_signed_error": 0.7142857142857143,
-        "mean_abs_error": 1.2857142857142858,
+        "samples": 32.0,
+        "mean_signed_error": 2.125,
+        "mean_abs_error": 3.0,
         "tendency": "underestimated"
       },
       {
         "entity": "Audi",
-        "samples": 14.0,
-        "mean_signed_error": 0.5,
-        "mean_abs_error": 2.642857142857143,
+        "samples": 32.0,
+        "mean_signed_error": 2.0625,
+        "mean_abs_error": 3.4375,
         "tendency": "underestimated"
+      },
+      {
+        "entity": "Alpine",
+        "samples": 32.0,
+        "mean_signed_error": 1.96875,
+        "mean_abs_error": 3.28125,
+        "tendency": "underestimated"
+      },
+      {
+        "entity": "Mercedes",
+        "samples": 32.0,
+        "mean_signed_error": 0.375,
+        "mean_abs_error": 3.25,
+        "tendency": "underestimated"
+      },
+      {
+        "entity": "Cadillac F1",
+        "samples": 32.0,
+        "mean_signed_error": 0.1875,
+        "mean_abs_error": 1.3125,
+        "tendency": "balanced"
       }
     ],
     "most_overestimated_teams": [
       {
         "entity": "Williams",
-        "samples": 14.0,
-        "mean_signed_error": -1.5,
-        "mean_abs_error": 4.5,
-        "tendency": "overestimated"
-      },
-      {
-        "entity": "Ferrari",
-        "samples": 14.0,
-        "mean_signed_error": -1.2857142857142858,
-        "mean_abs_error": 2.142857142857143,
+        "samples": 32.0,
+        "mean_signed_error": -2.125,
+        "mean_abs_error": 4.4375,
         "tendency": "overestimated"
       },
       {
         "entity": "Red Bull Racing",
-        "samples": 14.0,
-        "mean_signed_error": -1.2142857142857142,
-        "mean_abs_error": 3.642857142857143,
+        "samples": 31.0,
+        "mean_signed_error": -1.5806451612903225,
+        "mean_abs_error": 2.870967741935484,
         "tendency": "overestimated"
       },
       {
         "entity": "Haas F1 Team",
-        "samples": 14.0,
-        "mean_signed_error": -0.2857142857142857,
-        "mean_abs_error": 3.0,
+        "samples": 32.0,
+        "mean_signed_error": -1.34375,
+        "mean_abs_error": 3.15625,
         "tendency": "overestimated"
       },
       {
-        "entity": "Aston Martin",
-        "samples": 14.0,
-        "mean_signed_error": -0.14285714285714285,
-        "mean_abs_error": 1.7142857142857142,
-        "tendency": "balanced"
+        "entity": "Ferrari",
+        "samples": 32.0,
+        "mean_signed_error": -0.6875,
+        "mean_abs_error": 2.0625,
+        "tendency": "overestimated"
+      },
+      {
+        "entity": "RB",
+        "samples": 32.0,
+        "mean_signed_error": -0.5,
+        "mean_abs_error": 3.0,
+        "tendency": "overestimated"
       }
     ],
     "most_underestimated_drivers": [
       {
         "entity": "COL",
-        "samples": 7.0,
-        "mean_signed_error": 2.4285714285714284,
-        "mean_abs_error": 2.7142857142857144,
-        "tendency": "underestimated"
-      },
-      {
-        "entity": "ANT",
-        "samples": 7.0,
-        "mean_signed_error": 1.4285714285714286,
-        "mean_abs_error": 2.0,
-        "tendency": "underestimated"
-      },
-      {
-        "entity": "PER",
-        "samples": 7.0,
-        "mean_signed_error": 1.2857142857142858,
-        "mean_abs_error": 1.8571428571428572,
+        "samples": 16.0,
+        "mean_signed_error": 2.6875,
+        "mean_abs_error": 3.6875,
         "tendency": "underestimated"
       },
       {
         "entity": "PIA",
-        "samples": 7.0,
-        "mean_signed_error": 1.1428571428571428,
-        "mean_abs_error": 1.7142857142857142,
+        "samples": 16.0,
+        "mean_signed_error": 2.4375,
+        "mean_abs_error": 2.8125,
+        "tendency": "underestimated"
+      },
+      {
+        "entity": "BOR",
+        "samples": 16.0,
+        "mean_signed_error": 2.0625,
+        "mean_abs_error": 3.3125,
+        "tendency": "underestimated"
+      },
+      {
+        "entity": "HUL",
+        "samples": 16.0,
+        "mean_signed_error": 2.0625,
+        "mean_abs_error": 3.5625,
         "tendency": "underestimated"
       },
       {
         "entity": "NOR",
-        "samples": 7.0,
-        "mean_signed_error": 1.0,
-        "mean_abs_error": 2.4285714285714284,
+        "samples": 16.0,
+        "mean_signed_error": 1.8125,
+        "mean_abs_error": 3.1875,
         "tendency": "underestimated"
       }
     ],
     "most_overestimated_drivers": [
       {
-        "entity": "LEC",
-        "samples": 7.0,
-        "mean_signed_error": -2.4285714285714284,
-        "mean_abs_error": 2.7142857142857144,
+        "entity": "TSU",
+        "samples": 2.0,
+        "mean_signed_error": -4.0,
+        "mean_abs_error": 4.0,
         "tendency": "overestimated"
       },
       {
         "entity": "VER",
-        "samples": 7.0,
-        "mean_signed_error": -2.2857142857142856,
-        "mean_abs_error": 5.714285714285714,
-        "tendency": "overestimated"
-      },
-      {
-        "entity": "ALB",
-        "samples": 7.0,
-        "mean_signed_error": -2.0,
-        "mean_abs_error": 4.857142857142857,
+        "samples": 16.0,
+        "mean_signed_error": -2.5,
+        "mean_abs_error": 3.375,
         "tendency": "overestimated"
       },
       {
         "entity": "SAI",
-        "samples": 7.0,
-        "mean_signed_error": -1.0,
-        "mean_abs_error": 4.142857142857143,
+        "samples": 16.0,
+        "mean_signed_error": -2.5,
+        "mean_abs_error": 4.625,
+        "tendency": "overestimated"
+      },
+      {
+        "entity": "BEA",
+        "samples": 16.0,
+        "mean_signed_error": -2.1875,
+        "mean_abs_error": 3.6875,
         "tendency": "overestimated"
       },
       {
         "entity": "ALO",
-        "samples": 7.0,
-        "mean_signed_error": -1.0,
-        "mean_abs_error": 2.142857142857143,
+        "samples": 16.0,
+        "mean_signed_error": -1.875,
+        "mean_abs_error": 2.875,
         "tendency": "overestimated"
       }
     ],
     "label": "qualifying"
   },
   "race_bias": {
-    "races_compared": 7,
-    "driver_observations": 154,
+    "races_compared": 18,
+    "driver_observations": 396,
     "team_bias": {
       "Ferrari": {
-        "samples": 14.0,
-        "mean_signed_error": -1.0,
-        "mean_abs_error": 3.2857142857142856,
+        "samples": 36.0,
+        "mean_signed_error": -1.9166666666666667,
+        "mean_abs_error": 3.3055555555555554,
         "tendency": "overestimated"
       },
       "Mercedes": {
-        "samples": 14.0,
-        "mean_signed_error": -1.1428571428571428,
-        "mean_abs_error": 3.142857142857143,
+        "samples": 36.0,
+        "mean_signed_error": -0.5833333333333334,
+        "mean_abs_error": 3.75,
         "tendency": "overestimated"
       },
       "Red Bull Racing": {
-        "samples": 14.0,
-        "mean_signed_error": -4.857142857142857,
-        "mean_abs_error": 5.571428571428571,
+        "samples": 36.0,
+        "mean_signed_error": -2.611111111111111,
+        "mean_abs_error": 3.7777777777777777,
         "tendency": "overestimated"
       },
       "RB": {
-        "samples": 14.0,
-        "mean_signed_error": 2.2142857142857144,
-        "mean_abs_error": 5.071428571428571,
+        "samples": 36.0,
+        "mean_signed_error": 1.5277777777777777,
+        "mean_abs_error": 3.4166666666666665,
         "tendency": "underestimated"
       },
       "McLaren": {
-        "samples": 14.0,
-        "mean_signed_error": 1.2142857142857142,
-        "mean_abs_error": 3.2142857142857144,
-        "tendency": "underestimated"
+        "samples": 36.0,
+        "mean_signed_error": -0.16666666666666666,
+        "mean_abs_error": 3.111111111111111,
+        "tendency": "balanced"
       },
       "Audi": {
-        "samples": 14.0,
-        "mean_signed_error": -2.857142857142857,
-        "mean_abs_error": 5.428571428571429,
+        "samples": 36.0,
+        "mean_signed_error": -0.8055555555555556,
+        "mean_abs_error": 4.25,
         "tendency": "overestimated"
       },
       "Haas F1 Team": {
-        "samples": 14.0,
-        "mean_signed_error": 0.7142857142857143,
-        "mean_abs_error": 4.571428571428571,
+        "samples": 36.0,
+        "mean_signed_error": 1.1388888888888888,
+        "mean_abs_error": 3.4722222222222223,
         "tendency": "underestimated"
       },
       "Williams": {
-        "samples": 14.0,
-        "mean_signed_error": -1.6428571428571428,
-        "mean_abs_error": 4.357142857142857,
+        "samples": 36.0,
+        "mean_signed_error": -1.1666666666666667,
+        "mean_abs_error": 3.0,
         "tendency": "overestimated"
       },
       "Alpine": {
-        "samples": 14.0,
-        "mean_signed_error": 3.0714285714285716,
-        "mean_abs_error": 4.071428571428571,
+        "samples": 36.0,
+        "mean_signed_error": 0.6666666666666666,
+        "mean_abs_error": 3.5,
         "tendency": "underestimated"
       },
       "Aston Martin": {
-        "samples": 14.0,
-        "mean_signed_error": 1.9285714285714286,
-        "mean_abs_error": 2.9285714285714284,
+        "samples": 36.0,
+        "mean_signed_error": 2.5833333333333335,
+        "mean_abs_error": 3.0277777777777777,
         "tendency": "underestimated"
       },
       "Cadillac F1": {
-        "samples": 14.0,
-        "mean_signed_error": 2.357142857142857,
-        "mean_abs_error": 2.5,
+        "samples": 36.0,
+        "mean_signed_error": 1.3333333333333333,
+        "mean_abs_error": 2.5555555555555554,
         "tendency": "underestimated"
       }
     },
     "driver_bias": {
       "LEC": {
-        "samples": 7.0,
-        "mean_signed_error": -3.5714285714285716,
-        "mean_abs_error": 4.142857142857143,
+        "samples": 18.0,
+        "mean_signed_error": -2.5555555555555554,
+        "mean_abs_error": 3.7777777777777777,
         "tendency": "overestimated"
       },
       "RUS": {
-        "samples": 7.0,
-        "mean_signed_error": -0.7142857142857143,
-        "mean_abs_error": 2.142857142857143,
+        "samples": 18.0,
+        "mean_signed_error": -1.3888888888888888,
+        "mean_abs_error": 3.388888888888889,
         "tendency": "overestimated"
       },
       "VER": {
-        "samples": 7.0,
-        "mean_signed_error": -5.428571428571429,
-        "mean_abs_error": 5.428571428571429,
+        "samples": 18.0,
+        "mean_signed_error": -3.7222222222222223,
+        "mean_abs_error": 4.722222222222222,
         "tendency": "overestimated"
       },
       "HAM": {
-        "samples": 7.0,
-        "mean_signed_error": 1.5714285714285714,
-        "mean_abs_error": 2.4285714285714284,
-        "tendency": "underestimated"
-      },
-      "ANT": {
-        "samples": 7.0,
-        "mean_signed_error": -1.5714285714285714,
-        "mean_abs_error": 4.142857142857143,
+        "samples": 18.0,
+        "mean_signed_error": -1.2777777777777777,
+        "mean_abs_error": 2.8333333333333335,
         "tendency": "overestimated"
       },
+      "ANT": {
+        "samples": 18.0,
+        "mean_signed_error": 0.2222222222222222,
+        "mean_abs_error": 4.111111111111111,
+        "tendency": "balanced"
+      },
       "HAD": {
-        "samples": 7.0,
-        "mean_signed_error": -4.285714285714286,
-        "mean_abs_error": 5.714285714285714,
+        "samples": 14.0,
+        "mean_signed_error": -2.2857142857142856,
+        "mean_abs_error": 3.2857142857142856,
         "tendency": "overestimated"
       },
       "LAW": {
-        "samples": 7.0,
-        "mean_signed_error": 5.142857142857143,
-        "mean_abs_error": 6.857142857142857,
+        "samples": 18.0,
+        "mean_signed_error": 2.611111111111111,
+        "mean_abs_error": 4.166666666666667,
         "tendency": "underestimated"
       },
       "NOR": {
-        "samples": 7.0,
-        "mean_signed_error": 0.42857142857142855,
-        "mean_abs_error": 1.0,
-        "tendency": "underestimated"
-      },
-      "PIA": {
-        "samples": 7.0,
-        "mean_signed_error": 2.0,
-        "mean_abs_error": 5.428571428571429,
-        "tendency": "underestimated"
-      },
-      "LIN": {
-        "samples": 7.0,
-        "mean_signed_error": -0.7142857142857143,
-        "mean_abs_error": 3.2857142857142856,
+        "samples": 18.0,
+        "mean_signed_error": -0.4444444444444444,
+        "mean_abs_error": 2.111111111111111,
         "tendency": "overestimated"
       },
+      "PIA": {
+        "samples": 18.0,
+        "mean_signed_error": 0.1111111111111111,
+        "mean_abs_error": 4.111111111111111,
+        "tendency": "balanced"
+      },
+      "LIN": {
+        "samples": 18.0,
+        "mean_signed_error": 0.5,
+        "mean_abs_error": 2.5,
+        "tendency": "underestimated"
+      },
       "BOR": {
-        "samples": 7.0,
-        "mean_signed_error": 0.0,
-        "mean_abs_error": 4.0,
+        "samples": 18.0,
+        "mean_signed_error": 0.2222222222222222,
+        "mean_abs_error": 3.5555555555555554,
         "tendency": "balanced"
       },
       "BEA": {
-        "samples": 7.0,
-        "mean_signed_error": -2.2857142857142856,
-        "mean_abs_error": 5.428571428571429,
+        "samples": 18.0,
+        "mean_signed_error": -0.2777777777777778,
+        "mean_abs_error": 3.7222222222222223,
         "tendency": "overestimated"
       },
       "HUL": {
-        "samples": 7.0,
-        "mean_signed_error": -5.714285714285714,
-        "mean_abs_error": 6.857142857142857,
+        "samples": 18.0,
+        "mean_signed_error": -1.8333333333333333,
+        "mean_abs_error": 4.944444444444445,
         "tendency": "overestimated"
       },
       "ALB": {
-        "samples": 7.0,
-        "mean_signed_error": -1.2857142857142858,
-        "mean_abs_error": 5.0,
+        "samples": 18.0,
+        "mean_signed_error": -0.5555555555555556,
+        "mean_abs_error": 3.111111111111111,
         "tendency": "overestimated"
       },
       "SAI": {
-        "samples": 7.0,
-        "mean_signed_error": -2.0,
-        "mean_abs_error": 3.7142857142857144,
+        "samples": 18.0,
+        "mean_signed_error": -1.7777777777777777,
+        "mean_abs_error": 2.888888888888889,
         "tendency": "overestimated"
       },
       "OCO": {
-        "samples": 7.0,
-        "mean_signed_error": 3.7142857142857144,
-        "mean_abs_error": 3.7142857142857144,
+        "samples": 18.0,
+        "mean_signed_error": 2.5555555555555554,
+        "mean_abs_error": 3.2222222222222223,
         "tendency": "underestimated"
       },
       "GAS": {
-        "samples": 7.0,
-        "mean_signed_error": 3.7142857142857144,
-        "mean_abs_error": 4.285714285714286,
-        "tendency": "underestimated"
+        "samples": 18.0,
+        "mean_signed_error": 0.16666666666666666,
+        "mean_abs_error": 3.5,
+        "tendency": "balanced"
       },
       "COL": {
-        "samples": 7.0,
-        "mean_signed_error": 2.4285714285714284,
-        "mean_abs_error": 3.857142857142857,
+        "samples": 18.0,
+        "mean_signed_error": 1.1666666666666667,
+        "mean_abs_error": 3.5,
         "tendency": "underestimated"
       },
       "ALO": {
-        "samples": 7.0,
-        "mean_signed_error": 1.2857142857142858,
-        "mean_abs_error": 3.2857142857142856,
+        "samples": 18.0,
+        "mean_signed_error": 2.5,
+        "mean_abs_error": 3.388888888888889,
         "tendency": "underestimated"
       },
       "STR": {
-        "samples": 7.0,
-        "mean_signed_error": 2.5714285714285716,
-        "mean_abs_error": 2.5714285714285716,
+        "samples": 18.0,
+        "mean_signed_error": 2.6666666666666665,
+        "mean_abs_error": 2.6666666666666665,
         "tendency": "underestimated"
       },
       "BOT": {
-        "samples": 7.0,
-        "mean_signed_error": 1.1428571428571428,
-        "mean_abs_error": 1.4285714285714286,
+        "samples": 18.0,
+        "mean_signed_error": 1.1111111111111112,
+        "mean_abs_error": 1.8888888888888888,
         "tendency": "underestimated"
       },
       "PER": {
-        "samples": 7.0,
-        "mean_signed_error": 3.5714285714285716,
-        "mean_abs_error": 3.5714285714285716,
+        "samples": 18.0,
+        "mean_signed_error": 1.5555555555555556,
+        "mean_abs_error": 3.2222222222222223,
+        "tendency": "underestimated"
+      },
+      "TSU": {
+        "samples": 4.0,
+        "mean_signed_error": 1.0,
+        "mean_abs_error": 2.0,
         "tendency": "underestimated"
       }
     },
     "most_underestimated_teams": [
       {
-        "entity": "Alpine",
-        "samples": 14.0,
-        "mean_signed_error": 3.0714285714285716,
-        "mean_abs_error": 4.071428571428571,
-        "tendency": "underestimated"
-      },
-      {
-        "entity": "Cadillac F1",
-        "samples": 14.0,
-        "mean_signed_error": 2.357142857142857,
-        "mean_abs_error": 2.5,
+        "entity": "Aston Martin",
+        "samples": 36.0,
+        "mean_signed_error": 2.5833333333333335,
+        "mean_abs_error": 3.0277777777777777,
         "tendency": "underestimated"
       },
       {
         "entity": "RB",
-        "samples": 14.0,
-        "mean_signed_error": 2.2142857142857144,
-        "mean_abs_error": 5.071428571428571,
+        "samples": 36.0,
+        "mean_signed_error": 1.5277777777777777,
+        "mean_abs_error": 3.4166666666666665,
         "tendency": "underestimated"
       },
       {
-        "entity": "Aston Martin",
-        "samples": 14.0,
-        "mean_signed_error": 1.9285714285714286,
-        "mean_abs_error": 2.9285714285714284,
+        "entity": "Cadillac F1",
+        "samples": 36.0,
+        "mean_signed_error": 1.3333333333333333,
+        "mean_abs_error": 2.5555555555555554,
         "tendency": "underestimated"
       },
       {
-        "entity": "McLaren",
-        "samples": 14.0,
-        "mean_signed_error": 1.2142857142857142,
-        "mean_abs_error": 3.2142857142857144,
+        "entity": "Haas F1 Team",
+        "samples": 36.0,
+        "mean_signed_error": 1.1388888888888888,
+        "mean_abs_error": 3.4722222222222223,
+        "tendency": "underestimated"
+      },
+      {
+        "entity": "Alpine",
+        "samples": 36.0,
+        "mean_signed_error": 0.6666666666666666,
+        "mean_abs_error": 3.5,
         "tendency": "underestimated"
       }
     ],
     "most_overestimated_teams": [
       {
         "entity": "Red Bull Racing",
-        "samples": 14.0,
-        "mean_signed_error": -4.857142857142857,
-        "mean_abs_error": 5.571428571428571,
-        "tendency": "overestimated"
-      },
-      {
-        "entity": "Audi",
-        "samples": 14.0,
-        "mean_signed_error": -2.857142857142857,
-        "mean_abs_error": 5.428571428571429,
-        "tendency": "overestimated"
-      },
-      {
-        "entity": "Williams",
-        "samples": 14.0,
-        "mean_signed_error": -1.6428571428571428,
-        "mean_abs_error": 4.357142857142857,
-        "tendency": "overestimated"
-      },
-      {
-        "entity": "Mercedes",
-        "samples": 14.0,
-        "mean_signed_error": -1.1428571428571428,
-        "mean_abs_error": 3.142857142857143,
+        "samples": 36.0,
+        "mean_signed_error": -2.611111111111111,
+        "mean_abs_error": 3.7777777777777777,
         "tendency": "overestimated"
       },
       {
         "entity": "Ferrari",
-        "samples": 14.0,
-        "mean_signed_error": -1.0,
-        "mean_abs_error": 3.2857142857142856,
+        "samples": 36.0,
+        "mean_signed_error": -1.9166666666666667,
+        "mean_abs_error": 3.3055555555555554,
+        "tendency": "overestimated"
+      },
+      {
+        "entity": "Williams",
+        "samples": 36.0,
+        "mean_signed_error": -1.1666666666666667,
+        "mean_abs_error": 3.0,
+        "tendency": "overestimated"
+      },
+      {
+        "entity": "Audi",
+        "samples": 36.0,
+        "mean_signed_error": -0.8055555555555556,
+        "mean_abs_error": 4.25,
+        "tendency": "overestimated"
+      },
+      {
+        "entity": "Mercedes",
+        "samples": 36.0,
+        "mean_signed_error": -0.5833333333333334,
+        "mean_abs_error": 3.75,
         "tendency": "overestimated"
       }
     ],
     "most_underestimated_drivers": [
       {
+        "entity": "STR",
+        "samples": 18.0,
+        "mean_signed_error": 2.6666666666666665,
+        "mean_abs_error": 2.6666666666666665,
+        "tendency": "underestimated"
+      },
+      {
         "entity": "LAW",
-        "samples": 7.0,
-        "mean_signed_error": 5.142857142857143,
-        "mean_abs_error": 6.857142857142857,
+        "samples": 18.0,
+        "mean_signed_error": 2.611111111111111,
+        "mean_abs_error": 4.166666666666667,
         "tendency": "underestimated"
       },
       {
         "entity": "OCO",
-        "samples": 7.0,
-        "mean_signed_error": 3.7142857142857144,
-        "mean_abs_error": 3.7142857142857144,
+        "samples": 18.0,
+        "mean_signed_error": 2.5555555555555554,
+        "mean_abs_error": 3.2222222222222223,
         "tendency": "underestimated"
       },
       {
-        "entity": "GAS",
-        "samples": 7.0,
-        "mean_signed_error": 3.7142857142857144,
-        "mean_abs_error": 4.285714285714286,
+        "entity": "ALO",
+        "samples": 18.0,
+        "mean_signed_error": 2.5,
+        "mean_abs_error": 3.388888888888889,
         "tendency": "underestimated"
       },
       {
         "entity": "PER",
-        "samples": 7.0,
-        "mean_signed_error": 3.5714285714285716,
-        "mean_abs_error": 3.5714285714285716,
-        "tendency": "underestimated"
-      },
-      {
-        "entity": "STR",
-        "samples": 7.0,
-        "mean_signed_error": 2.5714285714285716,
-        "mean_abs_error": 2.5714285714285716,
+        "samples": 18.0,
+        "mean_signed_error": 1.5555555555555556,
+        "mean_abs_error": 3.2222222222222223,
         "tendency": "underestimated"
       }
     ],
     "most_overestimated_drivers": [
       {
-        "entity": "HUL",
-        "samples": 7.0,
-        "mean_signed_error": -5.714285714285714,
-        "mean_abs_error": 6.857142857142857,
-        "tendency": "overestimated"
-      },
-      {
         "entity": "VER",
-        "samples": 7.0,
-        "mean_signed_error": -5.428571428571429,
-        "mean_abs_error": 5.428571428571429,
-        "tendency": "overestimated"
-      },
-      {
-        "entity": "HAD",
-        "samples": 7.0,
-        "mean_signed_error": -4.285714285714286,
-        "mean_abs_error": 5.714285714285714,
+        "samples": 18.0,
+        "mean_signed_error": -3.7222222222222223,
+        "mean_abs_error": 4.722222222222222,
         "tendency": "overestimated"
       },
       {
         "entity": "LEC",
-        "samples": 7.0,
-        "mean_signed_error": -3.5714285714285716,
-        "mean_abs_error": 4.142857142857143,
+        "samples": 18.0,
+        "mean_signed_error": -2.5555555555555554,
+        "mean_abs_error": 3.7777777777777777,
         "tendency": "overestimated"
       },
       {
-        "entity": "BEA",
-        "samples": 7.0,
+        "entity": "HAD",
+        "samples": 14.0,
         "mean_signed_error": -2.2857142857142856,
-        "mean_abs_error": 5.428571428571429,
+        "mean_abs_error": 3.2857142857142856,
+        "tendency": "overestimated"
+      },
+      {
+        "entity": "HUL",
+        "samples": 18.0,
+        "mean_signed_error": -1.8333333333333333,
+        "mean_abs_error": 4.944444444444445,
+        "tendency": "overestimated"
+      },
+      {
+        "entity": "SAI",
+        "samples": 18.0,
+        "mean_signed_error": -1.7777777777777777,
+        "mean_abs_error": 2.888888888888889,
         "tendency": "overestimated"
       }
     ],
     "label": "race"
   },
   "qualifying_vs_baseline": {
-    "events_compared": 6,
+    "events_compared": 15,
     "model_metrics": {
-      "mae": 2.8636363636363633,
-      "exact_match_rate": 15.15151515151515,
-      "within_3_rate": 68.18181818181817,
-      "spearman_rank": 0.8226990400903446,
-      "kendall_tau": 0.6565656565656566
+      "mae": 2.9027417027417024,
+      "exact_match_rate": 18.83116883116883,
+      "within_3_rate": 66.32034632034632,
+      "spearman_rank": 0.8008658008658008,
+      "kendall_tau": 0.6285137085137086
     },
     "baseline_metrics": {
-      "mae": 2.984848484848485,
-      "exact_match_rate": 14.393939393939396,
-      "within_3_rate": 62.87878787878788,
-      "spearman_rank": 0.8080180688876343,
-      "kendall_tau": 0.634920634920635
+      "mae": 2.719191919191919,
+      "exact_match_rate": 17.085137085137085,
+      "within_3_rate": 68.83116883116882,
+      "spearman_rank": 0.8254244306418222,
+      "kendall_tau": 0.6637229437229438
     },
     "improvement": {
-      "mae_improvement": 0.12121212121212155,
-      "exact_match_rate_delta": 0.7575757575757542,
-      "within_3_rate_delta": 5.30303030303029,
-      "spearman_rank_delta": 0.01468097120271028,
-      "kendall_tau_delta": 0.021645021645021578
+      "mae_improvement": -0.18354978354978346,
+      "exact_match_rate_delta": 1.746031746031747,
+      "within_3_rate_delta": -2.510822510822507,
+      "spearman_rank_delta": -0.024558629776021412,
+      "kendall_tau_delta": -0.035209235209235246
     },
-    "model_beats_baseline_on_mae": true,
+    "model_beats_baseline_on_mae": false,
     "label": "qualifying"
   },
   "race_vs_baseline": {
-    "events_compared": 6,
+    "events_compared": 17,
     "model_metrics": {
-      "mae": 3.9848484848484844,
-      "exact_match_rate": 11.363636363636365,
-      "within_3_rate": 56.81818181818182,
-      "spearman_rank": 0.6154714850367025,
-      "kendall_tau": 0.481962481962482
+      "mae": 3.3315508021390374,
+      "exact_match_rate": 14.705882352941176,
+      "within_3_rate": 67.6470588235294,
+      "spearman_rank": 0.701199056697778,
+      "kendall_tau": 0.5757575757575757
     },
     "baseline_metrics": {
-      "mae": 4.5,
-      "exact_match_rate": 9.090909090909092,
-      "within_3_rate": 56.06060606060606,
-      "spearman_rank": 0.5051759834368531,
-      "kendall_tau": 0.3838383838383838
+      "mae": 4.2640692640692635,
+      "exact_match_rate": 8.619811560988031,
+      "within_3_rate": 58.02139037433155,
+      "spearman_rank": 0.5445278506659581,
+      "kendall_tau": 0.419047619047619
     },
     "improvement": {
-      "mae_improvement": 0.5151515151515156,
-      "exact_match_rate_delta": 2.2727272727272734,
-      "within_3_rate_delta": 0.7575757575757578,
-      "spearman_rank_delta": 0.11029550159984935,
-      "kendall_tau_delta": 0.09812409812409817
+      "mae_improvement": 0.932518461930226,
+      "exact_match_rate_delta": 6.086070791953144,
+      "within_3_rate_delta": 9.625668449197853,
+      "spearman_rank_delta": 0.15667120603181994,
+      "kendall_tau_delta": 0.1567099567099567
     },
     "model_beats_baseline_on_mae": true,
     "label": "race"
   },
   "production_gate": {
-    "status": "pass",
-    "score_estimate": 95,
-    "reasons": [],
+    "status": "fail",
+    "score_estimate": 88,
+    "reasons": [
+      "qualifying MAE does not beat the previous-race naive baseline",
+      "qualifying interval coverage 0.755 is outside [0.870, 0.930]"
+    ],
     "checks": {
       "report_generated": true,
       "report_after_latest_completed_race": true,
       "minimum_scored_events": true,
-      "qualifying_beats_naive_mae": true,
+      "qualifying_beats_naive_mae": false,
       "race_beats_naive_mae": true,
-      "qualifying_interval_coverage_calibrated": true,
+      "qualifying_interval_coverage_calibrated": false,
       "systematic_bias_within_limit": true
     },
     "metrics": {
-      "scored_events": 7,
-      "qualifying_events": 7,
-      "race_events": 7,
-      "qualifying_mae_improvement_vs_naive": 0.12121212121212155,
-      "race_mae_improvement_vs_naive": 0.5151515151515156,
-      "qualifying_interval_empirical_coverage": 0.9025974025974026,
+      "scored_events": 16,
+      "qualifying_events": 16,
+      "race_events": 18,
+      "qualifying_mae_improvement_vs_naive": -0.18354978354978346,
+      "race_mae_improvement_vs_naive": 0.932518461930226,
+      "qualifying_interval_empirical_coverage": 0.7549857549857549,
       "max_systematic_bias_mae": {
         "session": "race",
-        "bucket": "most_underestimated_drivers",
-        "entity": "LAW",
-        "mean_abs_error": 6.857142857142857
+        "bucket": "most_overestimated_drivers",
+        "entity": "HUL",
+        "mean_abs_error": 4.944444444444445
       },
-      "generated_at": "2026-06-16T19:46:42.011345+00:00",
+      "generated_at": "2026-10-10T21:17:28.465284+00:00",
       "latest_completed_race_at": null
     },
     "thresholds": {

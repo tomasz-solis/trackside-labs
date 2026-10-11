@@ -1063,6 +1063,134 @@ Qualifying ridge MAE change -0.17 / -0.14 per race, CI crosses zero on both seed
 
 Feature importance (pace-only ridge, group permutation): qualifying practice share falls from 56% (Canada) to 34% (Spain) while recent results rise from 26% to 47%; race follows the same pattern (practice 45% to 35%, results 36% to 49%). Practice pace and practice car traits are collinear, so their split between groups is not meaningful. Car traits x track and track features stay near 0%.
 
+## 2026-10-10: the report's qualifying stabilizer was never live; on the replay it is `noise`, leaning worse
+
+**What was wrong.** `scripts/generate_evaluation_report.py` re-ranked the saved qualifying forecasts (40% model rank, 60% previous-race actual rank, plus conformal interval widening), called the result "production" and gated on it. Nothing on the live path runs that rule. It dates from the v2.3 shadow challengers (`5cedae02`, 2026-06-16, weights set on 7 weekends).
+
+**Fixed.** The report and the gate now score the forecasts as served; the stabilizer is a labelled candidate beside them. Published record, 16 weekends, latest checkpoint per target, every model version as it was live:
+
+| Qualifying | Served | With stabilizer |
+|---|---|---|
+| MAE | 2.90 | 2.64 |
+| MAE gain vs naive (previous race order) | -0.18 | +0.09 |
+| p5/p95 coverage (target 87 to 93%) | 75.5% | 88.6% |
+
+The gate fails on the served numbers (was a pass at 95/100): qualifying does not beat naive, coverage is outside the band.
+
+**Does the current model have the same problem?** `scripts/probe_qualifying_stabilizer.py` on `Z_base_32_s42` / `_s43`, last checkpoint before qualifying, previous race's actual only. MAE change against the live forecast per race (positive = worse), 95% interval from resampling races:
+
+| Rounds | Model | Corr | MAE | vs live, seed 42 | vs live, seed 43 |
+|---|---|---|---|---|---|
+| 2 to 14 | Live | 0.903 | 2.02 / 1.99 | | |
+| 2 to 14 | Naive | 0.835 | 2.59 | +0.564 [+0.139, +0.993], 2 better / 11 worse | +0.599 [+0.168, +1.025], 2 / 10 |
+| 2 to 14 | Stabilizer | 0.873 / 0.875 | 2.32 | +0.294 [-0.022, +0.610], 4 / 8 | +0.328 [+0.027, +0.635], 4 / 9 |
+| 5 to 14 | Live | 0.931 / 0.929 | 1.77 / 1.76 | | |
+| 5 to 14 | Naive | 0.856 | 2.45 | +0.679 [+0.119, +1.188], 2 / 8 | +0.687 [+0.115, +1.209], 2 / 7 |
+| 5 to 14 | Stabilizer | 0.900 / 0.899 | 2.10 / 2.12 | +0.336 [-0.084, +0.726], 4 / 6 | +0.363 [-0.039, +0.745], 4 / 6 |
+
+**Reading.** The current model beats naive by 0.56 to 0.69 places on both seeds, interval clear of zero. The stabilizer costs about 0.3 places; three of four intervals cross zero, so `noise`, leaning worse. Its gain on the published record came from older model versions that were worse than naive, not from the rule. Not built into the model. Do not retry at these weights.
+
+**Limits.** Baseline is 3.2 (3.3 measured neutral against it). The replay ends at round 14; the published record has 16 weekends. A driver with no previous result keeps the model's place in both the naive and the stabilized order. The interval widening half was not replayed: qualifying p5/p95 already over-covers on the replay (95.3%).
+
+## 2026-10-10: adaptive learning never persisted in production; the replay had it all season
+
+**Found** while explaining why qualifying p5/p95 covers 75.5% on published forecasts and 95.3% on the replay.
+
+`SystematicLearningSystem` (per-driver position errors, teammate gaps, interval residuals) read and wrote one local file, `data/learning_state.json`. Nothing synced it to the database. The replay keeps that file in its root, so it learns every round. Production has no shared disk.
+
+| Evidence | Replay (`m1s42_r14`) | Production |
+|---|---|---|
+| Qualifying interval residuals in the state | 696 | 0 (`2026::learning_state`, last updated 2026-05-30) |
+| Learned interval radius | 5.0 places | none applied |
+| Tightest band at FP3, per race | +/-5 to +/-6 | +/-0 to +/-2 |
+| Mean p5/p95 width, main qualifying | 9.40 | 6.80 |
+
+Not a checkpoint or version effect: published bands are narrower at every checkpoint, and the 2026-10-03 Sepang forecasts are still 6.3 wide against 8.7 on the replay.
+
+**Consequence for this ledger.** Every replay verdict was measured with this learning on, while the site ran without it. The size of the effect on finishing order is `open`: no arm has been run with learning off.
+
+**Fixed.** The state now loads from and saves to `ArtifactStore` (`learning_state::learning_state`) in database modes. File mode is unchanged, so replay roots behave as before. `scripts/rebuild_learning_state.py` rebuilds the state from saved forecasts and actuals; a dry run on the published record learns from 54 of 72 forecasts (11 retrospective and 7 without actuals are skipped) and gives a qualifying radius of 6.0, the cap. Production gets the state when the fix is deployed and the script is run with `--apply`. Not applied yet.
+
+**Is the radius itself wrong?** No. Walk-forward on the published bands (15 scored weekends, 1074 intervals, radius from earlier weekends only):
+
+| Rule | Coverage | Mean width |
+|---|---|---|
+| Raw simulation band (what the site served) | 75.9% | 6.97 |
+| Current rule: floor at median +/- radius | 90.3% | 10.34 |
+| Widen both ends by a conformal margin | 92.3% | 11.52 |
+
+The current rule lands on the 90% target there. On the replay it reads 95.3% because positions are whole places: +/-4 covers 87% of replay residuals and +/-5 covers 93%, so no radius gives 90%, and the simulated band adds about 2 points on top. Not retuned. p5/p95 is not shown on the dashboard (it shows "Likely range"), so a tighter rule would change the evaluation only.
+
+## 2026-10-11: Singapore review fixes, built and not yet replayed
+
+Five findings from the Singapore sprint weekend review, plus one replay leak. Code and tests are in; the replay arms wait for the Singapore race result. Nothing here is live.
+
+**A. A finished sprint with no published result blocked the whole checkpoint: fixed.** Render cron log, 2026-10-10 15:10 UTC: `Invalid FastF1 competitive results for Singapore Grand Prix Sprint: position must be between 1 and 22, got None`, then `Warmup weather precompute failed` for all three weather scenarios, every hour until the official feed published. The Q checkpoint was saved at 2026-10-11 00:04 UTC, 10.5 hours after qualifying; no Sprint checkpoint was ever saved. Sprint and race positions only exist once the official results feed publishes. Rebuilding them from timing data is not an option: against official results the timing order differs for 5 of 22 at the Singapore sprint, 6 of 22 at Azerbaijan and 12 of 22 at Monaco. Now a finished race-style session without a result shows as pending (marked ACTUAL, so it is never saved or scored as a forecast) and the rest of the chain runs. A stored payload with a pending section is recomputed on the next run. A missing qualifying result still stops the chain, because a later forecast needs it as its grid.
+
+The live cron runs hourly at minute 5, Friday to Sunday UTC (`5 * * * 5,6,0`), not every 5 minutes as `render.yaml` and the docs said.
+
+**Replay leak, pit-lane starters: fixed, `never activated` in 2026.** Two or more pit-lane starters were ordered by the race's own finishing order. They are now ordered by driver code. FastF1 records no pit-lane start (grid slot 0) in any of the 16 completed 2026 races, so no baseline or verdict is affected.
+
+**B. Learning-off switch: built, `open`.** `learning.apply_adaptive_calibration` (default true). Off makes forecasts ignore the learned driver, teammate and interval state, which is what production ran before the state was persisted. Arm `L0_learning_off` against the round 17 baselines sizes how much the learning moves the order and is the right comparison for forecasts served before the state went live.
+
+**C. Sprint qualifying result into the main qualifying forecast: built, `open`.** Mechanism: sprint qualifying already reaches the forecast, but only as a team-level pace profile capped at 25% blend weight, the cap fitted on practice sessions; the driver order is not used. Sizing on `Z_base_32_*`, 5 sprint weekends, main qualifying forecast at the SQ checkpoint blended with the actual sprint qualifying order:
+
+| Weight on the sprint qualifying order | 0 | 0.3 | 0.5 | 0.7 | 0.9 | 1.0 |
+|---|---|---|---|---|---|---|
+| Qualifying MAE, seed 42 | 2.52 | 2.21 | 2.01 | 1.77 | 1.72 | 1.74 |
+| Qualifying MAE, seed 43 | 2.49 | 2.21 | 2.01 | 1.76 | 1.74 | 1.74 |
+
+Walk-forward (weight chosen on earlier sprint weekends, weekends 2 to 5): 1.92 against 2.38 on seed 42, 1.97 against 2.36 on seed 43; three weekends better, one tied or 0.09 worse. In-sample for the curve, n=5, China carries much of it. Built as `baseline_predictor.qualifying.sprint_quali_result_blend_weight` (0 is off): each simulated main qualifying order is re-ranked toward the actual sprint qualifying order, so the median and the band stay consistent. Only the main qualifying forecast at the SQ or Sprint checkpoint reads it; a driver with no sprint qualifying place keeps the simulated one. Arm `C_sq_result_blend_07` at 0.7, the lowest weight on the flat part of the curve. Not a rerun of the 2026-10-10 stabilizer (previous race) or the 2026-10-04 practice term.
+
+**Work list item 3, sprint distance scaling: built, `open`.** `baseline_predictor.race.sprint_distance_scaling` (off): retirement and safety car odds scaled by sprint laps over Grand Prix laps. Lap 1 incidents are not scaled. Arm `S_sprint_scaling`.
+
+**D. Race and sprint bands never got the learned widening: cause fixed, widening built behind a switch, `open`.** The learner reads the saved top-level race rows, and the logger wrote them without `p5`, `p95` and `median_position`, so no race interval residual was ever recorded (0 samples in every replay state and in the 2026-10-10 rebuild). The rows now carry the band, and sprints keep their own history and radius. Walk-forward on the raw bands of `Z_base_32_s42`, radius from earlier weekends only:
+
+| Target | Rule | Coverage | Mean width | At the SQ checkpoint |
+|---|---|---|---|---|
+| Sprint race (5 weekends, 264 intervals) | Raw band | 75.8% | 6.89 | 48% |
+| Sprint race | Learned radius, sprint history | 90.5% | 9.44 | 88% |
+| Sprint race | Learned radius, pooled with races | 93.6% | 10.45 | 92% |
+| Grand Prix race (14 weekends, 1023 intervals) | Raw band | 80.4% | 9.76 | |
+| Grand Prix race | Learned radius | 86.4% | 11.00 | |
+
+Sprint bands land inside the 85 to 95% target with their own history. Grand Prix bands stay short of 90% because the radius cap of 6 binds. `learning.race_interval_widening` (off) turns the widening on; it changes bands only, never the order. No replay arm: recording is unconditional, so the round 17 baseline gives the residuals and the same walk-forward can be rerun on it. Limit: 5 sprint weekends, 4 scored.
+
+**E. Logged PRE forecast never refreshed: fixed.** A PRE forecast is logged once, possibly weeks ahead (Singapore PRE: 2026-09-13, model 3.0). It is now replaced when its model version differs from the current one or another race has finished since, and only until the weekend's first session starts. Later checkpoints are never replaced. The dashboard's own PRE payload is keyed by the artifact hash and was already refreshed after each race.
+
+**Round 17 runs.** Baseline `Z_base_33_r17_s42/_s43`, then three arms per seed. The replay folder is gitignored, so each arm config is rebuilt by copying `config/default.yaml` and changing one line:
+
+| Arm | Line changed |
+|---|---|
+| `L0_learning_off` | `learning.apply_adaptive_calibration: false` |
+| `C_sq_result_blend_07` | `baseline_predictor.qualifying.sprint_quali_result_blend_weight: 0.7` |
+| `S_sprint_scaling` | `baseline_predictor.race.sprint_distance_scaling: true` |
+
+Per run: `F1_CONFIG=<arm yaml>` (unset for the baseline), then `uv run python scripts/replay_historical_checkpoints.py --year 2026 --through-round 17 --seed <42 or 43> --overwrite --output-root data/historical_replay_arms/<arm>_s<seed>`. Compare with `scripts/compare_replay_arms.py --baseline ... --candidate ... --seed-floor <baseline s42> <baseline s43>`. The baseline pair becomes the champion baseline and the seed floor from here on.
+
+**Status 2026-10-11, 21:00 UTC: B measured, C and item 3 not finished, D switch bug found and fixed.** The first round 17 runs were stopped part way: baseline and `L0_learning_off` finished on both seeds, `C_sq_result_blend_07` and `S_sprint_scaling` did not. Those outputs are on one machine only, so all four runs are to be redone before any verdict below is final.
+
+B, learning off against `Z_base_33_r17_*` (17 rounds, 62 paired checkpoints, seed floor from the baseline pair):
+
+| Target | Metric | Seed 42 | Seed 43 | Result |
+|---|---|---|---|---|
+| Main qualifying | MAE | 2.39 to 2.60 (+0.20) | 2.39 to 2.61 (+0.22) | worse |
+| Main qualifying | Correlation | 0.857 to 0.838 | 0.857 to 0.836 | worse |
+| Grand Prix race | MAE | 3.62 to 3.89 (+0.27) | 3.59 to 3.93 (+0.34) | worse |
+| Grand Prix race | Correlation | 0.667 to 0.628 | 0.672 to 0.621 | worse |
+| Sprint race | MAE | +0.02 | +0.06 | below the seed floor |
+
+The site ran without the learned state all season, so its qualifying and race forecasts were about 0.2 to 0.3 places worse than the replay baseline. Verdict stays `open` until the rerun confirms it.
+
+D switch bug. `learning.race_interval_widening: false` did nothing in those runs. The check sat in the race mixin's `_get_learned_interval_radius`, and `Baseline2026Predictor` resolves the qualifying mixin's method of the same name. So the first `Z_base_33_r17_*` pair has race and sprint widening on. Bands only: the order, MAE and correlation are unaffected, so the B table stands. Fixed in the method the predictor uses, with a test on the predictor class. It gives a direct replay read of D, walk-forward by construction:
+
+| Target | `Z_base_32_s42`, no widening, 14 rounds | First `Z_base_33_r17`, widening on, seeds 42 and 43 |
+|---|---|---|
+| Sprint race coverage, mean width | 79.8%, 6.7 | 89.6% and 89.9%, 10.1 and 10.3 |
+| Grand Prix race coverage, mean width | 83.1%, 9.7 | 88.5% and 88.3%, 11.3 |
+
+Both are inside the 85 to 95% target. D stays `open`, switch off. To close it, run a fourth arm with `learning.race_interval_widening: true` against the rebuilt baseline.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

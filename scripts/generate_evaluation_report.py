@@ -472,10 +472,13 @@ def _replace_qualifying_rows(
     return adjusted_prediction
 
 
-def _apply_qualifying_production_adjustments(
+def _apply_qualifying_stabilizer_candidate(
     selected_predictions: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Apply the production qualifying stabilizer in chronological, no-lookahead order."""
+    """Apply the candidate qualifying stabilizer in chronological, no-lookahead order.
+
+    The live model does not run this. The report scores it beside the served forecasts.
+    """
     adjusted_predictions: list[dict[str, Any]] = []
     residual_history: list[float] = []
     previous_actual_rows: list[dict[str, Any]] | None = None
@@ -1230,7 +1233,7 @@ def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
     )
 
     calendar_order = _calendar_order_map(year)
-    raw_selected_predictions = {
+    selected_predictions = {
         "qualifying": _sort_selected_predictions(
             _select_latest_predictions(predictions, session_kind="qualifying"),
             year=year,
@@ -1242,18 +1245,12 @@ def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
             calendar_order=calendar_order,
         ),
     }
-    production_qualifying_predictions, production_adjustments = (
-        _apply_qualifying_production_adjustments(raw_selected_predictions["qualifying"])
+    stabilized_qualifying_predictions, stabilizer_candidate = (
+        _apply_qualifying_stabilizer_candidate(selected_predictions["qualifying"])
     )
-    selected_predictions = {
-        "qualifying": production_qualifying_predictions,
-        "race": raw_selected_predictions["race"],
-    }
     pred_quali, act_quali = _extract_qualifying_pairs(selected_predictions["qualifying"])
     pred_race, act_race = _extract_race_pairs(selected_predictions["race"])
-    raw_pred_quali, raw_act_quali = _extract_qualifying_pairs(
-        raw_selected_predictions["qualifying"]
-    )
+    stab_pred_quali, stab_act_quali = _extract_qualifying_pairs(stabilized_qualifying_predictions)
 
     logger.info(
         "Qualifying pairs with actuals: %d, Race pairs with actuals: %d "
@@ -1272,10 +1269,6 @@ def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
             "selection_policy": "latest_checkpoint_per_race_and_target",
             "prediction_source": prediction_source,
             "event_order": "season_calendar",
-            "production_adjustments_applied": {
-                "qualifying": True,
-                "race": False,
-            },
             "ignored_intermediate_checkpoints": {
                 "qualifying": len(predictions) - len(selected_predictions["qualifying"]),
                 "race": len(predictions) - len(selected_predictions["race"]),
@@ -1307,16 +1300,18 @@ def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
         "race_accuracy": _build_accuracy_section(pred_race, act_race, "race"),
         "race_dnf_calibration": _build_dnf_calibration_section(pred_race, act_race),
         "calibration": _build_calibration_section(pred_quali, act_quali),
-        "raw_qualifying_accuracy": _build_accuracy_section(
-            raw_pred_quali, raw_act_quali, "raw_qualifying"
+        "stabilizer_candidate_accuracy": _build_accuracy_section(
+            stab_pred_quali, stab_act_quali, "qualifying_stabilizer_candidate"
         ),
-        "raw_qualifying_calibration": _build_calibration_section(raw_pred_quali, raw_act_quali),
-        "raw_qualifying_vs_baseline": _build_baseline_comparison_section(
-            raw_pred_quali,
-            raw_act_quali,
-            "raw_qualifying",
+        "stabilizer_candidate_calibration": _build_calibration_section(
+            stab_pred_quali, stab_act_quali
         ),
-        "production_adjustments": production_adjustments,
+        "stabilizer_candidate_vs_baseline": _build_baseline_comparison_section(
+            stab_pred_quali,
+            stab_act_quali,
+            "qualifying_stabilizer_candidate",
+        ),
+        "qualifying_stabilizer_candidate": stabilizer_candidate,
         "error_analysis": _build_error_analysis(selected_predictions, year=year),
         "qualifying_bias": _build_bias_section(pred_quali, act_quali, "qualifying"),
         "race_bias": _build_bias_section(pred_race, act_race, "race"),
@@ -1465,10 +1460,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     r_baseline = report.get("race_vs_baseline", {})
     q_accuracy = report.get("qualifying_accuracy", {})
     r_accuracy = report.get("race_accuracy", {})
-    raw_q_accuracy = report.get("raw_qualifying_accuracy", {})
-    raw_q_baseline = report.get("raw_qualifying_vs_baseline", {})
-    raw_q_calibration = report.get("raw_qualifying_calibration", {})
-    production_adjustments = report.get("production_adjustments", {})
+    stab_q_accuracy = report.get("stabilizer_candidate_accuracy", {})
+    stab_q_baseline = report.get("stabilizer_candidate_vs_baseline", {})
+    stab_q_calibration = report.get("stabilizer_candidate_calibration", {})
+    stabilizer_candidate = report.get("qualifying_stabilizer_candidate", {})
     format_breakdown = report.get("format_breakdown", {})
     segment_breakdown = report.get("segment_breakdown", {})
     error_analysis = report.get("error_analysis", {})
@@ -1540,9 +1535,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             "",
             "## 0. Accuracy Overview",
             "",
-            "Production qualifying metrics include the documented time-aware rank stabilizer",
-            "and conformal interval widening described below. Raw qualifying diagnostics",
-            "are retained for audit comparison.",
+            "Both rows score the forecasts as the site served them.",
             "",
             "| Session | Events | MAE | Exact match | Within-3 | Spearman rho | Kendall tau |",
             "|---|---|---|---|---|---|---|",
@@ -1562,15 +1555,19 @@ def render_markdown(report: dict[str, Any]) -> str:
         ]
     )
 
-    if production_adjustments:
-        rank_adj = production_adjustments.get("qualifying_rank_stabilizer", {})
-        interval_adj = production_adjustments.get("qualifying_interval_stabilizer", {})
-        event_margins = production_adjustments.get("event_margins", [])
-        raw_improvement = (raw_q_baseline.get("improvement") or {}).get("mae_improvement")
-        adjusted_improvement = (q_baseline.get("improvement") or {}).get("mae_improvement")
+    if stabilizer_candidate:
+        rank_adj = stabilizer_candidate.get("qualifying_rank_stabilizer", {})
+        interval_adj = stabilizer_candidate.get("qualifying_interval_stabilizer", {})
+        event_margins = stabilizer_candidate.get("event_margins", [])
+        served_improvement = (q_baseline.get("improvement") or {}).get("mae_improvement")
+        stab_improvement = (stab_q_baseline.get("improvement") or {}).get("mae_improvement")
         lines.extend(
             [
-                "### Production Qualifying Stabilizer",
+                "### Candidate: qualifying stabilizer (not live)",
+                "",
+                "A what-if on the same forecasts. The site does not run it and the gate ignores it.",
+                "The weights were set on this season, so the gain is partly in-sample.",
+                "Replayed on the current model it loses (`docs/MODEL_LEDGER.md`, 2026-10-10).",
                 "",
                 "- Rank method: previous-race rank blend using only completed prior-race actuals.",
                 f"- Model rank weight: **{_flt(rank_adj.get('model_rank_weight'))}**",
@@ -1578,12 +1575,12 @@ def render_markdown(report: dict[str, Any]) -> str:
                 "- Interval method: conformal widening from past interval residuals only.",
                 f"- Default margin before history is sufficient: **{_flt(interval_adj.get('default_margin'))} position(s)**",
                 f"- Minimum history events before learned margins: **{interval_adj.get('min_history_events', 'n/a')}**",
-                f"- Raw qualifying MAE: **{_flt(raw_q_accuracy.get('mae'))}**",
-                f"- Production qualifying MAE: **{_flt(q_accuracy.get('mae'))}**",
-                f"- Raw qualifying MAE improvement vs naive: **{_flt(raw_improvement)}**",
-                f"- Production qualifying MAE improvement vs naive: **{_flt(adjusted_improvement)}**",
-                f"- Raw qualifying interval coverage: **{_pct(raw_q_calibration.get('empirical_coverage'))}**",
-                f"- Production qualifying interval coverage: **{_pct(cal.get('empirical_coverage'))}**",
+                f"- Served qualifying MAE: **{_flt(q_accuracy.get('mae'))}**",
+                f"- With stabilizer: **{_flt(stab_q_accuracy.get('mae'))}**",
+                f"- Served MAE improvement vs naive: **{_flt(served_improvement)}**",
+                f"- With stabilizer: **{_flt(stab_improvement)}**",
+                f"- Served interval coverage: **{_pct(cal.get('empirical_coverage'))}**",
+                f"- With stabilizer: **{_pct(stab_q_calibration.get('empirical_coverage'))}**",
                 "",
             ]
         )

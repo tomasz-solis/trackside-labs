@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from src.systems.systematic_learning import SystematicLearningSystem
 
 
@@ -289,3 +291,88 @@ def test_skipped_record_does_not_mark_run_id_processed(tmp_path):
     assert first["skipped"] is True
     assert second["skipped"] is False
     assert second["driver_updates"] == 8
+
+
+class _MemoryStore:
+    """Stand-in for ArtifactStore's database: one dict, shared across processes."""
+
+    def __init__(self):
+        self.rows = {}
+
+    def save_artifact(self, artifact_type, artifact_key, data):
+        self.rows[(artifact_type, artifact_key)] = json.loads(json.dumps(data))
+
+    def load_artifact(self, artifact_type, artifact_key):
+        return self.rows.get((artifact_type, artifact_key))
+
+
+def test_learning_survives_a_fresh_disk_in_database_mode(tmp_path, monkeypatch):
+    """A new process with an empty disk gets the learned state back from the store."""
+    monkeypatch.setattr("src.systems.systematic_learning.should_write_to_db", lambda: True)
+    monkeypatch.setattr("src.systems.systematic_learning.should_read_db_first", lambda: True)
+    store = _MemoryStore()
+
+    first = SystematicLearningSystem(
+        state_file=tmp_path / "run1" / "learning_state.json", artifact_store=store
+    )
+    first.update_from_prediction_record(_sample_prediction_record())
+
+    second = SystematicLearningSystem(
+        state_file=tmp_path / "run2" / "learning_state.json", artifact_store=store
+    )
+
+    learned = second.state["adaptive_calibration"]["driver_position_error"]["qualifying"]
+    assert learned == first.state["adaptive_calibration"]["driver_position_error"]["qualifying"]
+    assert learned
+
+
+def test_learning_stays_on_disk_in_file_mode(tmp_path, monkeypatch):
+    """File mode never touches the store, so replay roots keep their own state."""
+    monkeypatch.setattr("src.systems.systematic_learning.should_write_to_db", lambda: False)
+    monkeypatch.setattr("src.systems.systematic_learning.should_read_db_first", lambda: False)
+    store = _MemoryStore()
+
+    system = SystematicLearningSystem(
+        state_file=tmp_path / "learning_state.json", artifact_store=store
+    )
+    system.update_from_prediction_record(_sample_prediction_record())
+
+    assert store.rows == {}
+    assert (tmp_path / "learning_state.json").exists()
+
+
+def _race_record(race_target: str) -> dict:
+    """A saved forecast whose top-level race rows carry a band, as the logger now writes."""
+    record = _sample_prediction_record()
+    record["metadata"]["top_level_race_target"] = race_target
+    for index, row in enumerate(record["race"]["predicted_results"], start=1):
+        row.update({"median_position": index, "p5": index, "p95": index})
+    return record
+
+
+def test_race_and_sprint_interval_residuals_are_recorded_separately(tmp_path):
+    """Singapore item D: race bands got no widening because no race residual was ever kept."""
+    system = SystematicLearningSystem(state_file=tmp_path / "learning_state.json")
+
+    system.update_from_prediction_record(_race_record("grand_prix_race"))
+    history = system.state["adaptive_calibration"]["interval_residual_history"]
+    assert len(history["race"]) > 0
+    assert history.get("sprint", []) == []
+
+    sprint_record = _race_record("sprint_race")
+    sprint_record["metadata"]["run_id"] = "test-run-sprint"
+    system.update_from_prediction_record(sprint_record)
+    assert len(history["sprint"]) == len(history["race"])
+
+
+def test_race_rows_without_a_band_record_nothing(tmp_path):
+    """Forecasts saved before the fix have no band on race rows and must be skipped."""
+    system = SystematicLearningSystem(state_file=tmp_path / "learning_state.json")
+
+    record = _sample_prediction_record()
+    for row in record["race"]["predicted_results"]:
+        row.pop("p5", None)
+        row.pop("p95", None)
+    system.update_from_prediction_record(record)
+
+    assert system.state["adaptive_calibration"]["interval_residual_history"]["race"] == []

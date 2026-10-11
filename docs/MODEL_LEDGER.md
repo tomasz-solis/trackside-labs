@@ -1191,6 +1191,16 @@ D switch bug. `learning.race_interval_widening: false` did nothing in those runs
 
 Both are inside the 85 to 95% target. D stays `open`, switch off. To close it, run a fourth arm with `learning.race_interval_widening: true` against the rebuilt baseline.
 
+**Update 2026-10-11, 21:05 UTC: C measured once.** `C_sq_result_blend_07` finished on both seeds against the first `Z_base_33_r17_*` pair (62 paired checkpoints, 6 of them change):
+
+| Main qualifying | Seed 42 | Seed 43 | Result |
+|---|---|---|---|
+| MAE | 2.393 to 2.331 (-0.062) | 2.391 to 2.333 (-0.058) | better |
+| Correlation | 0.857 to 0.861 | 0.857 to 0.861 | better |
+| SQ checkpoint correlation, weekends better | 5 of 6 | 5 of 6 | Singapore worse by 0.02 |
+
+Grand Prix race: below the seed floor. Sprint race: identical, as designed. Verdict stays `open` until the rerun confirms it. `S_sprint_scaling` did not finish. All replay outputs from this date stay on one machine, so the next machine reruns the baseline and all arms.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

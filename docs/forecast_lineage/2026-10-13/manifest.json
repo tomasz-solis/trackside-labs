@@ -1,0 +1,441 @@
+{
+  "artifact_count": 19,
+  "artifacts": [
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-06T04:59:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:24.677665+00:00",
+        "race_name": "Australian Grand Prix",
+        "run_id": "56058218-7f9b-40f6-8849-6ce0307b4ca8",
+        "session_name": "FP1",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "249db1e6991571138140afb8eeb79ce2fbab4796e22759ab5c8959610fb5144d",
+      "source_path": "data/predictions/2026/australian_grand_prix/australian_grand_prix_fp1.json",
+      "specimen_path": "tests/fixtures/forecast_lineage/2026-10-13/australian_fp1.json",
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-07T01:29:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:26.690095+00:00",
+        "race_name": "Australian Grand Prix",
+        "run_id": "d13c3086-4152-4e72-b9c3-a26f916e15c7",
+        "session_name": "FP2",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "397869ad816fbc82eb659b736e24cd027992734626afd51c00625dcaf7c57f74",
+      "source_path": "data/predictions/2026/australian_grand_prix/australian_grand_prix_fp2.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-07T04:59:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:28.823366+00:00",
+        "race_name": "Australian Grand Prix",
+        "run_id": "2c0b347e-6995-4fdd-99f6-cfd1d9d8a420",
+        "session_name": "FP3",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "1ac8084181b83775fce4865fa4645d9cc6cab7e42fa72cdfb7fe3f2da73eaad8",
+      "source_path": "data/predictions/2026/australian_grand_prix/australian_grand_prix_fp3.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-06T01:29:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:22.599676+00:00",
+        "race_name": "Australian Grand Prix",
+        "run_id": "3225ced3-6ca7-4879-ade6-ce302d097006",
+        "session_name": "PRE",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "bbb671c1e4c9d527f9223a53f42e5a6754e515746da3c4e8827a961e3082ddba",
+      "source_path": "data/predictions/2026/australian_grand_prix/australian_grand_prix_pre.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": null,
+        "model_version": "2.1",
+        "predicted_at": "2026-05-24T00:02:30.384879+00:00",
+        "race_name": "Austrian Grand Prix",
+        "run_id": "1d8f0d1c-a186-459b-b4cc-846655d68afc",
+        "session_name": "PRE",
+        "source": "warmup_precompute",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "c8b538135adbbd8a75cff9b48b024afcaaa9253526162a456c78d9d6eed69ce3",
+      "source_path": "data/predictions/2026/austrian_grand_prix/austrian_grand_prix_pre.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": null,
+        "model_version": "2.1",
+        "predicted_at": "2026-05-19T16:57:28.935054+00:00",
+        "race_name": "Barcelona Grand Prix",
+        "run_id": "445b1a9b-e4d0-4660-bb44-69fc77a483a7",
+        "session_name": "PRE",
+        "source": "warmup_precompute",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "c62d4904454efab192d038967075eae4806be73738c850dedc39ed90445db752",
+      "source_path": "data/predictions/2026/barcelona_grand_prix/barcelona_grand_prix_pre.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": null,
+        "model_version": "2.1",
+        "predicted_at": "2026-05-22T19:04:13.047712+00:00",
+        "race_name": "Canadian Grand Prix",
+        "run_id": "24737670-1d02-4076-bf1f-b02395caa6db",
+        "session_name": "FP1",
+        "source": "warmup_precompute",
+        "weekend_format": "sprint",
+        "year": 2026
+      },
+      "sha256": "12bf77a83b50f10c2ae72b89c52e7d6e1c46b690e4a5d6b7d740ff3a6901628c",
+      "source_path": "data/predictions/2026/canadian_grand_prix/canadian_grand_prix_fp1.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying",
+        "sprint_qualifying",
+        "sprint_race"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": null,
+        "model_version": null,
+        "predicted_at": "2026-04-07T19:30:10.305825+00:00",
+        "race_name": "Canadian Grand Prix",
+        "run_id": "b69410b3-ecbd-4166-a015-333092306bf0",
+        "session_name": "PRE",
+        "source": "warmup_precompute",
+        "weekend_format": "sprint",
+        "year": 2026
+      },
+      "sha256": "e1e8dce718b4db89a07cf7ef9ba109b4c85a815f45fe0d510f8778fccbbf4477",
+      "source_path": "data/predictions/2026/canadian_grand_prix/canadian_grand_prix_pre.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying",
+        "sprint_qualifying",
+        "sprint_race"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": null,
+        "model_version": "2.1",
+        "predicted_at": "2026-05-22T22:03:30.923656+00:00",
+        "race_name": "Canadian Grand Prix",
+        "run_id": "53190993-ef6a-4972-8acf-02d6c2e72c6f",
+        "session_name": "SQ",
+        "source": "warmup_precompute",
+        "weekend_format": "sprint",
+        "year": 2026
+      },
+      "sha256": "d5ec3743d86bf12d9e5f117bd4155ad6615859e178757d029ad2c311274da014",
+      "source_path": "data/predictions/2026/canadian_grand_prix/canadian_grand_prix_sq.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying",
+        "sprint_race"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-13T03:29:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:31.968920+00:00",
+        "race_name": "Chinese Grand Prix",
+        "run_id": "6add4d1b-b132-47f0-a343-471629558e95",
+        "session_name": "PRE",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "sprint",
+        "year": 2026
+      },
+      "sha256": "bf1659eb906893b5ca8cdfc899d9b28b7fe26bf7fc00eb549ab74c961f19dd99",
+      "source_path": "data/predictions/2026/chinese_grand_prix/chinese_grand_prix_pre.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying",
+        "sprint_qualifying",
+        "sprint_race"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-14T02:59:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:37.835917+00:00",
+        "race_name": "Chinese Grand Prix",
+        "run_id": "cca0a11a-58e1-4404-8bec-36a81cf1efc0",
+        "session_name": "SQ",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "sprint",
+        "year": 2026
+      },
+      "sha256": "70c32db2358a4b29e6b7623dd1b6bf7b92e89efdfd49201ac6d9a44a21e8d664",
+      "source_path": "data/predictions/2026/chinese_grand_prix/chinese_grand_prix_sq.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying",
+        "sprint_race"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-27T05:59:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:41.948619+00:00",
+        "race_name": "Japanese Grand Prix",
+        "run_id": "b2ee86df-266b-42d6-b4f1-4607f4c6eecc",
+        "session_name": "FP1",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "c7c241d61e1f489051f87de2525742585a60d6cf7fd650ef1fbc5a497c104c59",
+      "source_path": "data/predictions/2026/japanese_grand_prix/japanese_grand_prix_fp1.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-28T02:29:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:43.918100+00:00",
+        "race_name": "Japanese Grand Prix",
+        "run_id": "44fbef2a-c4aa-4680-8833-a2cca46b5f92",
+        "session_name": "FP2",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "18d8b177ab0101ba4680b2f7814a330f374562a240a8b0ed9258d11688dff396",
+      "source_path": "data/predictions/2026/japanese_grand_prix/japanese_grand_prix_fp2.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-28T05:59:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:45.891019+00:00",
+        "race_name": "Japanese Grand Prix",
+        "run_id": "583546a1-2b3f-443e-98a9-74577283697b",
+        "session_name": "FP3",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "e45e4626b04a8fd161af998a8d5e0b19214eb3fc801529d653b2e676e1e43dca",
+      "source_path": "data/predictions/2026/japanese_grand_prix/japanese_grand_prix_fp3.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-03-27T02:29:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:39.980657+00:00",
+        "race_name": "Japanese Grand Prix",
+        "run_id": "8b3d2e72-c1e5-4def-90f1-d6ecc3db8248",
+        "session_name": "PRE",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "5bc984043943ff0087da81227e0746b1b7570690ad98b8c605f54e7cd41fa5e0",
+      "source_path": "data/predictions/2026/japanese_grand_prix/japanese_grand_prix_pre.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": null,
+        "model_version": "2.0",
+        "predicted_at": "2026-05-01T19:07:14.083468+00:00",
+        "race_name": "Miami Grand Prix",
+        "run_id": "ac05ad9a-87b9-4485-829c-3961722f537e",
+        "session_name": "FP1",
+        "source": "warmup_precompute",
+        "weekend_format": "sprint",
+        "year": 2026
+      },
+      "sha256": "6b07854872658d7a073cbb0ae775bdadc9ae656066aca97545135bf9f66dc85d",
+      "source_path": "data/predictions/2026/miami_grand_prix/miami_grand_prix_fp1.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying",
+        "sprint_qualifying",
+        "sprint_race"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": "2026-05-01T15:59:59+00:00",
+        "model_version": "2.0",
+        "predicted_at": "2026-04-12T20:11:48.886400+00:00",
+        "race_name": "Miami Grand Prix",
+        "run_id": "eb5b118a-a90b-4c6e-8e70-781c992f0320",
+        "session_name": "PRE",
+        "source": "checkpoint_reconstruction",
+        "weekend_format": "sprint",
+        "year": 2026
+      },
+      "sha256": "eb7f573ffcfe743449f7aa0097feb2c3a181e29f6cfb698f566db16d0e17982c",
+      "source_path": "data/predictions/2026/miami_grand_prix/miami_grand_prix_pre.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying",
+        "sprint_qualifying",
+        "sprint_race"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": null,
+        "model_version": "2.0",
+        "predicted_at": "2026-05-01T22:03:53.842645+00:00",
+        "race_name": "Miami Grand Prix",
+        "run_id": "d5a682a4-f217-480b-83f3-c8a0a344c6f4",
+        "session_name": "SQ",
+        "source": "warmup_precompute",
+        "weekend_format": "sprint",
+        "year": 2026
+      },
+      "sha256": "ff3f22324dcac2e645e0a814c083f663c313dc96ce7630affeecc68851998db2",
+      "source_path": "data/predictions/2026/miami_grand_prix/miami_grand_prix_sq.json",
+      "specimen_path": "tests/fixtures/forecast_lineage/2026-10-13/miami_sq.json",
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying",
+        "sprint_race"
+      ]
+    },
+    {
+      "prospective_eligibility_status": "unknown",
+      "publication_status": "unknown",
+      "recorded_metadata": {
+        "information_cutoff_at": null,
+        "model_version": null,
+        "predicted_at": "2026-04-07T19:30:30.691666+00:00",
+        "race_name": "Monaco Grand Prix",
+        "run_id": "d99937ab-c28b-4a57-889a-494678787061",
+        "session_name": "PRE",
+        "source": "warmup_precompute",
+        "weekend_format": "normal",
+        "year": 2026
+      },
+      "sha256": "39fb960e00746ff3ec73c6b050ddb5c72a6d5ff4e28903585bab43e920a91bb4",
+      "source_path": "data/predictions/2026/monaco_grand_prix/monaco_grand_prix_pre.json",
+      "specimen_path": null,
+      "targets": [
+        "grand_prix_race",
+        "main_qualifying"
+      ]
+    }
+  ],
+  "config_sha256": "759b26c866d84ad24419e4c88cab5e68433901498ed0d992f99d51a856d39ccb",
+  "git_sha": "ad6f0b65f9d4cb15e9dd4babec2dd5aa01800b3c",
+  "schema_version": 1,
+  "snapshot_date": "2026-10-13",
+  "uv_lock_sha256": "99e22b1430407b04e6fd9bbfcdb2c66232807785c981dcdbbee37ef262f22664"
+}

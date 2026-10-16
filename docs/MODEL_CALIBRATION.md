@@ -1,5 +1,7 @@
 # Model calibration report, 2026 season
 
+> Legacy counterfactual development evidence from 16 June 2026. This report scores evaluation-only qualifying adjustments and does not establish current model 3.3 readiness or prospective performance. The original is preserved in [the legacy archive](legacy/2026-06-16/README.md). See [the current lineage audit](FORECAST_LINEAGE_AUDIT.md).
+
 *Generated: 2026-06-16T19:46:42.011345+00:00*
 
 Checks three things: are the uncertainty intervals honest, is the model biased

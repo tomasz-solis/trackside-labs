@@ -1,0 +1,998 @@
+{
+  "observed_date": "2026-10-14",
+  "objective": "O02 saved qualifying scoring parity",
+  "baseline_commit": "ad6f0b65f9d4cb15e9dd4babec2dd5aa01800b3c",
+  "manifest_path": "docs/forecast_lineage/2026-10-13/manifest.json",
+  "manifest_sha256": "03258e704ab234dfab3e2a4474f9b8bc3c61aa8b642f5146a20205dfb42f827f",
+  "calendar_source": "data/processed/track_characteristics/2026_track_characteristics.json",
+  "calendar_source_sha256": "fdbfe85c957662c8cb40405fdb29f8d680be1a6ac28d6f4207b5b7fcc655601b",
+  "calendar_order": {
+    "dutch grand prix": 0,
+    "miami grand prix": 1,
+    "qatar grand prix": 2,
+    "monaco grand prix": 3,
+    "bahrain grand prix": 4,
+    "belgian grand prix": 5,
+    "british grand prix": 6,
+    "chinese grand prix": 7,
+    "italian grand prix": 8,
+    "spanish grand prix": 9,
+    "austrian grand prix": 10,
+    "canadian grand prix": 11,
+    "japanese grand prix": 12,
+    "abu dhabi grand prix": 13,
+    "hungarian grand prix": 14,
+    "las vegas grand prix": 15,
+    "singapore grand prix": 16,
+    "australian grand prix": 17,
+    "azerbaijan grand prix": 18,
+    "s\u00e3o paulo grand prix": 19,
+    "mexico city grand prix": 20,
+    "united states grand prix": 21,
+    "emilia romagna grand prix": 22
+  },
+  "calendar_order_limitation": "Local fallback insertion order is not chronological; no point-in-time research validity claim.",
+  "input_files_checked": 19,
+  "inputs_unchanged": true,
+  "repeated_scoring_records_equal": true,
+  "evidence_class": "development_reanalysis",
+  "publication_certified": false,
+  "evaluation_spec_version": "frozen_released_v1",
+  "selected_qualifying_cohort_hash": "8d271f0a995e9525095a33976633c2a6d0cfef7204e40f9ae5cec5176c320acb",
+  "qualifying_pairs": 5,
+  "race_pairs": 5,
+  "selected_target_breakdown": {
+    "qualifying": {
+      "main_qualifying": 2,
+      "sprint_qualifying": 3
+    },
+    "race": {
+      "grand_prix_race": 2,
+      "sprint_race": 3
+    }
+  },
+  "selected_qualifying_records": [
+    {
+      "event_id": "2026:Miami Grand Prix",
+      "target": "sprint_qualifying",
+      "checkpoint": "FP1",
+      "run_id": "ac05ad9a-87b9-4485-829c-3961722f537e",
+      "model_version": "2.0",
+      "forecast_id": null,
+      "information_cutoff_at": null,
+      "predicted_at": "2026-05-01T19:07:14.083468+00:00",
+      "forecast_core_hash": "fd2385ae04c4d875330deac646b35b7617c1165724653704fab386647da393bd",
+      "outcome_revision_id": null,
+      "outcome_content_hash": "fb073f828124675015256ea85393892862fd8cb23769812c559022b5a968d0b4",
+      "status": "scored"
+    },
+    {
+      "event_id": "2026:Chinese Grand Prix",
+      "target": "sprint_qualifying",
+      "checkpoint": "PRE",
+      "run_id": "6add4d1b-b132-47f0-a343-471629558e95",
+      "model_version": "2.0",
+      "forecast_id": null,
+      "information_cutoff_at": "2026-03-13T03:29:59+00:00",
+      "predicted_at": "2026-04-12T20:11:31.968920+00:00",
+      "forecast_core_hash": "7fe62ae5c610612d1a2e08fc919896ccfd46e39a51161d8060d425499cb04652",
+      "outcome_revision_id": null,
+      "outcome_content_hash": "870ad0f10d216073eaf6415dbcf97eeb3abffb98ae6245032cd24ef0a4e81289",
+      "status": "scored"
+    },
+    {
+      "event_id": "2026:Canadian Grand Prix",
+      "target": "sprint_qualifying",
+      "checkpoint": "FP1",
+      "run_id": "24737670-1d02-4076-bf1f-b02395caa6db",
+      "model_version": "2.1",
+      "forecast_id": null,
+      "information_cutoff_at": null,
+      "predicted_at": "2026-05-22T19:04:13.047712+00:00",
+      "forecast_core_hash": "edf45c7465c1bb79162409bbaa0c3494290c1a99cc81ec4fc00062540ab4f922",
+      "outcome_revision_id": null,
+      "outcome_content_hash": "1a75ed94a403fc10f903d0dba1bf2bc46e8f982e82c8a7a7ae7ab947eb8a40bd",
+      "status": "scored"
+    },
+    {
+      "event_id": "2026:Japanese Grand Prix",
+      "target": "main_qualifying",
+      "checkpoint": "FP3",
+      "run_id": "583546a1-2b3f-443e-98a9-74577283697b",
+      "model_version": "2.0",
+      "forecast_id": null,
+      "information_cutoff_at": "2026-03-28T05:59:59+00:00",
+      "predicted_at": "2026-04-12T20:11:45.891019+00:00",
+      "forecast_core_hash": "13f06d01a089567503470c8fb7a0c8b2959e04c010d9f7f6c51126f483f9756c",
+      "outcome_revision_id": null,
+      "outcome_content_hash": "8fba4538e395a950270be1f32119d4da23be60176c64bc6f9e5f644e7f7ee6cc",
+      "status": "scored"
+    },
+    {
+      "event_id": "2026:Australian Grand Prix",
+      "target": "main_qualifying",
+      "checkpoint": "FP3",
+      "run_id": "2c0b347e-6995-4fdd-99f6-cfd1d9d8a420",
+      "model_version": "2.0",
+      "forecast_id": null,
+      "information_cutoff_at": "2026-03-07T04:59:59+00:00",
+      "predicted_at": "2026-04-12T20:11:28.823366+00:00",
+      "forecast_core_hash": "0489c0fb5b60d42d72c18e197c50c67928768814a38d24f10935f91868c92077",
+      "outcome_revision_id": null,
+      "outcome_content_hash": "0fc51211c3c14108b30cd92c673b694a94db501728ed4d318a5aec693fce3828",
+      "status": "scored"
+    }
+  ],
+  "legacy_counterfactual": {
+    "run_kind": "counterfactual",
+    "qualifying_accuracy": {
+      "label": "qualifying",
+      "events_evaluated": 5,
+      "mae": 2.6000000000000005,
+      "weighted_mae": 2.2491241016276233,
+      "finisher_mae": 2.6000000000000005,
+      "total_dnf_count": 0,
+      "exact_match_rate": 17.272727272727273,
+      "within_3_rate": 73.63636363636364,
+      "spearman_rank": 0.8380575945793339,
+      "kendall_tau": 0.6883116883116882
+    },
+    "qualifying_calibration": {
+      "interval_count": 110.0,
+      "empirical_coverage": 0.9181818181818182,
+      "nominal_coverage": 0.9,
+      "calibration_error": 0.018181818181818188,
+      "mean_interval_width": 10.209090909090909,
+      "average_miss_distance": 3.111111111111111,
+      "races_with_band_data": 5.0,
+      "total_races_evaluated": 5.0
+    }
+  },
+  "saved_output": {
+    "run_kind": "development_reanalysis",
+    "source": "saved_predictor_output",
+    "cohort_hash": "8d271f0a995e9525095a33976633c2a6d0cfef7204e40f9ae5cec5176c320acb",
+    "qualifying_accuracy": {
+      "label": "qualifying",
+      "events_evaluated": 5,
+      "mae": 2.9454545454545458,
+      "weighted_mae": 3.5923732788840796,
+      "finisher_mae": 2.9454545454545458,
+      "total_dnf_count": 0,
+      "exact_match_rate": 14.545454545454547,
+      "within_3_rate": 70.0,
+      "spearman_rank": 0.7793337097684925,
+      "kendall_tau": 0.6346320346320347
+    },
+    "qualifying_calibration": {
+      "interval_count": 110.0,
+      "empirical_coverage": 0.8090909090909091,
+      "nominal_coverage": 0.9,
+      "calibration_error": -0.09090909090909094,
+      "mean_interval_width": 8.290909090909091,
+      "average_miss_distance": 3.0,
+      "races_with_band_data": 5.0,
+      "total_races_evaluated": 5.0
+    },
+    "qualifying_bias": {
+      "races_compared": 5,
+      "driver_observations": 110,
+      "team_bias": {
+        "Ferrari": {
+          "samples": 10.0,
+          "mean_signed_error": -2.3,
+          "mean_abs_error": 2.9,
+          "tendency": "overestimated"
+        },
+        "McLaren": {
+          "samples": 10.0,
+          "mean_signed_error": 2.1,
+          "mean_abs_error": 2.5,
+          "tendency": "underestimated"
+        },
+        "Red Bull Racing": {
+          "samples": 10.0,
+          "mean_signed_error": -1.7,
+          "mean_abs_error": 5.1,
+          "tendency": "overestimated"
+        },
+        "Alpine": {
+          "samples": 10.0,
+          "mean_signed_error": 2.1,
+          "mean_abs_error": 3.3,
+          "tendency": "underestimated"
+        },
+        "Williams": {
+          "samples": 10.0,
+          "mean_signed_error": -3.0,
+          "mean_abs_error": 3.8,
+          "tendency": "overestimated"
+        },
+        "Mercedes": {
+          "samples": 10.0,
+          "mean_signed_error": 3.5,
+          "mean_abs_error": 3.5,
+          "tendency": "underestimated"
+        },
+        "RB": {
+          "samples": 10.0,
+          "mean_signed_error": -2.4,
+          "mean_abs_error": 3.2,
+          "tendency": "overestimated"
+        },
+        "Audi": {
+          "samples": 10.0,
+          "mean_signed_error": 0.3,
+          "mean_abs_error": 2.9,
+          "tendency": "underestimated"
+        },
+        "Haas F1 Team": {
+          "samples": 10.0,
+          "mean_signed_error": 0.1,
+          "mean_abs_error": 2.5,
+          "tendency": "balanced"
+        },
+        "Cadillac F1": {
+          "samples": 10.0,
+          "mean_signed_error": 1.0,
+          "mean_abs_error": 1.8,
+          "tendency": "underestimated"
+        },
+        "Aston Martin": {
+          "samples": 10.0,
+          "mean_signed_error": 0.3,
+          "mean_abs_error": 0.9,
+          "tendency": "underestimated"
+        }
+      },
+      "driver_bias": {
+        "LEC": {
+          "samples": 5.0,
+          "mean_signed_error": -3.4,
+          "mean_abs_error": 3.4,
+          "tendency": "overestimated"
+        },
+        "HAM": {
+          "samples": 5.0,
+          "mean_signed_error": -1.2,
+          "mean_abs_error": 2.4,
+          "tendency": "overestimated"
+        },
+        "NOR": {
+          "samples": 5.0,
+          "mean_signed_error": 2.0,
+          "mean_abs_error": 2.4,
+          "tendency": "underestimated"
+        },
+        "VER": {
+          "samples": 5.0,
+          "mean_signed_error": -5.0,
+          "mean_abs_error": 7.0,
+          "tendency": "overestimated"
+        },
+        "GAS": {
+          "samples": 5.0,
+          "mean_signed_error": 0.6,
+          "mean_abs_error": 3.0,
+          "tendency": "underestimated"
+        },
+        "PIA": {
+          "samples": 5.0,
+          "mean_signed_error": 2.2,
+          "mean_abs_error": 2.6,
+          "tendency": "underestimated"
+        },
+        "ALB": {
+          "samples": 5.0,
+          "mean_signed_error": -3.8,
+          "mean_abs_error": 4.6,
+          "tendency": "overestimated"
+        },
+        "RUS": {
+          "samples": 5.0,
+          "mean_signed_error": 2.0,
+          "mean_abs_error": 2.0,
+          "tendency": "underestimated"
+        },
+        "HAD": {
+          "samples": 5.0,
+          "mean_signed_error": 1.6,
+          "mean_abs_error": 3.2,
+          "tendency": "underestimated"
+        },
+        "SAI": {
+          "samples": 5.0,
+          "mean_signed_error": -2.2,
+          "mean_abs_error": 3.0,
+          "tendency": "overestimated"
+        },
+        "COL": {
+          "samples": 5.0,
+          "mean_signed_error": 3.6,
+          "mean_abs_error": 3.6,
+          "tendency": "underestimated"
+        },
+        "LAW": {
+          "samples": 5.0,
+          "mean_signed_error": -5.4,
+          "mean_abs_error": 5.4,
+          "tendency": "overestimated"
+        },
+        "ANT": {
+          "samples": 5.0,
+          "mean_signed_error": 5.0,
+          "mean_abs_error": 5.0,
+          "tendency": "underestimated"
+        },
+        "BOR": {
+          "samples": 5.0,
+          "mean_signed_error": 1.0,
+          "mean_abs_error": 1.8,
+          "tendency": "underestimated"
+        },
+        "OCO": {
+          "samples": 5.0,
+          "mean_signed_error": -0.8,
+          "mean_abs_error": 1.2,
+          "tendency": "overestimated"
+        },
+        "LIN": {
+          "samples": 5.0,
+          "mean_signed_error": 0.6,
+          "mean_abs_error": 1.0,
+          "tendency": "underestimated"
+        },
+        "HUL": {
+          "samples": 5.0,
+          "mean_signed_error": -0.4,
+          "mean_abs_error": 4.0,
+          "tendency": "overestimated"
+        },
+        "BEA": {
+          "samples": 5.0,
+          "mean_signed_error": 1.0,
+          "mean_abs_error": 3.8,
+          "tendency": "underestimated"
+        },
+        "BOT": {
+          "samples": 5.0,
+          "mean_signed_error": -0.4,
+          "mean_abs_error": 1.2,
+          "tendency": "overestimated"
+        },
+        "PER": {
+          "samples": 5.0,
+          "mean_signed_error": 2.4,
+          "mean_abs_error": 2.4,
+          "tendency": "underestimated"
+        },
+        "STR": {
+          "samples": 5.0,
+          "mean_signed_error": 0.2,
+          "mean_abs_error": 1.0,
+          "tendency": "balanced"
+        },
+        "ALO": {
+          "samples": 5.0,
+          "mean_signed_error": 0.4,
+          "mean_abs_error": 0.8,
+          "tendency": "underestimated"
+        }
+      },
+      "most_underestimated_teams": [
+        {
+          "entity": "Mercedes",
+          "samples": 10.0,
+          "mean_signed_error": 3.5,
+          "mean_abs_error": 3.5,
+          "tendency": "underestimated"
+        },
+        {
+          "entity": "McLaren",
+          "samples": 10.0,
+          "mean_signed_error": 2.1,
+          "mean_abs_error": 2.5,
+          "tendency": "underestimated"
+        },
+        {
+          "entity": "Alpine",
+          "samples": 10.0,
+          "mean_signed_error": 2.1,
+          "mean_abs_error": 3.3,
+          "tendency": "underestimated"
+        },
+        {
+          "entity": "Cadillac F1",
+          "samples": 10.0,
+          "mean_signed_error": 1.0,
+          "mean_abs_error": 1.8,
+          "tendency": "underestimated"
+        },
+        {
+          "entity": "Audi",
+          "samples": 10.0,
+          "mean_signed_error": 0.3,
+          "mean_abs_error": 2.9,
+          "tendency": "underestimated"
+        }
+      ],
+      "most_overestimated_teams": [
+        {
+          "entity": "Williams",
+          "samples": 10.0,
+          "mean_signed_error": -3.0,
+          "mean_abs_error": 3.8,
+          "tendency": "overestimated"
+        },
+        {
+          "entity": "RB",
+          "samples": 10.0,
+          "mean_signed_error": -2.4,
+          "mean_abs_error": 3.2,
+          "tendency": "overestimated"
+        },
+        {
+          "entity": "Ferrari",
+          "samples": 10.0,
+          "mean_signed_error": -2.3,
+          "mean_abs_error": 2.9,
+          "tendency": "overestimated"
+        },
+        {
+          "entity": "Red Bull Racing",
+          "samples": 10.0,
+          "mean_signed_error": -1.7,
+          "mean_abs_error": 5.1,
+          "tendency": "overestimated"
+        },
+        {
+          "entity": "Haas F1 Team",
+          "samples": 10.0,
+          "mean_signed_error": 0.1,
+          "mean_abs_error": 2.5,
+          "tendency": "balanced"
+        }
+      ],
+      "most_underestimated_drivers": [
+        {
+          "entity": "ANT",
+          "samples": 5.0,
+          "mean_signed_error": 5.0,
+          "mean_abs_error": 5.0,
+          "tendency": "underestimated"
+        },
+        {
+          "entity": "COL",
+          "samples": 5.0,
+          "mean_signed_error": 3.6,
+          "mean_abs_error": 3.6,
+          "tendency": "underestimated"
+        },
+        {
+          "entity": "PER",
+          "samples": 5.0,
+          "mean_signed_error": 2.4,
+          "mean_abs_error": 2.4,
+          "tendency": "underestimated"
+        },
+        {
+          "entity": "PIA",
+          "samples": 5.0,
+          "mean_signed_error": 2.2,
+          "mean_abs_error": 2.6,
+          "tendency": "underestimated"
+        },
+        {
+          "entity": "NOR",
+          "samples": 5.0,
+          "mean_signed_error": 2.0,
+          "mean_abs_error": 2.4,
+          "tendency": "underestimated"
+        }
+      ],
+      "most_overestimated_drivers": [
+        {
+          "entity": "LAW",
+          "samples": 5.0,
+          "mean_signed_error": -5.4,
+          "mean_abs_error": 5.4,
+          "tendency": "overestimated"
+        },
+        {
+          "entity": "VER",
+          "samples": 5.0,
+          "mean_signed_error": -5.0,
+          "mean_abs_error": 7.0,
+          "tendency": "overestimated"
+        },
+        {
+          "entity": "ALB",
+          "samples": 5.0,
+          "mean_signed_error": -3.8,
+          "mean_abs_error": 4.6,
+          "tendency": "overestimated"
+        },
+        {
+          "entity": "LEC",
+          "samples": 5.0,
+          "mean_signed_error": -3.4,
+          "mean_abs_error": 3.4,
+          "tendency": "overestimated"
+        },
+        {
+          "entity": "SAI",
+          "samples": 5.0,
+          "mean_signed_error": -2.2,
+          "mean_abs_error": 3.0,
+          "tendency": "overestimated"
+        }
+      ],
+      "label": "qualifying"
+    },
+    "qualifying_vs_baseline": {
+      "events_compared": 4,
+      "model_metrics": {
+        "mae": 2.8636363636363638,
+        "exact_match_rate": 15.90909090909091,
+        "within_3_rate": 71.5909090909091,
+        "spearman_rank": 0.7775268210050821,
+        "kendall_tau": 0.6385281385281385
+      },
+      "baseline_metrics": {
+        "mae": 2.8863636363636362,
+        "exact_match_rate": 10.227272727272728,
+        "within_3_rate": 70.45454545454545,
+        "spearman_rank": 0.8122529644268777,
+        "kendall_tau": 0.6385281385281385
+      },
+      "improvement": {
+        "mae_improvement": 0.022727272727272485,
+        "exact_match_rate_delta": 5.681818181818182,
+        "within_3_rate_delta": 1.1363636363636402,
+        "spearman_rank_delta": -0.034726143421795586,
+        "kendall_tau_delta": 0.0
+      },
+      "model_beats_baseline_on_mae": true,
+      "label": "qualifying"
+    },
+    "qualifying_segments": {
+      "weekend_format": {
+        "normal": {
+          "events": 2,
+          "mae": 3.045454545454546,
+          "exact_match_rate": 15.90909090909091,
+          "within_3_rate": 75.0,
+          "spearman_rank": 0.743647656691135,
+          "kendall_tau": 0.6277056277056277
+        },
+        "sprint": {
+          "events": 3,
+          "mae": 2.878787878787879,
+          "exact_match_rate": 13.636363636363638,
+          "within_3_rate": 66.66666666666667,
+          "spearman_rank": 0.8031244118200641,
+          "kendall_tau": 0.6392496392496393
+        }
+      },
+      "weather": {
+        "dry": {
+          "events": 5,
+          "mae": 2.9454545454545458,
+          "exact_match_rate": 14.545454545454547,
+          "within_3_rate": 70.0,
+          "spearman_rank": 0.7793337097684925,
+          "kendall_tau": 0.6346320346320347
+        }
+      },
+      "track_type": {
+        "permanent": {
+          "events": 3,
+          "mae": 2.878787878787879,
+          "exact_match_rate": 18.181818181818183,
+          "within_3_rate": 66.66666666666667,
+          "spearman_rank": 0.7891963109354415,
+          "kendall_tau": 0.6248196248196248
+        },
+        "street": {
+          "events": 2,
+          "mae": 3.045454545454546,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 75.0,
+          "spearman_rank": 0.764539808018069,
+          "kendall_tau": 0.6493506493506493
+        }
+      }
+    },
+    "qualifying_errors": {
+      "events_evaluated": 5,
+      "worst_events": [
+        {
+          "race_name": "Canadian Grand Prix",
+          "weekend_format": "sprint",
+          "weather": "dry",
+          "track_type": "permanent",
+          "mae": 3.5454545454545454,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 59.09090909090909,
+          "predicted_winner": "VER",
+          "actual_winner": "RUS",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "LAW",
+              "team": "RB",
+              "predicted_position": 9,
+              "actual_position": 22,
+              "signed_error": -13.0,
+              "absolute_error": 13.0
+            },
+            {
+              "driver": "ALB",
+              "team": "Williams",
+              "predicted_position": 10,
+              "actual_position": 21,
+              "signed_error": -11.0,
+              "absolute_error": 11.0
+            },
+            {
+              "driver": "COL",
+              "team": "Alpine",
+              "predicted_position": 21,
+              "actual_position": 13,
+              "signed_error": 8.0,
+              "absolute_error": 8.0
+            }
+          ]
+        },
+        {
+          "race_name": "Miami Grand Prix",
+          "weekend_format": "sprint",
+          "weather": "dry",
+          "track_type": "street",
+          "mae": 3.272727272727273,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 63.63636363636363,
+          "predicted_winner": "LEC",
+          "actual_winner": "NOR",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "ANT",
+              "team": "Mercedes",
+              "predicted_position": 13,
+              "actual_position": 2,
+              "signed_error": 11.0,
+              "absolute_error": 11.0
+            },
+            {
+              "driver": "ALB",
+              "team": "Williams",
+              "predicted_position": 7,
+              "actual_position": 14,
+              "signed_error": -7.0,
+              "absolute_error": 7.0
+            },
+            {
+              "driver": "SAI",
+              "team": "Williams",
+              "predicted_position": 10,
+              "actual_position": 15,
+              "signed_error": -5.0,
+              "absolute_error": 5.0
+            }
+          ]
+        },
+        {
+          "race_name": "Japanese Grand Prix",
+          "weekend_format": "normal",
+          "weather": "dry",
+          "track_type": "permanent",
+          "mae": 3.272727272727273,
+          "exact_match_rate": 22.727272727272727,
+          "within_3_rate": 63.63636363636363,
+          "predicted_winner": "LEC",
+          "actual_winner": "ANT",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "HUL",
+              "team": "Audi",
+              "predicted_position": 3,
+              "actual_position": 13,
+              "signed_error": -10.0,
+              "absolute_error": 10.0
+            },
+            {
+              "driver": "LAW",
+              "team": "RB",
+              "predicted_position": 5,
+              "actual_position": 14,
+              "signed_error": -9.0,
+              "absolute_error": 9.0
+            },
+            {
+              "driver": "HAD",
+              "team": "Red Bull Racing",
+              "predicted_position": 17,
+              "actual_position": 8,
+              "signed_error": 9.0,
+              "absolute_error": 9.0
+            }
+          ]
+        },
+        {
+          "race_name": "Australian Grand Prix",
+          "weekend_format": "normal",
+          "weather": "dry",
+          "track_type": "street",
+          "mae": 2.8181818181818183,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 86.36363636363636,
+          "predicted_winner": "LEC",
+          "actual_winner": "RUS",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "VER",
+              "team": "Red Bull Racing",
+              "predicted_position": 2,
+              "actual_position": 20,
+              "signed_error": -18.0,
+              "absolute_error": 18.0
+            },
+            {
+              "driver": "SAI",
+              "team": "Williams",
+              "predicted_position": 16,
+              "actual_position": 22,
+              "signed_error": -6.0,
+              "absolute_error": 6.0
+            },
+            {
+              "driver": "PER",
+              "team": "Cadillac F1",
+              "predicted_position": 22,
+              "actual_position": 18,
+              "signed_error": 4.0,
+              "absolute_error": 4.0
+            }
+          ]
+        },
+        {
+          "race_name": "Chinese Grand Prix",
+          "weekend_format": "sprint",
+          "weather": "dry",
+          "track_type": "permanent",
+          "mae": 1.8181818181818181,
+          "exact_match_rate": 22.727272727272727,
+          "within_3_rate": 77.27272727272727,
+          "predicted_winner": "RUS",
+          "actual_winner": "RUS",
+          "winner_correct": true,
+          "top_misses": [
+            {
+              "driver": "BEA",
+              "team": "Haas F1 Team",
+              "predicted_position": 15,
+              "actual_position": 9,
+              "signed_error": 6.0,
+              "absolute_error": 6.0
+            },
+            {
+              "driver": "VER",
+              "team": "Red Bull Racing",
+              "predicted_position": 3,
+              "actual_position": 8,
+              "signed_error": -5.0,
+              "absolute_error": 5.0
+            },
+            {
+              "driver": "NOR",
+              "team": "McLaren",
+              "predicted_position": 7,
+              "actual_position": 3,
+              "signed_error": 4.0,
+              "absolute_error": 4.0
+            }
+          ]
+        }
+      ],
+      "winner_miss_events": [
+        {
+          "race_name": "Miami Grand Prix",
+          "weekend_format": "sprint",
+          "weather": "dry",
+          "track_type": "street",
+          "mae": 3.272727272727273,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 63.63636363636363,
+          "predicted_winner": "LEC",
+          "actual_winner": "NOR",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "ANT",
+              "team": "Mercedes",
+              "predicted_position": 13,
+              "actual_position": 2,
+              "signed_error": 11.0,
+              "absolute_error": 11.0
+            },
+            {
+              "driver": "ALB",
+              "team": "Williams",
+              "predicted_position": 7,
+              "actual_position": 14,
+              "signed_error": -7.0,
+              "absolute_error": 7.0
+            },
+            {
+              "driver": "SAI",
+              "team": "Williams",
+              "predicted_position": 10,
+              "actual_position": 15,
+              "signed_error": -5.0,
+              "absolute_error": 5.0
+            }
+          ]
+        },
+        {
+          "race_name": "Canadian Grand Prix",
+          "weekend_format": "sprint",
+          "weather": "dry",
+          "track_type": "permanent",
+          "mae": 3.5454545454545454,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 59.09090909090909,
+          "predicted_winner": "VER",
+          "actual_winner": "RUS",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "LAW",
+              "team": "RB",
+              "predicted_position": 9,
+              "actual_position": 22,
+              "signed_error": -13.0,
+              "absolute_error": 13.0
+            },
+            {
+              "driver": "ALB",
+              "team": "Williams",
+              "predicted_position": 10,
+              "actual_position": 21,
+              "signed_error": -11.0,
+              "absolute_error": 11.0
+            },
+            {
+              "driver": "COL",
+              "team": "Alpine",
+              "predicted_position": 21,
+              "actual_position": 13,
+              "signed_error": 8.0,
+              "absolute_error": 8.0
+            }
+          ]
+        },
+        {
+          "race_name": "Japanese Grand Prix",
+          "weekend_format": "normal",
+          "weather": "dry",
+          "track_type": "permanent",
+          "mae": 3.272727272727273,
+          "exact_match_rate": 22.727272727272727,
+          "within_3_rate": 63.63636363636363,
+          "predicted_winner": "LEC",
+          "actual_winner": "ANT",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "HUL",
+              "team": "Audi",
+              "predicted_position": 3,
+              "actual_position": 13,
+              "signed_error": -10.0,
+              "absolute_error": 10.0
+            },
+            {
+              "driver": "LAW",
+              "team": "RB",
+              "predicted_position": 5,
+              "actual_position": 14,
+              "signed_error": -9.0,
+              "absolute_error": 9.0
+            },
+            {
+              "driver": "HAD",
+              "team": "Red Bull Racing",
+              "predicted_position": 17,
+              "actual_position": 8,
+              "signed_error": 9.0,
+              "absolute_error": 9.0
+            }
+          ]
+        },
+        {
+          "race_name": "Australian Grand Prix",
+          "weekend_format": "normal",
+          "weather": "dry",
+          "track_type": "street",
+          "mae": 2.8181818181818183,
+          "exact_match_rate": 9.090909090909092,
+          "within_3_rate": 86.36363636363636,
+          "predicted_winner": "LEC",
+          "actual_winner": "RUS",
+          "winner_correct": false,
+          "top_misses": [
+            {
+              "driver": "VER",
+              "team": "Red Bull Racing",
+              "predicted_position": 2,
+              "actual_position": 20,
+              "signed_error": -18.0,
+              "absolute_error": 18.0
+            },
+            {
+              "driver": "SAI",
+              "team": "Williams",
+              "predicted_position": 16,
+              "actual_position": 22,
+              "signed_error": -6.0,
+              "absolute_error": 6.0
+            },
+            {
+              "driver": "PER",
+              "team": "Cadillac F1",
+              "predicted_position": 22,
+              "actual_position": 18,
+              "signed_error": 4.0,
+              "absolute_error": 4.0
+            }
+          ]
+        }
+      ],
+      "frequent_top_miss_drivers": [
+        {
+          "driver": "VER",
+          "appearances": 2.0,
+          "avg_abs_error": 11.5
+        },
+        {
+          "driver": "LAW",
+          "appearances": 2.0,
+          "avg_abs_error": 11.0
+        },
+        {
+          "driver": "ALB",
+          "appearances": 2.0,
+          "avg_abs_error": 9.0
+        },
+        {
+          "driver": "SAI",
+          "appearances": 2.0,
+          "avg_abs_error": 5.5
+        },
+        {
+          "driver": "ANT",
+          "appearances": 1.0,
+          "avg_abs_error": 11.0
+        }
+      ]
+    }
+  },
+  "raw_model_metrics": {
+    "status": "unavailable",
+    "reason": "Saved artifacts do not identify pre-release raw model output."
+  },
+  "counterfactual_reproduces_old_scores": true,
+  "saved_output_reproduces_old_unadjusted_scores": true,
+  "race_scores_unchanged": true,
+  "legacy_evaluation_file_sha256": "c324c470cadaf14bd6a1c2da0e90069221b161459afbec12207a5f348432b5a8",
+  "cohort_hash_meaning": "Paired scoreable forecast core hashes and attached outcome content hashes.",
+  "raw_legacy_fields_unavailable": true,
+  "counterfactual_cohort_matches_saved_output": true,
+  "exact_explicit_target_pair_required": true,
+  "reported_event_order": "calendar_lookup_order_with_saved_time_fallback",
+  "forecast_state_and_raw_rows_validated": true,
+  "latest_malformed_forecast_cannot_trigger_reselection": true
+}

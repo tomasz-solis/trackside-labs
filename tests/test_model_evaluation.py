@@ -6,6 +6,7 @@ import math
 
 import pytest
 
+from src.analysis import model_evaluation
 from src.analysis.model_evaluation import (
     compute_calibration_metrics,
     compute_improvement_over_baseline,
@@ -93,6 +94,42 @@ def test_compute_calibration_metrics_tracks_miss_distance():
     assert metrics["empirical_coverage"] == pytest.approx(0.0)
     assert metrics["average_miss_distance"] == pytest.approx((2.0 + 1.0 + 2.0) / 3.0)
     assert metrics["calibration_error"] == pytest.approx(-0.9)
+
+
+def test_shared_calibration_components_pool_unequal_events_and_empty_data():
+    """Shared interval summary must match direct pooled scoring exactly."""
+    first = model_evaluation.build_calibration_components([(1, 1)], [1])
+    second = model_evaluation.build_calibration_components([(1, 1), (2, 2), (3, 3)], [2, 1, 6])
+    empty = model_evaluation.build_calibration_components([], [])
+
+    pooled = model_evaluation.summarize_calibration_components([first, second, empty])
+    direct = compute_calibration_metrics([(1, 1), (1, 1), (2, 2), (3, 3)], [1, 2, 1, 6])
+
+    assert pooled == direct
+    assert pooled["interval_count"] == 4.0
+    assert pooled["empirical_coverage"] == 0.25
+    assert pooled["average_miss_distance"] == pytest.approx(5 / 3)
+    assert model_evaluation.summarize_calibration_components([empty]) == (
+        compute_calibration_metrics([], [])
+    )
+
+
+def test_compute_calibration_metrics_builds_interval_components_once(monkeypatch):
+    """The public calibration API uses the same single interval pass."""
+    original = model_evaluation.build_calibration_components
+    calls = 0
+
+    def count_build(*args):
+        nonlocal calls
+        calls += 1
+        return original(*args)
+
+    monkeypatch.setattr(model_evaluation, "build_calibration_components", count_build)
+    metrics = compute_calibration_metrics([(1, 2), (3, 4)], [2, 6])
+
+    assert calls == 1
+    assert metrics["interval_count"] == 2.0
+    assert metrics["average_miss_distance"] == 2.0
 
 
 def test_identify_systematic_errors_reports_team_and_driver_bias():
@@ -191,6 +228,29 @@ def test_compute_improvement_over_baseline_handles_empty_events():
     assert summary["events_compared"] == 0
     assert summary["model_metrics"] == {}
     assert summary["baseline_metrics"] == {}
+
+
+def test_shared_baseline_summary_preserves_empty_and_finite_means():
+    """Prepared rank metrics use the same finite-only summary as row scoring."""
+    assert model_evaluation.summarize_baseline_metrics([], []) == (
+        compute_improvement_over_baseline([], [], [])
+    )
+    model_events = [
+        {"mae": float("inf"), "exact_match_rate": float("nan")},
+        {"mae": 1.0, "exact_match_rate": 50.0},
+    ]
+    baseline_events = [
+        {"mae": 2.0, "exact_match_rate": 25.0},
+        {"mae": 3.0, "exact_match_rate": 0.0},
+    ]
+    summary = model_evaluation.summarize_baseline_metrics(model_events, baseline_events)
+
+    assert summary["events_compared"] == 2
+    assert summary["model_metrics"]["mae"] == 1.0
+    assert summary["model_metrics"]["exact_match_rate"] == 50.0
+    assert summary["baseline_metrics"]["mae"] == 2.5
+    assert summary["improvement"]["mae_improvement"] == 1.5
+    assert summary["model_beats_baseline_on_mae"] is True
 
 
 # ---------------------------------------------------------------------------

@@ -140,6 +140,7 @@ def test_load_served_prediction_bundle_fails_closed_when_nothing_is_available():
 def test_load_served_prediction_bundle_serves_latest_when_artifact_hash_differs():
     notifications: list[str] = []
     seen_calls: list[dict] = []
+    requested: list[str] = []
 
     def _latest_for_boundary(**kwargs):
         seen_calls.append(kwargs)
@@ -166,6 +167,7 @@ def test_load_served_prediction_bundle_serves_latest_when_artifact_hash_differs(
         load_warmed_boundary_fallback_prediction_fn=lambda **kwargs: None,
         load_precompute_horizon_index_fn=lambda **kwargs: None,
         load_latest_prediction_for_boundary_fn=_latest_for_boundary,
+        request_precompute_fn=requested.append,
         served_prediction_boundary_session_name_fn=lambda **kwargs: "FP2",
         prediction_unavailable_error_type=PrecomputedPredictionUnavailableError,
         notify_fn=notifications.append,
@@ -176,3 +178,5 @@ def test_load_served_prediction_bundle_serves_latest_when_artifact_hash_differs(
     # Fallback keeps the checkpoint exact, only relaxes the model version.
     assert seen_calls and seen_calls[0]["boundary_signature"] == "stable_sig"
     assert any("latest available forecast" in note for note in notifications)
+    # Nothing is warmed for this hash, so the cron is asked to build it.
+    assert requested == ["local_hash_that_differs"]

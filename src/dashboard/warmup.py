@@ -500,12 +500,14 @@ def _logged_pre_is_stale(
     race_name: str,
     checkpoint_session: str,
     now_utc: datetime,
+    artifact_hash: str = "",
 ) -> bool:
     """Return whether a logged PRE forecast should be replaced before the weekend starts.
 
-    A PRE forecast can be logged weeks ahead. It goes stale when the model version
-    changes or another race finishes in between. Once the weekend's first session has
-    started it is frozen, and every later checkpoint is always kept.
+    A PRE forecast can be logged weeks ahead. It goes stale when its inputs change (the
+    artifact hash covers data, snapshots and prediction code), the model version changes,
+    or another race finishes in between. Once the weekend's first session has started it
+    is frozen, and every later checkpoint is always kept.
     """
     if str(checkpoint_session).strip().upper() != "PRE":
         return False
@@ -534,6 +536,9 @@ def _logged_pre_is_stale(
 
     if str(metadata.get("model_version", "")).strip() != get_model_version():
         return True
+    # A forecast logged before the hash was recorded has none, so it is replaced once.
+    if artifact_hash and str(metadata.get("artifact_hash", "")).strip() != artifact_hash:
+        return True
     return any(
         predicted_at < race_start and race_start + _RACE_FINISH_BUFFER < now_utc
         for race_start in other_race_starts
@@ -548,6 +553,7 @@ def _save_warmup_prediction_to_logger(
     weather: str,
     is_sprint: bool,
     prediction_results: dict[str, Any],
+    artifact_hash: str = "",
 ) -> None:
     """Mirror one warmup payload into the prediction logger for accuracy scoring."""
     logger_inst = PredictionLogger()
@@ -559,6 +565,7 @@ def _save_warmup_prediction_to_logger(
         race_name=race_name,
         checkpoint_session=checkpoint_session,
         now_utc=datetime.now(UTC),
+        artifact_hash=artifact_hash,
     ):
         return
 
@@ -596,6 +603,7 @@ def _save_warmup_prediction_to_logger(
         target_predictions=target_predictions,
         metadata={
             "source": "warmup_precompute",
+            "artifact_hash": artifact_hash,
             "weekend_format": weekend_format_name(is_sprint),
             "top_level_qualifying_target": qualifying_target,
             "top_level_race_target": race_target,
@@ -1001,6 +1009,7 @@ def _process_weather_scenario(
             weather=target_weather,
             is_sprint=target_is_sprint,
             prediction_results=prediction_results,
+            artifact_hash=ctx.artifact_hash,
         )
     except _WARMUP_ERRORS as exc:
         logger.warning(

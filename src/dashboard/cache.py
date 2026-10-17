@@ -1,5 +1,6 @@
 """Dashboard caching and predictor bootstrap."""
 
+import ast
 import hashlib
 import json
 import logging
@@ -16,6 +17,8 @@ logger = logging.getLogger(__name__)
 _FASTF1_CACHE_DIR = resolve_repo_data_path("data/raw/.fastf1_cache")
 _FASTF1_CACHE_ENABLED_FOR: str | None = None
 _DEFAULT_SEASON = 2026
+# Roots of the prediction code. The fingerprint covers these plus every src module they
+# import (see `_prediction_code_files`), so a helper can never be left out by hand.
 _PREDICTION_CODE_FINGERPRINT_FILES = [
     "src/dashboard/checkpoint_predictor.py",
     "src/dashboard/prediction_flow.py",
@@ -190,6 +193,64 @@ def _fingerprint_newest(
         return {key: (0, "")}
 
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_PREDICTION_CODE_FILES: tuple[str, ...] | None = None
+
+
+def _module_file(module_name: str) -> str | None:
+    """Return the repo-relative file of one ``src.*`` module, or None if it has none."""
+    base = Path(*module_name.split("."))
+    for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+        if (_REPO_ROOT / candidate).is_file():
+            return candidate.as_posix()
+    return None
+
+
+def _imported_src_modules(relative_path: str) -> set[str]:
+    """Return every ``src.*`` module one file imports, including imports inside functions."""
+    tree = ast.parse((_REPO_ROOT / relative_path).read_text(encoding="utf-8"))
+    package = Path(relative_path).parent
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                base = package
+                for _ in range(node.level - 1):
+                    base = base.parent
+                module = ".".join((*base.parts, *([node.module] if node.module else [])))
+            else:
+                module = node.module or ""
+            names.add(module)
+            # `from src.x import y` can name the submodule src.x.y.
+            names.update(f"{module}.{alias.name}" for alias in node.names)
+    return {name for name in names if name == "src" or name.startswith("src.")}
+
+
+def _prediction_code_files() -> tuple[str, ...]:
+    """Return the root files plus every src file they reach by import, sorted.
+
+    Read from source text, so web and cron get the same list for the same deploy.
+    """
+    global _PREDICTION_CODE_FILES
+    if _PREDICTION_CODE_FILES is not None:
+        return _PREDICTION_CODE_FILES
+    seen: set[str] = set()
+    pending = list(_PREDICTION_CODE_FINGERPRINT_FILES)
+    while pending:
+        relative_path = pending.pop()
+        if relative_path in seen or not (_REPO_ROOT / relative_path).is_file():
+            continue
+        seen.add(relative_path)
+        for module_name in _imported_src_modules(relative_path):
+            module_file = _module_file(module_name)
+            if module_file is not None and module_file not in seen:
+                pending.append(module_file)
+    _PREDICTION_CODE_FILES = tuple(sorted(seen))
+    return _PREDICTION_CODE_FILES
+
+
 def _get_file_timestamps(
     year: int = _DEFAULT_SEASON,
     *,
@@ -209,7 +270,7 @@ def _get_file_timestamps(
         # from before the change, until an unrelated season artifact happens to bump
         # the hash.
         "data/processed/team_strength_seconds_mapping/latest.json",
-        *_PREDICTION_CODE_FINGERPRINT_FILES,
+        *_prediction_code_files(),
     ]
     runtime_files = [
         file_template.format(year=season_year) for file_template in _RUNTIME_PREDICTION_INPUT_FILES

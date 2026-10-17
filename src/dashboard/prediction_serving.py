@@ -127,6 +127,7 @@ def load_served_prediction_bundle(
     load_warmed_boundary_fallback_prediction_fn: Any,
     load_precompute_horizon_index_fn: Any,
     load_latest_prediction_for_boundary_fn: Any = None,
+    request_precompute_fn: Callable[[str], Any] | None = None,
     served_prediction_boundary_session_name_fn: Any,
     prediction_unavailable_error_type: type[Exception],
     notify_fn: Callable[[str], None],
@@ -214,6 +215,10 @@ def load_served_prediction_bundle(
             # artifact hash (routine artifact bumps re-key every stored record), so
             # serve the newest forecast for this race/weather/checkpoint regardless of
             # model version instead of failing to an empty page.
+            # Nothing is warmed for this hash, so ask the cron to build it now instead of
+            # waiting for its next scheduled weekend run.
+            if request_precompute_fn is not None:
+                request_precompute_fn(artifact_hash)
             resilient_prediction = None
             if load_latest_prediction_for_boundary_fn is not None:
                 resilient_prediction = load_latest_prediction_for_boundary_fn(

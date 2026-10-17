@@ -1,9 +1,9 @@
 """Render platform calls the operator panel needs: precompute now, restart the service.
 
-Every deploy that touches a file in ``_PREDICTION_CODE_FINGERPRINT_FILES`` moves the
-artifact hash, so the warmed predictions no longer match and the dashboard has nothing to
-serve until the scheduled ``preheat`` cron next runs. Recovering meant opening the Render
-dashboard and clicking two buttons; these two calls put them on the admin page instead.
+Every deploy that touches prediction code (see ``cache._prediction_code_files``) moves the
+artifact hash, so the warmed predictions no longer match and the dashboard serves an older
+forecast until the cron runs again. ``trigger_precompute_once`` starts that run on its own;
+the admin page keeps the manual buttons.
 
 The precompute deliberately does *not* run in this process. The web service is on the free
 plan and the cron on starter; loading the predictor and simulating a weekend here is how
@@ -60,6 +60,52 @@ def trigger_precompute_run(env: Mapping[str, str] | None = None) -> tuple[bool, 
         needs=(_API_KEY_VAR, _CRON_ID_VAR),
         success_message="Precompute run started. It takes a few minutes; reload this page to see the new horizon.",
     )
+
+
+# One automatic run per artifact hash in this window. Render cancels an in-flight run when
+# a new one starts, so repeated triggers would keep the precompute from ever finishing.
+_AUTO_TRIGGER_TTL_SECONDS = 6 * 3600
+
+
+def trigger_precompute_once(
+    artifact_hash: str,
+    env: Mapping[str, str] | None = None,
+    store: Any = None,
+) -> bool:
+    """Start one precompute run for an artifact hash the warmed forecasts do not match yet.
+
+    Called when the dashboard serves an older forecast because the current hash has none,
+    which happens after any deploy or data change outside the cron's Friday to Sunday
+    schedule. Runs only on Render (``RENDER`` is set there), so a local dashboard pointed
+    at production never starts runs. A DB lock makes it once per hash across instances.
+    Never raises.
+    """
+    source = _env(env)
+    if not str(artifact_hash).strip() or not str(source.get("RENDER", "")).strip():
+        return False
+    if not render_ops_configured(env):
+        return False
+    from uuid import uuid4
+
+    try:
+        if store is None:
+            from src.persistence.runtime_state_store import RuntimeStateStore
+
+            store = RuntimeStateStore()
+        acquired = store.acquire_lock(
+            f"precompute_trigger::{artifact_hash}",
+            uuid4().hex,
+            ttl_seconds=_AUTO_TRIGGER_TTL_SECONDS,
+        )
+    except Exception as exc:  # noqa: BLE001 - serving must never fail on this
+        logger.warning("Could not take the precompute trigger lock: %s", exc)
+        return False
+    if not acquired:
+        return False
+    started, message = trigger_precompute_run(env)
+    log = logger.info if started else logger.warning
+    log("Automatic precompute for artifact hash %s: %s", artifact_hash[:12], message)
+    return started
 
 
 def restart_web_service(env: Mapping[str, str] | None = None) -> tuple[bool, str]:

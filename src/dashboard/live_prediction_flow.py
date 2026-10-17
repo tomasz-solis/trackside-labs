@@ -26,6 +26,7 @@ from src.utils.operational_observability import (
 from . import prediction_boundary as _prediction_boundary
 from . import prediction_checkpointing as _prediction_checkpointing
 from . import prediction_serving as _prediction_serving
+from . import render_ops as _render_ops
 
 PredictionResults = dict[str, Any]
 ArtifactVersion = tuple[int, str]
@@ -311,6 +312,7 @@ def _load_served_prediction_bundle(
         load_warmed_boundary_fallback_prediction_fn=_load_warmed_boundary_fallback_prediction,
         load_precompute_horizon_index_fn=load_precompute_horizon_index,
         load_latest_prediction_for_boundary_fn=load_latest_prediction_for_boundary,
+        request_precompute_fn=_render_ops.trigger_precompute_once,
         served_prediction_boundary_session_name_fn=(
             _prediction_boundary.served_prediction_boundary_session_name
         ),

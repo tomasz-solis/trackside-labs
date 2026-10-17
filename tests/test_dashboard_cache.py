@@ -359,3 +359,17 @@ def test_seconds_mapping_is_fingerprinted_so_a_refit_invalidates_precomputes(pat
     after = cache._get_file_timestamps(include_runtime_files=False)
 
     assert after[mapping_path] != before[mapping_path]
+
+
+def test_prediction_code_fingerprint_follows_imports():
+    """Files the hand-kept roots import must move the cache key too (missed 82 on 2026-10-17)."""
+    from src.dashboard import cache
+
+    files = cache._prediction_code_files()
+
+    assert set(cache._PREDICTION_CODE_FINGERPRINT_FILES) <= set(files)
+    # Reached only through imports, never listed by hand.
+    assert "src/models/tyre_deg.py" in files
+    assert "src/predictors/baseline/race/prediction_mixin.py" in files
+    assert list(files) == sorted(files)
+    assert "src/models/tyre_deg.py" in cache._get_file_timestamps(2026, include_runtime_files=False)

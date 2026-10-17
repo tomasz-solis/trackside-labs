@@ -190,3 +190,54 @@ def test_events_need_the_same_configuration_as_the_buttons(monkeypatch: pytest.M
     assert rows == []
     assert "RENDER_API_KEY" in error
     assert stub.calls == []
+
+
+class _Lock:
+    """Stand-in runtime store: the first caller per key gets the lock."""
+
+    def __init__(self):
+        self.keys: list[str] = []
+
+    def acquire_lock(self, lock_key: str, owner_id: str, ttl_seconds: int = 900) -> bool:
+        del owner_id, ttl_seconds
+        acquired = lock_key not in self.keys
+        self.keys.append(lock_key)
+        return acquired
+
+
+def test_auto_trigger_runs_once_per_hash_on_render(monkeypatch: pytest.MonkeyPatch):
+    stub = _patch_requests(monkeypatch, _Requests(_Response(200)))
+    store = _Lock()
+    env = {**_CONFIGURED, "RENDER": "true"}
+
+    first = render_ops.trigger_precompute_once("hash_a", env, store=store)
+    again = render_ops.trigger_precompute_once("hash_a", env, store=store)
+    other = render_ops.trigger_precompute_once("hash_b", env, store=store)
+
+    assert (first, again, other) == (True, False, True)
+    assert [url for url, _ in stub.calls] == [
+        "https://api.render.com/v1/cron-jobs/crn-abc/runs",
+        "https://api.render.com/v1/cron-jobs/crn-abc/runs",
+    ]
+
+
+def test_auto_trigger_never_runs_off_render(monkeypatch: pytest.MonkeyPatch):
+    """A local dashboard pointed at production must not start production runs."""
+    stub = _patch_requests(monkeypatch, _Requests(_Response(200)))
+    store = _Lock()
+
+    assert render_ops.trigger_precompute_once("hash_a", _CONFIGURED, store=store) is False
+    assert stub.calls == []
+    assert store.keys == []
+
+
+def test_auto_trigger_survives_a_lock_failure(monkeypatch: pytest.MonkeyPatch):
+    stub = _patch_requests(monkeypatch, _Requests(_Response(200)))
+
+    class _Broken:
+        def acquire_lock(self, *args: Any, **kwargs: Any) -> bool:
+            raise RuntimeError("db down")
+
+    env = {**_CONFIGURED, "RENDER": "true"}
+    assert render_ops.trigger_precompute_once("hash_a", env, store=_Broken()) is False
+    assert stub.calls == []

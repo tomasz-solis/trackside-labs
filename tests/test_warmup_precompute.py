@@ -1549,6 +1549,41 @@ def test_logged_pre_forecast_is_refreshed_only_before_the_weekend(
     assert stale is expected
 
 
+@pytest.mark.parametrize(
+    ("logged_hash", "now", "expected"),
+    [
+        # Same inputs as logged: keep it.
+        ("hash_a", "2026-10-13T09:00:00+00:00", False),
+        # Inputs changed (data, snapshot or prediction code): refresh it.
+        ("hash_old", "2026-10-13T09:00:00+00:00", True),
+        # Logged before hashes were recorded: refresh once.
+        (None, "2026-10-13T09:00:00+00:00", True),
+        # The weekend has started: frozen whatever changed.
+        ("hash_old", "2026-10-23T18:00:00+00:00", False),
+    ],
+)
+def test_logged_pre_forecast_is_refreshed_when_its_inputs_change(
+    patcher, logged_hash, now, expected
+):
+    from datetime import datetime
+
+    patcher.setattr(warmup.fastf1, "get_event_schedule", lambda year: _pre_schedule())
+    logged = _PreLogger("2026-10-12T09:00:00+00:00", warmup.get_model_version())
+    if logged_hash is not None:
+        logged.metadata["artifact_hash"] = logged_hash
+
+    stale = warmup._logged_pre_is_stale(
+        logged,
+        year=2026,
+        race_name="United States Grand Prix",
+        checkpoint_session="PRE",
+        now_utc=datetime.fromisoformat(now),
+        artifact_hash="hash_a",
+    )
+
+    assert stale is expected
+
+
 def test_practice_refresh_failure_still_saves_forecasts(patcher):
     """A practice data outage (FastF1 #978, Oct 2026) must not stop the forecasts."""
     patcher.setattr(warmup, "should_write_to_db", lambda: False)

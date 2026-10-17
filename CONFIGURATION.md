@@ -62,7 +62,7 @@ Any mode other than `file_only` needs `SUPABASE_URL` (an `https://` URL) and `SU
 |---|---|
 | `TL_ADMIN_TOKEN` | Unlocks the panel |
 | `RENDER_API_KEY` | Render API token |
-| `RENDER_PRECOMPUTE_CRON_ID` | The `preheat` cron job, for "Trigger precompute run" |
+| `RENDER_PRECOMPUTE_CRON_ID` | The `trackside-labs-warmup` cron job, for "Trigger precompute run" |
 | `RENDER_WEB_SERVICE_ID` | The web service, for "Restart web service" |
 
 The `RENDER_*` variables are optional. Without them the two Render buttons are disabled and say which variable is missing. "Clear dashboard caches" always works. Precompute never runs in the web process: the button starts the cron service, and a new trigger cancels a run in progress.

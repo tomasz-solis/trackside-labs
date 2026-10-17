@@ -35,7 +35,7 @@ A sprint or race that has finished but has no published classification yet shows
 
 ## Scheduling
 
-Production runs it hourly at minute 5, Friday to Sunday UTC (`5 * * * 5,6,0` on the Render cron `trackside-labs-warmup`; `render.yaml` is out of date). The example below is a 5-minute schedule for a self-hosted worker:
+Production runs it hourly at minute 5, Friday to Sunday UTC (`5 * * * 5,6,0` on the Render cron `trackside-labs-warmup`). The example below is a 5-minute schedule for a self-hosted worker:
 
 ```bash
 */5 * * * * cd /path/to/trackside-labs && .venv/bin/python scripts/warmup_precompute.py --year 2026 --require-db >> /tmp/f1_warmup.log 2>&1

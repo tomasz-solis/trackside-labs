@@ -153,7 +153,17 @@ def _prediction_is_sprint_weekend(prediction_data: dict[str, Any]) -> bool:
 
 
 def _load_event_boundary_state() -> dict[str, Any]:
-    """Load the latest known event-boundary schedule snapshot from local storage."""
+    """Load the latest known event-boundary schedule snapshot, database first.
+
+    A fresh deploy has no local file, so DB modes must read the shared copy.
+    """
+    from src.persistence.config import should_read_db_first
+    from src.persistence.runtime_state_store import RuntimeStateStore
+
+    if should_read_db_first():
+        db_races = RuntimeStateStore().load_namespace("event_boundary_refresh")
+        if db_races:
+            return {"races": db_races}
     if not _EVENT_BOUNDARY_STATE_PATH.exists():
         return {}
     try:

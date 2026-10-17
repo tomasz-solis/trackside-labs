@@ -52,7 +52,8 @@ def test_live_fastf1_conventional_session_completion_state():
 
     detector = SessionDetector()
     state = detector.get_session_completion_state(year, conventional_event, "Q")
-    assert state in {"completed", "incomplete", "unknown"}
+    # "unknown" means FastF1 could not load the session; that is the outage this check exists for.
+    assert state in {"completed", "incomplete"}
 
 
 @pytest.mark.integration
@@ -66,7 +67,8 @@ def test_live_fastf1_sprint_session_completion_state():
 
     detector = SessionDetector()
     state = detector.get_session_completion_state(year, sprint_event, "SQ")
-    assert state in {"completed", "incomplete", "unknown"}
+    # "unknown" means FastF1 could not load the session; that is the outage this check exists for.
+    assert state in {"completed", "incomplete"}
 
 
 @pytest.mark.integration

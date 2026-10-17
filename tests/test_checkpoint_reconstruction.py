@@ -682,3 +682,34 @@ def test_reconstruct_checkpoint_prediction_allows_missing_actuals_for_upcoming_p
     assert saved_artifact["version"] == 1
     assert isinstance(saved_artifact["data"], dict)
     assert saved_artifact["data"]["metadata"]["model_version"] == get_model_version()
+
+
+def test_session_start_reads_shared_boundary_state_without_local_file(monkeypatch, tmp_path):
+    """A fresh deploy has no local boundary file; DB modes must read the shared copy.
+
+    Without it, PRE fell back to an offline round order and picked Azerbaijan FP3
+    over Singapore FP1 for the 2026 United States GP (2026-10-17).
+    """
+    from src.utils import accuracy_targets
+
+    monkeypatch.setattr(accuracy_targets, "_EVENT_BOUNDARY_STATE_PATH", tmp_path / "missing.json")
+    monkeypatch.setattr("src.persistence.config.should_read_db_first", lambda: True)
+    monkeypatch.setattr(
+        "src.persistence.runtime_state_store.RuntimeStateStore.load_namespace",
+        lambda self, namespace: (
+            {
+                "2026::United States Grand Prix": {
+                    "session_schedule": {"FP1": "2026-10-23T17:30:00+00:00"}
+                }
+            }
+            if namespace == "event_boundary_refresh"
+            else {}
+        ),
+    )
+
+    start = accuracy_targets._scheduled_session_start(
+        year=2026, race_name="United States Grand Prix", session_name="FP1"
+    )
+
+    assert start is not None
+    assert start.isoformat() == "2026-10-23T17:30:00+00:00"

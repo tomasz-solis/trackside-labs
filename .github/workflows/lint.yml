@@ -35,7 +35,8 @@ jobs:
       - name: Install mypy dependencies
         run: |
           pip install -r requirements.txt
-          pip install mypy types-PyYAML
+          # Pinned to the uv.lock version; unpinned, CI got mypy 2.x and failed on a stale ignore.
+          pip install mypy==1.19.1 types-PyYAML
 
       - name: Run mypy (full src)
         run: |

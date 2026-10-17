@@ -548,6 +548,11 @@ def test_build_testing_model_team_payload_falls_back_when_loso_is_impossible(mon
         "collect_team_testing_snapshot",
         lambda year, **kwargs: snapshot,
     )
+    monkeypatch.setattr(
+        testing_team_seed,
+        "calculate_team_performance_from_races",
+        lambda year, max_races=None: _full_ranking_payload(),
+    )
 
     payload = testing_team_seed.build_testing_model_team_payload(
         target_year=2026,

@@ -1547,3 +1547,86 @@ def test_logged_pre_forecast_is_refreshed_only_before_the_weekend(
     )
 
     assert stale is expected
+
+
+def test_practice_refresh_failure_still_saves_forecasts(patcher):
+    """A practice data outage (FastF1 #978, Oct 2026) must not stop the forecasts."""
+    patcher.setattr(warmup, "should_write_to_db", lambda: False)
+    patcher.setattr(
+        warmup,
+        "get_prediction_precompute_config",
+        lambda: {
+            "enabled": True,
+            "horizon_races": 1,
+            "weather_scenarios": ["dry"],
+            "max_file_entries": 2048,
+        },
+    )
+    patcher.setattr(
+        warmup,
+        "_resolve_warmup_targets",
+        lambda year, now_utc, horizon_races: warmup.WarmupTargets(
+            anchor_race_name="United States Grand Prix",
+            anchor_is_sprint=False,
+            target_races=("United States Grand Prix",),
+        ),
+    )
+    patcher.setattr(
+        warmup,
+        "_resolve_checkpoint_context",
+        lambda year, race_name, is_sprint, now_utc, session_detector: warmup.CheckpointContext(
+            checkpoint="PRE",
+            expected_checkpoint="PRE",
+            latest_ready_checkpoint="PRE",
+            checkpoint_ready=True,
+            reason="ready",
+            boundary_signature="sig_pre",
+        ),
+    )
+    patcher.setattr(warmup, "is_sprint_weekend", lambda year, race_name: False)
+
+    def _practice_outage(**kwargs):
+        raise ValueError("No loadable sessions found. RateLimitExceededError: any API: 500 calls/h")
+
+    patcher.setattr(warmup, "_refresh_anchor_practice_characteristics", _practice_outage)
+    patcher.setattr(warmup, "get_artifact_versions", lambda year=2026: {"k": (1, "ts")})
+    patcher.setattr(warmup, "compute_artifact_hash", lambda versions: "artifact_hash")
+    patcher.setattr(warmup, "_load_predictor", lambda artifact_versions, year: object())
+    patcher.setattr(warmup, "load_precomputed_base_features", lambda **kwargs: None)
+    patcher.setattr(warmup, "load_precomputed_prediction", lambda **kwargs: None)
+    patcher.setattr(
+        warmup,
+        "compute_base_features",
+        lambda *args, **kwargs: {
+            "is_sprint": False,
+            "main_quali": {"grid": [], "grid_source": "PREDICTED"},
+            "main_grid_for_race": [],
+            "main_race_input_confidence": 0.7,
+            "timing": {"main_quali": 0.1},
+        },
+    )
+    patcher.setattr(
+        warmup,
+        "compute_weather_predictions",
+        lambda base_features, weather, predictor, year, target_race: {
+            "main_quali": {"grid": []},
+            "main_race": {"finish_order": []},
+        },
+    )
+    saved: list[str] = []
+    patcher.setattr(warmup, "save_precomputed_base_features", lambda **kwargs: None)
+    patcher.setattr(
+        warmup,
+        "save_precomputed_prediction",
+        lambda **kwargs: saved.append(str(kwargs["race_name"])),
+    )
+    patcher.setattr(warmup, "save_precompute_horizon_index", lambda **kwargs: None)
+
+    result = warmup.run_warmup_precompute_cycle(
+        2026, now_utc=datetime(2026, 10, 17, 17, 0, tzinfo=UTC)
+    )
+
+    assert saved == ["United States Grand Prix"]
+    assert result.status == "partial_success"
+    assert result.practice_updated is False
+    assert any("practice refresh" in error for error in result.errors)

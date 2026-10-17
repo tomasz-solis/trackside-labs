@@ -757,11 +757,18 @@ def _stage_refresh_practice(ctx: _WarmupRunState) -> None:
     if ctx.dry_run:
         return
 
-    practice_update = _refresh_anchor_practice_characteristics(
-        year=ctx.year,
-        targets=ctx.targets,
-        session_detector=ctx.detector,
-    )
+    try:
+        practice_update = _refresh_anchor_practice_characteristics(
+            year=ctx.year,
+            targets=ctx.targets,
+            session_detector=ctx.detector,
+        )
+    except _WARMUP_ERRORS as exc:
+        # A practice data outage must not stop the forecasts. They use the stored traits.
+        error_message = f"practice refresh: {exc}"
+        ctx.summary.errors.append(error_message)
+        logger.warning("Warmup practice refresh failed, using stored traits: %s", error_message)
+        return
     ctx.summary.practice_updated = bool(practice_update.get("updated"))
     completed_sessions = practice_update.get("completed_fp_sessions", [])
     if isinstance(completed_sessions, list):

@@ -151,6 +151,10 @@ def get_artifact_versions(year: int = _DEFAULT_SEASON) -> dict[str, tuple[int, s
     versions.update(_fingerprint_newest(store, "grid_penalties", season_year))
     versions.update(_fingerprint_newest(store, "driver_substitutions", season_year))
 
+    # The adaptive learning state changes forecasts after every race but carries no version
+    # field, so fingerprint its content.
+    versions.update(_fingerprint_content(store, "learning_state", "learning_state"))
+
     # In DB-backed modes, ignore mutable local runtime files so hashes remain
     # consistent across web/worker instances (for example Render web + cron).
     file_fingerprints = _get_file_timestamps(
@@ -160,6 +164,22 @@ def get_artifact_versions(year: int = _DEFAULT_SEASON) -> dict[str, tuple[int, s
     versions.update(file_fingerprints)
 
     return versions
+
+
+def _fingerprint_content(
+    store: Any, artifact_type: str, artifact_key: str
+) -> dict[str, tuple[int, str]]:
+    """Fingerprint an artifact by its content, for one that has no version field."""
+    key = f"{artifact_type}::{artifact_key}"
+    try:
+        data = store.load_artifact(artifact_type, artifact_key)
+        if not data:
+            return {key: (0, "")}
+        raw = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
+        return {key: (len(raw), hashlib.sha1(raw).hexdigest())}
+    except Exception as exc:  # noqa: BLE001 - cache fingerprint must never break serving
+        logger.warning("Failed to fingerprint %s: %s", key, exc)
+        return {key: (0, "")}
 
 
 def _fingerprint_newest(

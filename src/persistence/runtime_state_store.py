@@ -205,6 +205,22 @@ class RuntimeStateStore:
                 return False
             raise RuntimeError(f"Could not acquire Supabase lock {lock_key}: {exc}") from exc
 
+    def take_over_lock(
+        self, lock_key: str, owner_id: str, *, holder_prefix: str, ttl_seconds: int = 900
+    ) -> bool:
+        """Drop the lock if its holder id starts with ``holder_prefix``, then acquire it.
+
+        For holders known to be dead, such as an earlier run of a single-instance cron job
+        that was cancelled before it could release. Other holders are left alone.
+        """
+        if not self.db_writes_enabled:
+            return True
+        client = get_supabase_client()
+        client.table(_RUNTIME_LOCK_TABLE).delete().eq("lock_key", str(lock_key)).like(
+            "owner_id", f"{holder_prefix}%"
+        ).execute()
+        return self.acquire_lock(lock_key, owner_id, ttl_seconds=ttl_seconds)
+
     def release_lock(self, lock_key: str, owner_id: str) -> None:
         """Release lock row owned by `owner_id`."""
         if not self.db_writes_enabled:

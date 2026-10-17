@@ -85,6 +85,9 @@ def trigger_precompute_once(
         return False
     if not render_ops_configured(env):
         return False
+    if _precompute_run_in_flight(env):
+        # That run builds the current hash too; a new trigger would cancel it.
+        return False
     from uuid import uuid4
 
     try:
@@ -106,6 +109,27 @@ def trigger_precompute_once(
     log = logger.info if started else logger.warning
     log("Automatic precompute for artifact hash %s: %s", artifact_hash[:12], message)
     return started
+
+
+# A start this old with no end is treated as lost, so it cannot block triggers forever.
+_IN_FLIGHT_MAX_SECONDS = 2 * 3600
+
+
+def _precompute_run_in_flight(env: Mapping[str, str] | None = None) -> bool:
+    """Return True when the newest cron event is a recent start with no end yet.
+
+    An unreadable feed returns False: a missed refresh is worse than a rare cancel.
+    """
+    from datetime import UTC, datetime
+
+    rows, error = precompute_run_events(env, limit=1)
+    if error or not rows or not rows[0]["type"].endswith("started"):
+        return False
+    try:
+        started = datetime.strptime(rows[0]["timestamp"], "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
+    except ValueError:
+        return False
+    return (datetime.now(UTC) - started).total_seconds() < _IN_FLIGHT_MAX_SECONDS
 
 
 def restart_web_service(env: Mapping[str, str] | None = None) -> tuple[bool, str]:
@@ -277,7 +301,7 @@ def _requests_module() -> Any:
     """Import requests lazily so a public page load never pays for it."""
     try:
         # types-requests is not a dependency here; the module is used through Any anyway.
-        import requests  # type: ignore[import-untyped]
+        import requests  # type: ignore[import-untyped,unused-ignore]
     except ImportError as exc:  # pragma: no cover - requests is a pinned dependency
         logger.warning("requests is not importable: %s", exc)
         return None

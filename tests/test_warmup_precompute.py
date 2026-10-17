@@ -1665,3 +1665,70 @@ def test_practice_refresh_failure_still_saves_forecasts(patcher):
     assert result.status == "partial_success"
     assert result.practice_updated is False
     assert any("practice refresh" in error for error in result.errors)
+
+
+@pytest.mark.parametrize(
+    ("render_env", "expected_call"),
+    [("true", "take_over_lock"), ("", "acquire_lock")],
+)
+def test_warmup_lock_is_taken_over_only_from_an_earlier_cron_run(
+    patcher, monkeypatch, render_env, expected_call
+):
+    """A cancelled cron run cannot release its lock (2026-10-17 21:06 left one for 90 min).
+
+    Render runs one cron instance at a time, so on Render a lock held by an earlier cron
+    run is dead and taken over. Anywhere else the lock is respected.
+    """
+    monkeypatch.setenv("RENDER", render_env)
+    calls: list[tuple[str, str, str]] = []
+
+    class _Store:
+        def acquire_lock(self, lock_key, owner_id, ttl_seconds=900):
+            calls.append(("acquire_lock", owner_id, ""))
+            return False
+
+        def take_over_lock(self, lock_key, owner_id, *, holder_prefix, ttl_seconds=900):
+            calls.append(("take_over_lock", owner_id, holder_prefix))
+            return False
+
+    patcher.setattr(warmup, "RuntimeStateStore", _Store)
+    patcher.setattr(warmup, "should_write_to_db", lambda: True)
+    patcher.setattr(warmup, "_validate_target_circuits", lambda races, year: None)
+    patcher.setattr(
+        warmup,
+        "get_prediction_precompute_config",
+        lambda: {"enabled": True, "horizon_races": 1, "weather_scenarios": ["dry"]},
+    )
+    patcher.setattr(
+        warmup,
+        "_resolve_warmup_targets",
+        lambda year, now_utc, horizon_races: warmup.WarmupTargets(
+            anchor_race_name="United States Grand Prix",
+            anchor_is_sprint=False,
+            target_races=("United States Grand Prix",),
+        ),
+    )
+    patcher.setattr(
+        warmup,
+        "_resolve_checkpoint_context",
+        lambda year, race_name, is_sprint, now_utc, session_detector: warmup.CheckpointContext(
+            checkpoint="PRE",
+            expected_checkpoint="PRE",
+            latest_ready_checkpoint="PRE",
+            checkpoint_ready=True,
+            reason="ready",
+            boundary_signature="sig_pre",
+        ),
+    )
+
+    result = warmup.run_warmup_precompute_cycle(
+        2026, now_utc=datetime(2026, 10, 17, 21, 6, tzinfo=UTC)
+    )
+
+    assert result.status == "locked"
+    assert [call[0] for call in calls] == [expected_call]
+    if expected_call == "take_over_lock":
+        assert calls[0][1].startswith("render-cron:")
+        assert calls[0][2] == "render-cron:"
+    else:
+        assert not calls[0][1].startswith("render-cron:")

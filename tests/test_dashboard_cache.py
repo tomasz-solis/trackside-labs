@@ -373,3 +373,28 @@ def test_prediction_code_fingerprint_follows_imports():
     assert "src/predictors/baseline/race/prediction_mixin.py" in files
     assert list(files) == sorted(files)
     assert "src/models/tyre_deg.py" in cache._get_file_timestamps(2026, include_runtime_files=False)
+
+
+def test_learning_state_content_moves_the_cache_key():
+    """Learning updates after each race change forecasts but the state has no version field."""
+    from src.dashboard import cache
+
+    class _Store:
+        def __init__(self, state):
+            self.state = state
+
+        def load_artifact(self, artifact_type, artifact_key):
+            return self.state
+
+    before = cache._fingerprint_content(
+        _Store({"history": [1]}), "learning_state", "learning_state"
+    )
+    after = cache._fingerprint_content(
+        _Store({"history": [1, 2]}), "learning_state", "learning_state"
+    )
+    same = cache._fingerprint_content(_Store({"history": [1]}), "learning_state", "learning_state")
+    empty = cache._fingerprint_content(_Store(None), "learning_state", "learning_state")
+
+    assert before != after
+    assert before == same
+    assert empty == {"learning_state::learning_state": (0, "")}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -70,6 +71,7 @@ _STATE_NAMESPACE_PRECOMPUTED_BASE_FEATURES = "precomputed_prediction_base_featur
 _STATE_NAMESPACE_PRECOMPUTE_HORIZON_INDEX = "prediction_precompute_horizon_index"
 _WARMUP_LOCK_KEY_PREFIX = "prediction_precompute_warmup"
 _WARMUP_LOCK_TTL_SECONDS = 5400
+_RENDER_CRON_LOCK_PREFIX = "render-cron:"
 _DEFAULT_HORIZON_RACES = 3
 _DEFAULT_WEATHER_SCENARIOS = ("dry", "mixed", "rain")
 _VALID_WEATHER_SCENARIOS = frozenset(_DEFAULT_WEATHER_SCENARIOS)
@@ -1336,13 +1338,24 @@ def run_warmup_precompute_cycle(
         return summary
 
     lock_key = f"{_WARMUP_LOCK_KEY_PREFIX}::{int(year)}"
-    lock_owner = uuid4().hex
+    # Render runs one instance of a cron job at a time and cancels the old one, so a lock
+    # held by an earlier cron run belongs to a dead process. Other holders are respected.
+    on_render_cron = bool(os.environ.get("RENDER", "").strip())
+    lock_owner = (_RENDER_CRON_LOCK_PREFIX if on_render_cron else "") + uuid4().hex
     state_store = RuntimeStateStore()
     lock_acquired = True
     if should_write_to_db():
-        lock_acquired = state_store.acquire_lock(
-            lock_key, lock_owner, ttl_seconds=_WARMUP_LOCK_TTL_SECONDS
-        )
+        if on_render_cron:
+            lock_acquired = state_store.take_over_lock(
+                lock_key,
+                lock_owner,
+                holder_prefix=_RENDER_CRON_LOCK_PREFIX,
+                ttl_seconds=_WARMUP_LOCK_TTL_SECONDS,
+            )
+        else:
+            lock_acquired = state_store.acquire_lock(
+                lock_key, lock_owner, ttl_seconds=_WARMUP_LOCK_TTL_SECONDS
+            )
         if not lock_acquired:
             summary.status = "locked"
             summary.reason = "another_worker_holds_lock"

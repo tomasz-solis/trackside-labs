@@ -206,6 +206,7 @@ class _Lock:
 
 
 def test_auto_trigger_runs_once_per_hash_on_render(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(render_ops, "precompute_run_events", lambda env=None, limit=1: ([], ""))
     stub = _patch_requests(monkeypatch, _Requests(_Response(200)))
     store = _Lock()
     env = {**_CONFIGURED, "RENDER": "true"}
@@ -232,6 +233,7 @@ def test_auto_trigger_never_runs_off_render(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_auto_trigger_survives_a_lock_failure(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(render_ops, "precompute_run_events", lambda env=None, limit=1: ([], ""))
     stub = _patch_requests(monkeypatch, _Requests(_Response(200)))
 
     class _Broken:
@@ -241,3 +243,29 @@ def test_auto_trigger_survives_a_lock_failure(monkeypatch: pytest.MonkeyPatch):
     env = {**_CONFIGURED, "RENDER": "true"}
     assert render_ops.trigger_precompute_once("hash_a", env, store=_Broken()) is False
     assert stub.calls == []
+
+
+def test_auto_trigger_skips_while_a_run_is_in_flight(monkeypatch: pytest.MonkeyPatch):
+    """Render cancels an in-flight run on a new trigger; that run builds this hash anyway."""
+    from datetime import UTC, datetime, timedelta
+
+    stub = _patch_requests(monkeypatch, _Requests(_Response(200)))
+    store = _Lock()
+    env = {**_CONFIGURED, "RENDER": "true"}
+
+    def _events_started(minutes_ago: int):
+        stamp = (datetime.now(UTC) - timedelta(minutes=minutes_ago)).strftime("%Y-%m-%d %H:%M")
+        return lambda env=None, limit=1: (
+            [{"timestamp": stamp, "type": "cron job run started", "outcome": ""}],
+            "",
+        )
+
+    monkeypatch.setattr(render_ops, "precompute_run_events", _events_started(3))
+    assert render_ops.trigger_precompute_once("hash_a", env, store=store) is False
+    assert stub.calls == []
+    # Not locked, so the hash can still trigger once the run ends.
+    assert store.keys == []
+
+    # A start with no end for hours is treated as lost.
+    monkeypatch.setattr(render_ops, "precompute_run_events", _events_started(300))
+    assert render_ops.trigger_precompute_once("hash_a", env, store=store) is True

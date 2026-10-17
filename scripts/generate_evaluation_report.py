@@ -7,8 +7,8 @@ saved actual results, and produces review-oriented analyses:
   2. Calibration - are the Monte Carlo p5/p95 bands empirically honest?
   3. Systematic bias - which drivers and teams does the model consistently
      get wrong in the same direction?
-  4. Baseline comparison - does the model beat the naive previous-race
-     classifier on MAE and rank correlation?
+  4. Baseline comparison - does the model beat the preceding selected event's
+     result on MAE and rank correlation?
   5. Error analysis - which weekends and drivers show up repeatedly among
      the biggest misses?
 
@@ -25,7 +25,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import copy
+import hashlib
 import json
 import logging
 import math
@@ -39,6 +39,11 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.analysis.frozen_forecast_scoring import (
+    EVALUATION_SPEC_VERSION,
+    copy_canonical_rows,
+    score_frozen_forecast,
+)
 from src.analysis.model_evaluation import (
     build_confidence_bands,
     compute_calibration_metrics,
@@ -46,14 +51,20 @@ from src.analysis.model_evaluation import (
     compute_improvement_over_baseline,
     compute_prediction_accuracy,
     identify_systematic_errors,
+    summarize_baseline_metrics,
+    summarize_calibration_components,
 )
+from src.analysis.qualifying_counterfactual import apply_qualifying_counterfactual
 from src.utils.accuracy_targets import (
     CHECKPOINT_ORDER,
-    explicit_target_actuals,
-    explicit_target_predictions,
+    TARGET_GRAND_PRIX_RACE,
+    TARGET_MAIN_QUALIFYING,
+    TARGET_SPRINT_QUALIFYING,
+    TARGET_SPRINT_RACE,
+    _prediction_is_sprint_weekend,
     normalize_checkpoint_session,
-    sanitize_actual_rows,
-    sanitize_prediction_rows,
+    resolve_target_eligibility,
+    target_session_name,
 )
 from src.utils.env_file import load_env_file as _load_env_file  # noqa: E402
 
@@ -68,10 +79,10 @@ _PRODUCTION_GATE_DEFAULTS = {
     "coverage_max": 0.93,
     "bias_mae_threshold": 10.0,
 }
-_QUALIFYING_STABILIZER_MODEL_WEIGHT = 0.40
-_QUALIFYING_STABILIZER_NOMINAL_COVERAGE = 0.90
-_QUALIFYING_STABILIZER_MIN_HISTORY_EVENTS = 3
-_QUALIFYING_STABILIZER_DEFAULT_MARGIN = 1.0
+_TARGETS_BY_SESSION_KIND = {
+    "qualifying": frozenset((TARGET_MAIN_QUALIFYING, TARGET_SPRINT_QUALIFYING)),
+    "race": frozenset((TARGET_GRAND_PRIX_RACE, TARGET_SPRINT_RACE)),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -144,8 +155,8 @@ def _prediction_sort_key(prediction: dict[str, Any]) -> tuple[datetime, int]:
     return predicted_at, checkpoint_order
 
 
-def _selection_target_key(prediction: dict[str, Any], *, session_kind: str) -> str:
-    """Resolve the target key represented by a top-level qualifying/race payload."""
+def _explicit_target_key(prediction: dict[str, Any], *, session_kind: str) -> str | None:
+    """Return a declared target, reserving legacy fallback for an unset field."""
     metadata = prediction.get("metadata", {})
     if session_kind == "qualifying":
         raw_target = metadata.get("top_level_qualifying_target")
@@ -154,10 +165,15 @@ def _selection_target_key(prediction: dict[str, Any], *, session_kind: str) -> s
     else:
         raise ValueError(f"Unsupported session kind: {session_kind}")
 
-    target_key = str(raw_target or "").strip().lower()
-    if target_key:
-        return target_key
-    return f"legacy_{session_kind}"
+    if raw_target is None or (isinstance(raw_target, str) and not raw_target.strip()):
+        return None
+    return str(raw_target).strip().lower()
+
+
+def _selection_target_key(prediction: dict[str, Any], *, session_kind: str) -> str:
+    """Resolve the declared target or the absent-target legacy key."""
+    explicit_target = _explicit_target_key(prediction, session_kind=session_kind)
+    return explicit_target if explicit_target is not None else f"legacy_{session_kind}"
 
 
 def _select_latest_predictions(
@@ -174,8 +190,7 @@ def _select_latest_predictions(
         if not race_name:
             continue
 
-        predicted_rows, actual_rows = _resolve_session_pair(prediction, session_kind=session_kind)
-        if not predicted_rows or not actual_rows:
+        if _raw_session_pair(prediction, session_kind=session_kind) is None:
             continue
 
         selection_key = (
@@ -189,34 +204,104 @@ def _select_latest_predictions(
     return list(selected.values())
 
 
+def _raw_session_pair(
+    prediction: dict[str, Any],
+    *,
+    session_kind: str,
+) -> tuple[object, object] | None:
+    """Find a paired saved forecast without repairing or validating its rows.
+
+    Selection needs target identity, a paired outcome, and forecast eligibility.
+    Row validation happens after the latest checkpoint is chosen, so a malformed
+    latest forecast cannot make an older one appear to be the latest.
+    """
+    explicit_target = _explicit_target_key(prediction, session_kind=session_kind)
+    target_key = explicit_target if explicit_target is not None else f"legacy_{session_kind}"
+    actuals_payload = prediction.get("actuals") or {}
+    metadata = prediction.get("metadata") or {}
+    top_level_payload = prediction.get(session_kind) or {}
+    if not all(isinstance(value, dict) for value in (actuals_payload, metadata)):
+        return None
+    if not isinstance(top_level_payload, dict):
+        return None
+
+    saved_modes = (
+        metadata.get(f"top_level_{session_kind}_result_mode"),
+        top_level_payload.get("result_mode"),
+    )
+    saved_eligibility = (
+        metadata.get(f"top_level_{session_kind}_eligible_at_save"),
+        top_level_payload.get("eligible_at_save"),
+    )
+    if any(mode is not None and str(mode).strip().upper() != "PREDICTED" for mode in saved_modes):
+        return None
+    if any(eligible is not None and eligible is not True for eligible in saved_eligibility):
+        return None
+
+    if explicit_target is not None:
+        targets = prediction.get("targets") or {}
+        actual_targets = actuals_payload.get("targets") or {}
+        if (
+            target_key not in _TARGETS_BY_SESSION_KIND[session_kind]
+            or not isinstance(targets, dict)
+            or not isinstance(actual_targets, dict)
+        ):
+            return None
+        saved_payload = targets.get(target_key)
+        saved_actuals = actual_targets.get(target_key)
+        if (
+            not isinstance(saved_payload, dict)
+            or "predicted_order" not in saved_payload
+            or not isinstance(saved_actuals, list)
+            or not saved_actuals
+        ):
+            return None
+        if (
+            str(saved_payload.get("result_mode", "")).strip().upper() != "PREDICTED"
+            or saved_payload.get("eligible_at_save") is not True
+            or normalize_checkpoint_session(
+                saved_payload.get("target_session", target_session_name(target_key))
+            )
+            != target_session_name(target_key)
+            or not resolve_target_eligibility(
+                prediction,
+                target_key=target_key,
+                stored_eligible=True,
+                is_sprint=_prediction_is_sprint_weekend(prediction),
+            )
+        ):
+            return None
+        return saved_payload["predicted_order"], saved_actuals
+
+    if prediction.get("targets") or actuals_payload.get("targets"):
+        return None
+
+    payload_key = "predicted_grid" if session_kind == "qualifying" else "predicted_results"
+    saved_actuals = actuals_payload.get(session_kind)
+    if (
+        payload_key not in top_level_payload
+        or not isinstance(saved_actuals, list)
+        or not saved_actuals
+    ):
+        return None
+    return top_level_payload[payload_key], saved_actuals
+
+
 def _resolve_session_pair(
     prediction: dict[str, Any],
     *,
     session_kind: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Return canonical predicted and actual rows for one session.
-
-    The report selects one artifact per race and top-level target. Once that
-    selection is made, scoring should read the same target-aware payload that
-    the artifact represents. Older artifacts still fall back to the legacy
-    top-level session fields when explicit target payloads are unavailable.
-    """
-    target_key = _selection_target_key(prediction, session_kind=session_kind)
-    target_predictions = explicit_target_predictions(prediction)
-    target_actuals = explicit_target_actuals(prediction)
-
-    if not target_key.startswith("legacy_"):
-        target_payload = target_predictions.get(target_key)
-        actual_rows = target_actuals.get(target_key)
-        if isinstance(target_payload, dict) and actual_rows:
-            predicted_rows = sanitize_prediction_rows(target_payload.get("predicted_order"))
-            if predicted_rows:
-                return predicted_rows, actual_rows
-
-    payload_key = "predicted_grid" if session_kind == "qualifying" else "predicted_results"
-    predicted_rows = sanitize_prediction_rows((prediction.get(session_kind) or {}).get(payload_key))
-    actual_rows = sanitize_actual_rows((prediction.get("actuals") or {}).get(session_kind))
-    return predicted_rows, actual_rows
+    """Return a validated copy of the selected target's exact saved rows."""
+    raw_pair = _raw_session_pair(prediction, session_kind=session_kind)
+    if raw_pair is None:
+        return [], []
+    try:
+        predicted_rows = copy_canonical_rows(raw_pair[0], label="predicted_rows", ranked_order=True)
+        actual_rows = copy_canonical_rows(raw_pair[1], label="actual_rows", ranked_order=False)
+    except ValueError:
+        return [], []
+    return (predicted_rows, actual_rows) if predicted_rows and actual_rows else ([], [])
 
 
 def _checkpoint_breakdown(predictions: list[dict[str, Any]]) -> dict[str, int]:
@@ -262,7 +347,7 @@ def _event_order_key(
     year: int,
     calendar_order: dict[str, int],
 ) -> tuple[int, datetime, int, str]:
-    """Sort selected predictions by season order, then saved information time."""
+    """Sort by calendar lookup index, then saved information time."""
     metadata = prediction.get("metadata", {})
     race_name = str(metadata.get("race_name", "")).strip()
     calendar_index = calendar_order.get(race_name.lower(), 10_000)
@@ -276,7 +361,7 @@ def _sort_selected_predictions(
     year: int,
     calendar_order: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
-    """Return selected predictions in calendar order for previous-race comparisons."""
+    """Return selected predictions in calendar lookup order with time fallback."""
     order_map = calendar_order if calendar_order is not None else _calendar_order_map(year)
     return sorted(
         predictions,
@@ -288,297 +373,31 @@ def _sort_selected_predictions(
     )
 
 
-def _position_by_driver(rows: list[dict[str, Any]]) -> dict[str, int]:
-    """Build a driver -> position lookup from ranked rows."""
-    positions: dict[str, int] = {}
-    for default_position, row in enumerate(rows, start=1):
-        driver = str(row.get("driver", "")).strip()
-        if not driver:
+def _prepare_race_events(predictions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Resolve and rank each selected race pair once for report sections."""
+    events: list[dict[str, Any]] = []
+    for prediction in predictions:
+        predicted_rows, actual_rows = _resolve_session_pair(prediction, session_kind="race")
+        if not predicted_rows or not actual_rows:
             continue
-        try:
-            position = int(row.get("position", default_position))
-        except (TypeError, ValueError):
-            position = default_position
-        positions[driver] = position
-    return positions
-
-
-def _coerce_position(value: object, default: int) -> int:
-    """Return an integer rank position with a stable fallback."""
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return int(default)
-
-
-def _coerce_float(value: object) -> float | None:
-    """Return a float when a value is numeric enough for interval arithmetic."""
-    try:
-        numeric = float(value)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(numeric):
-        return None
-    return numeric
-
-
-def _conformal_margin(residual_history: list[float]) -> float:
-    """Return the nominal-coverage conformal interval margin from past residuals only."""
-    if not residual_history:
-        return _QUALIFYING_STABILIZER_DEFAULT_MARGIN
-    ordered = sorted(float(value) for value in residual_history if math.isfinite(float(value)))
-    if not ordered:
-        return _QUALIFYING_STABILIZER_DEFAULT_MARGIN
-    quantile_index = math.ceil(_QUALIFYING_STABILIZER_NOMINAL_COVERAGE * (len(ordered) + 1)) - 1
-    quantile_index = min(max(quantile_index, 0), len(ordered) - 1)
-    return float(ordered[quantile_index])
-
-
-def _blend_qualifying_rows(
-    rows: list[dict[str, Any]],
-    *,
-    previous_actual_rows: list[dict[str, Any]] | None,
-) -> list[dict[str, Any]]:
-    """Blend model rank with previous-race actual rank using only time-available data."""
-    if not previous_actual_rows:
-        return [dict(row) for row in rows]
-
-    previous_positions = _position_by_driver(previous_actual_rows)
-    scored_rows: list[dict[str, Any]] = []
-    model_weight = _QUALIFYING_STABILIZER_MODEL_WEIGHT
-    previous_weight = 1.0 - model_weight
-    for default_position, row in enumerate(rows, start=1):
-        adjusted = dict(row)
-        model_position = _coerce_position(adjusted.get("position"), default_position)
-        previous_position = previous_positions.get(
-            str(adjusted.get("driver", "")).strip(),
-            model_position,
-        )
-        adjusted["_production_model_position"] = model_position
-        adjusted["_production_previous_position"] = previous_position
-        adjusted["_production_score"] = (
-            model_weight * model_position + previous_weight * previous_position
-        )
-        scored_rows.append(adjusted)
-
-    scored_rows.sort(
-        key=lambda row: (
-            float(row["_production_score"]),
-            int(row["_production_model_position"]),
-            str(row.get("driver", "")),
-        )
-    )
-
-    for new_position, row in enumerate(scored_rows, start=1):
-        old_position = int(row.pop("_production_model_position"))
-        previous_position = int(row.pop("_production_previous_position"))
-        score = float(row.pop("_production_score"))
-        position_delta = new_position - old_position
-        row["raw_model_position"] = old_position
-        row["previous_race_position"] = previous_position
-        row["production_rank_score"] = round(score, 6)
-        row["position"] = new_position
-
-        median = _coerce_float(row.get("median_position"))
-        if median is not None:
-            row["median_position"] = median + position_delta
-
-        lower = _coerce_float(row.get("p5"))
-        upper = _coerce_float(row.get("p95"))
-        if lower is not None and upper is not None:
-            row["p5"] = lower + position_delta
-            row["p95"] = upper + position_delta
-
-    return scored_rows
-
-
-def _qualifying_interval_residuals(
-    predicted_rows: list[dict[str, Any]],
-    actual_rows: list[dict[str, Any]],
-) -> list[float]:
-    """Return outside-interval distances before conformal widening."""
-    actual_positions = _position_by_driver(actual_rows)
-    residuals: list[float] = []
-    for row in predicted_rows:
-        driver = str(row.get("driver", "")).strip()
-        if driver not in actual_positions:
-            continue
-        lower = _coerce_float(row.get("p5"))
-        upper = _coerce_float(row.get("p95"))
-        if lower is None or upper is None:
-            continue
-        actual_position = float(actual_positions[driver])
-        residuals.append(max(lower - actual_position, actual_position - upper, 0.0))
-    return residuals
-
-
-def _widen_qualifying_intervals(
-    rows: list[dict[str, Any]],
-    *,
-    margin: float,
-) -> list[dict[str, Any]]:
-    """Apply a conformal interval margin while preserving rank/median coherence."""
-    field_size = len(rows)
-    widened: list[dict[str, Any]] = []
-    for default_position, row in enumerate(rows, start=1):
-        adjusted = dict(row)
-        position = _coerce_position(adjusted.get("position"), default_position)
-        median = _coerce_float(adjusted.get("median_position"))
-        if median is None:
-            median = float(position)
-        lower = _coerce_float(adjusted.get("p5"))
-        upper = _coerce_float(adjusted.get("p95"))
-        if lower is not None and upper is not None:
-            widened_lower = max(1.0, min(lower, median, float(position)) - float(margin))
-            widened_upper = min(
-                float(field_size),
-                max(upper, median, float(position)) + float(margin),
-            )
-            adjusted["p5"] = widened_lower
-            adjusted["p95"] = widened_upper
-            adjusted["median_position"] = median
-            adjusted["conformal_interval_margin"] = float(margin)
-        widened.append(adjusted)
-    return widened
-
-
-def _replace_qualifying_rows(
-    prediction: dict[str, Any],
-    *,
-    session_kind: str,
-    rows: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Replace the scoreable qualifying rows inside a copied prediction artifact."""
-    adjusted_prediction = copy.deepcopy(prediction)
-    target_key = _selection_target_key(adjusted_prediction, session_kind=session_kind)
-    targets = adjusted_prediction.get("targets")
-    if isinstance(targets, dict) and not target_key.startswith("legacy_"):
-        target_payload = targets.get(target_key)
-        if isinstance(target_payload, dict):
-            target_payload["predicted_order"] = copy.deepcopy(rows)
-
-    qualifying_payload = adjusted_prediction.setdefault("qualifying", {})
-    if isinstance(qualifying_payload, dict):
-        qualifying_payload["predicted_grid"] = copy.deepcopy(rows)
-
-    metadata = adjusted_prediction.setdefault("metadata", {})
-    if isinstance(metadata, dict):
-        metadata["production_qualifying_adjustment"] = {
-            "method": "previous_race_rank_blend_plus_conformal_interval",
-            "model_rank_weight": _QUALIFYING_STABILIZER_MODEL_WEIGHT,
-            "previous_race_rank_weight": 1.0 - _QUALIFYING_STABILIZER_MODEL_WEIGHT,
-            "nominal_interval_coverage": _QUALIFYING_STABILIZER_NOMINAL_COVERAGE,
-        }
-    return adjusted_prediction
-
-
-def _apply_qualifying_stabilizer_candidate(
-    selected_predictions: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Apply the candidate qualifying stabilizer in chronological, no-lookahead order.
-
-    The live model does not run this. The report scores it beside the served forecasts.
-    """
-    adjusted_predictions: list[dict[str, Any]] = []
-    residual_history: list[float] = []
-    previous_actual_rows: list[dict[str, Any]] | None = None
-    event_margins: list[dict[str, Any]] = []
-
-    for event_index, prediction in enumerate(selected_predictions):
-        predicted_rows, actual_rows = _resolve_session_pair(prediction, session_kind="qualifying")
-        blended_rows = _blend_qualifying_rows(
-            predicted_rows,
-            previous_actual_rows=previous_actual_rows,
-        )
-        if event_index < _QUALIFYING_STABILIZER_MIN_HISTORY_EVENTS:
-            margin = _QUALIFYING_STABILIZER_DEFAULT_MARGIN
-        else:
-            margin = _conformal_margin(residual_history)
-        widened_rows = _widen_qualifying_intervals(blended_rows, margin=margin)
-        adjusted_predictions.append(
-            _replace_qualifying_rows(
-                prediction,
-                session_kind="qualifying",
-                rows=widened_rows,
-            )
-        )
-
-        metadata = prediction.get("metadata", {})
-        event_margins.append(
+        events.append(
             {
-                "race_name": str(metadata.get("race_name", "")).strip(),
-                "target": _selection_target_key(prediction, session_kind="qualifying"),
-                "margin": float(margin),
-                "history_events_available": int(event_index),
+                "metadata": prediction.get("metadata") or {},
+                "predicted_rows": predicted_rows,
+                "actual_rows": actual_rows,
+                "rank_metrics": compute_prediction_accuracy(predicted_rows, actual_rows),
             }
         )
-
-        residual_history.extend(_qualifying_interval_residuals(blended_rows, actual_rows))
-        previous_actual_rows = actual_rows
-
-    return adjusted_predictions, {
-        "qualifying_rank_stabilizer": {
-            "method": "previous_race_rank_blend",
-            "model_rank_weight": _QUALIFYING_STABILIZER_MODEL_WEIGHT,
-            "previous_race_rank_weight": 1.0 - _QUALIFYING_STABILIZER_MODEL_WEIGHT,
-            "uses_current_event_actuals": False,
-        },
-        "qualifying_interval_stabilizer": {
-            "method": "past_residual_conformal_widening",
-            "nominal_coverage": _QUALIFYING_STABILIZER_NOMINAL_COVERAGE,
-            "default_margin": _QUALIFYING_STABILIZER_DEFAULT_MARGIN,
-            "min_history_events": _QUALIFYING_STABILIZER_MIN_HISTORY_EVENTS,
-            "uses_current_event_actuals_for_current_margin": False,
-        },
-        "event_margins": event_margins,
-    }
-
-
-def _extract_qualifying_pairs(
-    predictions: list[dict[str, Any]],
-) -> tuple[list[list[dict[str, Any]]], list[list[dict[str, Any]]]]:
-    """Return (predicted_grids, actual_grids) for predictions that have both."""
-    predicted: list[list[dict[str, Any]]] = []
-    actual: list[list[dict[str, Any]]] = []
-
-    for pred in predictions:
-        grid, actuals = _resolve_session_pair(pred, session_kind="qualifying")
-
-        if not grid or not actuals:
-            continue
-
-        predicted.append(grid)
-        actual.append(actuals)
-
-    return predicted, actual
-
-
-def _extract_race_pairs(
-    predictions: list[dict[str, Any]],
-) -> tuple[list[list[dict[str, Any]]], list[list[dict[str, Any]]]]:
-    """Return (predicted_results, actual_results) for predictions that have both."""
-    predicted: list[list[dict[str, Any]]] = []
-    actual: list[list[dict[str, Any]]] = []
-
-    for pred in predictions:
-        results, actuals = _resolve_session_pair(pred, session_kind="race")
-
-        if not results or not actuals:
-            continue
-
-        predicted.append(results)
-        actual.append(actuals)
-
-    return predicted, actual
+    return events
 
 
 def _build_naive_baseline(
     actual_grids: list[list[dict[str, Any]]],
 ) -> list[list[dict[str, Any]]]:
-    """Predict race N as the actual result of race N-1 (previous-race classifier).
+    """Predict event N from the preceding selected event's actual result.
 
-    Returns a list aligned with actual_grids[1:] - the first race has no
-    predecessor so the baseline cannot score it.
+    Returns a list aligned with actual_grids[1:]. The first selected event has
+    no predecessor. Report order alone does not prove a point-in-time baseline.
     """
     return [actual_grids[i] for i in range(len(actual_grids) - 1)]
 
@@ -634,6 +453,17 @@ def _build_calibration_section(
     return calibration
 
 
+def _pool_scored_calibration(events: list[dict[str, Any]]) -> dict[str, float]:
+    """Pool exact interval samples from qualifying scorer records."""
+    components = [event["calibration_components"] for event in events]
+    calibration = summarize_calibration_components(components)
+    calibration["races_with_band_data"] = float(
+        sum(bool(event_components["widths"]) for event_components in components)
+    )
+    calibration["total_races_evaluated"] = float(len(events))
+    return calibration
+
+
 def _build_bias_section(
     predicted: list[list[dict[str, Any]]],
     actual: list[list[dict[str, Any]]],
@@ -662,6 +492,13 @@ def _build_accuracy_section(
         for predicted_rows, actual_rows in zip(predicted, actual, strict=True)
         if predicted_rows and actual_rows
     ]
+    return _aggregate_accuracy_metrics(per_event_metrics, label)
+
+
+def _aggregate_accuracy_metrics(
+    per_event_metrics: list[dict[str, float]], label: str
+) -> dict[str, Any]:
+    """Preserve event-weighted accuracy from already scored rank metrics."""
     if not per_event_metrics:
         return {
             "label": label,
@@ -857,7 +694,7 @@ def _extract_segment_value(
 
 
 def _build_segment_breakdown(
-    selected_predictions: dict[str, list[dict[str, Any]]],
+    prepared_events: dict[str, list[dict[str, Any]]],
     *,
     year: int,
 ) -> dict[str, dict[str, dict[str, dict[str, float]]]]:
@@ -869,16 +706,10 @@ def _build_segment_breakdown(
         "race": {dimension: {} for dimension in dimensions},
     }
 
-    for session_name, predictions in selected_predictions.items():
-        for prediction in predictions:
-            metadata = prediction.get("metadata", {})
-            predicted_rows, actual_rows = _resolve_session_pair(
-                prediction,
-                session_kind=session_name,
-            )
-            if not predicted_rows or not actual_rows:
-                continue
-            metrics = compute_prediction_accuracy(predicted_rows, actual_rows)
+    for session_name, events in prepared_events.items():
+        for event in events:
+            metadata = event["metadata"]
+            metrics = event["rank_metrics"]
             for dimension in dimensions:
                 bucket_name = _extract_segment_value(
                     metadata,
@@ -958,26 +789,20 @@ def _describe_event_errors(
 
 
 def _collect_error_events(
-    predictions: list[dict[str, Any]],
+    prepared_events: list[dict[str, Any]],
     *,
     year: int,
-    session_name: str,
 ) -> list[dict[str, Any]]:
     """Build event-level error records for one session type."""
     track_types = _load_track_type_map(year)
     events: list[dict[str, Any]] = []
 
-    for prediction in predictions:
-        metadata = prediction.get("metadata", {})
+    for event in prepared_events:
+        metadata = event["metadata"]
         race_name = str(metadata.get("race_name", "")).strip()
-        predicted_rows, actual_rows = _resolve_session_pair(
-            prediction,
-            session_kind=session_name,
-        )
-        if not predicted_rows or not actual_rows:
-            continue
-
-        metrics = compute_prediction_accuracy(predicted_rows, actual_rows)
+        predicted_rows = event["predicted_rows"]
+        actual_rows = event["actual_rows"]
+        metrics = event["rank_metrics"]
         event_errors = _describe_event_errors(predicted_rows, actual_rows)
         events.append(
             {
@@ -1027,14 +852,14 @@ def _summarize_top_miss_drivers(events: list[dict[str, Any]]) -> list[dict[str, 
 
 
 def _build_error_analysis(
-    selected_predictions: dict[str, list[dict[str, Any]]],
+    prepared_events: dict[str, list[dict[str, Any]]],
     *,
     year: int,
 ) -> dict[str, Any]:
     """Summarize the worst events and recurring misses for qualifying and race sessions."""
     analysis: dict[str, Any] = {}
-    for session_name, session_predictions in selected_predictions.items():
-        events = _collect_error_events(session_predictions, year=year, session_name=session_name)
+    for session_name, session_events in prepared_events.items():
+        events = _collect_error_events(session_events, year=year)
         worst_events = sorted(
             events,
             key=lambda row: float(row.get("mae") or 0.0),
@@ -1057,7 +882,7 @@ def _build_baseline_comparison_section(
     actual: list[list[dict[str, Any]]],
     label: str,
 ) -> dict[str, Any]:
-    """Compare model vs naive previous-race baseline."""
+    """Compare model with the preceding selected event's result."""
     if len(actual) < 2:
         return {
             "label": label,
@@ -1072,6 +897,24 @@ def _build_baseline_comparison_section(
     result = compute_improvement_over_baseline(model_trimmed, actual_trimmed, naive_baseline)
     result["label"] = label
     return result
+
+
+def _build_prepared_baseline_comparison(events: list[dict[str, Any]], label: str) -> dict[str, Any]:
+    """Compare prepared model ranks with a freshly scored prior-actual baseline."""
+    if len(events) < 2:
+        return {
+            "label": label,
+            "note": "Not enough races for baseline comparison (need >= 2).",
+        }
+
+    model_event_metrics = [event["rank_metrics"] for event in events[1:]]
+    baseline_event_metrics = [
+        compute_prediction_accuracy(events[index - 1]["actual_rows"], events[index]["actual_rows"])
+        for index in range(1, len(events))
+    ]
+    summary = summarize_baseline_metrics(model_event_metrics, baseline_event_metrics)
+    summary["label"] = label
+    return summary
 
 
 def _baseline_mae_improvement(section: dict[str, Any]) -> float | None:
@@ -1121,7 +964,7 @@ def evaluate_production_gate(
     coverage_max: float = 0.93,
     bias_mae_threshold: float = 10.0,
 ) -> dict[str, Any]:
-    """Evaluate whether the current model evidence clears the production-quality bar."""
+    """Run the legacy diagnostic thresholds over the supplied report metrics."""
     generated_at = _parse_saved_datetime(report.get("generated_at"))
     latest_completed_at = _parse_saved_datetime(latest_completed_race_at)
 
@@ -1164,9 +1007,9 @@ def evaluate_production_gate(
             f"only {scored_events} scored race weekend(s); need at least {min_scored_events}"
         )
     if not checks["qualifying_beats_naive_mae"]:
-        reasons.append("qualifying MAE does not beat the previous-race naive baseline")
+        reasons.append("qualifying MAE does not beat the preceding-event naive baseline")
     if not checks["race_beats_naive_mae"]:
-        reasons.append("race MAE does not beat the previous-race naive baseline")
+        reasons.append("race MAE does not beat the preceding-event naive baseline")
     if not checks["qualifying_interval_coverage_calibrated"]:
         if empirical_coverage is None:
             reasons.append("qualifying interval coverage is unavailable")
@@ -1197,6 +1040,9 @@ def evaluate_production_gate(
 
     return {
         "status": "pass" if all(checks.values()) else "fail",
+        "run_kind": "legacy_diagnostic",
+        "publication_certified": False,
+        "evidence_class": "development_reanalysis",
         "score_estimate": int(score_estimate),
         "reasons": reasons,
         "checks": checks,
@@ -1222,8 +1068,10 @@ def evaluate_production_gate(
     }
 
 
-def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
-    """Load predictions for the year and run all three evaluation analyses."""
+def build_report(
+    year: int, predictions_dir: Path, *, include_counterfactual: bool = False
+) -> dict[str, Any]:
+    """Score selected saved forecasts; optionally compare a research adjustment."""
     predictions, prediction_source = _load_predictions(year, predictions_dir)
     logger.info(
         "Loaded %d prediction artifact(s) for %d via %s",
@@ -1233,6 +1081,11 @@ def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
     )
 
     calendar_order = _calendar_order_map(year)
+    event_order = (
+        "calendar_lookup_order_with_saved_time_fallback"
+        if calendar_order
+        else "saved_information_time_fallback"
+    )
     selected_predictions = {
         "qualifying": _sort_selected_predictions(
             _select_latest_predictions(predictions, session_kind="qualifying"),
@@ -1245,12 +1098,107 @@ def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
             calendar_order=calendar_order,
         ),
     }
-    stabilized_qualifying_predictions, stabilizer_candidate = (
-        _apply_qualifying_stabilizer_candidate(selected_predictions["qualifying"])
+    format_breakdown = _build_format_breakdown(predictions)
+    race_events = _prepare_race_events(selected_predictions["race"])
+    pred_race = [event["predicted_rows"] for event in race_events]
+    act_race = [event["actual_rows"] for event in race_events]
+    scoring_records = []
+    qualifying_events: list[dict[str, Any]] = []
+    for prediction in selected_predictions["qualifying"]:
+        raw_pair = _raw_session_pair(prediction, session_kind="qualifying")
+        if raw_pair is None:
+            raise ValueError("Selected qualifying forecast lost its paired target")
+        metadata = prediction.get("metadata") or {}
+        event_id = f"{year}:{str(metadata.get('race_name', '')).strip()}"
+        target = _selection_target_key(prediction, session_kind="qualifying")
+        forecast_core = {
+            "event_id": event_id,
+            "target": target,
+            "checkpoint": normalize_checkpoint_session(metadata.get("session_name")),
+            "information_cutoff_at": metadata.get("information_cutoff_at"),
+            "predicted_at": metadata.get("predicted_at"),
+            "forecast_id": metadata.get("forecast_id"),
+            "run_id": metadata.get("run_id"),
+            "model_version": metadata.get("model_version"),
+            "predicted_rows": raw_pair[0],
+        }
+        outcome_revision = {
+            "event_id": event_id,
+            "target": target,
+            "revision_id": (prediction.get("actuals") or {}).get("revision_id"),
+            "actual_rows": raw_pair[1],
+        }
+        try:
+            record = score_frozen_forecast(forecast_core, outcome_revision, EVALUATION_SPEC_VERSION)
+        except ValueError as error:
+            record = {
+                **{key: value for key, value in forecast_core.items() if key != "predicted_rows"},
+                "forecast_core_hash": None,
+                "outcome_revision_id": outcome_revision["revision_id"],
+                "outcome_content_hash": None,
+                "evaluation_spec_version": EVALUATION_SPEC_VERSION,
+                "status": "unscorable",
+                "reason": f"invalid_saved_rows: {error}",
+                "released_rows": None,
+                "actual_rows": None,
+                "rank_metrics": None,
+                "calibration_metrics": None,
+            }
+        components = record.pop("_calibration_components", None)
+        scoring_records.append(record)
+        if record["status"] == "scored":
+            qualifying_events.append(
+                {
+                    "metadata": metadata,
+                    "predicted_rows": record["released_rows"],
+                    "actual_rows": record["actual_rows"],
+                    "rank_metrics": record["rank_metrics"],
+                    "calibration_components": components,
+                }
+            )
+    scored_records = [record for record in scoring_records if record["status"] == "scored"]
+    pred_quali = [event["predicted_rows"] for event in qualifying_events]
+    act_quali = [event["actual_rows"] for event in qualifying_events]
+    prepared_events = {"qualifying": qualifying_events, "race": race_events}
+    cohort_hash = hashlib.sha256(
+        json.dumps(
+            sorted(
+                (record["forecast_core_hash"], record["outcome_content_hash"])
+                for record in scored_records
+            ),
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    counterfactual_pred_quali: list[list[dict[str, Any]]] = []
+    counterfactual_adjustments: dict[str, Any] = {}
+    if include_counterfactual:
+        research_events = [
+            {
+                "predicted_rows": event["predicted_rows"],
+                "actual_rows": event["actual_rows"],
+                "race_name": str(event["metadata"].get("race_name", "")),
+                "target": record["target"],
+            }
+            for event, record in zip(qualifying_events, scored_records, strict=True)
+        ]
+        counterfactual_pred_quali, counterfactual_adjustments = apply_qualifying_counterfactual(
+            research_events
+        )
+    counterfactual_act_quali = act_quali
+
+    qualifying_accuracy = _aggregate_accuracy_metrics(
+        [event["rank_metrics"] for event in qualifying_events], "qualifying"
     )
-    pred_quali, act_quali = _extract_qualifying_pairs(selected_predictions["qualifying"])
-    pred_race, act_race = _extract_race_pairs(selected_predictions["race"])
-    stab_pred_quali, stab_act_quali = _extract_qualifying_pairs(stabilized_qualifying_predictions)
+    race_accuracy = _aggregate_accuracy_metrics(
+        [event["rank_metrics"] for event in race_events], "race"
+    )
+    calibration = _pool_scored_calibration(qualifying_events)
+    segment_breakdown = _build_segment_breakdown(prepared_events, year=year)
+    error_analysis = _build_error_analysis(prepared_events, year=year)
+    qualifying_bias = _build_bias_section(pred_quali, act_quali, "qualifying")
+    race_bias = _build_bias_section(pred_race, act_race, "race")
+    qualifying_baseline = _build_prepared_baseline_comparison(qualifying_events, "qualifying")
+    race_baseline = _build_prepared_baseline_comparison(race_events, "race")
 
     logger.info(
         "Qualifying pairs with actuals: %d, Race pairs with actuals: %d "
@@ -1268,7 +1216,16 @@ def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
         "evaluation_scope": {
             "selection_policy": "latest_checkpoint_per_race_and_target",
             "prediction_source": prediction_source,
-            "event_order": "season_calendar",
+            "event_order": event_order,
+            "production_adjustments_applied": {
+                "qualifying": False,
+                "race": False,
+            },
+            "evidence_class": "development_reanalysis",
+            "publication_certified": False,
+            "cohort_hash": cohort_hash,
+            "scored_qualifying_count": len(scored_records),
+            "evaluation_spec_version": EVALUATION_SPEC_VERSION,
             "ignored_intermediate_checkpoints": {
                 "qualifying": len(predictions) - len(selected_predictions["qualifying"]),
                 "race": len(predictions) - len(selected_predictions["race"]),
@@ -1294,32 +1251,66 @@ def build_report(year: int, predictions_dir: Path) -> dict[str, Any]:
         },
         "qualifying_pairs": len(pred_quali),
         "race_pairs": len(pred_race),
-        "format_breakdown": _build_format_breakdown(predictions),
-        "segment_breakdown": _build_segment_breakdown(selected_predictions, year=year),
-        "qualifying_accuracy": _build_accuracy_section(pred_quali, act_quali, "qualifying"),
-        "race_accuracy": _build_accuracy_section(pred_race, act_race, "race"),
+        "format_breakdown": format_breakdown,
+        "segment_breakdown": segment_breakdown,
+        "qualifying_accuracy": qualifying_accuracy,
+        "race_accuracy": race_accuracy,
         "race_dnf_calibration": _build_dnf_calibration_section(pred_race, act_race),
-        "calibration": _build_calibration_section(pred_quali, act_quali),
-        "stabilizer_candidate_accuracy": _build_accuracy_section(
-            stab_pred_quali, stab_act_quali, "qualifying_stabilizer_candidate"
-        ),
-        "stabilizer_candidate_calibration": _build_calibration_section(
-            stab_pred_quali, stab_act_quali
-        ),
-        "stabilizer_candidate_vs_baseline": _build_baseline_comparison_section(
-            stab_pred_quali,
-            stab_act_quali,
-            "qualifying_stabilizer_candidate",
-        ),
-        "qualifying_stabilizer_candidate": stabilizer_candidate,
-        "error_analysis": _build_error_analysis(selected_predictions, year=year),
-        "qualifying_bias": _build_bias_section(pred_quali, act_quali, "qualifying"),
-        "race_bias": _build_bias_section(pred_race, act_race, "race"),
-        "qualifying_vs_baseline": _build_baseline_comparison_section(
-            pred_quali, act_quali, "qualifying"
-        ),
-        "race_vs_baseline": _build_baseline_comparison_section(pred_race, act_race, "race"),
+        "calibration": calibration,
+        "raw_model_metrics": {
+            "status": "unavailable",
+            "reason": "Saved artifacts do not identify pre-release raw model output.",
+        },
+        "legacy_field_aliases": {
+            "raw_qualifying_accuracy": "unavailable; pre-release raw output absent",
+            "raw_qualifying_calibration": "unavailable; pre-release raw output absent",
+            "raw_qualifying_vs_baseline": "unavailable; pre-release raw output absent",
+            "production_adjustments": "empty; no authoritative adjustment",
+        },
+        "released_model_metrics": {
+            "run_kind": "development_reanalysis",
+            "source": "saved_predictor_output",
+            "cohort_hash": cohort_hash,
+            "qualifying_accuracy": qualifying_accuracy,
+            "qualifying_calibration": calibration,
+        },
+        "counterfactual_metrics": None,
+        "scoring_records": scoring_records,
+        "raw_qualifying_accuracy": None,
+        "raw_qualifying_calibration": None,
+        "raw_qualifying_vs_baseline": None,
+        "production_adjustments": {},
+        "error_analysis": error_analysis,
+        "qualifying_bias": qualifying_bias,
+        "race_bias": race_bias,
+        "qualifying_vs_baseline": qualifying_baseline,
+        "race_vs_baseline": race_baseline,
     }
+    report["released_model_metrics"]["qualifying_bias"] = report["qualifying_bias"]
+    report["released_model_metrics"]["qualifying_vs_baseline"] = report["qualifying_vs_baseline"]
+    report["released_model_metrics"]["qualifying_segments"] = report["segment_breakdown"][
+        "qualifying"
+    ]
+    report["released_model_metrics"]["qualifying_errors"] = report["error_analysis"]["qualifying"]
+    if include_counterfactual:
+        report["counterfactual_metrics"] = {
+            "run_kind": "counterfactual",
+            "research_only": True,
+            "cohort_hash": cohort_hash,
+            "cohort_size": len(scored_records),
+            "qualifying_accuracy": _build_accuracy_section(
+                counterfactual_pred_quali, counterfactual_act_quali, "counterfactual_qualifying"
+            ),
+            "qualifying_calibration": _build_calibration_section(
+                counterfactual_pred_quali, counterfactual_act_quali
+            ),
+            "qualifying_vs_baseline": _build_baseline_comparison_section(
+                counterfactual_pred_quali,
+                counterfactual_act_quali,
+                "counterfactual_qualifying",
+            ),
+            "adjustments": counterfactual_adjustments,
+        }
     report["production_gate"] = evaluate_production_gate(
         report,
         min_scored_events=_PRODUCTION_GATE_DEFAULTS["min_scored_events"],
@@ -1421,7 +1412,8 @@ def render_error_analysis_markdown(report: dict[str, Any]) -> str:
         "",
         f"*Generated: {report.get('generated_at', 'unknown')}*",
         "",
-        "The worst weekends and the drivers the model misses most.",
+        "Retrospective errors from selected saved predictor outputs. Qualifying rows",
+        "and odds are scored as saved; no counterfactual adjustment is included.",
         "",
     ]
     for session_name in ("qualifying", "race"):
@@ -1460,10 +1452,11 @@ def render_markdown(report: dict[str, Any]) -> str:
     r_baseline = report.get("race_vs_baseline", {})
     q_accuracy = report.get("qualifying_accuracy", {})
     r_accuracy = report.get("race_accuracy", {})
-    stab_q_accuracy = report.get("stabilizer_candidate_accuracy", {})
-    stab_q_baseline = report.get("stabilizer_candidate_vs_baseline", {})
-    stab_q_calibration = report.get("stabilizer_candidate_calibration", {})
-    stabilizer_candidate = report.get("qualifying_stabilizer_candidate", {})
+    counterfactual = report.get("counterfactual_metrics") or {}
+    counterfactual_accuracy = counterfactual.get("qualifying_accuracy") or {}
+    counterfactual_baseline = counterfactual.get("qualifying_vs_baseline") or {}
+    counterfactual_calibration = counterfactual.get("qualifying_calibration") or {}
+    production_adjustments = counterfactual.get("adjustments") or {}
     format_breakdown = report.get("format_breakdown", {})
     segment_breakdown = report.get("segment_breakdown", {})
     error_analysis = report.get("error_analysis", {})
@@ -1479,6 +1472,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"*Generated: {generated}*",
         "",
+        "Retrospective development reanalysis of selected saved predictor outputs.",
+        "Publication identity and outcome revision are unknown for legacy records.",
+        "The legacy gate below is diagnostic and does not certify public readiness.",
+        "",
         "Checks three things: are the uncertainty intervals honest, is the model biased",
         "for or against any driver or team, and does it beat a naive baseline.",
         "",
@@ -1487,7 +1484,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "---",
         "",
-        "## Production Readiness Gate",
+        "## Production Readiness Gate (legacy diagnostic only)",
         "",
         f"- Status: **{str(production_gate.get('status', 'unknown')).upper()}**",
         f"- Score estimate: **{production_gate.get('score_estimate', 'n/a')}/100**",
@@ -1535,7 +1532,8 @@ def render_markdown(report: dict[str, Any]) -> str:
             "",
             "## 0. Accuracy Overview",
             "",
-            "Both rows score the forecasts as the site served them.",
+            "Qualifying metrics score the selected saved predictor rows and bands unchanged.",
+            "Pre-release raw model output is unavailable in these saved artifacts.",
             "",
             "| Session | Events | MAE | Exact match | Within-3 | Spearman rho | Kendall tau |",
             "|---|---|---|---|---|---|---|",
@@ -1555,32 +1553,32 @@ def render_markdown(report: dict[str, Any]) -> str:
         ]
     )
 
-    if stabilizer_candidate:
-        rank_adj = stabilizer_candidate.get("qualifying_rank_stabilizer", {})
-        interval_adj = stabilizer_candidate.get("qualifying_interval_stabilizer", {})
-        event_margins = stabilizer_candidate.get("event_margins", [])
-        served_improvement = (q_baseline.get("improvement") or {}).get("mae_improvement")
-        stab_improvement = (stab_q_baseline.get("improvement") or {}).get("mae_improvement")
+    if production_adjustments:
+        rank_adj = production_adjustments.get("qualifying_rank_stabilizer", {})
+        interval_adj = production_adjustments.get("qualifying_interval_stabilizer", {})
+        event_margins = production_adjustments.get("event_margins", [])
+        raw_improvement = (q_baseline.get("improvement") or {}).get("mae_improvement")
+        adjusted_improvement = (counterfactual_baseline.get("improvement") or {}).get(
+            "mae_improvement"
+        )
         lines.extend(
             [
-                "### Candidate: qualifying stabilizer (not live)",
+                "### Counterfactual Qualifying Research (opt-in)",
                 "",
-                "A what-if on the same forecasts. The site does not run it and the gate ignores it.",
-                "The weights were set on this season, so the gain is partly in-sample.",
-                "Replayed on the current model it loses (`docs/MODEL_LEDGER.md`, 2026-10-10).",
-                "",
-                "- Rank method: previous-race rank blend using only completed prior-race actuals.",
+                "- Run kind: counterfactual. Excluded from the headline and legacy gate.",
+                "- Rank method: previous selected event actual rank blend.",
+                "- Historical event ordering does not prove point-in-time eligibility.",
                 f"- Model rank weight: **{_flt(rank_adj.get('model_rank_weight'))}**",
-                f"- Previous-race rank weight: **{_flt(rank_adj.get('previous_race_rank_weight'))}**",
-                "- Interval method: conformal widening from past interval residuals only.",
+                f"- Previous selected event rank weight: **{_flt(rank_adj.get('previous_selected_event_rank_weight'))}**",
+                "- Interval method: widening from preceding selected event residuals.",
                 f"- Default margin before history is sufficient: **{_flt(interval_adj.get('default_margin'))} position(s)**",
-                f"- Minimum history events before learned margins: **{interval_adj.get('min_history_events', 'n/a')}**",
-                f"- Served qualifying MAE: **{_flt(q_accuracy.get('mae'))}**",
-                f"- With stabilizer: **{_flt(stab_q_accuracy.get('mae'))}**",
-                f"- Served MAE improvement vs naive: **{_flt(served_improvement)}**",
-                f"- With stabilizer: **{_flt(stab_improvement)}**",
-                f"- Served interval coverage: **{_pct(cal.get('empirical_coverage'))}**",
-                f"- With stabilizer: **{_pct(stab_q_calibration.get('empirical_coverage'))}**",
+                f"- Minimum preceding selected events before learned margins: **{interval_adj.get('min_history_events', 'n/a')}**",
+                f"- Saved qualifying MAE: **{_flt(q_accuracy.get('mae'))}**",
+                f"- Counterfactual qualifying MAE: **{_flt(counterfactual_accuracy.get('mae'))}**",
+                f"- Saved qualifying MAE improvement vs naive: **{_flt(raw_improvement)}**",
+                f"- Counterfactual qualifying MAE improvement vs naive: **{_flt(adjusted_improvement)}**",
+                f"- Saved qualifying interval coverage: **{_pct(cal.get('empirical_coverage'))}**",
+                f"- Counterfactual qualifying interval coverage: **{_pct(counterfactual_calibration.get('empirical_coverage'))}**",
                 "",
             ]
         )
@@ -1801,8 +1799,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## 5. Baseline Comparison",
         "",
-        "Naive baseline: predict race N using the actual results of race N-1",
-        "(previous-race classification). No model, just last week's result.",
+        "Naive baseline: use the preceding selected event's actual result in",
+        "report order. This order does not prove point-in-time availability.",
         "",
         "### Qualifying",
         "",
@@ -1920,7 +1918,12 @@ def main() -> int:
     parser.add_argument(
         "--fail-on-gate",
         action="store_true",
-        help="Exit nonzero when the production readiness gate fails.",
+        help="Exit nonzero when the legacy diagnostic gate fails.",
+    )
+    parser.add_argument(
+        "--include-counterfactual",
+        action="store_true",
+        help="Include the legacy qualifying blend as separate research-only diagnostics.",
     )
     parser.add_argument(
         "--latest-completed-race-at",
@@ -1965,7 +1968,9 @@ def main() -> int:
         logger.error("Predictions directory not found: %s", predictions_dir)
         return 1
 
-    report = build_report(args.year, predictions_dir)
+    report = build_report(
+        args.year, predictions_dir, include_counterfactual=args.include_counterfactual
+    )
     report["production_gate"] = evaluate_production_gate(
         report,
         latest_completed_race_at=args.latest_completed_race_at,
@@ -2013,7 +2018,7 @@ def main() -> int:
 
     gate = report.get("production_gate", {})
     if gate.get("status") != "pass":
-        logger.warning("Production readiness gate failed: %s", "; ".join(gate.get("reasons", [])))
+        logger.warning("Legacy diagnostic gate failed: %s", "; ".join(gate.get("reasons", [])))
         if args.fail_on_gate:
             return 2
 

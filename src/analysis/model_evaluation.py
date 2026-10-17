@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, TypedDict
 
 import numpy as np
 from scipy.stats import kendalltau, spearmanr
@@ -296,26 +296,20 @@ def compute_dnf_calibration(
     }
 
 
-def compute_calibration_metrics(
+class CalibrationComponents(TypedDict):
+    """Exact interval samples used to summarize one or more forecast events."""
+
+    hits: int
+    widths: list[float]
+    miss_distances: list[float]
+
+
+def build_calibration_components(
     confidence_bands: Sequence[tuple[float, float]],
     actual_positions: Sequence[int],
-) -> dict[str, float]:
-    """Measure whether Monte Carlo finish intervals are honest.
-
-    The intended use is a 90% interval such as ``p5``-``p95``. In that case a
-    well-calibrated model should land near 90% empirical coverage over time.
-    """
+) -> CalibrationComponents:
+    """Count interval hits and retain widths and misses in input order."""
     n = min(len(confidence_bands), len(actual_positions))
-    if n == 0:
-        return {
-            "interval_count": 0.0,
-            "empirical_coverage": 0.0,
-            "nominal_coverage": 0.90,
-            "calibration_error": -0.90,
-            "mean_interval_width": 0.0,
-            "average_miss_distance": 0.0,
-        }
-
     hits = 0
     miss_distances: list[float] = []
     widths: list[float] = []
@@ -333,7 +327,23 @@ def compute_calibration_metrics(
         else:
             miss_distances.append(actual - upper_bound)
 
-    empirical_coverage = hits / n
+    return {"hits": hits, "widths": widths, "miss_distances": miss_distances}
+
+
+def summarize_calibration_components(
+    events: Sequence[CalibrationComponents],
+) -> dict[str, float]:
+    """Pool interval samples before calculating coverage, width, and miss distance."""
+    hits = 0
+    widths: list[float] = []
+    miss_distances: list[float] = []
+    for event in events:
+        hits += event["hits"]
+        widths.extend(event["widths"])
+        miss_distances.extend(event["miss_distances"])
+
+    n = len(widths)
+    empirical_coverage = hits / n if n else 0.0
     nominal_coverage = 0.90
     return {
         "interval_count": float(n),
@@ -343,6 +353,15 @@ def compute_calibration_metrics(
         "mean_interval_width": float(np.mean(widths)) if widths else 0.0,
         "average_miss_distance": float(np.mean(miss_distances)) if miss_distances else 0.0,
     }
+
+
+def compute_calibration_metrics(
+    confidence_bands: Sequence[tuple[float, float]],
+    actual_positions: Sequence[int],
+) -> dict[str, float]:
+    """Measure whether Monte Carlo finish intervals meet nominal coverage."""
+    components = build_calibration_components(confidence_bands, actual_positions)
+    return summarize_calibration_components([components])
 
 
 def _extract_history_rows(item: Any) -> tuple[str, list[dict[str, Any]]]:
@@ -495,17 +514,12 @@ def _mean_metric(events: list[dict[str, float]], key: str) -> float:
     return float(np.mean(values))
 
 
-def compute_improvement_over_baseline(
-    predictions: Sequence[Any],
-    actuals: Sequence[Any],
-    baseline_predictions: Sequence[Any],
+def summarize_baseline_metrics(
+    model_metrics_by_event: Sequence[dict[str, float]],
+    baseline_metrics_by_event: Sequence[dict[str, float]],
 ) -> dict[str, Any]:
-    """Compare model predictions against a naive baseline across one or more events."""
-    prediction_events = _coerce_event_list(predictions)
-    actual_events = _coerce_event_list(actuals)
-    baseline_events = _coerce_event_list(baseline_predictions)
-    event_count = min(len(prediction_events), len(actual_events), len(baseline_events))
-
+    """Compare already scored model and baseline events with finite-only means."""
+    event_count = min(len(model_metrics_by_event), len(baseline_metrics_by_event))
     if event_count == 0:
         return {
             "events_compared": 0,
@@ -515,28 +529,22 @@ def compute_improvement_over_baseline(
             "model_beats_baseline_on_mae": False,
         }
 
-    model_metrics_by_event = [
-        compute_prediction_accuracy(prediction_events[index], actual_events[index])
-        for index in range(event_count)
-    ]
-    baseline_metrics_by_event = [
-        compute_prediction_accuracy(baseline_events[index], actual_events[index])
-        for index in range(event_count)
-    ]
+    model_events = list(model_metrics_by_event[:event_count])
+    baseline_events = list(baseline_metrics_by_event[:event_count])
 
     model_metrics = {
-        "mae": _mean_metric(model_metrics_by_event, "mae"),
-        "exact_match_rate": _mean_metric(model_metrics_by_event, "exact_match_rate"),
-        "within_3_rate": _mean_metric(model_metrics_by_event, "within_3_rate"),
-        "spearman_rank": _mean_metric(model_metrics_by_event, "spearman_rank"),
-        "kendall_tau": _mean_metric(model_metrics_by_event, "kendall_tau"),
+        "mae": _mean_metric(model_events, "mae"),
+        "exact_match_rate": _mean_metric(model_events, "exact_match_rate"),
+        "within_3_rate": _mean_metric(model_events, "within_3_rate"),
+        "spearman_rank": _mean_metric(model_events, "spearman_rank"),
+        "kendall_tau": _mean_metric(model_events, "kendall_tau"),
     }
     baseline_metrics = {
-        "mae": _mean_metric(baseline_metrics_by_event, "mae"),
-        "exact_match_rate": _mean_metric(baseline_metrics_by_event, "exact_match_rate"),
-        "within_3_rate": _mean_metric(baseline_metrics_by_event, "within_3_rate"),
-        "spearman_rank": _mean_metric(baseline_metrics_by_event, "spearman_rank"),
-        "kendall_tau": _mean_metric(baseline_metrics_by_event, "kendall_tau"),
+        "mae": _mean_metric(baseline_events, "mae"),
+        "exact_match_rate": _mean_metric(baseline_events, "exact_match_rate"),
+        "within_3_rate": _mean_metric(baseline_events, "within_3_rate"),
+        "spearman_rank": _mean_metric(baseline_events, "spearman_rank"),
+        "kendall_tau": _mean_metric(baseline_events, "kendall_tau"),
     }
 
     improvement = {
@@ -560,3 +568,24 @@ def compute_improvement_over_baseline(
         "improvement": improvement,
         "model_beats_baseline_on_mae": improvement["mae_improvement"] > 0.0,
     }
+
+
+def compute_improvement_over_baseline(
+    predictions: Sequence[Any],
+    actuals: Sequence[Any],
+    baseline_predictions: Sequence[Any],
+) -> dict[str, Any]:
+    """Compare model predictions against a naive baseline across one or more events."""
+    prediction_events = _coerce_event_list(predictions)
+    actual_events = _coerce_event_list(actuals)
+    baseline_events = _coerce_event_list(baseline_predictions)
+    event_count = min(len(prediction_events), len(actual_events), len(baseline_events))
+    model_metrics_by_event = [
+        compute_prediction_accuracy(prediction_events[index], actual_events[index])
+        for index in range(event_count)
+    ]
+    baseline_metrics_by_event = [
+        compute_prediction_accuracy(baseline_events[index], actual_events[index])
+        for index in range(event_count)
+    ]
+    return summarize_baseline_metrics(model_metrics_by_event, baseline_metrics_by_event)

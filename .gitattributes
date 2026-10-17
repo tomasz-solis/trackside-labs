@@ -1,0 +1,2 @@
+# Hash-pinned fixtures and manifests must keep LF bytes on every OS.
+*.json text eol=lf

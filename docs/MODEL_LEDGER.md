@@ -1201,6 +1201,20 @@ Both are inside the 85 to 95% target. D stays `open`, switch off. To close it, r
 
 Grand Prix race: below the seed floor. Sprint race: identical, as designed. Verdict stays `open` until the rerun confirms it. `S_sprint_scaling` did not finish. All replay outputs from this date stay on one machine, so the next machine reruns the baseline and all arms.
 
+## 2026-10-16: sprint distance scaling: `unresolvable`; round 17 outputs reused
+
+**Sprint distance scaling (work list item 3).** `S_sprint_scaling` finished on both seeds against the first `Z_base_33_r17_*` pair, seed floor from that pair:
+
+| Target | Metric | Seed 42 | Seed 43 | Result |
+|---|---|---|---|---|
+| Sprint race (18 checkpoints) | MAE | 2.914 to 2.883 (7/3/8) | 2.879 to 2.868 (5/4/9) | below the seed floor |
+| Sprint race | Correlation | 0.7917 to 0.7914 | 0.7923 to 0.7922 | below the seed floor |
+| Grand Prix race (62 checkpoints) | MAE | +0.003 | +0.007 | below the seed floor |
+
+Verdict `unresolvable`: the switch stays off. Grand Prix rows move slightly although the switch only touches sprints; cause not checked, below the floor either way.
+
+**The rerun the 2026-10-11 entry asked for is not needed for B and C.** The outputs were on one machine, and that machine still has them. The widening bug changed bands only, so the order metrics behind B and C stand. B stays measured worse with learning off (the default is on); C stays measured better at 0.7 and off until adopted. D still needs a rebuilt baseline with widening off plus a widening-on arm, both seeds.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

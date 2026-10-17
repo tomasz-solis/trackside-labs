@@ -1,0 +1,1593 @@
+{
+  "race": {
+    "predicted_results": [
+      {
+        "team": "McLaren",
+        "driver": "NOR",
+        "dnf_risk": null,
+        "position": 1,
+        "confidence": 51.8
+      },
+      {
+        "team": "Mercedes",
+        "driver": "ANT",
+        "dnf_risk": null,
+        "position": 2,
+        "confidence": 43.0
+      },
+      {
+        "team": "McLaren",
+        "driver": "PIA",
+        "dnf_risk": null,
+        "position": 3,
+        "confidence": 51.4
+      },
+      {
+        "team": "Ferrari",
+        "driver": "LEC",
+        "dnf_risk": null,
+        "position": 4,
+        "confidence": 50.4
+      },
+      {
+        "team": "Red Bull Racing",
+        "driver": "VER",
+        "dnf_risk": null,
+        "position": 5,
+        "confidence": 52.4
+      },
+      {
+        "team": "Mercedes",
+        "driver": "RUS",
+        "dnf_risk": null,
+        "position": 6,
+        "confidence": 48.1
+      },
+      {
+        "team": "Alpine",
+        "driver": "COL",
+        "dnf_risk": null,
+        "position": 7,
+        "confidence": 47.4
+      },
+      {
+        "team": "Ferrari",
+        "driver": "HAM",
+        "dnf_risk": null,
+        "position": 8,
+        "confidence": 50.5
+      },
+      {
+        "team": "Alpine",
+        "driver": "GAS",
+        "dnf_risk": null,
+        "position": 9,
+        "confidence": 46.9
+      },
+      {
+        "team": "Red Bull Racing",
+        "driver": "HAD",
+        "dnf_risk": null,
+        "position": 10,
+        "confidence": 50.7
+      },
+      {
+        "team": "Audi",
+        "driver": "BOR",
+        "dnf_risk": null,
+        "position": 11,
+        "confidence": 44.0
+      },
+      {
+        "team": "Audi",
+        "driver": "HUL",
+        "dnf_risk": null,
+        "position": 12,
+        "confidence": 47.5
+      },
+      {
+        "team": "Haas F1 Team",
+        "driver": "BEA",
+        "dnf_risk": null,
+        "position": 13,
+        "confidence": 53.5
+      },
+      {
+        "team": "Williams",
+        "driver": "ALB",
+        "dnf_risk": null,
+        "position": 14,
+        "confidence": 48.2
+      },
+      {
+        "team": "Williams",
+        "driver": "SAI",
+        "dnf_risk": null,
+        "position": 15,
+        "confidence": 46.4
+      },
+      {
+        "team": "RB",
+        "driver": "LIN",
+        "dnf_risk": null,
+        "position": 16,
+        "confidence": 52.0
+      },
+      {
+        "team": "RB",
+        "driver": "LAW",
+        "dnf_risk": null,
+        "position": 17,
+        "confidence": 52.4
+      },
+      {
+        "team": "Haas F1 Team",
+        "driver": "OCO",
+        "dnf_risk": null,
+        "position": 18,
+        "confidence": 55.7
+      },
+      {
+        "team": "Aston Martin",
+        "driver": "ALO",
+        "dnf_risk": null,
+        "position": 19,
+        "confidence": 50.2
+      },
+      {
+        "team": "Cadillac F1",
+        "driver": "PER",
+        "dnf_risk": null,
+        "position": 20,
+        "confidence": 54.3
+      },
+      {
+        "team": "Cadillac F1",
+        "driver": "BOT",
+        "dnf_risk": null,
+        "position": 21,
+        "confidence": 54.3
+      },
+      {
+        "team": "Aston Martin",
+        "driver": "STR",
+        "dnf_risk": null,
+        "position": 22,
+        "confidence": 49.1
+      }
+    ]
+  },
+  "actuals": {
+    "race": [
+      {
+        "team": "McLaren",
+        "driver": "NOR",
+        "position": 1
+      },
+      {
+        "team": "McLaren",
+        "driver": "PIA",
+        "position": 2
+      },
+      {
+        "team": "Ferrari",
+        "driver": "LEC",
+        "position": 3
+      },
+      {
+        "team": "Mercedes",
+        "driver": "RUS",
+        "position": 4
+      },
+      {
+        "team": "Red Bull Racing",
+        "driver": "VER",
+        "position": 5
+      },
+      {
+        "team": "Mercedes",
+        "driver": "ANT",
+        "position": 6
+      },
+      {
+        "team": "Ferrari",
+        "driver": "HAM",
+        "position": 7
+      },
+      {
+        "team": "Alpine",
+        "driver": "GAS",
+        "position": 8
+      },
+      {
+        "team": "Red Bull Racing",
+        "driver": "HAD",
+        "position": 9
+      },
+      {
+        "team": "Alpine",
+        "driver": "COL",
+        "position": 10
+      },
+      {
+        "team": "Haas F1 Team",
+        "driver": "OCO",
+        "position": 11
+      },
+      {
+        "team": "Haas F1 Team",
+        "driver": "BEA",
+        "position": 12
+      },
+      {
+        "team": "Williams",
+        "driver": "SAI",
+        "position": 13
+      },
+      {
+        "team": "RB",
+        "driver": "LAW",
+        "position": 14
+      },
+      {
+        "team": "Aston Martin",
+        "driver": "ALO",
+        "position": 15
+      },
+      {
+        "team": "Cadillac F1",
+        "driver": "PER",
+        "position": 16
+      },
+      {
+        "team": "Aston Martin",
+        "driver": "STR",
+        "position": 17
+      },
+      {
+        "team": "Williams",
+        "driver": "ALB",
+        "position": 18
+      },
+      {
+        "team": "Cadillac F1",
+        "driver": "BOT",
+        "position": 19
+      },
+      {
+        "team": "Audi",
+        "driver": "HUL",
+        "position": 20
+      },
+      {
+        "team": "RB",
+        "driver": "LIN",
+        "position": 21
+      },
+      {
+        "team": "Audi",
+        "driver": "BOR",
+        "position": 22
+      }
+    ],
+    "targets": {
+      "sprint_race": [
+        {
+          "team": "McLaren",
+          "driver": "NOR",
+          "position": 1
+        },
+        {
+          "team": "McLaren",
+          "driver": "PIA",
+          "position": 2
+        },
+        {
+          "team": "Ferrari",
+          "driver": "LEC",
+          "position": 3
+        },
+        {
+          "team": "Mercedes",
+          "driver": "RUS",
+          "position": 4
+        },
+        {
+          "team": "Red Bull Racing",
+          "driver": "VER",
+          "position": 5
+        },
+        {
+          "team": "Mercedes",
+          "driver": "ANT",
+          "position": 6
+        },
+        {
+          "team": "Ferrari",
+          "driver": "HAM",
+          "position": 7
+        },
+        {
+          "team": "Alpine",
+          "driver": "GAS",
+          "position": 8
+        },
+        {
+          "team": "Red Bull Racing",
+          "driver": "HAD",
+          "position": 9
+        },
+        {
+          "team": "Alpine",
+          "driver": "COL",
+          "position": 10
+        },
+        {
+          "team": "Haas F1 Team",
+          "driver": "OCO",
+          "position": 11
+        },
+        {
+          "team": "Haas F1 Team",
+          "driver": "BEA",
+          "position": 12
+        },
+        {
+          "team": "Williams",
+          "driver": "SAI",
+          "position": 13
+        },
+        {
+          "team": "RB",
+          "driver": "LAW",
+          "position": 14
+        },
+        {
+          "team": "Aston Martin",
+          "driver": "ALO",
+          "position": 15
+        },
+        {
+          "team": "Cadillac F1",
+          "driver": "PER",
+          "position": 16
+        },
+        {
+          "team": "Aston Martin",
+          "driver": "STR",
+          "position": 17
+        },
+        {
+          "team": "Williams",
+          "driver": "ALB",
+          "position": 18
+        },
+        {
+          "team": "Cadillac F1",
+          "driver": "BOT",
+          "position": 19
+        },
+        {
+          "team": "Audi",
+          "driver": "HUL",
+          "position": 20
+        },
+        {
+          "team": "RB",
+          "driver": "LIN",
+          "position": 21
+        },
+        {
+          "team": "Audi",
+          "driver": "BOR",
+          "position": 22
+        }
+      ],
+      "grand_prix_race": [
+        {
+          "team": "Mercedes",
+          "driver": "ANT",
+          "position": 1
+        },
+        {
+          "team": "McLaren",
+          "driver": "NOR",
+          "position": 2
+        },
+        {
+          "team": "McLaren",
+          "driver": "PIA",
+          "position": 3
+        },
+        {
+          "team": "Mercedes",
+          "driver": "RUS",
+          "position": 4
+        },
+        {
+          "team": "Red Bull Racing",
+          "driver": "VER",
+          "position": 5
+        },
+        {
+          "team": "Ferrari",
+          "driver": "HAM",
+          "position": 6
+        },
+        {
+          "team": "Alpine",
+          "driver": "COL",
+          "position": 7
+        },
+        {
+          "team": "Ferrari",
+          "driver": "LEC",
+          "position": 8
+        },
+        {
+          "team": "Williams",
+          "driver": "SAI",
+          "position": 9
+        },
+        {
+          "team": "Williams",
+          "driver": "ALB",
+          "position": 10
+        },
+        {
+          "team": "Haas F1 Team",
+          "driver": "BEA",
+          "position": 11
+        },
+        {
+          "team": "Audi",
+          "driver": "BOR",
+          "position": 12
+        },
+        {
+          "team": "Haas F1 Team",
+          "driver": "OCO",
+          "position": 13
+        },
+        {
+          "team": "RB",
+          "driver": "LIN",
+          "position": 14
+        },
+        {
+          "team": "Aston Martin",
+          "driver": "ALO",
+          "position": 15
+        },
+        {
+          "team": "Cadillac F1",
+          "driver": "PER",
+          "position": 16
+        },
+        {
+          "team": "Aston Martin",
+          "driver": "STR",
+          "position": 17
+        },
+        {
+          "team": "Cadillac F1",
+          "driver": "BOT",
+          "position": 18
+        },
+        {
+          "team": "Audi",
+          "driver": "HUL",
+          "position": 19
+        },
+        {
+          "team": "RB",
+          "driver": "LAW",
+          "position": 20
+        },
+        {
+          "team": "Alpine",
+          "driver": "GAS",
+          "position": 21
+        },
+        {
+          "team": "Red Bull Racing",
+          "driver": "HAD",
+          "position": 22
+        }
+      ],
+      "main_qualifying": [
+        {
+          "team": "Mercedes",
+          "driver": "ANT",
+          "position": 1
+        },
+        {
+          "team": "Red Bull Racing",
+          "driver": "VER",
+          "position": 2
+        },
+        {
+          "team": "Ferrari",
+          "driver": "LEC",
+          "position": 3
+        },
+        {
+          "team": "McLaren",
+          "driver": "NOR",
+          "position": 4
+        },
+        {
+          "team": "Mercedes",
+          "driver": "RUS",
+          "position": 5
+        },
+        {
+          "team": "Ferrari",
+          "driver": "HAM",
+          "position": 6
+        },
+        {
+          "team": "McLaren",
+          "driver": "PIA",
+          "position": 7
+        },
+        {
+          "team": "Alpine",
+          "driver": "COL",
+          "position": 8
+        },
+        {
+          "team": "Alpine",
+          "driver": "GAS",
+          "position": 9
+        },
+        {
+          "team": "Audi",
+          "driver": "HUL",
+          "position": 10
+        },
+        {
+          "team": "RB",
+          "driver": "LAW",
+          "position": 11
+        },
+        {
+          "team": "Haas F1 Team",
+          "driver": "BEA",
+          "position": 12
+        },
+        {
+          "team": "Williams",
+          "driver": "SAI",
+          "position": 13
+        },
+        {
+          "team": "Haas F1 Team",
+          "driver": "OCO",
+          "position": 14
+        },
+        {
+          "team": "Williams",
+          "driver": "ALB",
+          "position": 15
+        },
+        {
+          "team": "RB",
+          "driver": "LIN",
+          "position": 16
+        },
+        {
+          "team": "Aston Martin",
+          "driver": "ALO",
+          "position": 17
+        },
+        {
+          "team": "Aston Martin",
+          "driver": "STR",
+          "position": 18
+        },
+        {
+          "team": "Cadillac F1",
+          "driver": "BOT",
+          "position": 19
+        },
+        {
+          "team": "Cadillac F1",
+          "driver": "PER",
+          "position": 20
+        },
+        {
+          "team": "Audi",
+          "driver": "BOR",
+          "position": 21
+        },
+        {
+          "team": "Red Bull Racing",
+          "driver": "HAD",
+          "position": 22
+        }
+      ]
+    },
+    "qualifying": null
+  },
+  "targets": {
+    "sprint_race": {
+      "grid_source": "ACTUAL",
+      "result_mode": "PREDICTED",
+      "fp_blend_info": {},
+      "target_session": "SPRINT",
+      "mean_confidence": 50.0090909090909,
+      "predicted_order": [
+        {
+          "p5": 1,
+          "p95": 2,
+          "team": "McLaren",
+          "driver": "NOR",
+          "position": 1,
+          "confidence": 51.8,
+          "dnf_probability": 0.053,
+          "median_position": 1,
+          "podium_probability": 100.0,
+          "position_blend_score": 1.13
+        },
+        {
+          "p5": 1,
+          "p95": 5,
+          "team": "Mercedes",
+          "driver": "ANT",
+          "position": 2,
+          "confidence": 43.0,
+          "dnf_probability": 0.167,
+          "median_position": 2,
+          "podium_probability": 86.0,
+          "position_blend_score": 2.2967
+        },
+        {
+          "p5": 2,
+          "p95": 6,
+          "team": "McLaren",
+          "driver": "PIA",
+          "position": 3,
+          "confidence": 51.4,
+          "dnf_probability": 0.093,
+          "median_position": 3,
+          "podium_probability": 84.7,
+          "position_blend_score": 3.1333
+        },
+        {
+          "p5": 3,
+          "p95": 6,
+          "team": "Ferrari",
+          "driver": "LEC",
+          "position": 4,
+          "confidence": 50.4,
+          "dnf_probability": 0.11,
+          "median_position": 5,
+          "podium_probability": 16.3,
+          "position_blend_score": 4.5767
+        },
+        {
+          "p5": 3,
+          "p95": 6,
+          "team": "Red Bull Racing",
+          "driver": "VER",
+          "position": 5,
+          "confidence": 52.4,
+          "dnf_probability": 0.03,
+          "median_position": 4,
+          "podium_probability": 12.0,
+          "position_blend_score": 4.6067
+        },
+        {
+          "p5": 4,
+          "p95": 7,
+          "team": "Mercedes",
+          "driver": "RUS",
+          "position": 6,
+          "confidence": 48.1,
+          "dnf_probability": 0.077,
+          "median_position": 5,
+          "podium_probability": 1.0,
+          "position_blend_score": 5.39
+        },
+        {
+          "p5": 6,
+          "p95": 10,
+          "team": "Alpine",
+          "driver": "COL",
+          "position": 7,
+          "confidence": 47.4,
+          "dnf_probability": 0.123,
+          "median_position": 7,
+          "podium_probability": 0.0,
+          "position_blend_score": 7.5533
+        },
+        {
+          "p5": 7,
+          "p95": 9,
+          "team": "Ferrari",
+          "driver": "HAM",
+          "position": 8,
+          "confidence": 50.5,
+          "dnf_probability": 0.107,
+          "median_position": 8,
+          "podium_probability": 0.0,
+          "position_blend_score": 7.6533
+        },
+        {
+          "p5": 8,
+          "p95": 12,
+          "team": "Alpine",
+          "driver": "GAS",
+          "position": 9,
+          "confidence": 46.9,
+          "dnf_probability": 0.113,
+          "median_position": 9,
+          "podium_probability": 0.0,
+          "position_blend_score": 9.3
+        },
+        {
+          "p5": 8,
+          "p95": 11,
+          "team": "Red Bull Racing",
+          "driver": "HAD",
+          "position": 10,
+          "confidence": 50.7,
+          "dnf_probability": 0.137,
+          "median_position": 10,
+          "podium_probability": 0.0,
+          "position_blend_score": 9.7167
+        },
+        {
+          "p5": 10,
+          "p95": 12,
+          "team": "Audi",
+          "driver": "BOR",
+          "position": 11,
+          "confidence": 44.0,
+          "dnf_probability": 0.23,
+          "median_position": 11,
+          "podium_probability": 0.0,
+          "position_blend_score": 11.0333
+        },
+        {
+          "p5": 11,
+          "p95": 13,
+          "team": "Audi",
+          "driver": "HUL",
+          "position": 12,
+          "confidence": 47.5,
+          "dnf_probability": 0.11,
+          "median_position": 12,
+          "podium_probability": 0.0,
+          "position_blend_score": 11.7667
+        },
+        {
+          "p5": 12,
+          "p95": 14,
+          "team": "Haas F1 Team",
+          "driver": "BEA",
+          "position": 13,
+          "confidence": 53.5,
+          "dnf_probability": 0.07,
+          "median_position": 13,
+          "podium_probability": 0.0,
+          "position_blend_score": 13.11
+        },
+        {
+          "p5": 13,
+          "p95": 15,
+          "team": "Williams",
+          "driver": "ALB",
+          "position": 14,
+          "confidence": 48.2,
+          "dnf_probability": 0.19,
+          "median_position": 14,
+          "podium_probability": 0.0,
+          "position_blend_score": 14.0833
+        },
+        {
+          "p5": 13,
+          "p95": 16,
+          "team": "Williams",
+          "driver": "SAI",
+          "position": 15,
+          "confidence": 46.4,
+          "dnf_probability": 0.117,
+          "median_position": 15,
+          "podium_probability": 0.0,
+          "position_blend_score": 14.7933
+        },
+        {
+          "p5": 15,
+          "p95": 17,
+          "team": "RB",
+          "driver": "LIN",
+          "position": 16,
+          "confidence": 52.0,
+          "dnf_probability": 0.087,
+          "median_position": 16,
+          "podium_probability": 0.0,
+          "position_blend_score": 16.0
+        },
+        {
+          "p5": 16,
+          "p95": 18,
+          "team": "RB",
+          "driver": "LAW",
+          "position": 17,
+          "confidence": 52.4,
+          "dnf_probability": 0.183,
+          "median_position": 17,
+          "podium_probability": 0.0,
+          "position_blend_score": 16.9533
+        },
+        {
+          "p5": 17,
+          "p95": 19,
+          "team": "Haas F1 Team",
+          "driver": "OCO",
+          "position": 18,
+          "confidence": 55.7,
+          "dnf_probability": 0.11,
+          "median_position": 18,
+          "podium_probability": 0.0,
+          "position_blend_score": 17.98
+        },
+        {
+          "p5": 18,
+          "p95": 22,
+          "team": "Aston Martin",
+          "driver": "ALO",
+          "position": 19,
+          "confidence": 50.2,
+          "dnf_probability": 0.08,
+          "median_position": 19,
+          "podium_probability": 0.0,
+          "position_blend_score": 19.3733
+        },
+        {
+          "p5": 19,
+          "p95": 21,
+          "team": "Cadillac F1",
+          "driver": "PER",
+          "position": 20,
+          "confidence": 54.3,
+          "dnf_probability": 0.107,
+          "median_position": 20,
+          "podium_probability": 0.0,
+          "position_blend_score": 19.8133
+        },
+        {
+          "p5": 20,
+          "p95": 22,
+          "team": "Cadillac F1",
+          "driver": "BOT",
+          "position": 21,
+          "confidence": 54.3,
+          "dnf_probability": 0.11,
+          "median_position": 21,
+          "podium_probability": 0.0,
+          "position_blend_score": 21.0433
+        },
+        {
+          "p5": 21,
+          "p95": 22,
+          "team": "Aston Martin",
+          "driver": "STR",
+          "position": 22,
+          "confidence": 49.1,
+          "dnf_probability": 0.157,
+          "median_position": 22,
+          "podium_probability": 0.0,
+          "position_blend_score": 21.6933
+        }
+      ],
+      "eligible_at_save": true
+    },
+    "grand_prix_race": {
+      "grid_source": "PREDICTED",
+      "result_mode": "PREDICTED",
+      "fp_blend_info": {},
+      "target_session": "R",
+      "mean_confidence": 44.82727272727272,
+      "predicted_order": [
+        {
+          "p5": 1,
+          "p95": 6,
+          "team": "Mercedes",
+          "driver": "RUS",
+          "position": 1,
+          "confidence": 44.6,
+          "dnf_probability": 0.073,
+          "median_position": 1,
+          "podium_probability": 84.0,
+          "position_blend_score": 2.2467
+        },
+        {
+          "p5": 1,
+          "p95": 8,
+          "team": "Ferrari",
+          "driver": "LEC",
+          "position": 2,
+          "confidence": 40.0,
+          "dnf_probability": 0.103,
+          "median_position": 2,
+          "podium_probability": 61.3,
+          "position_blend_score": 3.4433
+        },
+        {
+          "p5": 1,
+          "p95": 13,
+          "team": "Mercedes",
+          "driver": "ANT",
+          "position": 3,
+          "confidence": 40.0,
+          "dnf_probability": 0.167,
+          "median_position": 3,
+          "podium_probability": 53.7,
+          "position_blend_score": 4.5933
+        },
+        {
+          "p5": 1,
+          "p95": 11,
+          "team": "Ferrari",
+          "driver": "HAM",
+          "position": 4,
+          "confidence": 40.0,
+          "dnf_probability": 0.117,
+          "median_position": 4,
+          "podium_probability": 39.3,
+          "position_blend_score": 5.04
+        },
+        {
+          "p5": 2,
+          "p95": 11,
+          "team": "McLaren",
+          "driver": "NOR",
+          "position": 5,
+          "confidence": 46.0,
+          "dnf_probability": 0.04,
+          "median_position": 5,
+          "podium_probability": 21.0,
+          "position_blend_score": 5.73
+        },
+        {
+          "p5": 3,
+          "p95": 12,
+          "team": "Red Bull Racing",
+          "driver": "VER",
+          "position": 6,
+          "confidence": 46.4,
+          "dnf_probability": 0.017,
+          "median_position": 6,
+          "podium_probability": 13.0,
+          "position_blend_score": 6.47
+        },
+        {
+          "p5": 3,
+          "p95": 14,
+          "team": "McLaren",
+          "driver": "PIA",
+          "position": 7,
+          "confidence": 45.5,
+          "dnf_probability": 0.057,
+          "median_position": 7,
+          "podium_probability": 12.0,
+          "position_blend_score": 7.51
+        },
+        {
+          "p5": 3,
+          "p95": 14,
+          "team": "RB",
+          "driver": "LAW",
+          "position": 8,
+          "confidence": 45.0,
+          "dnf_probability": 0.17,
+          "median_position": 8,
+          "podium_probability": 5.7,
+          "position_blend_score": 8.51
+        },
+        {
+          "p5": 3,
+          "p95": 16,
+          "team": "Alpine",
+          "driver": "GAS",
+          "position": 9,
+          "confidence": 43.6,
+          "dnf_probability": 0.137,
+          "median_position": 8,
+          "podium_probability": 5.7,
+          "position_blend_score": 8.5167
+        },
+        {
+          "p5": 5,
+          "p95": 16,
+          "team": "RB",
+          "driver": "LIN",
+          "position": 10,
+          "confidence": 46.5,
+          "dnf_probability": 0.087,
+          "median_position": 10,
+          "podium_probability": 3.0,
+          "position_blend_score": 10.08
+        },
+        {
+          "p5": 5,
+          "p95": 17,
+          "team": "Red Bull Racing",
+          "driver": "HAD",
+          "position": 11,
+          "confidence": 46.7,
+          "dnf_probability": 0.143,
+          "median_position": 11,
+          "podium_probability": 1.3,
+          "position_blend_score": 11.41
+        },
+        {
+          "p5": 6,
+          "p95": 18,
+          "team": "Alpine",
+          "driver": "COL",
+          "position": 12,
+          "confidence": 44.9,
+          "dnf_probability": 0.113,
+          "median_position": 13,
+          "podium_probability": 0.0,
+          "position_blend_score": 12.35
+        },
+        {
+          "p5": 8,
+          "p95": 19,
+          "team": "Audi",
+          "driver": "HUL",
+          "position": 13,
+          "confidence": 42.4,
+          "dnf_probability": 0.11,
+          "median_position": 13,
+          "podium_probability": 0.0,
+          "position_blend_score": 12.87
+        },
+        {
+          "p5": 8,
+          "p95": 20,
+          "team": "Williams",
+          "driver": "SAI",
+          "position": 14,
+          "confidence": 45.3,
+          "dnf_probability": 0.103,
+          "median_position": 13,
+          "podium_probability": 0.0,
+          "position_blend_score": 13.1733
+        },
+        {
+          "p5": 8,
+          "p95": 20,
+          "team": "Williams",
+          "driver": "ALB",
+          "position": 15,
+          "confidence": 43.3,
+          "dnf_probability": 0.16,
+          "median_position": 14,
+          "podium_probability": 0.0,
+          "position_blend_score": 13.6967
+        },
+        {
+          "p5": 10,
+          "p95": 21,
+          "team": "Audi",
+          "driver": "BOR",
+          "position": 16,
+          "confidence": 40.0,
+          "dnf_probability": 0.203,
+          "median_position": 14,
+          "podium_probability": 0.0,
+          "position_blend_score": 14.25
+        },
+        {
+          "p5": 12,
+          "p95": 21,
+          "team": "Haas F1 Team",
+          "driver": "BEA",
+          "position": 17,
+          "confidence": 47.4,
+          "dnf_probability": 0.117,
+          "median_position": 17,
+          "podium_probability": 0.0,
+          "position_blend_score": 16.8233
+        },
+        {
+          "p5": 14,
+          "p95": 22,
+          "team": "Cadillac F1",
+          "driver": "BOT",
+          "position": 18,
+          "confidence": 52.4,
+          "dnf_probability": 0.127,
+          "median_position": 19,
+          "podium_probability": 0.0,
+          "position_blend_score": 18.5633
+        },
+        {
+          "p5": 15,
+          "p95": 22,
+          "team": "Haas F1 Team",
+          "driver": "OCO",
+          "position": 19,
+          "confidence": 46.5,
+          "dnf_probability": 0.137,
+          "median_position": 19,
+          "podium_probability": 0.0,
+          "position_blend_score": 18.6133
+        },
+        {
+          "p5": 16,
+          "p95": 22,
+          "team": "Aston Martin",
+          "driver": "ALO",
+          "position": 20,
+          "confidence": 42.6,
+          "dnf_probability": 0.123,
+          "median_position": 18,
+          "podium_probability": 0.0,
+          "position_blend_score": 18.7367
+        },
+        {
+          "p5": 18,
+          "p95": 22,
+          "team": "Aston Martin",
+          "driver": "STR",
+          "position": 21,
+          "confidence": 44.9,
+          "dnf_probability": 0.087,
+          "median_position": 20,
+          "podium_probability": 0.0,
+          "position_blend_score": 20.02
+        },
+        {
+          "p5": 16,
+          "p95": 22,
+          "team": "Cadillac F1",
+          "driver": "PER",
+          "position": 22,
+          "confidence": 52.2,
+          "dnf_probability": 0.12,
+          "median_position": 21,
+          "podium_probability": 0.0,
+          "position_blend_score": 20.3533
+        }
+      ],
+      "eligible_at_save": true
+    },
+    "main_qualifying": {
+      "grid_source": "PREDICTED",
+      "result_mode": "PREDICTED",
+      "fp_blend_info": {},
+      "target_session": "Q",
+      "mean_confidence": 51.18636363636362,
+      "predicted_order": [
+        {
+          "p5": 1,
+          "p95": 3,
+          "team": "Ferrari",
+          "driver": "LEC",
+          "position": 1,
+          "confidence": 59.4,
+          "median_position": 1
+        },
+        {
+          "p5": 1,
+          "p95": 9,
+          "team": "Mercedes",
+          "driver": "RUS",
+          "position": 2,
+          "confidence": 51.8,
+          "median_position": 3
+        },
+        {
+          "p5": 1,
+          "p95": 9,
+          "team": "Ferrari",
+          "driver": "HAM",
+          "position": 3,
+          "confidence": 52.3,
+          "median_position": 3
+        },
+        {
+          "p5": 2,
+          "p95": 11,
+          "team": "McLaren",
+          "driver": "NOR",
+          "position": 4,
+          "confidence": 49.3,
+          "median_position": 5
+        },
+        {
+          "p5": 2,
+          "p95": 10,
+          "team": "Red Bull Racing",
+          "driver": "VER",
+          "position": 5,
+          "confidence": 49.9,
+          "median_position": 6
+        },
+        {
+          "p5": 2,
+          "p95": 12,
+          "team": "Mercedes",
+          "driver": "ANT",
+          "position": 6,
+          "confidence": 49.1,
+          "median_position": 6
+        },
+        {
+          "p5": 3,
+          "p95": 13,
+          "team": "RB",
+          "driver": "LAW",
+          "position": 7,
+          "confidence": 48.4,
+          "median_position": 7
+        },
+        {
+          "p5": 2,
+          "p95": 12,
+          "team": "McLaren",
+          "driver": "PIA",
+          "position": 8,
+          "confidence": 49.0,
+          "median_position": 7
+        },
+        {
+          "p5": 4,
+          "p95": 13,
+          "team": "RB",
+          "driver": "LIN",
+          "position": 9,
+          "confidence": 48.8,
+          "median_position": 9
+        },
+        {
+          "p5": 4,
+          "p95": 14,
+          "team": "Alpine",
+          "driver": "GAS",
+          "position": 10,
+          "confidence": 47.9,
+          "median_position": 9
+        },
+        {
+          "p5": 5,
+          "p95": 16,
+          "team": "Red Bull Racing",
+          "driver": "HAD",
+          "position": 11,
+          "confidence": 47.3,
+          "median_position": 11
+        },
+        {
+          "p5": 8,
+          "p95": 18,
+          "team": "Alpine",
+          "driver": "COL",
+          "position": 12,
+          "confidence": 49.5,
+          "median_position": 13
+        },
+        {
+          "p5": 10,
+          "p95": 19,
+          "team": "Williams",
+          "driver": "SAI",
+          "position": 13,
+          "confidence": 49.4,
+          "median_position": 14
+        },
+        {
+          "p5": 9,
+          "p95": 19,
+          "team": "Williams",
+          "driver": "ALB",
+          "position": 14,
+          "confidence": 48.0,
+          "median_position": 14
+        },
+        {
+          "p5": 10,
+          "p95": 19,
+          "team": "Audi",
+          "driver": "HUL",
+          "position": 15,
+          "confidence": 49.2,
+          "median_position": 15
+        },
+        {
+          "p5": 11,
+          "p95": 20,
+          "team": "Audi",
+          "driver": "BOR",
+          "position": 16,
+          "confidence": 49.3,
+          "median_position": 16
+        },
+        {
+          "p5": 11,
+          "p95": 20,
+          "team": "Cadillac F1",
+          "driver": "BOT",
+          "position": 17,
+          "confidence": 50.3,
+          "median_position": 17
+        },
+        {
+          "p5": 12,
+          "p95": 20,
+          "team": "Haas F1 Team",
+          "driver": "BEA",
+          "position": 18,
+          "confidence": 51.9,
+          "median_position": 17
+        },
+        {
+          "p5": 13,
+          "p95": 20,
+          "team": "Cadillac F1",
+          "driver": "PER",
+          "position": 19,
+          "confidence": 51.8,
+          "median_position": 19
+        },
+        {
+          "p5": 15,
+          "p95": 21,
+          "team": "Haas F1 Team",
+          "driver": "OCO",
+          "position": 20,
+          "confidence": 53.9,
+          "median_position": 19
+        },
+        {
+          "p5": 19,
+          "p95": 22,
+          "team": "Aston Martin",
+          "driver": "ALO",
+          "position": 21,
+          "confidence": 59.6,
+          "median_position": 21
+        },
+        {
+          "p5": 21,
+          "p95": 22,
+          "team": "Aston Martin",
+          "driver": "STR",
+          "position": 22,
+          "confidence": 60.0,
+          "median_position": 22
+        }
+      ],
+      "eligible_at_save": true
+    }
+  },
+  "metadata": {
+    "year": 2026,
+    "run_id": "d5a682a4-f217-480b-83f3-c8a0a344c6f4",
+    "source": "warmup_precompute",
+    "weather": "dry",
+    "race_name": "Miami Grand Prix",
+    "predicted_at": "2026-05-01T22:03:53.842645+00:00",
+    "session_name": "SQ",
+    "fp_blend_info": {},
+    "model_version": "2.0",
+    "weekend_format": "sprint",
+    "top_level_race_target": "sprint_race",
+    "top_level_race_grid_source": "ACTUAL",
+    "top_level_race_result_mode": "PREDICTED",
+    "top_level_qualifying_target": "sprint_qualifying",
+    "top_level_race_eligible_at_save": true,
+    "top_level_qualifying_grid_source": "ACTUAL",
+    "top_level_qualifying_result_mode": "ACTUAL",
+    "top_level_qualifying_eligible_at_save": false
+  },
+  "qualifying": {
+    "predicted_grid": [
+      {
+        "p5": null,
+        "p95": null,
+        "team": "McLaren",
+        "driver": "NOR",
+        "position": 1,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Mercedes",
+        "driver": "ANT",
+        "position": 2,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "McLaren",
+        "driver": "PIA",
+        "position": 3,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Ferrari",
+        "driver": "LEC",
+        "position": 4,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Red Bull Racing",
+        "driver": "VER",
+        "position": 5,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Mercedes",
+        "driver": "RUS",
+        "position": 6,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Ferrari",
+        "driver": "HAM",
+        "position": 7,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Alpine",
+        "driver": "COL",
+        "position": 8,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Red Bull Racing",
+        "driver": "HAD",
+        "position": 9,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Alpine",
+        "driver": "GAS",
+        "position": 10,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Audi",
+        "driver": "BOR",
+        "position": 11,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Audi",
+        "driver": "HUL",
+        "position": 12,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Haas F1 Team",
+        "driver": "BEA",
+        "position": 13,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Williams",
+        "driver": "ALB",
+        "position": 14,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Williams",
+        "driver": "SAI",
+        "position": 15,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "RB",
+        "driver": "LIN",
+        "position": 16,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "RB",
+        "driver": "LAW",
+        "position": 17,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Haas F1 Team",
+        "driver": "OCO",
+        "position": 18,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Cadillac F1",
+        "driver": "PER",
+        "position": 19,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Cadillac F1",
+        "driver": "BOT",
+        "position": 20,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Aston Martin",
+        "driver": "ALO",
+        "position": 21,
+        "confidence": null,
+        "expected_time": null
+      },
+      {
+        "p5": null,
+        "p95": null,
+        "team": "Aston Martin",
+        "driver": "STR",
+        "position": 22,
+        "confidence": null,
+        "expected_time": null
+      }
+    ]
+  }
+}

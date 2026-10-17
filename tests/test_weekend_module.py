@@ -181,3 +181,53 @@ def test_cancelled_list_still_filters_the_local_fallback_schedule():
     """Track-file keys that are not 2026 races (Saudi Arabia, Sepang's key) stay out."""
     assert weekend.should_skip_schedule_event(2026, "Saudi Arabian Grand Prix")
     assert not weekend.should_skip_schedule_event(2026, "Bahrain Grand Prix")
+
+
+def test_schedule_falls_back_to_the_saved_fastf1_calendar(patcher):
+    """The track file has no calendar order; when FastF1 is down use its last calendar.
+
+    Rounds from the track file put Azerbaijan after Singapore, so the Mexico City and
+    Sao Paulo PRE forecasts picked an Azerbaijan snapshot during the 2026-10 outage.
+    """
+    saved: dict[int, tuple[tuple[str, str], ...]] = {}
+    calendar = pd.DataFrame(
+        {
+            "EventName": ["Azerbaijan Grand Prix", "Singapore Grand Prix"],
+            "EventFormat": ["conventional", "sprint_qualifying"],
+        }
+    )
+    patcher.setattr(
+        weekend, "_save_schedule_snapshot", lambda year, rows: saved.update({year: rows})
+    )
+    patcher.setattr(weekend, "_load_saved_schedule_rows", lambda year: saved.get(year, ()))
+
+    patcher.setattr(weekend.fastf1, "get_event_schedule", lambda year: calendar)
+    weekend.refresh_schedule_cache()
+    live_rows = weekend._get_schedule_rows(2026)
+
+    def _down(year):
+        raise RuntimeError("RateLimitExceededError: any API: 500 calls/h")
+
+    patcher.setattr(weekend.fastf1, "get_event_schedule", _down)
+    weekend.refresh_schedule_cache()
+    outage_rows = weekend._get_schedule_rows(2026)
+    weekend.refresh_schedule_cache()
+
+    assert saved[2026] == (
+        ("Azerbaijan Grand Prix", "conventional"),
+        ("Singapore Grand Prix", "sprint_qualifying"),
+    )
+    assert outage_rows == saved[2026]
+    assert live_rows[: len(outage_rows)] == outage_rows
+
+
+def test_schedule_snapshot_is_a_no_op_in_file_mode():
+    """Tests and local file runs must never write a calendar artifact."""
+    from src.persistence.config import should_write_to_db
+
+    assert should_write_to_db() is False
+    weekend._save_schedule_snapshot(2026, (("A Grand Prix", "conventional"),))
+    assert weekend._load_saved_schedule_rows(2026) == ()
+    assert not Path("data/season_schedule").exists() or not any(
+        Path("data/season_schedule").rglob("*.json")
+    )

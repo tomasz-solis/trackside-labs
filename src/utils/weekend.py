@@ -98,6 +98,57 @@ def _merge_schedule_rows(
     return tuple(merged)
 
 
+_SCHEDULE_ARTIFACT_TYPE = "season_schedule"
+
+
+def _schedule_artifact_key(year: int) -> str:
+    return f"{int(year)}::season_schedule"
+
+
+def _save_schedule_snapshot(year: int, rows: tuple[tuple[str, str], ...]) -> None:
+    """Save FastF1's calendar order in DB modes, only when it changed. Never raises."""
+    from src.persistence.config import should_write_to_db
+
+    if not should_write_to_db():
+        return
+    try:
+        from src.persistence.artifact_store import ArtifactStore
+
+        store = ArtifactStore()
+        stored = store.load_artifact(_SCHEDULE_ARTIFACT_TYPE, _schedule_artifact_key(year))
+        payload = {"year": int(year), "rows": [list(row) for row in rows]}
+        if isinstance(stored, dict) and stored.get("rows") == payload["rows"]:
+            return
+        store.save_artifact(_SCHEDULE_ARTIFACT_TYPE, _schedule_artifact_key(year), payload)
+    except Exception as exc:  # noqa: BLE001 - a lost snapshot must not break schedule reads
+        logger.warning("Could not save the %s calendar snapshot: %s", year, exc)
+
+
+def _load_saved_schedule_rows(year: int) -> tuple[tuple[str, str], ...]:
+    """Return the last saved FastF1 calendar in DB modes, or an empty tuple."""
+    from src.persistence.config import should_read_db_first
+
+    if not should_read_db_first():
+        return tuple()
+    try:
+        from src.persistence.artifact_store import ArtifactStore
+
+        stored = ArtifactStore().load_artifact(
+            _SCHEDULE_ARTIFACT_TYPE, _schedule_artifact_key(year)
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not load the saved %s calendar: %s", year, exc)
+        return tuple()
+    raw_rows = stored.get("rows") if isinstance(stored, dict) else None
+    if not isinstance(raw_rows, list):
+        return tuple()
+    return tuple(
+        (str(row[0]), str(row[1]))
+        for row in raw_rows
+        if isinstance(row, list | tuple) and len(row) == 2 and str(row[0]).strip()
+    )
+
+
 @lru_cache(maxsize=8)
 def _get_schedule_rows(year: int) -> tuple[tuple[str, str], ...]:
     """Load schedule rows from FastF1 and fill missing races from local data."""
@@ -123,6 +174,16 @@ def _get_schedule_rows(year: int) -> tuple[tuple[str, str], ...]:
                 rows.append((event_name, event_format))
     except Exception as exc:
         logger.warning("Could not load FastF1 schedule for %s: %s", year, exc)
+
+    if rows:
+        _save_schedule_snapshot(year, tuple(rows))
+    else:
+        # The track file has no calendar order, so round numbers from it are wrong.
+        # Prefer the last calendar FastF1 gave us.
+        saved_rows = _load_saved_schedule_rows(year)
+        if saved_rows:
+            logger.info("Using the saved %s calendar because FastF1 returned no rows.", year)
+            return saved_rows
 
     fallback_rows = _load_fallback_schedule_rows(year)
     if rows and fallback_rows:

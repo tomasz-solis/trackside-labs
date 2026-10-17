@@ -85,6 +85,8 @@ notebooks/
 # Snapshots are ArtifactStore output mirrored from Supabase in production; the
 # tracked copies were a stale naming-migration leftover, not a required input.
 data/car_characteristics_snapshot/
+# The FastF1 calendar the schedule lookup saves in DB modes (src/utils/weekend.py).
+data/season_schedule/
 data/systems/
 # PredictionLogger writes here at runtime and also saves to ArtifactStore. Tracked
 # copies made the dashboard load each prediction twice -- once from the file, once

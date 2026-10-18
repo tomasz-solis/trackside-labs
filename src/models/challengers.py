@@ -66,6 +66,34 @@ class ChallengerContext:
             order_map=order_map,
         )
 
+    def prior_predictions(self) -> list[dict[str, Any]]:
+        """Saved forecasts of earlier events, oldest event first, same rule as ``prior_actuals``."""
+        metadata = (self.prediction_data or {}).get("metadata", {})
+        order_map = _calendar_order_map(self.year)
+        current_label = _normalize_label(self.race_name)
+        current_order = order_map.get(current_label)
+        current_time = _parse_saved_datetime(
+            metadata.get("information_cutoff_at") or metadata.get("predicted_at")
+        )
+        earlier = []
+        for prediction in self.historical_predictions:
+            saved = prediction.get("metadata", {})
+            label = _normalize_label(saved.get("race_name", ""))
+            if not label or label == current_label:
+                continue
+            order = order_map.get(label)
+            saved_time = _parse_saved_datetime(
+                saved.get("information_cutoff_at") or saved.get("predicted_at")
+            )
+            if current_order is not None and order is not None:
+                if order >= current_order:
+                    continue
+            elif current_time is None or saved_time is None or saved_time >= current_time:
+                continue
+            earlier.append((order if order is not None else 10_000, label, prediction))
+        earlier.sort(key=lambda item: (item[0], item[1]))
+        return [prediction for _, _, prediction in earlier]
+
 
 ChallengerFn = Callable[[ChallengerContext], dict[str, Rows]]
 
@@ -123,6 +151,13 @@ def previous_event_order(ctx: ChallengerContext) -> dict[str, Rows]:
     return forecasts
 
 
+def qualifying_ridge(ctx: ChallengerContext) -> dict[str, Rows]:
+    """Stacked qualifying ridge from the 2026-10-08 ML probe (``challenger_ridge``)."""
+    from src.models.challenger_ridge import qualifying_ridge as fit_and_forecast
+
+    return fit_and_forecast(ctx)
+
+
 CHALLENGERS: dict[str, ChallengerSpec] = {
     spec.name: spec
     for spec in (
@@ -131,6 +166,12 @@ CHALLENGERS: dict[str, ChallengerSpec] = {
             version="1",
             fn=previous_event_order,
             description="Previous event's actual order for the same target (naive baseline).",
+        ),
+        ChallengerSpec(
+            name="qualifying_ridge",
+            version="1",
+            fn=qualifying_ridge,
+            description="Ridge on the champion forecast, form, teammate gap and practice pace.",
         ),
     )
 }

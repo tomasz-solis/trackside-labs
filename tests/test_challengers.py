@@ -187,10 +187,101 @@ def test_replay_writes_challenger_snapshots_where_compare_replay_arms_reads(tmp_
 
 
 def test_config_enables_the_naive_challenger_and_skips_unknown_names():
-    assert enabled_challengers() == ["previous_event_order"]
+    assert enabled_challengers() == ["previous_event_order", "qualifying_ridge"]
 
     class _Cfg:
         def get(self, key, default=None):
             return ["previous_event_order", "not_registered"]
 
     assert enabled_challengers(_Cfg()) == ["previous_event_order"]
+
+
+# --- qualifying_ridge ------------------------------------------------------------------
+
+RIDGE_RACES = [
+    "Australian Grand Prix",
+    "Chinese Grand Prix",
+    "Japanese Grand Prix",
+    "Miami Grand Prix",
+    "Canadian Grand Prix",
+    "Monaco Grand Prix",
+]
+DRIVERS = ["VER", "NOR", "LEC", "PIA", "HAM", "RUS"]
+
+
+def _ridge_prediction(race: str, session: str, predicted, actual=None) -> dict:
+    prediction = _prediction(race, predicted, actual)
+    prediction["metadata"]["session_name"] = session
+    return prediction
+
+
+class _Store:
+    def __init__(self):
+        self.loaded: list[str] = []
+
+    def load_artifact(self, artifact_type, key):
+        self.loaded.append(key)
+        teams = {
+            team: {
+                "profiles": {"short_run": {"overall_pace_seconds": 90.0 + i * 0.2}},
+                "driver_deltas_seconds": {"short_run": {}},
+            }
+            for i, team in enumerate(["A", "B", "C", "D", "E", "F"])
+        }
+        return {"teams": teams}
+
+
+def _ridge_ctx(monkeypatch, current_race: str, checkpoint: str, events: int):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        challengers,
+        "_calendar_order_map",
+        lambda year: {challengers._normalize_label(r): i for i, r in enumerate(RIDGE_RACES)},
+    )
+    history = [
+        _ridge_prediction(race, "FP3", _rows(*DRIVERS), _rows(*DRIVERS))
+        for race in RIDGE_RACES[:events]
+    ]
+    current = _ridge_prediction(current_race, checkpoint, _rows(*DRIVERS))
+    store = _Store()
+    predictor = SimpleNamespace(artifact_store=store, data_dir="", config=None)
+    return current, history, predictor, store
+
+
+def test_ridge_needs_four_earlier_events(monkeypatch):
+    current, history, predictor, _ = _ridge_ctx(monkeypatch, "Canadian Grand Prix", "FP3", 3)
+    history = history[:3]
+
+    result = run_challengers(
+        current, historical_predictions=history, predictor=predictor, names=["qualifying_ridge"]
+    )
+
+    assert result["qualifying_ridge"]["status"] == "insufficient_history"
+
+
+def test_ridge_forecasts_a_permutation_from_earlier_events_only(monkeypatch):
+    current, history, predictor, store = _ridge_ctx(monkeypatch, "Monaco Grand Prix", "FP1", 5)
+    # A later event in the history must never be read.
+    history.append(_ridge_prediction("Monaco Grand Prix", "FP3", _rows(*DRIVERS), _rows(*DRIVERS)))
+
+    result = run_challengers(
+        current, historical_predictions=history, predictor=predictor, names=["qualifying_ridge"]
+    )
+
+    rows = result["qualifying_ridge"]["targets"]["main_qualifying"]["predicted_order"]
+    assert sorted(row["position"] for row in rows) == list(range(1, 7))
+    assert {row["driver"] for row in rows} == set(DRIVERS)
+    monaco_reads = [key for key in store.loaded if "Monaco" in key]
+    # At the FP1 checkpoint only FP1 of the current weekend is read.
+    assert monaco_reads == ["2026::Monaco Grand Prix::FP1"]
+
+
+def test_ridge_reads_no_practice_at_pre(monkeypatch):
+    current, history, predictor, store = _ridge_ctx(monkeypatch, "Monaco Grand Prix", "PRE", 5)
+
+    run_challengers(
+        current, historical_predictions=history, predictor=predictor, names=["qualifying_ridge"]
+    )
+
+    assert not [key for key in store.loaded if "Monaco" in key]

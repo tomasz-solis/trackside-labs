@@ -1253,6 +1253,17 @@ Challenger slot (`src/models/challengers.py`), challenger `previous_event_order`
 
 The production gate's "qualifying does not beat naive" comes from the served record (older models, learning off), not from today's model. The naive challenger now runs on every saved forecast, so the replay has the naive baseline it lacked (work list item 13).
 
+## 2026-10-18: qualifying ridge challenger on the round 17 replay: `unresolvable`, leaning better
+
+Challenger `qualifying_ridge` (`src/models/challenger_ridge.py`): the 2026-10-08 probe's seven-feature ridge (champion position, driver and team qualifying form over 3 races, teammate gap, measured team qualifying gap, practice team gap and driver delta), refitted at every checkpoint on earlier events' last pre-qualifying forecasts; practice only from sessions up to the checkpoint; needs 4 earlier events. Run over the saved forecasts of `Z_base_33_r17_s42` / `_s43` (model 3.3), seed floor from that pair, main qualifying, 48 paired checkpoints:
+
+| Metric | Seed 42 | Seed 43 |
+|---|---|---|
+| Correlation | 0.8920 to 0.8944 (26/22) | 0.8916 to 0.8940 (27/21) |
+| MAE | 2.140 to 2.086 (24/20/4) | 2.147 to 2.094 (27/19/2) |
+
+Verdict `unresolvable`: below the seed floor, same as the probe. It now runs on every saved forecast as a challenger; it is not served.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

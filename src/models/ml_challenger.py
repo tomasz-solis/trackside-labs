@@ -76,14 +76,22 @@ def _gap_pct(values: dict[str, float]) -> dict[str, float]:
     return {team: (v / best - 1.0) * 100.0 for team, v in values.items()}
 
 
+def _session_payloads(snapshot_dir: Path, sessions: Sequence[str]) -> list[dict[str, Any]]:
+    """Load the snapshot payloads that exist for ``sessions`` in one event directory."""
+    paths = (snapshot_dir / f"{session}.json" for session in sessions)
+    return [_load(path) for path in paths if path.exists()]
+
+
 def practice_features(snapshot_dir: Path, sessions: Sequence[str]) -> pd.DataFrame:
     """Return team practice features averaged over the visible sessions (team x feature)."""
+    return practice_features_from_payloads(_session_payloads(snapshot_dir, sessions))
+
+
+def practice_features_from_payloads(payloads: Sequence[dict[str, Any]]) -> pd.DataFrame:
+    """Team practice features averaged over snapshot payloads (team x feature)."""
     frames = []
-    for session in sessions:
-        path = snapshot_dir / f"{session}.json"
-        if not path.exists():
-            continue
-        teams = _load(path).get("teams") or {}
+    for payload in payloads:
+        teams = payload.get("teams") or {}
 
         def metric(profile: str, key: str, _teams: dict[str, Any] = teams) -> dict[str, float]:
             out = {}
@@ -120,12 +128,14 @@ def practice_features(snapshot_dir: Path, sessions: Sequence[str]) -> pd.DataFra
 
 def driver_practice_deltas(snapshot_dir: Path, sessions: Sequence[str]) -> pd.DataFrame:
     """Return each driver's mean teammate delta in seconds (negative = faster)."""
+    return driver_practice_deltas_from_payloads(_session_payloads(snapshot_dir, sessions))
+
+
+def driver_practice_deltas_from_payloads(payloads: Sequence[dict[str, Any]]) -> pd.DataFrame:
+    """Each driver's mean teammate delta in seconds over snapshot payloads."""
     rows: dict[str, dict[str, list[float]]] = {}
-    for session in sessions:
-        path = snapshot_dir / f"{session}.json"
-        if not path.exists():
-            continue
-        for data in (_load(path).get("teams") or {}).values():
+    for payload in payloads:
+        for data in (payload.get("teams") or {}).values():
             deltas = data.get("driver_deltas_seconds") or {}
             for profile, name in (
                 ("short_run", "fp_driver_short_s"),

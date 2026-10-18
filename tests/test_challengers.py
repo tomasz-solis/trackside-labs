@@ -187,7 +187,11 @@ def test_replay_writes_challenger_snapshots_where_compare_replay_arms_reads(tmp_
 
 
 def test_config_enables_the_naive_challenger_and_skips_unknown_names():
-    assert enabled_challengers() == ["previous_event_order", "qualifying_ridge"]
+    assert enabled_challengers() == [
+        "previous_event_order",
+        "qualifying_ridge",
+        "qualifying_laptime",
+    ]
 
     class _Cfg:
         def get(self, key, default=None):
@@ -284,4 +288,54 @@ def test_ridge_reads_no_practice_at_pre(monkeypatch):
         current, historical_predictions=history, predictor=predictor, names=["qualifying_ridge"]
     )
 
+    assert not [key for key in store.loaded if "Monaco" in key]
+
+
+# --- qualifying_laptime ----------------------------------------------------------------
+
+
+def _laptime_setup(monkeypatch, checkpoint: str, events: int):
+    import src.models.challenger_laptime as laptime
+
+    current, history, predictor, store = _ridge_ctx(
+        monkeypatch, "Monaco Grand Prix", checkpoint, events
+    )
+    teams = {driver: team for driver, team in zip(DRIVERS, "AABBCC", strict=True)}
+    for prediction in [*history, current]:
+        for row in prediction["targets"]["main_qualifying"]["predicted_order"]:
+            row["team"] = teams[row["driver"]]
+        for row in prediction["actuals"]["targets"].get("main_qualifying") or []:
+            row["team"] = teams[row["driver"]]
+    gaps = {race: {"A": 0.0, "B": 0.4, "C": 0.9} for race in RIDGE_RACES}
+    monkeypatch.setattr(
+        "src.extractors.car_track_traits.load_car_track_traits",
+        lambda year, store=None: {"races": {r: {"quali_gaps": g} for r, g in gaps.items()}},
+    )
+    monkeypatch.setattr(laptime, "_track_fit", lambda year, race: {})
+    laptime._best_lap_cache.clear()
+    return current, history, predictor, store
+
+
+def test_laptime_needs_four_earlier_events(monkeypatch):
+    current, history, predictor, _ = _laptime_setup(monkeypatch, "FP3", 3)
+
+    result = run_challengers(
+        current, historical_predictions=history, predictor=predictor, names=["qualifying_laptime"]
+    )
+
+    assert result["qualifying_laptime"]["status"] == "insufficient_history"
+
+
+def test_laptime_orders_by_car_pace_without_openf1(monkeypatch):
+    current, history, predictor, store = _laptime_setup(monkeypatch, "PRE", 5)
+
+    result = run_challengers(
+        current, historical_predictions=history, predictor=predictor, names=["qualifying_laptime"]
+    )
+
+    rows = result["qualifying_laptime"]["targets"]["main_qualifying"]["predicted_order"]
+    assert sorted(row["position"] for row in rows) == list(range(1, 7))
+    # Team A is fastest every earlier race, team C slowest.
+    assert [row["team"] for row in rows] == ["A", "A", "B", "B", "C", "C"]
+    assert rows[0]["predicted_gap_s"] == 0.0
     assert not [key for key in store.loaded if "Monaco" in key]

@@ -47,7 +47,7 @@ A challenger forecasts beside the champion at every saved checkpoint and is scor
 | Production (warmup cron) | `challengers` in each saved forecast | `uv run python scripts/score_challengers.py --year 2026 --env-file .env.local` |
 | Replay | the same, plus snapshots under `<root>/challengers/<name>` | `compare_replay_arms.py --baseline <root> --candidate <root>/challengers/<name> --seed-floor <s42 root> <s43 root>` |
 
-`previous_event_order` repeats the previous event's actual order for the same target: the naive baseline the champion has to beat. `qualifying_ridge` is the 2026-10-08 probe's stacked ridge for main qualifying, refitted on earlier events at every checkpoint.
+`previous_event_order` repeats the previous event's actual order for the same target: the naive baseline the champion has to beat. `qualifying_ridge` is the 2026-10-08 probe's stacked ridge for main qualifying, refitted on earlier events at every checkpoint. `qualifying_laptime` predicts each driver's qualifying gap in seconds from car pace, track fit, practice and driver form, without the champion's forecast.
 
 ## Promotion gate
 

@@ -158,6 +158,13 @@ def qualifying_ridge(ctx: ChallengerContext) -> dict[str, Rows]:
     return fit_and_forecast(ctx)
 
 
+def qualifying_laptime(ctx: ChallengerContext) -> dict[str, Rows]:
+    """Qualifying as a lap-time model in seconds (``challenger_laptime``)."""
+    from src.models.challenger_laptime import qualifying_laptime as forecast
+
+    return forecast(ctx)
+
+
 CHALLENGERS: dict[str, ChallengerSpec] = {
     spec.name: spec
     for spec in (
@@ -172,6 +179,12 @@ CHALLENGERS: dict[str, ChallengerSpec] = {
             version="1",
             fn=qualifying_ridge,
             description="Ridge on the champion forecast, form, teammate gap and practice pace.",
+        ),
+        ChallengerSpec(
+            name="qualifying_laptime",
+            version="1",
+            fn=qualifying_laptime,
+            description="Lap-time gaps: car pace, track fit, practice and driver, in seconds.",
         ),
     )
 }

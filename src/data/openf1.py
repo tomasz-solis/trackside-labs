@@ -271,3 +271,27 @@ def fetch_starting_grid(year: int, race_name: str) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def fetch_qualifying_best_laps(year: int, race_name: str) -> dict[str, float]:
+    """Each driver's best qualifying lap in seconds (fastest of Q1, Q2, Q3).
+
+    For finished events only; challengers use it for earlier events, never the current
+    one. Raises ``OpenF1Unavailable`` when the session cannot be read.
+    """
+    session = find_session(year, race_name, "Q")
+    if session is None:
+        raise OpenF1Unavailable(f"no OpenF1 qualifying session for {year} {race_name}")
+    drivers = _driver_table(session["session_key"])
+    best: dict[str, float] = {}
+    for row in _get("session_result", session_key=session["session_key"]):
+        durations = row.get("duration")
+        laps = [
+            float(lap)
+            for lap in (durations if isinstance(durations, list) else [durations])
+            if isinstance(lap, int | float)
+        ]
+        number = row.get("driver_number")
+        if laps and isinstance(number, int) and number in drivers:
+            best[drivers[number][0]] = min(laps)
+    return best

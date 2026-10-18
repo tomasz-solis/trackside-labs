@@ -1029,3 +1029,4 @@ challengers:
   enabled:
     - previous_event_order
     - qualifying_ridge
+    - qualifying_laptime

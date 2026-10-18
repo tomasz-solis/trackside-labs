@@ -1278,6 +1278,23 @@ Car pace by recency: season mean 0.850, half-life 2 races 0.848, last 3 races 0.
 
 Reading: the season-mean car pace explains 85% of team gaps. Track fit is real and worth about 0.12 s a lap (the 6.8% of a 0.47 s residual); the champion already carries it as `track_trait_adjustment` since 3.2. Driver form is real but noisy and needs strong shrinkage. About 14% of team-gap variance and most of the teammate gap stays unexplained by anything before the weekend; this weekend's practice is the remaining signal (ML probe 2026-10-08: practice was 34 to 56% of feature weight). A seconds-based challenger should be built on car pace plus this weekend's practice, with track fit and driver as shrunk terms. No model change; verdict `open` for the challenger.
 
+## 2026-10-18: lap-time qualifying challenger: `noise` overall, better at PRE and SQ, worse at FP2 and FP3
+
+Challenger `qualifying_laptime` (`src/models/challenger_laptime.py`), built on the sizing entry above. Predicted gap to pole in seconds = team part (season-mean car pace, the champion's traits-by-track fit, this weekend's practice gap) + driver part (shrunk earlier teammate gap from OpenF1 qualifying laps, practice driver delta). Weights fitted on earlier events only, ridge-shrunk toward car pace 1 and everything else 0. It does not see the champion's forecast. Learned at Singapore FP1 (seed 42): car pace 0.82, track fit 0.05, practice gap 0.23; driver history 0.95, practice delta 0.25.
+
+Run over the saved forecasts of `Z_base_33_r17_s42` / `_s43`, main qualifying, 48 paired checkpoints, seed floor from that pair:
+
+| Checkpoint | n | MAE seed 42 | MAE seed 43 | Better, s42 / s43 |
+|---|---|---|---|---|
+| PRE | 13 | 2.501 to 2.288 | 2.537 to 2.295 | 7 / 8 of 13 |
+| FP1 | 13 | 2.137 to 2.162 | 2.116 to 2.154 | 5 / 6 of 13 |
+| FP2 | 9 | 1.949 to 2.204 | 1.939 to 2.214 | 2 / 2 of 9 |
+| FP3 | 9 | 1.839 to 2.234 | 1.839 to 2.234 | 2 / 2 of 9 |
+| SQ | 4 | 2.087 to 1.881 | 2.133 to 1.881 | 3 / 3 of 4 |
+| All | 48 | 2.140 to 2.194, corr 0.892 to 0.887 | 2.147 to 2.196, corr 0.892 to 0.887 | `noise` |
+
+Reading: without practice, the seconds model orders the field better than the champion (PRE correlation 0.859 to 0.881 on both seeds). Once practice arrives the champion pulls ahead: its practice blend uses this weekend's data better than a single practice-gap term. Tried and rejected: training the practice weight only on the sessions the checkpoint can see (correlation 0.885, worse). Runs as a challenger; nothing served changes.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

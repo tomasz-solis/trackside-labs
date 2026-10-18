@@ -1085,7 +1085,13 @@ class TestingConfig(StrictConfigModel):
 class ChallengersConfig(StrictConfigModel):
     """Challenger models run beside the champion and scored, never served."""
 
-    enabled: list[str] = Field(default_factory=lambda: ["previous_event_order", "qualifying_ridge"])
+    enabled: list[str] = Field(
+        default_factory=lambda: [
+            "previous_event_order",
+            "qualifying_ridge",
+            "qualifying_laptime",
+        ]
+    )
 
 
 class BaselinePredictorConfig(StrictConfigModel):

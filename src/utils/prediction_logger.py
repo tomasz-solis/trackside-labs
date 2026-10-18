@@ -79,7 +79,7 @@ class PredictionLogger:
         """Save a prediction payload in the configured persistence backends.
 
         ``challenger_predictor`` is the predictor the champion used at this checkpoint;
-        challenger models (``src.models.challengers``) may read it.
+        challenger models (``src.models.challengers``) run only when it is given.
         """
         if not qualifying_prediction or not race_prediction:
             raise ValueError("Predictions cannot be empty")
@@ -183,13 +183,16 @@ class PredictionLogger:
             year=normalized_year,
             history=history,
         )
-        challengers = run_challengers(
-            prediction_data,
-            historical_predictions=history or [],
-            predictor=challenger_predictor,
-        )
-        if challengers:
-            prediction_data["challengers"] = challengers
+        # Challengers run only where a checkpoint predictor is passed: the warmup cron and
+        # the replay. The web process (512 MB on Render) saves without one and skips them.
+        if challenger_predictor is not None:
+            challengers = run_challengers(
+                prediction_data,
+                historical_predictions=history or [],
+                predictor=challenger_predictor,
+            )
+            if challengers:
+                prediction_data["challengers"] = challengers
 
         self._write_prediction_file(filepath, prediction_data)
         artifact_key = self._artifact_key_for_prediction(

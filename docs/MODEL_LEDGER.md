@@ -1312,6 +1312,20 @@ Reading: the snapshot practice gaps add little beyond car pace, while the champi
 
 A's team order does not improve with practice; the champion's does, and it also orders teammates better. Giving A the champion's own short-run composite (`testing_characteristics_profiles.short_run`, weights 0.55/0.20/0.15/0.10) as its practice term was worse too (corr 0.882). In the replay each practice session is written into the season car characteristics (`update_from_testing_sessions`, new weight 0.25), and the checkpoint predictor reads that updated state plus the weekend's stored profiles through its confidence-weighted blend. The champion's practice signal is that whole updated state, not one snapshot feature; a structural challenger needs it as an input (stacking) or has to rebuild that path.
 
+## 2026-10-18: lap-time challenger stacked on the champion's order: `noise`, still behind after practice
+
+Challenger `qualifying_laptime_stacked` (`src/models/challenger_laptime_stacked.py`, registered, not enabled): the lap-time model plus the champion's checkpoint order (team mean position, teammate gap), each with a weight per checkpoint, trained on every earlier event's saved checkpoints. Main qualifying, `Z_base_33_r17_s42`, 48 checkpoints:
+
+| Variant | Corr | MAE | FP2 MAE | FP3 MAE | SQ MAE |
+|---|---|---|---|---|---|
+| Champion | 0.8920 | 2.140 | 1.949 | 1.839 | 2.087 |
+| Lap-time, live | 0.887 | 2.194 | 2.204 | 2.234 | 1.881 |
+| Stacked, gaps in seconds | 0.8887 | 2.161 | 2.111 | 2.122 | 1.790 |
+| Stacked, gaps scaled by each race's spread | 0.8895 | 2.155 | 2.101 | 2.091 | 1.789 |
+| Stacked, team ranks | 0.8835 | 2.201 | 2.203 | 2.162 | 1.926 |
+
+In seconds the champion inputs got about 0 weight (team 0.003): least squares on gaps is dominated by front-to-back distance, while the champion's edge is ordering close teams. Scaling each race by its spread helps a little; ranks lose the gap information and are worse. Every variant is within about 0.005 correlation of the others and below the seed floor, so tuning shrink strengths on these 13 races would fit noise. The kept version scales by spread. Next lever: more seasons for the car x track part (2023 to 2025 qualifying from OpenF1; the local FastF1 cache holds race results only for 2022 to 2024), trained on history and validated on 2026 only.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

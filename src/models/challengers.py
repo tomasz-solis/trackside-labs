@@ -165,6 +165,13 @@ def qualifying_laptime(ctx: ChallengerContext) -> dict[str, Rows]:
     return forecast(ctx)
 
 
+def qualifying_laptime_stacked(ctx: ChallengerContext) -> dict[str, Rows]:
+    """Lap-time model plus the champion's checkpoint order (``challenger_laptime_stacked``)."""
+    from src.models.challenger_laptime_stacked import qualifying_laptime_stacked as forecast
+
+    return forecast(ctx)
+
+
 CHALLENGERS: dict[str, ChallengerSpec] = {
     spec.name: spec
     for spec in (
@@ -185,6 +192,12 @@ CHALLENGERS: dict[str, ChallengerSpec] = {
             version="1",
             fn=qualifying_laptime,
             description="Lap-time gaps: car pace, track fit, practice and driver, in seconds.",
+        ),
+        ChallengerSpec(
+            name="qualifying_laptime_stacked",
+            version="1",
+            fn=qualifying_laptime_stacked,
+            description="Lap-time gaps plus the champion's checkpoint order, weighted per checkpoint.",
         ),
     )
 }

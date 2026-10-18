@@ -146,6 +146,7 @@ def test_logger_saves_challengers_beside_the_champion(tmp_path):
         race_prediction=rows,
         weather="dry",
         target_predictions={"main_qualifying": {"predicted_order": rows, "target_session": "Q"}},
+        challenger_predictor=object(),
     )
 
     saved = logger.load_prediction(2026, "Australian Grand Prix", "FP3")
@@ -153,6 +154,24 @@ def test_logger_saves_challengers_beside_the_champion(tmp_path):
     # First event of the season: the naive challenger has nothing to repeat yet.
     assert saved["challengers"]["previous_event_order"]["status"] == "insufficient_history"
     assert saved["targets"]["main_qualifying"]["predicted_order"][0]["driver"] == "NOR"
+
+
+def test_web_saves_without_a_predictor_run_no_challengers(tmp_path):
+    from src.utils.prediction_logger import PredictionLogger
+
+    logger = PredictionLogger(predictions_dir=str(tmp_path / "predictions"))
+    rows = _rows("NOR", "VER", "LEC")
+    logger.save_prediction(
+        year=2026,
+        race_name="Australian Grand Prix",
+        session_name="FP3",
+        qualifying_prediction=rows,
+        race_prediction=rows,
+        weather="dry",
+        target_predictions={"main_qualifying": {"predicted_order": rows, "target_session": "Q"}},
+    )
+
+    assert "challengers" not in logger.load_prediction(2026, "Australian Grand Prix", "FP3")
 
 
 def test_replay_writes_challenger_snapshots_where_compare_replay_arms_reads(tmp_path):
@@ -339,3 +358,18 @@ def test_laptime_orders_by_car_pace_without_openf1(monkeypatch):
     assert [row["team"] for row in rows] == ["A", "A", "B", "B", "C", "C"]
     assert rows[0]["predicted_gap_s"] == 0.0
     assert not [key for key in store.loaded if "Monaco" in key]
+
+
+def test_stacked_laptime_matches_pure_laptime_at_pre(monkeypatch):
+    current, history, predictor, _ = _laptime_setup(monkeypatch, "PRE", 5)
+
+    result = run_challengers(
+        current,
+        historical_predictions=history,
+        predictor=predictor,
+        names=["qualifying_laptime", "qualifying_laptime_stacked"],
+    )
+
+    pure = result["qualifying_laptime"]["targets"]["main_qualifying"]["predicted_order"]
+    stacked = result["qualifying_laptime_stacked"]["targets"]["main_qualifying"]["predicted_order"]
+    assert [row["driver"] for row in stacked] == [row["driver"] for row in pure]

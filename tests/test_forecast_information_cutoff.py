@@ -227,6 +227,42 @@ def test_checkpoint_reads_no_actual_result_from_a_later_session(
     assert set(reads) == allowed_reads
 
 
+@pytest.mark.parametrize(
+    ("checkpoint", "receives_result"), [("PRE", False), ("FP1", False), ("SQ", True)]
+)
+def test_main_qualifying_gets_the_sprint_qualifying_result_only_after_it_ran(
+    monkeypatch, checkpoint, receives_result
+):
+    """The sprint qualifying blend can only see the SQ classification from the SQ checkpoint on."""
+    calls: list[dict] = []
+
+    class _RecordingPredictor(_StubPredictor):
+        def predict_qualifying(self, **kwargs):
+            calls.append(kwargs)
+            return super().predict_qualifying(**kwargs)
+
+    monkeypatch.setattr(
+        replay_module, "_fetch_actual_session_results", lambda **_kwargs: _grid("VER", "NOR", "PIA")
+    )
+    monkeypatch.setattr(
+        replay_module, "_fetch_actual_starting_grid", lambda **_kwargs: _grid("VER", "NOR", "PIA")
+    )
+
+    build_checkpoint_prediction_results(
+        predictor=_RecordingPredictor(),
+        year=2026,
+        race_name="Chinese Grand Prix",
+        checkpoint_session=checkpoint,
+        weather="dry",
+        is_sprint=True,
+        actual_cache={},
+    )
+
+    main = [call for call in calls if call.get("qualifying_stage") == "main"]
+    assert len(main) == 1
+    assert ("sprint_qualifying_result" in main[0]) is receives_result
+
+
 # --- Across weekends: current-season form ---------------------------------------------
 
 

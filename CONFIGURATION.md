@@ -25,7 +25,8 @@ Current values live in `config/default.yaml`. This page lists where to look, not
 | Qualifying team vs driver weight | `baseline_predictor.qualifying.team_weight`, `skill_weight` (must sum to 1.0) |
 | Car traits by track (qualifying, on since 3.2) | `baseline_predictor.qualifying.track_trait_adjustment`, `track_trait_features` (no braking since 3.3) |
 | Measured and kept off | `baseline_predictor.race.track_trait_adjustment`, `tyre_deg_model`, `center_driver_lap_terms_by_team`, `practice_pace_adjustment` (race and qualifying). Verdicts are in `docs/MODEL_LEDGER.md` |
-| Built 2026-10-11, off until replayed | `baseline_predictor.qualifying.sprint_quali_result_blend_weight` (0 is off), `baseline_predictor.race.sprint_distance_scaling`, `learning.race_interval_widening` |
+| Sprint qualifying result in main qualifying (on since 3.4) | `baseline_predictor.qualifying.sprint_quali_result_blend_weight` (0.7; 0 is off) |
+| Built 2026-10-11, off | `baseline_predictor.race.sprint_distance_scaling` (`unresolvable`), `learning.race_interval_widening` (D, not replayed) |
 | Adaptive learning on or off | `learning.apply_adaptive_calibration` (on; off is a replay arm only) |
 | Tyre compound choice | `baseline_predictor.compound_selection.*_threshold`, `default_stress_fallback` |
 | Race randomness | `baseline_predictor.race.base_chaos.*`, `lap1_chaos.*`, `teammate_variance_std`, `track_chaos_multiplier` |

@@ -1,25 +1,47 @@
 name: Model Quality Gate
 
+# Manual only. The gate scores production forecasts in Supabase, and this public repo
+# holds no Supabase secrets by design (the key is service_role). Run it locally with
+# --env-file .env.local; see docs/MODEL_PROMOTION.md.
 on:
-  schedule:
-    - cron: "0 7 * * 1"
   workflow_dispatch:
 
 jobs:
+  # Without the secrets there is no evidence to score: the gate job is skipped, never green or red.
+  evidence:
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    steps:
+      - id: check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SUPABASE_URL or SUPABASE_KEY secret missing: no production evidence, gate not run."
+            echo "Gate not run: SUPABASE_URL or SUPABASE_KEY secret missing, so there is no production evidence to score." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   production-readiness:
+    needs: evidence
+    if: needs.evidence.outputs.available == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      USE_DB_STORAGE: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_KEY != '' && 'db_only' || 'file_only' }}
+      USE_DB_STORAGE: db_only
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 

@@ -3,9 +3,24 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from src.dashboard import live_prediction_flow, warmup
+from src.utils.prediction_logger import PredictionLogger
+
+_REPO_PREDICTIONS = Path(__file__).resolve().parents[1] / "data" / "predictions"
+
+
+def _tree_state(root: Path) -> dict[str, tuple[int, int]]:
+    """Size and mtime of every file under ``root``, to prove a test left it untouched."""
+    if not root.exists():
+        return {}
+    return {
+        str(path.relative_to(root)): (path.stat().st_size, path.stat().st_mtime_ns)
+        for path in root.rglob("*")
+        if path.is_file()
+    }
 
 
 def _base_store_key(
@@ -105,7 +120,7 @@ class _IntegrationPredictor:
         }
 
 
-def test_warmup_cycle_persists_payload_that_dashboard_serves(monkeypatch):
+def test_warmup_cycle_persists_payload_that_dashboard_serves(monkeypatch, tmp_path):
     """Warmup should persist one race payload that the request path serves unchanged."""
     fixed_now = datetime(2026, 3, 24, 9, 0, tzinfo=UTC)
     race_name = "Japanese Grand Prix"
@@ -160,6 +175,13 @@ def test_warmup_cycle_persists_payload_that_dashboard_serves(monkeypatch):
         """Read the horizon metadata for the current warmed artifact state."""
         return horizon_store.get((int(year), str(artifact_hash)))
 
+    repo_predictions_before = _tree_state(_REPO_PREDICTIONS)
+    # Checkpoint logging must write to a scratch store, never the repo's scoring cohort.
+    monkeypatch.setattr(
+        warmup,
+        "PredictionLogger",
+        lambda: PredictionLogger(predictions_dir=str(tmp_path / "data" / "predictions")),
+    )
     monkeypatch.setattr(warmup, "should_write_to_db", lambda: False)
     monkeypatch.setattr(warmup, "_refresh_anchor_practice_characteristics", lambda **kwargs: {})
     monkeypatch.setattr(
@@ -315,3 +337,5 @@ def test_warmup_cycle_persists_payload_that_dashboard_serves(monkeypatch):
     assert served_prediction["race"]["finish_order"][0]["driver"] == "RUS"
     assert served_prediction["race"]["finish_order"][0]["confidence"] == 78.4
     assert served_prediction["race"]["input_confidence"] == 1.0
+    assert list((tmp_path / "data" / "predictions").rglob("*.json")), "checkpoint was not logged"
+    assert _tree_state(_REPO_PREDICTIONS) == repo_predictions_before

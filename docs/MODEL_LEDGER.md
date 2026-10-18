@@ -1215,6 +1215,32 @@ Verdict `unresolvable`: the switch stays off. Grand Prix rows move slightly alth
 
 **The rerun the 2026-10-11 entry asked for is not needed for B and C.** The outputs were on one machine, and that machine still has them. The widening bug changed bands only, so the order metrics behind B and C stand. B stays measured worse with learning off (the default is on); C stays measured better at 0.7 and off until adopted. D still needs a rebuilt baseline with widening off plus a widening-on arm, both seeds.
 
+## 2026-10-18: sprint qualifying blend (C): per-weekend table and leak test, verdict for Tomasz
+
+**Sprint qualifying result blend at 0.7 (Singapore item C).** Same outputs as the 2026-10-11 C entry: `C_sq_result_blend_07_s42` / `_s43` against `Z_base_33_r17_s42` / `_s43` (model 3.3, round 17, Windows laptop `data/historical_replay_arms/`). Of 142 snapshot files per seed, 12 change, all at the SQ checkpoint (main qualifying and Grand Prix race); no PRE, FP or other checkpoint moves.
+
+Main qualifying at the SQ checkpoint, MAE:
+
+| Weekend | Seed 42 | Seed 43 |
+|---|---|---|
+| China | 3.091 to 1.273 | 3.000 to 1.364 |
+| Miami | 3.636 to 3.000 | 3.455 to 3.000 |
+| Canada | 2.000 to 1.636 | 2.000 to 1.636 |
+| Britain | 2.273 to 1.455 | 2.273 to 1.455 |
+| Netherlands | 1.619 to 1.238 | 1.714 to 1.238 |
+| Singapore | 2.455 to 2.636 | 2.545 to 2.727 |
+| Mean, n=6 | 2.512 to 1.873 | 2.498 to 1.903 |
+
+Better on 5 of 6 weekends on both seeds; Singapore worse by about 0.18 places. Grand Prix race at the SQ checkpoint, the knock-on through the predicted grid: MAE 4.266 to 4.162 and 4.221 to 4.056, correlation 0.602 to 0.577 and 0.600 to 0.592, split 3 better and 3 worse per seed. Below the seed floor, leaning worse on correlation.
+
+Leak test: `tests/test_forecast_information_cutoff.py` pins that the replay reads no SQ classification at PRE or FP1 and that only the main qualifying forecast at the SQ checkpoint receives it; `tests/test_sprint_qualifying_result_blend.py` pins the blend's own checkpoint guard.
+
+Verdict stays `open`: the adoption rule is met for qualifying (better on both seeds, every non-sprint checkpoint tied), the race side is below the floor. Adopting is Tomasz's call; it bumps the model version in three places.
+
+## 2026-10-18: sprint qualifying blend adopted as model 3.4
+
+`baseline_predictor.qualifying.sprint_quali_result_blend_weight: 0.7`, on the evidence in the entry above (`C_sq_result_blend_07` against `Z_base_33_r17_*`). Verdict `adopted`, decided by Tomasz. Version 3.3 to 3.4 in `config/default.yaml`, `src/utils/model_version.py` and `src/utils/config_schema.py`. New champion baseline for later arms: rebuild `Z_base_34_r17_*` before measuring anything that touches sprint weekends.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

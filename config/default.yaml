@@ -37,7 +37,7 @@ grid:
     #   LAW: TSU
 
 model:
-  version: "3.3"
+  version: "3.4"
   # Regulation eras for seconds calibration. The gap between a fast car and a slow
   # one is set by the regulations, so team_strength_seconds_mapping is fitted within
   # one era and never across a boundary: pooling 2022-2025 with 2026 produced a slope
@@ -328,9 +328,9 @@ baseline_predictor:
     # existing practice blend). Off; a residual-fitted version is the next idea.
     practice_pace_adjustment: false
     # Share of the actual sprint qualifying order blended into each simulated main
-    # qualifying order, once sprint qualifying has run. 0 is off. Sized 2026-10-11 on
-    # 5 sprint weekends; not replayed yet (MODEL_LEDGER, Singapore item C).
-    sprint_quali_result_blend_weight: 0.0
+    # qualifying order, once sprint qualifying has run. 0 is off. Adopted at 0.7 as
+    # model 3.4 (MODEL_LEDGER 2026-10-18, Singapore item C).
+    sprint_quali_result_blend_weight: 0.7
     testing_fallback_short_weight_min: 0.35
     testing_fallback_short_weight_max: 0.85
     testing_fallback_divergence_scale: 1.4

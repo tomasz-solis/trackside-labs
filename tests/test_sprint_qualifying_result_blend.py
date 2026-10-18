@@ -48,11 +48,11 @@ def test_only_the_main_qualifying_forecast_is_blended():
     assert _blend(1.0, stage="sprint") is RECORDS
 
 
-def test_off_by_default_and_without_a_result():
+def test_shipped_at_point_seven_and_inert_without_a_result():
     from src.utils import config_loader
 
     assert (
-        config_loader.get("baseline_predictor.qualifying.sprint_quali_result_blend_weight") == 0.0
+        config_loader.get("baseline_predictor.qualifying.sprint_quali_result_blend_weight") == 0.7
     )
     assert _blend(0.0) is RECORDS
     assert _blend(1.0, result=None) is RECORDS

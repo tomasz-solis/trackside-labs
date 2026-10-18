@@ -4,7 +4,7 @@ A model change is a challenger until it proves it helps. Reset-year signals are 
 
 ## Current model
 
-Version `3.3`. 3.1 to 3.3 are small: median-rank finish order, car traits by track for qualifying, braking dropped from those traits (champion history in `docs/MODEL_LEDGER.md`). 3.0 was the big one. It changed a mechanism, not a calibration. Positions in the race simulation used to change whenever a faster car's cumulative time passed another's, whether or not a pass happened (98.4% of simulated position changes at Monaco had no pass). Now a position change needs a completed pass. 3.0 also measured team race pace from green-flag laps, fitted `skill_improvement_max` to the real teammate gap, and stopped re-anchoring a penalised driver to his penalty grid slot. Numbers are in `docs/MODEL_LEDGER.md`.
+Version `3.4`. 3.1 to 3.4 are small: median-rank finish order, car traits by track for qualifying, braking dropped from those traits, the sprint qualifying result blended into main qualifying (champion history in `docs/MODEL_LEDGER.md`). 3.0 was the big one. It changed a mechanism, not a calibration. Positions in the race simulation used to change whenever a faster car's cumulative time passed another's, whether or not a pass happened (98.4% of simulated position changes at Monaco had no pass). Now a position change needs a completed pass. 3.0 also measured team race pace from green-flag laps, fitted `skill_improvement_max` to the real teammate gap, and stopped re-anchoring a penalised driver to his penalty grid slot. Numbers are in `docs/MODEL_LEDGER.md`.
 
 Targets are judged separately: `main_qualifying`, `grand_prix_race`, `sprint_qualifying`, `sprint_race`. A challenger can win one target without being promoted for all.
 
@@ -29,6 +29,14 @@ make evaluation-gate
 make candidate-audit
 make shadow-challenger-audit
 ```
+
+The served forecasts live in Supabase, and GitHub deliberately holds no Supabase secrets: the only key is a `service_role` key and the repo is public. Run the gate locally against production instead (read-only; write the reports outside the repo unless you mean to refresh the committed ones):
+
+```bash
+uv run python scripts/generate_evaluation_report.py --year 2026 --env-file .env.local --fail-on-gate --out <scratch>/report.md --error-out <scratch>/errors.md --json-out <scratch>/report.json
+```
+
+`.github/workflows/model-quality-gate.yml` runs only on manual dispatch, and skips the gate job when the secrets are absent.
 
 ## Promotion gate
 

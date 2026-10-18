@@ -16,10 +16,8 @@ Needs at least ``MIN_TRAINING_EVENTS`` earlier events; before that it forecasts 
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -96,16 +94,11 @@ class _Snapshots:
 
 
 def _quali_gaps(predictor: Any, year: int) -> dict[str, dict[str, float]]:
-    """Measured qualifying gap per team per race, from the car track traits file."""
-    roots = [Path(getattr(predictor, "data_dir", "") or ""), Path("data/processed")]
-    for root in roots:
-        path = root / "car_track_traits" / f"{year}_car_track_traits.json"
-        if path.is_file():
-            races = json.loads(path.read_text(encoding="utf-8")).get("races", {})
-            return {
-                race: data["quali_gaps"] for race, data in races.items() if data.get("quali_gaps")
-            }
-    return {}
+    """Measured qualifying gap per team per race: the store first, then the committed file."""
+    from src.extractors.car_track_traits import load_car_track_traits
+
+    races = load_car_track_traits(year, store=getattr(predictor, "artifact_store", None))["races"]
+    return {race: data["quali_gaps"] for race, data in races.items() if data.get("quali_gaps")}
 
 
 def _feature_rows(

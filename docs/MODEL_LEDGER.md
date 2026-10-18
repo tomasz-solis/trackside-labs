@@ -1264,6 +1264,20 @@ Challenger `qualifying_ridge` (`src/models/challenger_ridge.py`): the 2026-10-08
 
 Verdict `unresolvable`: below the seed floor, same as the probe. It now runs on every saved forecast as a challenger; it is not served.
 
+## 2026-10-18: sizing a car x track x driver qualifying model: car pace dominates, track fit and driver are real but small
+
+`scripts/probe_car_track_driver.py`, 2026 only, walk-forward from race 5 (13 races scored), team qualifying gaps from the production `car_track_traits` artifact (17 races), driver laps from FastF1 qualifying (280 driver rows). Nulls: each race given another race's track profile (track fit); the sign of each earlier teammate gap flipped per team and race (driver). 100 draws each.
+
+| Part | Size | Walk-forward R2 | Null 95th pct | p |
+|---|---|---|---|---|
+| Car pace: team's mean gap so far | team gap sd 1.22 s | 0.850 | | |
+| Car x track: traits-by-track fit on what car pace leaves | residual sd 0.47 s | 0.068 | 0.049 | 0.02 |
+| Driver: earlier gap to teammate, shrunk by 2 pseudo-races | sd 0.34% of pole | 0.079 (corr 0.28) | 0.055 | <0.01 |
+
+Car pace by recency: season mean 0.850, half-life 2 races 0.848, last 3 races 0.834. No measurable upgrade drift in qualifying gaps.
+
+Reading: the season-mean car pace explains 85% of team gaps. Track fit is real and worth about 0.12 s a lap (the 6.8% of a 0.47 s residual); the champion already carries it as `track_trait_adjustment` since 3.2. Driver form is real but noisy and needs strong shrinkage. About 14% of team-gap variance and most of the teammate gap stays unexplained by anything before the weekend; this weekend's practice is the remaining signal (ML probe 2026-10-08: practice was 34 to 56% of feature weight). A seconds-based challenger should be built on car pace plus this weekend's practice, with track fit and driver as shrunk terms. No model change; verdict `open` for the challenger.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

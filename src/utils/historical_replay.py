@@ -923,6 +923,7 @@ def _build_race_checkpoint_record(
         weather=weather,
         fp_blend_info=fp_blend_info,
         target_predictions=target_predictions,
+        challenger_predictor=predictor,
         metadata={
             "source": "historical_replay",
             "weekend_format": weekend_format_name(is_sprint),
@@ -994,6 +995,12 @@ def _build_race_checkpoint_record(
             data=record["data"],
             version=1,
         )
+    _save_challenger_snapshots(
+        saved_prediction,
+        output_root=output_root,
+        is_sprint=is_sprint,
+        metrics_calculator=metrics_calculator,
+    )
 
     state_summary_path = _write_state_summary(
         output_root=output_root,
@@ -1030,6 +1037,39 @@ def _build_race_checkpoint_record(
         metrics_by_target=filtered_metrics,
         information_cutoff_at=information_cutoff_at,
     )
+
+
+def _save_challenger_snapshots(
+    saved_prediction: dict[str, Any],
+    *,
+    output_root: Path,
+    is_sprint: bool,
+    metrics_calculator: PredictionMetrics,
+) -> None:
+    """Write each challenger's accuracy snapshots under ``<root>/challengers/<name>``.
+
+    Same layout as the champion's, so ``compare_replay_arms.py --baseline <root>
+    --candidate <root>/challengers/<name>`` scores a challenger against the champion.
+    """
+    from src.models.challengers import challenger_prediction_view
+
+    for name in sorted(saved_prediction.get("challengers") or {}):
+        view = challenger_prediction_view(saved_prediction, name)
+        if view is None:
+            continue
+        store = ArtifactStore(data_root=output_root / "challengers" / name)
+        for record in build_accuracy_snapshot_records(
+            prediction_data=view,
+            is_sprint=is_sprint,
+            metrics_calculator=metrics_calculator,
+            generated_by=f"historical_replay_challenger:{name}",
+        ):
+            store.save_artifact(
+                artifact_type="accuracy_snapshot",
+                artifact_key=record["artifact_key"],
+                data=record["data"],
+                version=1,
+            )
 
 
 def _apply_session_update(

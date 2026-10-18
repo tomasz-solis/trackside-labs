@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from src.models.challengers import run_challengers
 from src.models.shadow_challenger import build_shadow_challengers_for_prediction
 from src.persistence.artifact_store import ArtifactStore
 from src.systems.systematic_learning import SystematicLearningSystem
@@ -73,8 +74,13 @@ class PredictionLogger:
         metadata: dict[str, Any] | None = None,
         run_id: str | None = None,
         target_predictions: dict[str, dict[str, Any]] | None = None,
+        challenger_predictor: Any = None,
     ) -> Path:
-        """Save a prediction payload in the configured persistence backends."""
+        """Save a prediction payload in the configured persistence backends.
+
+        ``challenger_predictor`` is the predictor the champion used at this checkpoint;
+        challenger models (``src.models.challengers``) may read it.
+        """
         if not qualifying_prediction or not race_prediction:
             raise ValueError("Predictions cannot be empty")
 
@@ -171,10 +177,19 @@ class PredictionLogger:
                 "targets": {target_key: None for target_key in normalized_targets},
             },
         }
+        history = self._prediction_history(normalized_year)
         prediction_data["shadow_challengers"] = self._build_shadow_challengers(
             prediction_data,
             year=normalized_year,
+            history=history,
         )
+        challengers = run_challengers(
+            prediction_data,
+            historical_predictions=history or [],
+            predictor=challenger_predictor,
+        )
+        if challengers:
+            prediction_data["challengers"] = challengers
 
         self._write_prediction_file(filepath, prediction_data)
         artifact_key = self._artifact_key_for_prediction(
@@ -201,15 +216,25 @@ class PredictionLogger:
 
         return filepath
 
+    def _prediction_history(self, year: int) -> list[dict[str, Any]] | None:
+        """Saved forecasts of the season, or ``None`` when they cannot be read."""
+        try:
+            return self.get_all_predictions(int(year))
+        except (AttributeError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            logger.warning("Could not read saved predictions for challengers: %s", exc)
+            return None
+
     def _build_shadow_challengers(
         self,
         prediction_data: dict[str, Any],
         *,
         year: int,
+        history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Build background challenger forecasts without affecting champion output."""
         try:
-            history = self.get_all_predictions(int(year))
+            if history is None:
+                history = self.get_all_predictions(int(year))
             return build_shadow_challengers_for_prediction(
                 prediction_data,
                 historical_predictions=history,

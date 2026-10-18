@@ -1022,3 +1022,9 @@ baseline_predictor:
 # Testing
 testing:
   seed: 42
+
+# Challenger models: forecast beside the champion, saved under `challengers`, never
+# served. Names come from src/models/challengers.py. See docs/MODEL_PROMOTION.md.
+challengers:
+  enabled:
+    - previous_event_order

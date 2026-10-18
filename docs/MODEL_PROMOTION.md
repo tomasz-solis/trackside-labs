@@ -38,6 +38,17 @@ uv run python scripts/generate_evaluation_report.py --year 2026 --env-file .env.
 
 `.github/workflows/model-quality-gate.yml` runs only on manual dispatch, and skips the gate job when the secrets are absent.
 
+## Challengers
+
+A challenger forecasts beside the champion at every saved checkpoint and is scored, never served. Each one is a function in `src/models/challengers.py` that gets the champion's forecast, the checkpoint predictor and earlier events' results (never the current event's), and returns rows per target. `challengers.enabled` in `config/default.yaml` lists the ones that run; a challenger that fails is stored as `status: error` and the champion is unaffected.
+
+| Where | Stored | Scored with |
+|---|---|---|
+| Production (warmup cron) | `challengers` in each saved forecast | `uv run python scripts/score_challengers.py --year 2026 --env-file .env.local` |
+| Replay | the same, plus snapshots under `<root>/challengers/<name>` | `compare_replay_arms.py --baseline <root> --candidate <root>/challengers/<name> --seed-floor <s42 root> <s43 root>` |
+
+`previous_event_order` repeats the previous event's actual order for the same target: the naive baseline the champion has to beat.
+
 ## Promotion gate
 
 `src/analysis/promotion_gate.py`. A challenger must:

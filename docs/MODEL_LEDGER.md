@@ -1241,6 +1241,18 @@ Verdict stays `open`: the adoption rule is met for qualifying (better on both se
 
 `baseline_predictor.qualifying.sprint_quali_result_blend_weight: 0.7`, on the evidence in the entry above (`C_sq_result_blend_07` against `Z_base_33_r17_*`). Verdict `adopted`, decided by Tomasz. Version 3.3 to 3.4 in `config/default.yaml`, `src/utils/model_version.py` and `src/utils/config_schema.py`. New champion baseline for later arms: rebuild `Z_base_34_r17_*` before measuring anything that touches sprint weekends.
 
+## 2026-10-18: naive previous-event challenger on the round 17 replay: champion clearly better
+
+Challenger slot (`src/models/challengers.py`), challenger `previous_event_order`: the previous event's actual order for the same target. Run over the saved forecasts of `Z_base_33_r17_s42` (model 3.3), scored with `compare_replay_arms.py` against that root, seed floor from `Z_base_33_r17_s42` / `_s43`. 58 of 62 checkpoints paired (the first event has no previous result).
+
+| Target | Metric | Champion | Naive | Result |
+|---|---|---|---|---|
+| Main qualifying | MAE | 2.264 | 2.911 | champion better, 43 of 58 checkpoints |
+| Main qualifying | Correlation | 0.879 | 0.790 | champion better, 49 of 58 |
+| Grand Prix race | Correlation | 0.684 | 0.436 | champion better, 55 of 58 |
+
+The production gate's "qualifying does not beat naive" comes from the served record (older models, learning off), not from today's model. The naive challenger now runs on every saved forecast, so the replay has the naive baseline it lacked (work list item 13).
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

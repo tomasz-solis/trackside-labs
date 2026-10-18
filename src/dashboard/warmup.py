@@ -556,6 +556,7 @@ def _save_warmup_prediction_to_logger(
     is_sprint: bool,
     prediction_results: dict[str, Any],
     artifact_hash: str = "",
+    predictor: Any = None,
 ) -> None:
     """Mirror one warmup payload into the prediction logger for accuracy scoring."""
     logger_inst = PredictionLogger()
@@ -603,6 +604,7 @@ def _save_warmup_prediction_to_logger(
         weather=weather,
         fp_blend_info=fp_blend_info,
         target_predictions=target_predictions,
+        challenger_predictor=predictor,
         metadata={
             "source": "warmup_precompute",
             "artifact_hash": artifact_hash,
@@ -1012,6 +1014,7 @@ def _process_weather_scenario(
             is_sprint=target_is_sprint,
             prediction_results=prediction_results,
             artifact_hash=ctx.artifact_hash,
+            predictor=ctx.predictor,
         )
     except _WARMUP_ERRORS as exc:
         logger.warning(

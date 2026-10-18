@@ -1082,6 +1082,12 @@ class TestingConfig(StrictConfigModel):
     seed: int = Field(default=42, ge=0)
 
 
+class ChallengersConfig(StrictConfigModel):
+    """Challenger models run beside the champion and scored, never served."""
+
+    enabled: list[str] = Field(default_factory=lambda: ["previous_event_order"])
+
+
 class BaselinePredictorConfig(StrictConfigModel):
     """Root application configuration."""
 
@@ -1098,6 +1104,7 @@ class BaselinePredictorConfig(StrictConfigModel):
         default_factory=BaselinePredictorSectionConfig
     )
     testing: TestingConfig = Field(default_factory=TestingConfig)
+    challengers: ChallengersConfig = Field(default_factory=ChallengersConfig)
 
 
 def validate_config(config_dict: dict[str, Any]) -> BaselinePredictorConfig:

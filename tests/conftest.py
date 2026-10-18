@@ -101,13 +101,25 @@ def no_team_race_pace_refresh(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_openf1_network(monkeypatch):
+    """Keep the OpenF1 fallback off the network; its tests stub the HTTP call."""
+    from src.data import openf1
+
+    monkeypatch.setenv(openf1.DISABLE_ENV, "1")
+    openf1.clear_cache()
+
+
+@pytest.fixture(autouse=True)
 def reset_fp_blending_circuit_breaker():
     """Prevent FastF1 circuit-breaker state from leaking between tests."""
+    from src.utils import fastf1_resilience
     from src.utils.fp_blending import _circuit_breaker
 
     _circuit_breaker.reset()
+    fastf1_resilience._circuit_state.clear()
     yield
     _circuit_breaker.reset()
+    fastf1_resilience._circuit_state.clear()
 
 
 @pytest.fixture(scope="session")

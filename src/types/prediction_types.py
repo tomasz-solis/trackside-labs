@@ -32,6 +32,8 @@ class QualifyingGridEntry(TypedDict):
     # Present only on a row a penalty has moved; the ``position`` above is the slot he
     # actually starts from. Absent, everyone else's grid slot is already their pace.
     qualifying_position: NotRequired[int]
+    # Data source of an actual result when it is not FastF1, e.g. "openf1".
+    source: NotRequired[str]
 
 
 class DriverRaceInfo(TypedDict):

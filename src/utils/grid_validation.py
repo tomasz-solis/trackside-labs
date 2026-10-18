@@ -153,6 +153,9 @@ def validate_qualifying_grid(
         if "dnf" in entry and entry["dnf"] is not None:
             validated_entry["dnf"] = bool(entry["dnf"])
 
+        if entry.get("source"):
+            validated_entry["source"] = str(entry["source"]).strip()
+
         validated_grid.append(validated_entry)
 
     if len(validated_grid) < min_entries:

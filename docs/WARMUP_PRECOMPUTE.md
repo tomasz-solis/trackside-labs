@@ -29,9 +29,13 @@ Exit code 0 means success, nothing to do, or checkpoint not ready. Anything else
 
 Before computing, each run learns from finished races and refreshes three measured inputs: team race pace, the strength to seconds mapping and car traits. A slow first run after a deploy is a full recompute, not a stale lock.
 
-PRE forecasts are computed on the first run. A logged PRE forecast is replaced when the model version changes or another race finishes, until the weekend's first session starts.
+PRE forecasts are computed on the first run. A logged PRE forecast is replaced when the model version changes, another race finishes or its inputs change (artifact hash), until the weekend's first session starts.
 
 A sprint or race that has finished but has no published classification yet shows as pending and does not block the checkpoint. The payload is recomputed each run until the result is there. Once qualifying is done, qualifying is no longer forecast, and the race forecast uses the actual grid.
+
+## Data sources
+
+Session data comes from FastF1. When FastF1 cannot load a session (its archive has returned 401 since about 2026-10-15, FastF1 #978), session completion, competitive results and the race starting grid come from OpenF1 (`src/data/openf1.py`). Those rows carry `source: "openf1"`, and the counter `openf1_fallback_used_total` records each use. OpenF1's grid has no pit-lane marker. Practice laps and telemetry still need FastF1; without them a run uses the stored car traits. Set `TRACKSIDE_OPENF1_DISABLED=1` to turn the fallback off.
 
 ## Scheduling
 

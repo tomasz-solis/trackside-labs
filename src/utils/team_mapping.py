@@ -46,6 +46,7 @@ TEAM_NAME_MAP = {
     "Renault": "ALPINE",
     "Renault F1 Team": "ALPINE",
     "Alpine": "ALPINE",
+    "Alpine F1 Team": "ALPINE",
     "BWT Alpine F1 Team": "ALPINE",
     # McLaren (stable identity)
     "McLaren": "MCLAREN",

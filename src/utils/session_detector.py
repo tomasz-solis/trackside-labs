@@ -147,6 +147,9 @@ class SessionDetector:
             state = "unknown"
 
         if state == "unknown":
+            state = self._openf1_completion_state(year, race_name, session_name)
+
+        if state == "unknown":
             labels = {"year": year, "race_name": race_name, "session_name": session_name}
             record_counter("fastf1_completion_unknown_total", labels=labels)
             record_alert(
@@ -159,6 +162,24 @@ class SessionDetector:
             )
 
         self._completion_cache[cache_key] = state
+        return state
+
+    def _openf1_completion_state(
+        self, year: int, race_name: str, session_name: str
+    ) -> SessionCompletionState:
+        """Ask OpenF1 when FastF1 cannot decide; ``unknown`` if OpenF1 cannot either."""
+        from src.data import openf1
+
+        try:
+            state = openf1.session_completion_state(year, race_name, session_name)
+        except openf1.OpenF1Unavailable as exc:
+            logger.info("OpenF1 completion fallback unavailable: %s", exc)
+            return "unknown"
+        if state != "unknown":
+            record_counter(
+                "openf1_completion_fallback_total",
+                labels={"year": year, "race_name": race_name, "session_name": session_name},
+            )
         return state
 
     def _get_event_cached(self, year: int, race_name: str):

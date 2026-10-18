@@ -5,6 +5,7 @@ from typing import Any, Literal, cast
 
 import fastf1
 
+from src.data import openf1
 from src.types.prediction_types import QualifyingGridEntry
 from src.utils.fastf1_resilience import call_with_resilience
 from src.utils.grid_validation import validate_qualifying_grid
@@ -200,14 +201,57 @@ def _sprint_session_on_conventional_weekend(year: int, race_name: str, session_n
         return False
 
 
+def _openf1_fallback(
+    fetch: Any,
+    *,
+    what: str,
+    labels: dict[str, Any],
+    min_entries: int,
+) -> list[QualifyingGridEntry] | None:
+    """Return OpenF1 rows that pass the same grid validation as FastF1, else ``None``."""
+    try:
+        grid = validate_qualifying_grid(
+            cast(list[QualifyingGridEntry], fetch()),
+            min_entries=min_entries,
+            require_sequential_positions=True,
+        )
+    except (openf1.OpenF1Unavailable, KeyError, TypeError, ValueError) as exc:
+        logger.info("OpenF1 fallback for %s %s unavailable: %s", what, labels, exc)
+        record_counter("openf1_fallback_failed_total", labels={**labels, "what": what})
+        return None
+    logger.warning("FastF1 had no %s for %s; using OpenF1", what, labels)
+    record_counter("openf1_fallback_used_total", labels={**labels, "what": what})
+    grid.sort(key=lambda item: int(item["position"]))
+    return grid
+
+
 def fetch_actual_session_results(
     year: int, race_name: str, session_name: str
 ) -> list[QualifyingGridEntry] | None:
-    """Fetch actual results from competitive session (SQ, Sprint, Q, R)."""
+    """Fetch actual results from competitive session (SQ, Sprint, Q, R).
+
+    FastF1 first. When it returns nothing, OpenF1 (``src.data.openf1``); those rows
+    carry ``source = "openf1"``.
+    """
     if _sprint_session_on_conventional_weekend(year, race_name, session_name):
         # Expected absence, not a failure: skip FastF1 and its retries.
         logger.debug("No %s on conventional weekend %s %s", session_name, race_name, year)
         return None
+    grid = _fetch_fastf1_session_results(year, race_name, session_name)
+    if grid is not None:
+        return grid
+    return _openf1_fallback(
+        lambda: openf1.fetch_session_results(year, race_name, session_name),
+        what="results",
+        labels={"year": year, "race_name": race_name, "session_name": session_name},
+        min_entries=_MIN_COMPETITIVE_ENTRIES_BY_SESSION.get(str(session_name), 10),
+    )
+
+
+def _fetch_fastf1_session_results(
+    year: int, race_name: str, session_name: str
+) -> list[QualifyingGridEntry] | None:
+    """Fetch one competitive session's results from FastF1, ``None`` on any failure."""
     try:
         labels = {"year": year, "race_name": race_name, "session_name": session_name}
         session = call_with_resilience(
@@ -329,6 +373,22 @@ def fetch_actual_session_results(
 
 
 def fetch_actual_starting_grid(year: int, race_name: str) -> list[QualifyingGridEntry] | None:
+    """Fetch the grid a completed race started from: FastF1, then OpenF1 when FastF1 has none.
+
+    OpenF1's grid has no pit-lane marker, so every OpenF1 row is a grid start.
+    """
+    grid = _fetch_fastf1_starting_grid(year, race_name)
+    if grid is not None:
+        return grid
+    return _openf1_fallback(
+        lambda: openf1.fetch_starting_grid(year, race_name),
+        what="starting_grid",
+        labels={"year": year, "race_name": race_name, "session_name": "R"},
+        min_entries=_MIN_COMPETITIVE_ENTRIES_BY_SESSION["R"],
+    )
+
+
+def _fetch_fastf1_starting_grid(year: int, race_name: str) -> list[QualifyingGridEntry] | None:
     """Fetch the grid a completed race actually started from, penalties included.
 
     Qualifying classification is not the starting grid: a driver who qualifies P3 and

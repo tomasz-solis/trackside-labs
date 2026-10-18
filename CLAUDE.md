@@ -33,7 +33,7 @@ CI runs tests in chunks over tracked files only. A bare `uv run pytest` also col
 ## Measuring model changes
 
 - Results and verdicts live in `docs/MODEL_LEDGER.md`. Add new entries and mark old ones superseded; never change a past verdict.
-- Every measured claim names the baseline it was measured against. The prediction cache key does not include the code version, so a cached prediction can predate the model it is credited to.
+- Every measured claim names the baseline it was measured against. The serving cache key covers prediction code (import closure), but a replay root or a forecast saved before a change still predates the model it is credited to.
 - Measure on the walk-forward replay with `--through-round`, against a rebuilt baseline and the seed floor. The protocol is at the top of the ledger.
 - A 14-round replay takes 30 minutes to 3 hours (it varies with machine load) and about 1.2 GB. Run it in your own terminal: Claude Code's low-memory reaper has killed it as a background job.
 

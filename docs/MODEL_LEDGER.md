@@ -1295,6 +1295,23 @@ Run over the saved forecasts of `Z_base_33_r17_s42` / `_s43`, main qualifying, 4
 
 Reading: without practice, the seconds model orders the field better than the champion (PRE correlation 0.859 to 0.881 on both seeds). Once practice arrives the champion pulls ahead: its practice blend uses this weekend's data better than a single practice-gap term. Tried and rejected: training the practice weight only on the sessions the checkpoint can see (correlation 0.885, worse). Runs as a challenger; nothing served changes.
 
+## 2026-10-18: lap-time challenger with a richer practice term: worse, not kept
+
+Tried on `qualifying_laptime`: five team practice features (short-run, long-run, slow and fast corner gaps, top speed) and two driver deltas, each with its own weight at FP1, FP2, FP3 and SQ, trained on every earlier event at every practice level. Seed 42, same protocol as the entry above: correlation 0.892 to 0.884 (v1 0.887), MAE 2.140 to 2.230 (v1 2.194); FP2 and FP3 worse than v1 (MAE 2.25 and 2.24). Learned weights stay small: short-run gap 0.14 at FP1, 0.15 at FP2, 0.18 at FP3; long-run 0.07 to 0.14; car pace 0.88.
+
+Reading: the snapshot practice gaps add little beyond car pace, while the champion gains 0.66 places of MAE from PRE to FP3 (2.50 to 1.84). Its practice signal is not in these team-level snapshot features. Do not retry richer snapshot features; find what the champion's practice path reads first. v1 stays live.
+
+**Where the champion's practice gain comes from (same day).** Split of main qualifying on `Z_base_33_r17_s42`, champion vs `qualifying_laptime` v1, same checkpoints:
+
+| Checkpoint | n | Team-rank MAE, champion / A | Teammate order right, champion / A |
+|---|---|---|---|
+| PRE | 13 | 0.88 / 0.87 | 54% / 53% |
+| FP1 | 13 | 0.74 / 0.76 | 60% / 56% |
+| FP2 | 9 | 0.81 / 0.87 | 71% / 59% |
+| FP3 | 9 | 0.71 / 0.89 | 66% / 61% |
+
+A's team order does not improve with practice; the champion's does, and it also orders teammates better. Giving A the champion's own short-run composite (`testing_characteristics_profiles.short_run`, weights 0.55/0.20/0.15/0.10) as its practice term was worse too (corr 0.882). In the replay each practice session is written into the season car characteristics (`update_from_testing_sessions`, new weight 0.25), and the checkpoint predictor reads that updated state plus the weekend's stored profiles through its confidence-weighted blend. The champion's practice signal is that whole updated state, not one snapshot feature; a structural challenger needs it as an input (stacking) or has to rebuild that path.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

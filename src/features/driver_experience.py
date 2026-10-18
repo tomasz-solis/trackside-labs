@@ -51,7 +51,7 @@ def load_driver_debuts_from_csv(csv_path: Path) -> dict[str, int]:
 
     debuts = {}
 
-    with open(csv_path) as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             driver_name = row["Driver"]

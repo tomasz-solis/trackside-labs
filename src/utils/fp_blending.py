@@ -120,6 +120,8 @@ def _load_session_with_cache_fallback(
                 )
 
             _fastf1_with_retry(load_session_laps)
+            # FastF1 logs and returns when the archive refuses the laps; touch them here.
+            _ = session.laps
             return session
         except _FASTF1_ERRORS as exc:
             last_error = exc
@@ -132,9 +134,25 @@ def _load_session_with_cache_fallback(
                 exc,
             )
 
+    session = _load_session_from_openf1(year, race_name, session_type)
+    if session is not None:
+        return session
     if last_error is not None:
         raise last_error
     raise RuntimeError("No FastF1 cache directories are configured")
+
+
+def _load_session_from_openf1(year: int, race_name: str, session_type: str) -> Any:
+    """Return a FastF1 session filled from OpenF1, or ``None`` when that fails too."""
+    from src.data import openf1, openf1_session
+
+    try:
+        session = ff1.get_session(year, race_name, session_type)
+        openf1_session.load_session(session, year, race_name, session_type)
+    except (openf1.OpenF1Unavailable, *_FASTF1_ERRORS) as exc:
+        logger.info("OpenF1 laps for %s %s %s unavailable: %s", year, race_name, session_type, exc)
+        return None
+    return session
 
 
 def _get_event_with_cache_fallback(year: int, race_name: str) -> Any:

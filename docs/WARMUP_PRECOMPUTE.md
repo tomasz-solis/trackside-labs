@@ -35,7 +35,18 @@ A sprint or race that has finished but has no published classification yet shows
 
 ## Data sources
 
-Session data comes from FastF1. When FastF1 cannot load a session (its archive has returned 401 since about 2026-10-15, FastF1 #978), session completion, competitive results and the race starting grid come from OpenF1 (`src/data/openf1.py`). Those rows carry `source: "openf1"`, and the counter `openf1_fallback_used_total` records each use. OpenF1's grid has no pit-lane marker. Practice laps and telemetry still need FastF1; without them a run uses the stored car traits. Set `TRACKSIDE_OPENF1_DISABLED=1` to turn the fallback off.
+Session data comes from FastF1. Its archive needs an F1 TV login since 2026-10 (FastF1 #978). When FastF1 cannot load a session, session completion, competitive results and the race starting grid come from OpenF1 (`src/data/openf1.py`). Those rows carry `source: "openf1"`, and the counter `openf1_fallback_used_total` records each use. OpenF1's grid has no pit-lane marker. Set `TRACKSIDE_OPENF1_DISABLED=1` to turn the fallback off.
+
+Practice laps, weather and car data for the FP blend and practice capture come from OpenF1 too (`src/data/openf1_session.py`): it fills the FastF1 session, so callers do not change. Measured against FastF1 on 2026 sessions:
+
+| Output | Match |
+|---|---|
+| Lap times, compounds, stints | identical where both have a time |
+| Practice capture metrics (pace, corners, braking, tyre deg) | Spearman 1.00 on most; lowest 0.78 (Baku FP1 consistency) |
+| Top speed | Spearman 0.78 to 1.00; OpenF1 has no finish-line trap |
+| FP blend short run | Spearman 0.66 to 1.00; OpenF1 tyre age is wrong on some refitted sets |
+
+Not filled: `TrackStatus`, `Deleted`, `Position`. Qualifying and race trait extraction filters on `TrackStatus` and still needs FastF1.
 
 ## Scheduling
 

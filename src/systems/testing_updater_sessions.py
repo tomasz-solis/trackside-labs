@@ -11,7 +11,10 @@ from typing import Any
 
 import fastf1
 import pandas as pd
+from fastf1.exceptions import DataNotLoadedError
 from pandas.errors import SettingWithCopyWarning
+
+from src.data import openf1_session
 
 logger = logging.getLogger(__name__)
 
@@ -293,6 +296,7 @@ def load_sessions_for_event(
     ),
     load_car_data_only_fn: Callable[[fastf1.core.Session], None] = load_car_data_only,
     fastf1_get_session: Callable[..., fastf1.core.Session] = fastf1.get_session,
+    load_openf1_session_fn: Callable[..., None] = openf1_session.load_session,
     logger_obj: Any = logger,
 ) -> list[tuple[str, fastf1.core.Session]]:
     """
@@ -312,7 +316,13 @@ def load_sessions_for_event(
             try:
                 session = fastf1_get_session(year, event_name, session_name)
                 session.load(laps=True, telemetry=False, weather=False, messages=False)
-                laps = session.laps
+                try:
+                    laps = session.laps
+                except DataNotLoadedError:
+                    # FastF1's archive refused the laps (FastF1 #978); OpenF1 brings car data too.
+                    load_openf1_session_fn(session, year, event_name, session_name, car_data=True)
+                    loaded.append((session_name, session))
+                    continue
                 if laps is None:
                     raise ValueError("laps are None after session.load()")
                 # Access row count to force DataNotLoadedError if load is incomplete.

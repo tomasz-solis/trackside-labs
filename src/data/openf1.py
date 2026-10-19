@@ -3,7 +3,8 @@
 FastF1's archive has returned 401 since about 2026-10-15 (FastF1 #978). OpenF1
 (api.openf1.org) serves finished sessions free. This module covers what the cron
 needs to move a weekend forward: session completion, competitive results and the
-race starting grid. Laps and telemetry still come from FastF1 only.
+race starting grid. ``openf1_session`` loads laps, weather and car data into a
+FastF1 session.
 
 Every row it returns carries ``source = "openf1"`` so stored actuals say where
 they came from. Set ``TRACKSIDE_OPENF1_DISABLED=1`` to turn the fallback off; the
@@ -69,7 +70,7 @@ def clear_cache() -> None:
     _response_cache.clear()
 
 
-def _get(endpoint: str, **params: Any) -> list[dict[str, Any]]:
+def _get(endpoint: str, *, cache: bool = True, **params: Any) -> list[dict[str, Any]]:
     """GET one OpenF1 endpoint and return its rows; an empty result is ``[]``."""
     if os.environ.get(DISABLE_ENV, "").strip():
         raise OpenF1Unavailable(f"{DISABLE_ENV} is set")
@@ -82,7 +83,8 @@ def _get(endpoint: str, **params: Any) -> list[dict[str, Any]]:
     if not isinstance(payload, list):
         raise OpenF1Unavailable(f"{url} returned {type(payload).__name__}")
     rows = [row for row in payload if isinstance(row, dict)]
-    _response_cache[url] = rows
+    if cache:
+        _response_cache[url] = rows
     return rows
 
 
@@ -168,8 +170,8 @@ def session_completion_state(
     return "incomplete" if current < end + _RESULTS_GRACE else "unknown"
 
 
-def _driver_table(session_key: Any) -> dict[int, tuple[str, str]]:
-    """Map driver number to (three-letter code, characteristics team name)."""
+def _driver_table(session_key: Any, *, map_team: bool = True) -> dict[int, tuple[str, str]]:
+    """Map driver number to (three-letter code, characteristics or raw team name)."""
     table: dict[int, tuple[str, str]] = {}
     for row in _get("drivers", session_key=session_key):
         try:
@@ -179,7 +181,10 @@ def _driver_table(session_key: Any) -> dict[int, tuple[str, str]]:
         code = str(row.get("name_acronym") or "").strip()
         team_raw = str(row.get("team_name") or "").strip()
         if code and team_raw:
-            table[number] = (code, map_team_to_characteristics(team_raw) or team_raw)
+            table[number] = (
+                code,
+                (map_team_to_characteristics(team_raw) or team_raw) if map_team else team_raw,
+            )
     return table
 
 

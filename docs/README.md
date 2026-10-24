@@ -8,6 +8,7 @@ If a doc and the code disagree, trust the code.
 - `../ARCHITECTURE.md`: components and data flow
 - `../CONFIGURATION.md`: config files and environment variables
 - `../LIMITATIONS.md`: what the model does badly
+- `TRACKSIDE_LABS_DIRECTION.md`: product direction since 2026-10-24. Read it before any product, UI or feature change.
 - `MODEL_LEDGER.md`: every model change, how it was measured and the verdict. Read it before proposing a change; several plausible ideas have already lost.
 
 ## How the model works

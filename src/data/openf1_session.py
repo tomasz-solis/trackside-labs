@@ -20,7 +20,7 @@ from typing import Any
 import fastf1
 import numpy as np
 import pandas as pd
-from fastf1.exceptions import DataNotLoadedError
+from fastf1.exceptions import DataNotLoadedError, RateLimitExceededError
 
 from src.data import openf1
 from src.utils.operational_observability import record_counter
@@ -500,11 +500,12 @@ def get_session(
     Raises ``OpenF1Unavailable`` when neither source has laps.
     """
     session = fastf1.get_session(year, race_name, session_name)
-    session.load(laps=True, telemetry=telemetry, weather=weather, messages=False)
     try:
+        session.load(laps=True, telemetry=telemetry, weather=weather, messages=False)
         if not session.laps.empty:
             return session
-    except DataNotLoadedError:  # FastF1's archive refused the laps (FastF1 #978)
+    except (DataNotLoadedError, RateLimitExceededError):
+        # FastF1's archive refused the laps (FastF1 #978) or its hourly call limit ran out.
         pass
     load_session(session, year, race_name, session_name, car_data=telemetry)
     return session

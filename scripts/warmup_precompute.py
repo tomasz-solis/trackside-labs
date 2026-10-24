@@ -39,6 +39,7 @@ from src.persistence.config import (  # noqa: E402
     should_read_db_first,
     should_write_to_db,
 )
+from src.utils.fastf1_resilience import install_archive_guard  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
@@ -158,6 +159,7 @@ def main() -> int:
             "use a DB-backed mode (fallback, dual_write, or db_only).",
             storage_mode,
         )
+    install_archive_guard()
     try:
         summary = run_warmup_precompute_cycle(
             year=int(args.year),

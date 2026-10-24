@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 import src.utils.fastf1_resilience as resilience
@@ -51,3 +53,96 @@ def test_call_with_resilience_opens_circuit_after_threshold(patcher):
 
     with pytest.raises(resilience.FastF1CircuitOpenError):
         resilience.call_with_resilience("circuit_op", lambda: "should not run", policy=policy)
+
+
+_PATH = "/static/2026/2026-10-11_Singapore_Grand_Prix/2026-10-10_Qualifying/"
+_F1 = "https://livetiming.formula1.com" + _PATH
+_MIRROR = "https://livetiming-mirror.fastf1.dev" + _PATH
+
+
+@pytest.fixture
+def archive(monkeypatch):
+    """Install the archive guard over a fake network that answers from ``statuses``."""
+    from fastf1.req import Cache
+
+    statuses: dict[str, int] = {}
+    sent: list[str] = []
+
+    def fake_get(cls, url, **_kwargs):
+        sent.append(url)
+        return SimpleNamespace(status_code=statuses.get(url, 200), content=b"")
+
+    monkeypatch.setattr(Cache, "requests_get", classmethod(fake_get))
+    monkeypatch.setattr(resilience, "_archive_guard_installed", False)
+    monkeypatch.setattr(resilience, "_archive_refusals", {})
+    resilience.install_archive_guard()
+    return Cache, statuses, sent
+
+
+def test_archive_guard_answers_a_refused_season_without_a_call(archive):
+    cache, statuses, sent = archive
+    statuses[_F1 + "SessionInfo.jsonStream"] = 401
+    race = _F1.replace("2026-10-10_Qualifying", "2026-10-11_Race")
+    season_2025 = "https://livetiming.formula1.com/static/2025/x/y/SessionInfo.jsonStream"
+    jolpica = "https://api.jolpi.ca/ergast/f1/2026/17/results.json"
+
+    assert cache.requests_get(_F1 + "SessionInfo.jsonStream").status_code == 401
+    assert cache.requests_get(race + "TimingData.jsonStream").status_code == 401
+    assert cache.requests_get(season_2025).status_code == 200
+    assert cache.requests_get(jolpica).status_code == 200
+    assert sent == [_F1 + "SessionInfo.jsonStream", season_2025, jolpica]
+
+
+def test_archive_guard_skips_only_the_session_the_mirror_lacks(archive):
+    cache, statuses, sent = archive
+    race = _MIRROR.replace("2026-10-10_Qualifying", "2026-10-11_Race")
+    statuses[_MIRROR + "SessionInfo.jsonStream"] = 404
+    statuses[race + "LapCount.jsonStream"] = 404
+
+    assert cache.requests_get(_MIRROR + "SessionInfo.jsonStream").status_code == 404
+    assert cache.requests_get(_MIRROR + "TimingData.jsonStream").status_code == 404
+    # A missing page other than SessionInfo says nothing about the rest of the session.
+    assert cache.requests_get(race + "LapCount.jsonStream").status_code == 404
+    assert cache.requests_get(race + "TimingData.jsonStream").status_code == 200
+    assert sent == [
+        _MIRROR + "SessionInfo.jsonStream",
+        race + "LapCount.jsonStream",
+        race + "TimingData.jsonStream",
+    ]
+
+
+def test_archive_guard_asks_again_after_ten_minutes(archive, monkeypatch):
+    cache, statuses, sent = archive
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(resilience.time, "monotonic", lambda: clock["now"])
+    statuses[_F1 + "SessionInfo.jsonStream"] = 401
+
+    cache.requests_get(_F1 + "SessionInfo.jsonStream")
+    clock["now"] += 599
+    cache.requests_get(_F1 + "SessionInfo.jsonStream")
+    assert len(sent) == 1
+    clock["now"] += 2
+    statuses.clear()
+    assert cache.requests_get(_F1 + "SessionInfo.jsonStream").status_code == 200
+    assert len(sent) == 2
+
+
+def test_fastf1_fetch_page_fails_as_before_and_asks_once(archive):
+    from fastf1 import _api
+
+    _cache, statuses, sent = archive
+    statuses[_F1 + "SessionInfo.jsonStream"] = 401
+    statuses[_MIRROR + "SessionInfo.jsonStream"] = 404
+
+    assert _api.fetch_page(_PATH, "session_info") is None
+    assert _api.fetch_page(_PATH, "timing_data") is None
+    assert sent == [_F1 + "SessionInfo.jsonStream", _MIRROR + "SessionInfo.jsonStream"]
+
+
+def test_install_archive_guard_wraps_once(archive):
+    cache, _statuses, sent = archive
+    guard = cache.__dict__["requests_get"]
+    resilience.install_archive_guard()
+    assert cache.__dict__["requests_get"] is guard
+    cache.requests_get(_F1 + "SessionInfo.jsonStream")
+    assert len(sent) == 1

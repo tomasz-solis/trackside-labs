@@ -61,7 +61,9 @@ Misses: about 16 single laps a season disagree at a flag change; Italy's red-fla
 
 A session is loaded from OpenF1 only after its scheduled end and once every driver's laps reach their `session_result` lap count (true on 15 published 2026 sessions). Otherwise the stage logs a warning and retries next run, so a partial session is never saved.
 
-During a live session OpenF1 answers 401 to every free request, past sessions included. The client then fails fast for 5 minutes. Expect the cron run during and just after each session to skip OpenF1 work. Cached responses expire after 10 minutes, so the web process picks up results published after its first look.
+During a live session OpenF1 answers 401 to every free request, past sessions included. The lock starts before the session: on 2026-10-24 it was on 29 minutes before Austin FP3 and off 82 minutes before, and it lifted about 30 minutes after FP3's scheduled end. The client then fails fast for 5 minutes. Expect the cron run before, during and just after each session to skip OpenF1 work. Cached responses expire after 10 minutes, so the web process picks up results published after its first look.
+
+FastF1 allows 500 calls an hour per process, and a refused session load spends up to 11. On 2026-10-24 one cold cron run used all 500 before reaching OpenF1. The cron therefore installs `install_archive_guard()` (`src/utils/fastf1_resilience.py`): after a 401 or 403 for a season, or a 404 for a session's `SessionInfo`, the same archive requests get the same answer for 10 minutes without a call. A cold replay of the cron's checks went from 501 calls (limit hit) to 138. If FastF1 still hits its limit, practice capture and `openf1_session.get_session` go to OpenF1.
 
 ## Scheduling
 

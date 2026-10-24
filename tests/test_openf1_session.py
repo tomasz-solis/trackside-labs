@@ -6,7 +6,7 @@ from unittest.mock import patch
 import fastf1
 import pandas as pd
 import pytest
-from fastf1.exceptions import DataNotLoadedError
+from fastf1.exceptions import DataNotLoadedError, RateLimitExceededError
 
 from src.data import openf1, openf1_session
 from src.systems import testing_updater_sessions
@@ -251,6 +251,37 @@ def test_practice_capture_loader_takes_laps_and_car_data_from_openf1():
     )
     assert loaded == [("FP1", refused)]
     assert calls == [(refused, (2026, "Singapore Grand Prix", "FP1"), {"car_data": True})]
+
+
+class _RateLimitedSession:
+    """A FastF1 session whose load ran into FastF1's hourly call limit."""
+
+    def load(self, **_kwargs):
+        raise RateLimitExceededError("any API: 500 calls/h")
+
+
+def test_practice_capture_loader_takes_openf1_when_fastf1_hits_its_call_limit():
+    limited = _RateLimitedSession()
+    calls = []
+    loaded = testing_updater_sessions.load_sessions_for_event(
+        2026,
+        "Barcelona Grand Prix",
+        ["FP1"],
+        fastf1_get_session=lambda *a: limited,
+        load_openf1_session_fn=lambda session, *a, **kw: calls.append((session, a, kw)),
+    )
+    assert loaded == [("FP1", limited)]
+    assert calls == [(limited, (2026, "Barcelona Grand Prix", "FP1"), {"car_data": True})]
+
+
+def test_get_session_falls_back_when_fastf1_hits_its_call_limit():
+    limited = _RateLimitedSession()
+    with (
+        patch.object(fastf1, "get_session", return_value=limited),
+        patch.object(openf1_session, "load_session") as fill,
+    ):
+        assert openf1_session.get_session(2026, "Barcelona Grand Prix", "R") is limited
+        fill.assert_called_once_with(limited, 2026, "Barcelona Grand Prix", "R", car_data=False)
 
 
 def test_practice_capture_loader_skips_session_when_openf1_fails_too():

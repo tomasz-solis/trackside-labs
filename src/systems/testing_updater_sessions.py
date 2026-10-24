@@ -11,7 +11,7 @@ from typing import Any
 
 import fastf1
 import pandas as pd
-from fastf1.exceptions import DataNotLoadedError
+from fastf1.exceptions import DataNotLoadedError, RateLimitExceededError
 from pandas.errors import SettingWithCopyWarning
 
 from src.data import openf1_session
@@ -315,11 +315,12 @@ def load_sessions_for_event(
         for session_name in session_candidates:
             try:
                 session = fastf1_get_session(year, event_name, session_name)
-                session.load(laps=True, telemetry=False, weather=False, messages=False)
                 try:
+                    session.load(laps=True, telemetry=False, weather=False, messages=False)
                     laps = session.laps
-                except DataNotLoadedError:
-                    # FastF1's archive refused the laps (FastF1 #978); OpenF1 brings car data too.
+                except (DataNotLoadedError, RateLimitExceededError):
+                    # FastF1's archive refused the laps (FastF1 #978) or its hourly call limit
+                    # ran out; OpenF1 brings car data too.
                     load_openf1_session_fn(session, year, event_name, session_name, car_data=True)
                     loaded.append((session_name, session))
                     continue

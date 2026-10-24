@@ -1,8 +1,9 @@
-"""Retry/circuit-breaker helpers for FastF1 network-bound operations."""
+"""Retry, circuit-breaker and archive-refusal helpers for FastF1 network calls."""
 
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -12,6 +13,16 @@ from typing import Any
 from src.utils.operational_observability import record_alert, record_counter
 
 logger = logging.getLogger(__name__)
+
+# FastF1 archive pages: host, season, then the event and session folder.
+_ARCHIVE_URL = re.compile(
+    r"^https://(livetiming\.formula1\.com|livetiming-mirror\.fastf1\.dev)/static/(\d{4})/"
+    r"([^/]+/[^/]+/)?"
+)
+_ARCHIVE_REFUSAL_TTL_SECONDS = 600.0
+# Archive prefix -> (monotonic time of the refusal, HTTP status).
+_archive_refusals: dict[str, tuple[float, int]] = {}
+_archive_guard_installed = False
 
 
 class FastF1CircuitOpenError(RuntimeError):
@@ -163,3 +174,78 @@ def call_with_resilience(
             )
             time.sleep(sleep_seconds)
             backoff = min(float(cfg.max_backoff_seconds), backoff * float(cfg.backoff_multiplier))
+
+
+def _archive_keys(url: str) -> tuple[str, str | None] | None:
+    """Return the season and session prefixes of a FastF1 archive URL, else ``None``."""
+    match = _ARCHIVE_URL.match(url)
+    if match is None:
+        return None
+    host, year, session_dir = match.groups()
+    season = f"{host}/static/{year}/"
+    return season, (season + session_dir if session_dir else None)
+
+
+def _refused_status(keys: tuple[str, str | None]) -> int | None:
+    now = time.monotonic()
+    for key in keys:
+        refusal = _archive_refusals.get(key) if key else None
+        if refusal is not None and now - refusal[0] < _ARCHIVE_REFUSAL_TTL_SECONDS:
+            return refusal[1]
+    return None
+
+
+def _note_refusal(url: str, keys: tuple[str, str | None], status: int) -> None:
+    season, session = keys
+    if status in (401, 403):
+        key = season
+    elif status == 404 and session and url.split("?")[0].endswith("/SessionInfo.jsonStream"):
+        # SessionInfo is the first page FastF1 asks for; without it the session is absent.
+        key = session
+    else:
+        return
+    _archive_refusals[key] = (time.monotonic(), status)
+    logger.info(
+        "FastF1 archive refused %s (HTTP %s); skipping it for %.0f minutes",
+        key,
+        status,
+        _ARCHIVE_REFUSAL_TTL_SECONDS / 60,
+    )
+
+
+def install_archive_guard() -> None:
+    """Answer refused FastF1 archive requests from memory instead of the network.
+
+    FastF1's archive has refused 2026 since about 2026-10-15 (FastF1 #978): the F1
+    host answers 401 and the FastF1 mirror 404. Each refused session load still spent
+    up to 11 of FastF1's 500 calls an hour, and one cron run used them all up before
+    the OpenF1 fallbacks ran. After a 401 or 403 for a season, or a 404 for a
+    session's first page, the same requests get the same status for 10 minutes
+    without a call. FastF1 then fails the load as before, and callers use OpenF1.
+    """
+    global _archive_guard_installed
+    if _archive_guard_installed:
+        return
+
+    import requests  # type: ignore[import-untyped,unused-ignore]
+    from fastf1.req import Cache
+
+    fetch = Cache.requests_get
+
+    def requests_get(cls: type, url: str, **kwargs: Any) -> Any:
+        keys = _archive_keys(url)
+        if keys is not None:
+            status = _refused_status(keys)
+            if status is not None:
+                response = requests.Response()
+                response.status_code = status
+                response.url = url
+                response._content = b""
+                return response
+        response = fetch(url, **kwargs)
+        if keys is not None:
+            _note_refusal(url, keys, int(response.status_code))
+        return response
+
+    Cache.requests_get = classmethod(requests_get)
+    _archive_guard_installed = True

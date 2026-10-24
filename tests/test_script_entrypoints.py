@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -258,6 +260,20 @@ def test_warmup_load_env_file_missing_raises(tmp_path):
     module = _load_module("warmup_env_file_missing_script", "scripts/warmup_precompute.py")
     with pytest.raises(FileNotFoundError):
         module._load_env_file(tmp_path / "does-not-exist.env")
+
+
+def test_warmup_main_installs_the_fastf1_archive_guard_before_the_cycle(monkeypatch):
+    module = _load_module("warmup_guard_script", "scripts/warmup_precompute.py")
+    order: list[str] = []
+    summary = SimpleNamespace(to_dict=lambda: {})
+    monkeypatch.setattr(module, "install_archive_guard", lambda: order.append("guard"))
+    monkeypatch.setattr(
+        module, "run_warmup_precompute_cycle", lambda **_kw: order.append("cycle") or summary
+    )
+    monkeypatch.setattr(sys, "argv", ["warmup_precompute.py", "--year", "2026"])
+
+    assert module.main() == 0
+    assert order == ["guard", "cycle"]
 
 
 @pytest.mark.parametrize("use_equals_form", [False, True])

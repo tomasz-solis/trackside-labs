@@ -46,7 +46,22 @@ Practice laps, weather and car data for the FP blend and practice capture come f
 | Top speed | Spearman 0.78 to 1.00; OpenF1 has no finish-line trap |
 | FP blend short run | Spearman 0.66 to 1.00; OpenF1 tyre age is wrong on some refitted sets |
 
-Not filled: `TrackStatus`, `Deleted`, `Position`. Qualifying and race trait extraction filters on `TrackStatus` and still needs FastF1.
+Car traits, track profiles, practice gaps, team race pace and the seconds mapping load qualifying and race sessions the same way (`openf1_session.get_session`). `TrackStatus` and `Deleted` come from race control messages; corners come from FastF1 circuit info placed on the fastest lap. Measured against cached FastF1:
+
+| Output | Match |
+|---|---|
+| Green-lap mask (13 races, R and Q, 19,504 laps) | 99.8% |
+| Track profile, quali gaps (Belgium, Hungary, Monaco, Italy) | identical |
+| Team race pace | within 0.05 s |
+| Corner-class and braking traits | correlation 0.93 to 1.00; Monaco 0.58 (fast) and 0.85 (braking) |
+| Team tyre deg | correlation 0.91 to 1.00 |
+| Deleted qualifying laps (4 sessions) | 10 of 11 |
+
+Misses: about 16 single laps a season disagree at a flag change; Italy's red-flag restart marks 21 laps safety car that FastF1 calls green (they are dropped, not kept). Not filled: `Position`.
+
+A session is loaded from OpenF1 only after its scheduled end and once every driver's laps reach their `session_result` lap count (true on 15 published 2026 sessions). Otherwise the stage logs a warning and retries next run, so a partial session is never saved.
+
+During a live session OpenF1 answers 401 to every free request, past sessions included. The client then fails fast for 5 minutes. Expect the cron run during and just after each session to skip OpenF1 work. Cached responses expire after 10 minutes, so the web process picks up results published after its first look.
 
 ## Scheduling
 

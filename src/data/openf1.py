@@ -56,27 +56,41 @@ class OpenF1Unavailable(RuntimeError):
     """Raised when OpenF1 is disabled, unreachable or returns an unreadable body."""
 
 
-# OpenF1's free tier allows a few requests a second and answers 429 above that.
-_MIN_INTERVAL_SECONDS = 0.5
+# OpenF1 free tier: 3 requests a second and 30 a minute, 429 above that.
+_MIN_INTERVAL_SECONDS = 2.1
 _RATE_LIMIT_RETRIES = 3
 _RATE_LIMIT_WAIT_SECONDS = 5.0
 
-_response_cache: dict[str, list[dict[str, Any]]] = {}
+# The web process lives for days: a response cached before results are published
+# must not outlive the publication, so entries expire.
+_CACHE_TTL_SECONDS = 600.0
+# During a live session OpenF1 answers 401 to every unauthenticated request, past
+# sessions included. After one such answer, fail fast instead of asking again.
+_LIVE_LOCK_SECONDS = 300.0
+_LIVE_LOCK_TEXT = "Live F1 session in progress"
+
+_response_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 _last_request_at = 0.0
+_locked_until = 0.0
 
 
 def clear_cache() -> None:
-    """Drop cached responses (one cron run is one process, so this is for tests)."""
+    """Drop cached responses and the live-session lock (for tests)."""
+    global _locked_until
     _response_cache.clear()
+    _locked_until = 0.0
 
 
 def _get(endpoint: str, *, cache: bool = True, **params: Any) -> list[dict[str, Any]]:
     """GET one OpenF1 endpoint and return its rows; an empty result is ``[]``."""
     if os.environ.get(DISABLE_ENV, "").strip():
         raise OpenF1Unavailable(f"{DISABLE_ENV} is set")
+    if time.monotonic() < _locked_until:
+        raise OpenF1Unavailable("OpenF1 is closed to free users while a live session runs")
     url = f"{BASE_URL}/{endpoint}?{urllib.parse.urlencode(sorted(params.items()))}"
-    if url in _response_cache:
-        return _response_cache[url]
+    cached = _response_cache.get(url)
+    if cached is not None and time.monotonic() - cached[0] < _CACHE_TTL_SECONDS:
+        return cached[1]
     payload = _request_json(url)
     if isinstance(payload, dict):
         payload = []
@@ -84,13 +98,13 @@ def _get(endpoint: str, *, cache: bool = True, **params: Any) -> list[dict[str, 
         raise OpenF1Unavailable(f"{url} returned {type(payload).__name__}")
     rows = [row for row in payload if isinstance(row, dict)]
     if cache:
-        _response_cache[url] = rows
+        _response_cache[url] = (time.monotonic(), rows)
     return rows
 
 
 def _request_json(url: str) -> Any:
     """Fetch one URL with spacing between requests and a short wait on 429."""
-    global _last_request_at
+    global _last_request_at, _locked_until
     request = urllib.request.Request(url, headers={"Accept": "application/json"})
     for attempt in range(_RATE_LIMIT_RETRIES + 1):
         wait = _MIN_INTERVAL_SECONDS - (time.monotonic() - _last_request_at)
@@ -104,6 +118,9 @@ def _request_json(url: str) -> Any:
             # OpenF1 answers 404 with {"detail": "No results found."} for an empty query.
             if exc.code == 404:
                 return []
+            if exc.code == 401 and _LIVE_LOCK_TEXT in _error_body(exc):
+                _locked_until = time.monotonic() + _LIVE_LOCK_SECONDS
+                raise OpenF1Unavailable(f"{url} returned 401: live session in progress") from exc
             if exc.code == 429 and attempt < _RATE_LIMIT_RETRIES:
                 time.sleep(_RATE_LIMIT_WAIT_SECONDS * (attempt + 1))
                 continue
@@ -111,6 +128,13 @@ def _request_json(url: str) -> Any:
         except (OSError, ValueError) as exc:
             raise OpenF1Unavailable(f"{url} failed: {exc}") from exc
     raise OpenF1Unavailable(f"{url} kept returning 429")  # pragma: no cover - loop returns
+
+
+def _error_body(exc: urllib.error.HTTPError) -> str:
+    try:
+        return exc.read().decode("utf-8", "replace")
+    except (AttributeError, OSError, ValueError):
+        return ""
 
 
 def _normalize_name(name: str) -> str:

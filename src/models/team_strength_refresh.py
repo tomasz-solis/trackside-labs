@@ -114,8 +114,7 @@ def extract_session_rows(
     year: int, race_name: str, session_code: str, session_kind: str
 ) -> pd.DataFrame | None:
     """Return base observation rows for one session, or None when laps are not ready."""
-    import fastf1
-
+    from src.data.openf1_session import get_session
     from src.extractors.matched_laps import (
         MatchedLapConfig,
         SessionKind,
@@ -123,8 +122,7 @@ def extract_session_rows(
     )
 
     try:
-        session = fastf1.get_session(year, race_name, session_code)
-        session.load(laps=True, weather=True, telemetry=False, messages=False)
+        session = get_session(year, race_name, session_code, weather=True)
         raw = extract_matched_teammate_laps(
             session,
             session_kind=cast(SessionKind, session_kind),
@@ -217,6 +215,7 @@ def refresh_team_strength_mapping(
 
     new_frames: list[pd.DataFrame] = []
     added: list[str] = []
+    missing: list[str] = []
     for race_name in completed_races:
         for session_code, session_kind in _SESSIONS:
             if (race_name, session_kind) in have:
@@ -225,6 +224,10 @@ def refresh_team_strength_mapping(
             if rows is not None:
                 new_frames.append(rows)
                 added.append(f"{race_name} {session_code}")
+            else:
+                missing.append(f"{race_name} {session_code}")
+    if missing:
+        logger.warning("Seconds mapping has no rows for %s; retrying next run", missing)
 
     result: dict[str, Any] = {"added": added, "saved_mapping": False, "rejected": None}
     if not added:

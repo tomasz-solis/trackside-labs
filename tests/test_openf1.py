@@ -142,6 +142,57 @@ def test_rate_limited_request_is_retried(monkeypatch):
     assert len(calls) == 2
 
 
+class _Body:
+    def __init__(self, body: bytes):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self):
+        return self.body
+
+
+def test_live_session_401_closes_openf1_until_the_lock_expires(monkeypatch):
+    import io
+    import urllib.error
+
+    monkeypatch.delenv(openf1.DISABLE_ENV)
+    monkeypatch.setattr(openf1, "_MIN_INTERVAL_SECONDS", 0.0)
+    calls = []
+    body = b'{"detail":"Live F1 session in progress. Global API access is restricted"}'
+
+    def fake_urlopen(request, timeout):
+        calls.append(request.full_url)
+        raise urllib.error.HTTPError(request.full_url, 401, "Unauthorized", None, io.BytesIO(body))
+
+    monkeypatch.setattr(openf1.urllib.request, "urlopen", fake_urlopen)
+    for _ in range(2):
+        with pytest.raises(openf1.OpenF1Unavailable, match="live session"):
+            openf1._get("meetings", year=2026)
+    assert len(calls) == 1
+
+    monkeypatch.setattr(openf1, "_locked_until", 0.0)
+    monkeypatch.setattr(openf1.urllib.request, "urlopen", lambda request, timeout: _Body(b"[]"))
+    assert openf1._get("meetings", year=2026) == []
+
+
+def test_cached_responses_expire(monkeypatch):
+    monkeypatch.delenv(openf1.DISABLE_ENV)
+    monkeypatch.setattr(openf1, "_MIN_INTERVAL_SECONDS", 0.0)
+    bodies = iter([b"[]", b'[{"position": 1}]'])
+    monkeypatch.setattr(
+        openf1.urllib.request, "urlopen", lambda request, timeout: _Body(next(bodies))
+    )
+    assert openf1._get("session_result", session_key=1) == []
+    assert openf1._get("session_result", session_key=1) == []
+    monkeypatch.setattr(openf1, "_CACHE_TTL_SECONDS", 0.0)
+    assert openf1._get("session_result", session_key=1) == [{"position": 1}]
+
+
 def test_qualifying_results_have_no_dnf_flag():
     quali = [{"driver_number": n, "position": n, "number_of_laps": 12} for n in range(1, 22)]
     quali.append({"driver_number": 22, "position": "RT", "number_of_laps": 2})

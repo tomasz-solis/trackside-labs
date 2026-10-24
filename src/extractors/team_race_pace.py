@@ -21,8 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import fastf1
-
+from src.data.openf1_session import get_session
 from src.persistence.artifact_store import ArtifactStore
 from src.utils.team_mapping import map_team_to_characteristics
 
@@ -59,8 +58,7 @@ def committed_path(year: int) -> Path:
 def measure_race(year: int, race_name: str) -> dict[str, float] | None:
     """Return one race's per-team gap to the fastest team in seconds, or None."""
     try:
-        session = fastf1.get_session(year, race_name, "R")
-        session.load(laps=True, telemetry=False, weather=False)
+        session = get_session(year, race_name, "R")
     except _LOAD_ERRORS as exc:
         logger.info("Skipping %s: failed to load session (%s)", race_name, exc)
         return None
@@ -152,6 +150,7 @@ def refresh_team_race_pace(
     measurements: dict[str, dict[str, float]] = dict(payload.get("races") or {})
 
     added: list[str] = []
+    missing: list[str] = []
     for race_name in completed_races:
         if race_name in measurements:
             continue
@@ -159,6 +158,12 @@ def refresh_team_race_pace(
         if gaps:
             measurements[race_name] = gaps
             added.append(race_name)
+        else:
+            missing.append(race_name)
+    if missing:
+        logger.warning(
+            "Race pace not measured for completed race(s) %s; retrying next run", missing
+        )
 
     if added:
         store.save_artifact(ARTIFACT_TYPE, artifact_key(year), build_payload(year, measurements))

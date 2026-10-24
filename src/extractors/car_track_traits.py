@@ -232,8 +232,9 @@ def race_compound_deg(session: Any) -> dict[str, float]:
         y = stint["t"].to_numpy(dtype=float)
         x = stint["TyreLife"].to_numpy(dtype=float)
         keep = np.abs(y - np.median(y)) < 3.0
-        if keep.sum() >= _MIN_STINT_LAPS:
-            compound = str(stint["Compound"].iloc[0]).upper()
+        compound = stint["Compound"].iloc[0]
+        if keep.sum() >= _MIN_STINT_LAPS and isinstance(compound, str) and compound:
+            compound = compound.upper()
             slopes.setdefault(compound, []).append(float(np.polyfit(x[keep], y[keep], 1)[0]))
     return {c: round(float(np.median(v)), 4) for c, v in slopes.items()}
 
@@ -313,13 +314,11 @@ def _team_of(session: Any) -> dict[str, str]:
 
 def measure_completed_race(year: int, race_name: str) -> dict[str, Any] | None:
     """Return one completed race's team traits and track profile, or None if not loadable."""
-    import fastf1
+    from src.data.openf1_session import get_session
 
     try:
-        quali = fastf1.get_session(year, race_name, "Q")
-        quali.load(laps=True, telemetry=True, weather=False, messages=False)
-        race = fastf1.get_session(year, race_name, "R")
-        race.load(laps=True, telemetry=False, weather=False, messages=False)
+        quali = get_session(year, race_name, "Q", telemetry=True)
+        race = get_session(year, race_name, "R")
         traits = team_traits_from_qualifying(quali, _team_of(quali))
         if traits.empty:
             return None
@@ -346,12 +345,11 @@ def measure_weekend_profile(year: int, race_name: str) -> dict[str, float] | Non
     Geometry, not a result, so any completed session of the weekend may be used.
     Degradation severity is unknown before the race; the season median stands in.
     """
-    import fastf1
+    from src.data.openf1_session import get_session
 
     for code in _WEEKEND_SESSIONS:
         try:
-            session = fastf1.get_session(year, race_name, code)
-            session.load(laps=True, telemetry=True, weather=False, messages=False)
+            session = get_session(year, race_name, code, telemetry=True)
             if session.laps.empty:
                 continue
             return track_profile(session)
@@ -365,15 +363,14 @@ _PRACTICE_SESSIONS = ("FP1", "FP2", "FP3")
 
 def measure_practice_gaps(year: int, race_name: str, have: set[str]) -> dict[str, dict[str, float]]:
     """Return team best-lap gaps for each completed FP session not in ``have``."""
-    import fastf1
+    from src.data.openf1_session import get_session
 
     out: dict[str, dict[str, float]] = {}
     for code in _PRACTICE_SESSIONS:
         if code in have:
             continue
         try:
-            session = fastf1.get_session(year, race_name, code)
-            session.load(laps=True, telemetry=False, weather=False, messages=False)
+            session = get_session(year, race_name, code)
             gaps = team_quali_gaps(session, _team_of(session))
         except Exception:  # session not run yet or not on this weekend format
             continue
@@ -404,12 +401,19 @@ def refresh_car_track_traits(
         if new:
             payload["fp_gaps"].setdefault(race_name, {}).update(new)
             added["fp_gaps"].append(race_name)
+    missing: list[str] = []
     for race_name in completed_races:
         if race_name not in payload["races"]:
             measured = measure_completed_race(year, race_name)
             if measured:
                 payload["races"][race_name] = measured
                 added["races"].append(race_name)
+            else:
+                missing.append(race_name)
+    if missing:
+        logger.warning(
+            "Car traits not measured for completed race(s) %s; retrying next run", missing
+        )
     if (
         upcoming_race
         and upcoming_race not in payload["races"]

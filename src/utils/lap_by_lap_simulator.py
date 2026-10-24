@@ -315,6 +315,10 @@ def _apply_sc_field_compression(
 
     for idx, (driver, _) in enumerate(active):
         noise = float(rng.uniform(-0.12, 0.12))
+        if idx == 0:
+            # Keep the RNG stream stable, but never perturb the race leader.
+            # Only gaps behind the leader should be compressed.
+            continue
         driver_states[driver]["cumulative_time"] = leader_time + idx * gap_s + noise
 
 

@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from src.utils.lap_by_lap_simulator import (
+    _apply_sc_field_compression,
     _get_traffic_overtake_effect,
     _resolve_base_chaos_std,
     _resolve_team_pace_delta_seconds,
@@ -70,6 +71,23 @@ def _strategy() -> dict:
         "compound_sequence": ["MEDIUM"],
         "stint_lengths": [60],
     }
+
+
+def test_safety_car_compression_preserves_leader_and_retired_car():
+    """Safety Car bunching must not move the leader or resurrect a retired car."""
+    states = {
+        "leader": {"cumulative_time": 100.0, "has_dnf": False},
+        "second": {"cumulative_time": 115.0, "has_dnf": False},
+        "third": {"cumulative_time": 127.0, "has_dnf": False},
+        "retired": {"cumulative_time": 250.0, "has_dnf": True},
+    }
+
+    _apply_sc_field_compression(states, gap_s=0.6, rng=np.random.default_rng(42))
+
+    assert states["leader"]["cumulative_time"] == 100.0
+    assert states["retired"]["cumulative_time"] == 250.0
+    assert 100.48 <= states["second"]["cumulative_time"] <= 100.72
+    assert 101.08 <= states["third"]["cumulative_time"] <= 101.32
 
 
 def test_team_pace_delta_prefers_measured_value_over_results_derived():

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from collections.abc import Callable, Sequence
@@ -20,6 +21,7 @@ _ARCHIVE_URL = re.compile(
     r"([^/]+/[^/]+/)?"
 )
 _ARCHIVE_REFUSAL_TTL_SECONDS = 600.0
+_F1TV_TOKEN_STATE = ("fastf1_auth", "f1tv_token")
 # Archive prefix -> (monotonic time of the refusal, HTTP status).
 _archive_refusals: dict[str, tuple[float, int]] = {}
 _archive_guard_installed = False
@@ -265,3 +267,48 @@ def install_archive_guard() -> None:
 
     Cache.requests_get = classmethod(requests_get)
     _archive_guard_installed = True
+
+
+def restore_f1tv_token() -> str | None:
+    """Load the saved F1 TV token into FastF1 and return its value, else ``None``.
+
+    Render starts each cron run with an empty disk, so FastF1 would sign in on
+    every run. Only runs where ``F1_USERNAME`` is set; the token is never logged.
+    """
+    if not os.environ.get("F1_USERNAME"):
+        return None
+    from fastf1.internals.f1account import SubscriptionToken, token_manager
+
+    from src.persistence.runtime_state_store import RuntimeStateStore
+
+    try:
+        saved = RuntimeStateStore().get_record(*_F1TV_TOKEN_STATE)
+        if not saved:
+            return None
+        token = SubscriptionToken(value=str(saved["value"]), expires_at=float(saved["expires_at"]))
+        if not token.is_valid():
+            return None
+        token_manager.store(token)
+        return token.value
+    except Exception as exc:
+        logger.warning("Could not restore the saved F1 TV token: %s", type(exc).__name__)
+        return None
+
+
+def save_f1tv_token(restored: str | None) -> None:
+    """Save FastF1's F1 TV token when this run signed in for a new one."""
+    if not os.environ.get("F1_USERNAME"):
+        return
+    from fastf1.internals.f1account import token_manager
+
+    from src.persistence.runtime_state_store import RuntimeStateStore
+
+    token = token_manager.get_stored()
+    if token is None or token.value == restored or not token.is_valid():
+        return
+    try:
+        RuntimeStateStore().upsert_record(
+            *_F1TV_TOKEN_STATE, {"value": token.value, "expires_at": token.expires_at}
+        )
+    except Exception as exc:
+        logger.warning("Could not save the F1 TV token: %s", type(exc).__name__)

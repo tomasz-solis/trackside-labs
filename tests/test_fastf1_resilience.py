@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -167,3 +168,63 @@ def test_install_archive_guard_wraps_once(archive):
     assert cache.__dict__["requests_get"] is guard
     cache.requests_get(_F1 + "SessionInfo.jsonStream")
     assert len(sent) == 1
+
+
+@pytest.fixture
+def f1tv(monkeypatch, tmp_path):
+    """Point FastF1 at a temporary token file and Supabase at an in-memory store."""
+    import fastf1.internals.f1account as f1account
+    from fastf1.internals.f1account.tokens import TokenManager
+
+    import src.persistence.runtime_state_store as runtime_state_store
+
+    rows: dict[tuple[str, str], dict] = {}
+
+    class FakeStore:
+        def get_record(self, namespace, state_key):
+            return rows.get((namespace, state_key))
+
+        def upsert_record(self, namespace, state_key, payload):
+            rows[(namespace, state_key)] = payload
+
+    manager = TokenManager(auth_func=lambda: None, path=tmp_path / "f1auth_token.json")
+    monkeypatch.setattr(f1account, "token_manager", manager)
+    monkeypatch.setattr(runtime_state_store, "RuntimeStateStore", FakeStore)
+    monkeypatch.setenv("F1_USERNAME", "fan@example.com")
+    return manager, rows
+
+
+def test_saved_f1tv_token_is_reused_and_a_new_one_saved(f1tv):
+    from fastf1.internals.f1account import SubscriptionToken
+
+    manager, rows = f1tv
+    saved = {"value": "saved", "expires_at": time.time() + 3600}
+    rows[resilience._F1TV_TOKEN_STATE] = saved
+
+    restored = resilience.restore_f1tv_token()
+    assert restored == "saved"
+    assert manager.get_stored().value == "saved"
+    resilience.save_f1tv_token(restored)
+    assert rows[resilience._F1TV_TOKEN_STATE] is saved  # unchanged token, no write
+
+    # A rejected token makes FastF1 sign in again; the new one is saved.
+    manager._token = SubscriptionToken(value="new", expires_at=time.time() + 3600)
+    resilience.save_f1tv_token(restored)
+    assert rows[resilience._F1TV_TOKEN_STATE]["value"] == "new"
+
+
+def test_expired_f1tv_token_is_not_restored(f1tv):
+    manager, rows = f1tv
+    rows[resilience._F1TV_TOKEN_STATE] = {"value": "old", "expires_at": time.time() + 60}
+
+    assert resilience.restore_f1tv_token() is None
+    assert manager.get_stored() is None
+
+
+def test_f1tv_token_is_left_alone_without_a_login(f1tv, monkeypatch):
+    manager, rows = f1tv
+    monkeypatch.delenv("F1_USERNAME")
+    rows[resilience._F1TV_TOKEN_STATE] = {"value": "saved", "expires_at": time.time() + 3600}
+
+    assert resilience.restore_f1tv_token() is None
+    assert manager.get_stored() is None

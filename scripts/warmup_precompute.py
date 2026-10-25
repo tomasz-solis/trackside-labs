@@ -39,7 +39,11 @@ from src.persistence.config import (  # noqa: E402
     should_read_db_first,
     should_write_to_db,
 )
-from src.utils.fastf1_resilience import install_archive_guard  # noqa: E402
+from src.utils.fastf1_resilience import (  # noqa: E402
+    install_archive_guard,
+    restore_f1tv_token,
+    save_f1tv_token,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
@@ -160,6 +164,7 @@ def main() -> int:
             storage_mode,
         )
     install_archive_guard()
+    restored_token = restore_f1tv_token()
     try:
         summary = run_warmup_precompute_cycle(
             year=int(args.year),
@@ -182,6 +187,8 @@ def main() -> int:
     except Exception as exc:
         logger.exception("Warmup precompute failed unexpectedly: %s", exc)
         return 1
+    finally:
+        save_f1tv_token(restored_token)
 
 
 if __name__ == "__main__":

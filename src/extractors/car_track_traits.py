@@ -19,6 +19,7 @@ All functions take loaded FastF1 sessions, so callers control caching and leakag
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -339,20 +340,36 @@ def measure_completed_race(year: int, race_name: str) -> dict[str, Any] | None:
     }
 
 
-def measure_weekend_profile(year: int, race_name: str) -> dict[str, float] | None:
-    """Return the track profile from this weekend's latest completed session, or None.
+def median_deg_severity(races: Iterable[Mapping[str, Any]]) -> float:
+    """Return the median race degradation severity of ``races``, 0.0 when none was measured."""
+    severities = [r["profile"].get("deg_severity") for r in races]
+    severities = [s for s in severities if s is not None and s == s]
+    return float(np.median(severities)) if severities else 0.0
 
-    Geometry, not a result, so any completed session of the weekend may be used.
-    Degradation severity is unknown before the race; the season median stands in.
+
+def measure_weekend_profile(
+    year: int, race_name: str, newer_than: str | None = None
+) -> dict[str, Any] | None:
+    """Return the track profile from this weekend's latest dry completed session, or None.
+
+    Geometry, not a result, so any completed session of the weekend may be used; a wet
+    one is skipped. The search stops at ``newer_than``, the session the stored profile
+    came from, so an unchanged weekend loads no car data. The profile records its
+    session; degradation severity is left to the caller.
     """
     from src.data.openf1_session import get_session
+    from src.systems.testing_updater_metrics import _session_is_predominantly_wet
 
     for code in _WEEKEND_SESSIONS:
+        if code == newer_than:
+            return None
         try:
-            session = get_session(year, race_name, code, telemetry=True)
-            if session.laps.empty:
+            # Laps and weather first: car data is the slow part and a wet session needs none.
+            session = get_session(year, race_name, code, weather=True)
+            if session.laps.empty or _session_is_predominantly_wet(session):
                 continue
-            return track_profile(session)
+            session = get_session(year, race_name, code, telemetry=True)
+            return {**track_profile(session), "session": code}
         except Exception:  # session missing on this weekend format or not run yet
             continue
     return None
@@ -414,16 +431,11 @@ def refresh_car_track_traits(
         logger.warning(
             "Car traits not measured for completed race(s) %s; retrying next run", missing
         )
-    if (
-        upcoming_race
-        and upcoming_race not in payload["races"]
-        and upcoming_race not in payload["profiles"]
-    ):
-        profile = measure_weekend_profile(year, upcoming_race)
+    if upcoming_race and upcoming_race not in payload["races"]:
+        stored = payload["profiles"].get(upcoming_race) or {}
+        profile = measure_weekend_profile(year, upcoming_race, newer_than=stored.get("session"))
         if profile:
-            severities = [r["profile"].get("deg_severity") for r in payload["races"].values()]
-            severities = [s for s in severities if s is not None and s == s]
-            profile["deg_severity"] = float(np.median(severities)) if severities else 0.0
+            profile["deg_severity"] = median_deg_severity(payload["races"].values())
             payload["profiles"][upcoming_race] = profile
             added["profiles"].append(upcoming_race)
     if added["races"] or added["profiles"] or added["fp_gaps"]:

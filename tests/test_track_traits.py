@@ -89,7 +89,13 @@ def test_refresh_measures_only_missing_races_and_the_upcoming_track(monkeypatch)
         "measure_completed_race",
         lambda y, r: measured.append(r) or {"traits": {}, "profile": {"deg_severity": 0.02}},
     )
-    monkeypatch.setattr(ctt, "measure_weekend_profile", lambda y, r: {"full_throttle": 0.5})
+    monkeypatch.setattr(
+        ctt,
+        "measure_weekend_profile",
+        lambda y, r, newer_than=None: (
+            None if newer_than == "FP1" else {"full_throttle": 0.5, "session": "FP1"}
+        ),
+    )
     monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have: {})
     store = _Store()
 
@@ -106,6 +112,60 @@ def test_refresh_measures_only_missing_races_and_the_upcoming_track(monkeypatch)
         "fp_gaps": [],
     }
     assert store.saved == 1
+
+
+def test_weekend_profile_moves_to_the_latest_dry_session(monkeypatch):
+    from types import SimpleNamespace
+
+    import pandas as pd
+
+    from src.data import openf1_session
+
+    rain = {"FP2": [False], "FP3": [True]}  # FP3 wet, FP2 dry, Q not run yet
+    loads: list[tuple[str, bool]] = []
+
+    def _get_session(year, race_name, code, telemetry=False, weather=False):
+        if code not in rain:
+            raise RuntimeError("not run yet")
+        loads.append((code, telemetry))
+        return SimpleNamespace(
+            laps=pd.DataFrame({"LapTime": [90.0]}),
+            weather_data=pd.DataFrame({"Rainfall": rain[code]}),
+        )
+
+    monkeypatch.setattr(openf1_session, "get_session", _get_session)
+    monkeypatch.setattr(ctt, "track_profile", lambda session: {"full_throttle": 0.6})
+
+    assert ctt.measure_weekend_profile(2026, "X") == {"full_throttle": 0.6, "session": "FP2"}
+    assert ("FP3", True) not in loads  # the wet session never loads car data
+    loads.clear()
+    assert ctt.measure_weekend_profile(2026, "X", newer_than="FP2") is None
+    assert all(not telemetry for _, telemetry in loads)  # nothing newer: no car data
+
+
+def test_replay_target_uses_earlier_races_deg_not_its_own(monkeypatch):
+    from src.utils import weekend
+
+    traits, pace = _season(8)
+    for i, race in enumerate(traits):
+        traits[race]["profile"]["deg_severity"] = 0.01 * i
+        for team in TEAMS:
+            traits[race]["traits"][team]["deg"] = float(TEAMS.index(team))
+    traits["R7"]["profile"]["deg_severity"] = 5.0  # only the race itself could know this
+    data = {"races": traits, "profiles": {}, "fp_gaps": {}}
+    monkeypatch.setattr(ctt, "load_car_track_traits", lambda year: data)
+    monkeypatch.setattr(weekend, "get_schedule_rows", lambda year: [(r, "x") for r in traits])
+    monkeypatch.setattr(
+        "src.extractors.team_race_pace.load_team_race_pace", lambda year: {"races": pace}
+    )
+    tt.track_trait_adjustments.cache_clear()
+
+    adjusted = tt.track_trait_adjustments(2026, "R7", "race")
+    prior = [f"R{i}" for i in range(7)]
+    pre_weekend = {**traits["R7"]["profile"], "deg_severity": 0.03}  # median of 0.00 to 0.06
+
+    assert adjusted == pytest.approx(tt.fit_and_predict(traits, pace, prior, pre_weekend))
+    tt.track_trait_adjustments.cache_clear()
 
 
 def test_switch_is_off_by_default():

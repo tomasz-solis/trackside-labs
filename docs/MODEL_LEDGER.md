@@ -1326,6 +1326,10 @@ Challenger `qualifying_laptime_stacked` (`src/models/challenger_laptime_stacked.
 
 In seconds the champion inputs got about 0 weight (team 0.003): least squares on gaps is dominated by front-to-back distance, while the champion's edge is ordering close teams. Scaling each race by its spread helps a little; ranks lose the gap information and are worse. Every variant is within about 0.005 correlation of the others and below the seed floor, so tuning shrink strengths on these 13 races would fit noise. The kept version scales by spread. Next lever: more seasons for the car x track part (2023 to 2025 qualifying from OpenF1; the local FastF1 cache holds race results only for 2022 to 2024), trained on history and validated on 2026 only.
 
+## 2026-10-25: replay track fit read the target race's own degradation; fixed, not measured
+
+In the replay the track fit took the target's profile from the finished season file, so its `deg_severity` came from that race's own result. Live has only the median of earlier races before the race. The 2026-10-03 entry calls the replay profile "geometry, not a result"; geometry yes, degradation no. The qualifying track fit (on since model 3.2) uses `deg`, so every replay root since 3.2, `Z_base_33_r17_*` included, holds the leak, and so did the +0.0048 / +0.0035 correlation that adopted it. Fix: the replay uses the earlier races' median, as live does (`src/models/track_traits.py`). Same change, live only: the upcoming track's profile now moves to the weekend's latest dry session each warmup instead of keeping the first one measured (plan item 8). Verdict `open` until `Z_base_34_r17_*` is rebuilt on this code and compared with `Z_base_33_r17_*`; if the track fit's gain goes, retest it without `deg`.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

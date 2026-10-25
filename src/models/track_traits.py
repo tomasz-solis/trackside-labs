@@ -126,7 +126,7 @@ def track_trait_adjustments(
     pace; qualifying uses each race's team qualifying gaps. Empty when the target is
     unknown, has no track profile yet, or too few races came before it.
     """
-    from src.extractors.car_track_traits import load_car_track_traits
+    from src.extractors.car_track_traits import load_car_track_traits, median_deg_severity
     from src.utils.weekend import get_schedule_rows
 
     target = str(race_name or "").strip()
@@ -147,7 +147,12 @@ def track_trait_adjustments(
         from src.extractors.team_race_pace import load_team_race_pace
 
         gaps = (load_team_race_pace(year) or {}).get("races") or {}
-    profile = (data["races"].get(target) or {}).get("profile") or data["profiles"].get(target)
-    return fit_and_predict(
-        data["races"], gaps, schedule[: schedule.index(target)], profile, features
-    )
+    prior = schedule[: schedule.index(target)]
+    profile = data["profiles"].get(target)
+    measured = (data["races"].get(target) or {}).get("profile")
+    if profile is None and measured:
+        # The replay reads a finished season, where the target's profile holds its own
+        # race degradation. Use the earlier races' median, as live does before the race.
+        earlier = [data["races"][r] for r in prior if r in data["races"]]
+        profile = {**measured, "deg_severity": median_deg_severity(earlier)}
+    return fit_and_predict(data["races"], gaps, prior, profile, features)

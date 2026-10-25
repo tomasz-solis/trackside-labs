@@ -746,7 +746,7 @@ def _stage_refresh_team_strength_mapping(ctx: _WarmupRunState) -> None:
 def _stage_refresh_car_track_traits(ctx: _WarmupRunState) -> None:
     """Stage 0d: measure car traits for completed races and the upcoming track's profile.
 
-    Idempotent; the upcoming profile comes from that weekend's latest completed session.
+    Idempotent; the upcoming profile follows that weekend's latest dry completed session.
     """
     if ctx.dry_run:
         return

@@ -436,11 +436,19 @@ def _load_practice_update_state() -> dict:
     return {"races": file_races}
 
 
-def _save_practice_update_state(state: dict) -> None:
-    """Persist state for practice characteristic updates."""
+def _save_practice_update_state(state: dict, keys: list[str] | None = None) -> None:
+    """Persist state for practice characteristic updates.
+
+    With ``keys``, only those events go to the database, so a worker never writes back
+    another worker's events from its own older copy.
+    """
     races = state.get("races", {})
     if isinstance(races, dict) and should_write_to_db():
-        db_payload = {str(key): value for key, value in races.items() if isinstance(value, dict)}
+        db_payload = {
+            str(key): value
+            for key, value in races.items()
+            if isinstance(value, dict) and (keys is None or key in keys)
+        }
         _get_runtime_state_store().upsert_many(_STATE_NAMESPACE_PRACTICE, db_payload)
 
     if not should_write_to_file():
@@ -682,13 +690,21 @@ def auto_update_practice_characteristics_if_needed(
                 continue
 
         try:
+            event_key = f"{year}::{event_name}"
+            if should_write_to_db():
+                # Another worker may have captured sessions since this run read the state;
+                # blending a session twice double counts it in the car traits.
+                fresh = state_store.get_record(_STATE_NAMESPACE_PRACTICE, event_key)
+                if isinstance(fresh, dict):
+                    state["races"][event_key] = fresh
             event_processed_sessions = {
-                str(session)
-                for session in state["races"].get(f"{year}::{event_name}", {}).get("sessions", [])
+                str(session) for session in state["races"].get(event_key, {}).get("sessions", [])
             }
             event_updated_teams: set[str] = set()
             event_had_update = False
             for session_name in sessions_to_update:
+                if session_name in event_processed_sessions and not force_recheck:
+                    continue
                 try:
                     summary = _run_practice_capture_session_update(
                         year=year,
@@ -739,12 +755,12 @@ def auto_update_practice_characteristics_if_needed(
                     event_processed_sessions,
                     key=lambda session: _PRACTICE_CAPTURE_SESSION_ORDER.get(session, 99),
                 )
-                state["races"][f"{year}::{event_name}"] = {
+                state["races"][event_key] = {
                     "sessions": ordered_processed_sessions,
                     "updated_at": datetime.now(UTC).isoformat(),
                     "teams_updated": len(event_updated_teams),
                 }
-                _save_practice_update_state(state)
+                _save_practice_update_state(state, keys=[event_key])
                 event_had_update = True
         finally:
             if should_write_to_db() and lock_acquired:
@@ -769,7 +785,7 @@ def auto_update_practice_characteristics_if_needed(
             "updated_at": datetime.now(UTC).isoformat(),
             "teams_updated": 0,
         }
-        _save_practice_update_state(state)
+        _save_practice_update_state(state, keys=[race_key])
 
     return {
         "updated": True,

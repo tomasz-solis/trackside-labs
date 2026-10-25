@@ -792,6 +792,83 @@ def test_auto_update_practice_characteristics_retries_when_supabase_lock_busy(pa
     assert result["retried_events"] == ["Australian Grand Prix"]
 
 
+def test_auto_update_practice_characteristics_skips_sessions_another_worker_captured(
+    patcher, tmp_path
+):
+    # This run read FP1 only; another worker captured FP2 before this run took the lock.
+    state_file = tmp_path / "practice_state.json"
+    state_file.write_text(
+        json.dumps(
+            {
+                "races": {
+                    "2026::Australian Grand Prix": {"sessions": ["FP1"]},
+                    "2026::Bahrain Grand Prix": {"sessions": ["FP1"]},
+                }
+            }
+        )
+    )
+    patcher.setattr(update_flow, "_PRACTICE_UPDATE_STATE_FILE", state_file)
+    patcher.setattr(update_flow, "should_read_db_first", lambda: False)
+    patcher.setattr(update_flow, "should_write_to_db", lambda: True)
+    patcher.setattr(update_flow, "should_write_to_file", lambda: False)
+    schedule = pd.DataFrame(
+        {
+            "EventName": ["Australian Grand Prix"],
+            "EventFormat": ["conventional"],
+            "EventDate": [datetime.now(UTC) - timedelta(days=1)],
+        }
+    )
+    patcher.setattr(update_flow.fastf1, "get_event_schedule", lambda _year: schedule)
+
+    class _Detector:
+        def get_completed_sessions(self, year: int, race_name: str, is_sprint: bool):
+            del year, race_name, is_sprint
+            return ["FP1", "FP2", "FP3"]
+
+    upserts: list[dict[str, dict]] = []
+
+    class _Store:
+        def acquire_lock(self, lock_key: str, owner_id: str, ttl_seconds: int = 900) -> bool:
+            del lock_key, owner_id, ttl_seconds
+            return True
+
+        def release_lock(self, lock_key: str, owner_id: str) -> None:
+            del lock_key, owner_id
+
+        def get_record(self, namespace: str, state_key: str) -> dict | None:
+            assert namespace == "practice_characteristics"
+            assert state_key == "2026::Australian Grand Prix"
+            return {"sessions": ["FP1", "FP2"]}
+
+        def upsert_many(self, namespace: str, records: dict[str, dict]) -> None:
+            del namespace
+            upserts.append(records)
+
+    update_calls: list[list[str]] = []
+
+    def _update_from_testing_sessions(**kwargs):
+        update_calls.append(list(kwargs["sessions"]))
+        return {"updated_teams": ["Ferrari"]}
+
+    patcher.setattr("src.utils.session_detector.SessionDetector", _Detector)
+    patcher.setattr(update_flow, "_get_runtime_state_store", lambda: _Store())
+    patcher.setattr(
+        "src.systems.testing_updater.update_from_testing_sessions",
+        _update_from_testing_sessions,
+    )
+
+    result = update_flow.auto_update_practice_characteristics_if_needed(
+        year=2026,
+        race_name="Australian Grand Prix",
+        is_sprint=False,
+    )
+
+    assert result["updated"] is True
+    assert update_calls == [["FP3"]]
+    assert [list(records) for records in upserts] == [["2026::Australian Grand Prix"]]
+    assert upserts[0]["2026::Australian Grand Prix"]["sessions"] == ["FP1", "FP2", "FP3"]
+
+
 class _FakeEvent:
     def __init__(self, session_dates: dict[str, datetime]):
         self._session_dates = session_dates

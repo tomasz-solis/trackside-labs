@@ -335,7 +335,7 @@ def main() -> None:
     args = parser.parse_args()
 
     started = time.time()
-    fastf1.Cache.enable_cache(str(PROJECT_ROOT / "data" / "raw" / ".fastf1_cache"))
+    fastf1.Cache.configure(cache_dir=str(PROJECT_ROOT / "data" / "raw" / ".fastf1_cache"))
 
     rows: list[dict[str, Any]] = []
     mechanisms = {"retirement": 0, "pit": 0, "on_track": 0}

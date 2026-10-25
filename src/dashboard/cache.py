@@ -103,7 +103,7 @@ def enable_fastf1_cache() -> None:
         return
 
     try:
-        _fastf1_module().Cache.enable_cache(cache_dir_str)
+        _fastf1_module().Cache.configure(cache_dir=cache_dir_str)
         _FASTF1_CACHE_ENABLED_FOR = cache_dir_str
     except Exception as exc:
         logger.warning("Could not enable FastF1 cache at %s: %s", _FASTF1_CACHE_DIR, exc)

@@ -59,7 +59,7 @@ def _enable_fastf1_cache() -> None:
     """Enable the repo's shared FastF1 cache so extraction reads cached lap data."""
     cache_dir = PROJECT_ROOT / "data" / "raw" / ".fastf1_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
 
 
 def collect_measurements(year: int) -> list[Measurement]:

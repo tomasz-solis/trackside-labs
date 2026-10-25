@@ -328,7 +328,7 @@ def _configure_fastf1(*, cache_dir: Path) -> Any:
     import fastf1
 
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
     if hasattr(fastf1.Cache, "offline_mode"):
         fastf1.Cache.offline_mode(True)
     try:

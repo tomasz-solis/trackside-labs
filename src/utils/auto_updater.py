@@ -130,7 +130,7 @@ def get_completed_races(year: int = 2026) -> list[str]:
         cache_dir = Path(os.getenv("F1_CACHE_DIR", "data/raw/.fastf1_cache"))
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        fastf1.Cache.enable_cache(str(cache_dir))
+        fastf1.Cache.configure(cache_dir=str(cache_dir))
         schedule = fastf1.get_event_schedule(year)
 
         completed = []

@@ -85,7 +85,7 @@ def _enable_fastf1_cache(cache_dir: Path) -> None:
     if _ENABLED_FASTF1_CACHE_DIR == cache_dir:
         return
 
-    ff1.Cache.enable_cache(str(cache_dir))
+    ff1.Cache.configure(cache_dir=str(cache_dir))
     _ENABLED_FASTF1_CACHE_DIR = cache_dir
 
 

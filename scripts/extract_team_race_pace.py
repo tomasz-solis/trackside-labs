@@ -42,7 +42,7 @@ def collect_measurements(year: int) -> dict[str, dict[str, float]]:
     """Measure every completed race of ``year`` with loadable lap data."""
     cache_dir = PROJECT_ROOT / "data" / "raw" / ".fastf1_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
     detector = SessionDetector()
 
     measurements: dict[str, dict[str, float]] = {}

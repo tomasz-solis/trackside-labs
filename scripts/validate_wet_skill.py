@@ -33,7 +33,7 @@ def load_actual_results(year: int, race_name: str) -> dict[str, int]:
     """Load actual finishing positions from FastF1."""
     cache_dir = Path("data/raw/.fastf1_cache")
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
 
     session = fastf1.get_session(year, race_name, "R")
     session.load(laps=False, telemetry=False, weather=True)

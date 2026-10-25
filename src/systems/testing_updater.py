@@ -294,7 +294,7 @@ def backfill_session_snapshot_history(
 
     cache_path = _resolve_testing_cache_dir(cache_dir)
     cache_path.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_path), force_renew=force_renew_cache)
+    fastf1.Cache.configure(cache_dir=str(cache_path), force_renew=force_renew_cache)
 
     collection = _collect_sessions_for_events(
         year=year,
@@ -1052,7 +1052,7 @@ def update_from_testing_sessions(
 
     cache_path = _resolve_testing_cache_dir(cache_dir)
     cache_path.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_path), force_renew=force_renew_cache)
+    fastf1.Cache.configure(cache_dir=str(cache_path), force_renew=force_renew_cache)
 
     collection = _collect_sessions_for_events(
         year=year,

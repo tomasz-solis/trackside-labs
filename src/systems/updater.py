@@ -286,7 +286,7 @@ def load_competitive_session(
 
     cache_dir = Path("data/raw/.fastf1_cache")
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
 
     session = fastf1.get_session(year, race_name, session_name)
     session.load(laps=load_laps, telemetry=False, weather=True)

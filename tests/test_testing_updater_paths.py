@@ -459,7 +459,7 @@ def test_update_from_testing_sessions_unusable_discovered_sessions(tmp_path, pat
 
     patcher.setattr(tu, "_load_sessions_for_event", lambda **kwargs: [("FP1", session)])
     patcher.setattr(tu, "_collect_session_metrics", lambda **kwargs: ({}, {}))
-    patcher.setattr(tu.fastf1.Cache, "enable_cache", lambda path, force_renew=False: None)
+    patcher.setattr(tu.fastf1.Cache, "configure", lambda cache_dir, force_renew=False: None)
 
     with pytest.raises(ValueError, match="too little completed running"):
         tu.update_from_testing_sessions(
@@ -498,7 +498,7 @@ def test_update_from_testing_sessions_raises_when_no_teams_matched(tmp_path, pat
     patcher.setattr(
         tu, "_count_team_selected_laps", lambda session, known_teams, run_profile: {"Unknown": 5.0}
     )
-    patcher.setattr(tu.fastf1.Cache, "enable_cache", lambda path, force_renew=False: None)
+    patcher.setattr(tu.fastf1.Cache, "configure", lambda cache_dir, force_renew=False: None)
 
     with pytest.raises(ValueError, match="no teams were matched"):
         tu.update_from_testing_sessions(
@@ -548,7 +548,7 @@ def test_update_from_testing_sessions_writes_file_when_not_dry_run(tmp_path, pat
         tu, "_count_team_selected_laps", lambda session, known_teams, run_profile: {"Ferrari": 10.0}
     )
     patcher.setattr(tu, "extract_compound_metrics", lambda team_laps, canonical_team, race_name: {})
-    patcher.setattr(tu.fastf1.Cache, "enable_cache", lambda path, force_renew=False: None)
+    patcher.setattr(tu.fastf1.Cache, "configure", lambda cache_dir, force_renew=False: None)
 
     atomic_write = MagicMock()
     patcher.setattr(tu, "atomic_json_write", atomic_write)
@@ -614,7 +614,7 @@ def test_update_from_testing_sessions_persists_to_artifact_store_when_db_enabled
         tu, "_count_team_selected_laps", lambda session, known_teams, run_profile: {"Ferrari": 10.0}
     )
     patcher.setattr(tu, "extract_compound_metrics", lambda team_laps, canonical_team, race_name: {})
-    patcher.setattr(tu.fastf1.Cache, "enable_cache", lambda path, force_renew=False: None)
+    patcher.setattr(tu.fastf1.Cache, "configure", lambda cache_dir, force_renew=False: None)
     patcher.setattr(tu, "should_write_to_db", lambda: True)
 
     atomic_write = MagicMock()
@@ -682,7 +682,7 @@ def test_backfill_session_snapshot_history_writes_only_snapshots(tmp_path, patch
     patcher.setattr(
         tu, "_count_team_selected_laps", lambda session, known_teams, run_profile: {"Ferrari": 10.0}
     )
-    patcher.setattr(tu.fastf1.Cache, "enable_cache", lambda path, force_renew=False: None)
+    patcher.setattr(tu.fastf1.Cache, "configure", lambda cache_dir, force_renew=False: None)
 
     summary = tu.backfill_session_snapshot_history(
         year=2026,

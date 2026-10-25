@@ -390,7 +390,7 @@ def collect_team_testing_snapshot(
     known_teams = set(_DEFAULT_TEAM_SET)
     cache_path = _resolve_testing_cache_dir(str(cache_dir))
     cache_path.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_path))
+    fastf1.Cache.configure(cache_dir=str(cache_path))
 
     collection = collect_sessions_for_events(
         year=int(year),

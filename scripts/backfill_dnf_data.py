@@ -51,10 +51,10 @@ def _enable_cache() -> None:
     for cache_dir in _FASTF1_CACHE_DIRS:
         path = Path(cache_dir)
         if path.exists():
-            fastf1.Cache.enable_cache(str(path))
+            fastf1.Cache.configure(cache_dir=str(path))
             return
     Path(_FASTF1_CACHE_DIRS[0]).mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(_FASTF1_CACHE_DIRS[0])
+    fastf1.Cache.configure(cache_dir=_FASTF1_CACHE_DIRS[0])
 
 
 def _dnf_by_driver(fetched_rows: list[dict[str, Any]] | None) -> dict[str, bool]:

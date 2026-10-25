@@ -369,7 +369,7 @@ def _configure_fastf1(*, cache_dir: Path, offline: bool) -> Any:
         raise ImportError("fastf1 is required for matched-lap bulk extraction") from exc
 
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
     if offline and hasattr(fastf1.Cache, "offline_mode"):
         fastf1.Cache.offline_mode(True)
     return fastf1

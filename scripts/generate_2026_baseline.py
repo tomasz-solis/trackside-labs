@@ -320,7 +320,7 @@ def calculate_track_characteristics(years: list[int], output_dir: Path) -> None:
     # Ensure cache directory exists
     cache_dir = Path("data/raw/.fastf1_cache")
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
 
     track_stats = {}
 

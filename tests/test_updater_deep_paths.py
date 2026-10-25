@@ -46,8 +46,8 @@ def test_load_race_session_enriches_results_and_uses_cache(patcher, tmp_path):
     session = MagicMock()
     session.results = results
 
-    enable_cache = MagicMock()
-    patcher.setattr(updater.fastf1.Cache, "enable_cache", enable_cache)
+    configure = MagicMock()
+    patcher.setattr(updater.fastf1.Cache, "configure", configure)
     patcher.setattr(
         updater.fastf1,
         "get_session",
@@ -59,8 +59,8 @@ def test_load_race_session_enriches_results_and_uses_cache(patcher, tmp_path):
     assert loaded_session is session
     assert list(loaded_results["race_name"].unique()) == ["Bahrain Grand Prix"]
     assert list(loaded_results["year"].unique()) == [2026]
-    enable_cache.assert_called_once()
-    assert Path(enable_cache.call_args.args[0]).parts == ("data", "raw", ".fastf1_cache")
+    configure.assert_called_once()
+    assert Path(configure.call_args.kwargs["cache_dir"]).parts == ("data", "raw", ".fastf1_cache")
     session.load.assert_called_once_with(laps=True, telemetry=False, weather=True)
 
 

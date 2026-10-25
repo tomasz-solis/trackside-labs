@@ -1017,7 +1017,7 @@ def main():
     # Setup cache
     cache_dir = Path("data/raw/.fastf1_cache")
     cache_dir.mkdir(parents=True, exist_ok=True)
-    ff1.Cache.enable_cache(str(cache_dir))
+    ff1.Cache.configure(cache_dir=str(cache_dir))
 
     logger.info("")
     logger.info("Fixed Driver Characteristics Extraction")

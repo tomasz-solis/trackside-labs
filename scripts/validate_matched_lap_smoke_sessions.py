@@ -244,7 +244,7 @@ def _load_fastf1_session(spec: SmokeSessionSpec, *, cache_dir: Path, offline: bo
         raise ImportError("fastf1 is required for smoke validation") from exc
 
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
     if offline and hasattr(fastf1.Cache, "offline_mode"):
         fastf1.Cache.offline_mode(True)
 

@@ -10,7 +10,7 @@ def test_enable_fastf1_cache_creates_dir_and_enables_cache(patcher, tmp_path):
     patcher.setattr(cache, "_FASTF1_CACHE_DIR", cache_dir)
 
     seen_paths: list[str] = []
-    patcher.setattr(cache.fastf1.Cache, "enable_cache", lambda path: seen_paths.append(path))
+    patcher.setattr(cache.fastf1.Cache, "configure", lambda cache_dir: seen_paths.append(cache_dir))
 
     cache.enable_fastf1_cache()
 
@@ -22,8 +22,8 @@ def test_enable_fastf1_cache_swallows_cache_errors(patcher, tmp_path):
     patcher.setattr(cache, "_FASTF1_CACHE_DIR", tmp_path / "fastf1_cache")
     patcher.setattr(
         cache.fastf1.Cache,
-        "enable_cache",
-        lambda _path: (_ for _ in ()).throw(RuntimeError("cache unavailable")),
+        "configure",
+        lambda cache_dir: (_ for _ in ()).throw(RuntimeError("cache unavailable")),
     )
 
     # Should not raise.

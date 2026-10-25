@@ -188,7 +188,7 @@ def main() -> None:
     import fastf1
     from fastf1.ergast import Ergast
 
-    fastf1.Cache.enable_cache(str(PROJECT_ROOT / "data" / "raw" / ".fastf1_cache"))
+    fastf1.Cache.configure(cache_dir=str(PROJECT_ROOT / "data" / "raw" / ".fastf1_cache"))
     ergast = Ergast()
     measurements = [m for year in YEARS if (m := measure_year(ergast, year)) is not None]
     for m in measurements:

@@ -57,7 +57,7 @@ class SessionDetector:
         cache_dir = Path("data/raw/.fastf1_cache")
         cache_dir.mkdir(parents=True, exist_ok=True)
         try:
-            fastf1.Cache.enable_cache(str(cache_dir))
+            fastf1.Cache.configure(cache_dir=str(cache_dir))
         except _FASTF1_ERRORS as exc:
             logger.debug("Could not enable FastF1 cache in SessionDetector: %s", exc)
         self._event_cache: dict[tuple[int, str], Any] = {}

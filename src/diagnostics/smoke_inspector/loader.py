@@ -58,7 +58,7 @@ def load_session(
         raise ValueError(f"session_kind must be one of {sorted(kind_map)}, got {session_kind!r}")
 
     cache_dir.mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.configure(cache_dir=str(cache_dir))
 
     session = fastf1.get_session(year, event_name, kind_map[session_kind])
     session.load(laps=True, weather=True, telemetry=False)

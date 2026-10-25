@@ -820,7 +820,7 @@ def main() -> int:
     try:
         cache_dir = Path(args.cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
-        fastf1.Cache.enable_cache(args.cache_dir)
+        fastf1.Cache.configure(cache_dir=args.cache_dir)
     except Exception as exc:
         logger.warning(f"Could not enable FastF1 cache at {args.cache_dir}: {exc}")
 

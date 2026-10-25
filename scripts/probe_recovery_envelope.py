@@ -171,7 +171,7 @@ def main() -> None:
     parser.add_argument("--json", type=str, default=None)
     args = parser.parse_args()
 
-    fastf1.Cache.enable_cache(str(PROJECT_ROOT / "data" / "raw" / ".fastf1_cache"))
+    fastf1.Cache.configure(cache_dir=str(PROJECT_ROOT / "data" / "raw" / ".fastf1_cache"))
     rows: list[dict[str, Any]] = []
     for year in args.years:
         season = collect_season(year)

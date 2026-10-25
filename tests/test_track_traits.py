@@ -152,7 +152,10 @@ def test_replay_target_uses_earlier_races_deg_not_its_own(monkeypatch):
         for team in TEAMS:
             traits[race]["traits"][team]["deg"] = float(TEAMS.index(team))
     traits["R7"]["profile"]["deg_severity"] = 5.0  # only the race itself could know this
-    data = {"races": traits, "profiles": {}, "fp_gaps": {}}
+    # A profile stored live before the race; the replay keeps the measured geometry, as
+    # the baselines it is compared with did.
+    live = {key: value + 1.0 for key, value in traits["R7"]["profile"].items()}
+    data = {"races": traits, "profiles": {"R7": live}, "fp_gaps": {}}
     monkeypatch.setattr(ctt, "load_car_track_traits", lambda year: data)
     monkeypatch.setattr(weekend, "get_schedule_rows", lambda year: [(r, "x") for r in traits])
     monkeypatch.setattr(

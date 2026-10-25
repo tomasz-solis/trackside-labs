@@ -869,6 +869,96 @@ def test_auto_update_practice_characteristics_skips_sessions_another_worker_capt
     assert upserts[0]["2026::Australian Grand Prix"]["sessions"] == ["FP1", "FP2", "FP3"]
 
 
+def _backlog_run(patcher, tmp_path, *, store, update) -> dict:
+    """Run the practice backlog for Japanese GP with Australian GP (FP1 done) behind it."""
+    state_file = tmp_path / "practice_state.json"
+    state_file.write_text(
+        json.dumps({"races": {"2026::Australian Grand Prix": {"sessions": ["FP1"]}}})
+    )
+    patcher.setattr(update_flow, "_PRACTICE_UPDATE_STATE_FILE", state_file)
+    patcher.setattr(update_flow, "should_read_db_first", lambda: False)
+    patcher.setattr(update_flow, "should_write_to_db", lambda: True)
+    patcher.setattr(update_flow, "should_write_to_file", lambda: False)
+    schedule = pd.DataFrame(
+        {
+            "EventName": ["Australian Grand Prix"],
+            "EventFormat": ["conventional"],
+            "EventDate": [datetime.now(UTC) - timedelta(days=1)],
+        }
+    )
+    patcher.setattr(update_flow.fastf1, "get_event_schedule", lambda _year: schedule)
+
+    class _Detector:
+        def get_completed_sessions(self, year: int, race_name: str, is_sprint: bool):
+            del year, race_name, is_sprint
+            return ["FP1", "FP2", "FP3"]
+
+    patcher.setattr("src.utils.session_detector.SessionDetector", _Detector)
+    patcher.setattr(update_flow, "_get_runtime_state_store", lambda: store)
+    patcher.setattr("src.systems.testing_updater.update_from_testing_sessions", update)
+    return update_flow.auto_update_practice_characteristics_if_needed(
+        year=2026, race_name="Japanese Grand Prix", is_sprint=False
+    )
+
+
+class _BacklogStore:
+    def __init__(self, fail_reads_for: str | None = None) -> None:
+        self.fail_reads_for = fail_reads_for
+        self.upserts: list[dict[str, dict]] = []
+        self.released: list[str] = []
+
+    def acquire_lock(self, lock_key: str, owner_id: str, ttl_seconds: int = 900) -> bool:
+        del owner_id, ttl_seconds
+        return True
+
+    def release_lock(self, lock_key: str, owner_id: str) -> None:
+        del owner_id
+        self.released.append(lock_key)
+
+    def get_record(self, namespace: str, state_key: str) -> dict | None:
+        del namespace
+        if state_key == self.fail_reads_for:
+            raise RuntimeError("Supabase runtime state read failed")
+        return None
+
+    def upsert_many(self, namespace: str, records: dict[str, dict]) -> None:
+        del namespace
+        self.upserts.append(records)
+
+
+def test_backlog_skips_an_event_whose_state_cannot_be_re_read(patcher, tmp_path):
+    store = _BacklogStore(fail_reads_for="2026::Australian Grand Prix")
+    captured: list[tuple[str, str]] = []
+
+    def update(**kwargs):
+        captured.append((kwargs["events"][0], kwargs["sessions"][0]))
+        return {"updated_teams": ["Ferrari"]}
+
+    result = _backlog_run(patcher, tmp_path, store=store, update=update)
+
+    assert result["retried_events"] == ["Australian Grand Prix"]
+    assert all(event == "Japanese Grand Prix" for event, _ in captured)
+    assert "practice_backlog::2026::Australian Grand Prix" in store.released
+
+
+def test_deferred_focus_race_sessions_are_not_marked_processed(patcher, tmp_path):
+    # Japanese GP telemetry is not ready while the Australian GP backlog updates.
+    from src.systems.testing_updater_flow import NoUsableSessionTelemetryError
+
+    store = _BacklogStore()
+
+    def update(**kwargs):
+        if kwargs["events"] == ["Japanese Grand Prix"]:
+            raise NoUsableSessionTelemetryError("no laps yet")
+        return {"updated_teams": ["Ferrari"]}
+
+    result = _backlog_run(patcher, tmp_path, store=store, update=update)
+
+    assert result["updated"] is True
+    assert len(result["deferred_sessions"]) == 3
+    assert all("2026::Japanese Grand Prix" not in records for records in store.upserts)
+
+
 class _FakeEvent:
     def __init__(self, session_dates: dict[str, datetime]):
         self._session_dates = session_dates

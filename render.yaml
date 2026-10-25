@@ -43,4 +43,9 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      # F1 TV login for the FastF1 archive; without it FastF1 answers 401 and OpenF1 takes over.
+      - key: F1_USERNAME
+        sync: false
+      - key: F1_PASSWORD
+        sync: false
     autoDeploy: true

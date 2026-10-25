@@ -593,7 +593,6 @@ def auto_update_practice_characteristics_if_needed(
     from src.utils.session_detector import SessionDetector
 
     detector = session_detector or SessionDetector()
-    race_key = f"{year}::{race_name}"
     state = _load_practice_update_state()
     completed_by_race: dict[str, list[str]] = {}
     pending_updates: list[tuple[str, list[str], list[str]]] = []
@@ -694,7 +693,13 @@ def auto_update_practice_characteristics_if_needed(
             if should_write_to_db():
                 # Another worker may have captured sessions since this run read the state;
                 # blending a session twice double counts it in the car traits.
-                fresh = state_store.get_record(_STATE_NAMESPACE_PRACTICE, event_key)
+                try:
+                    fresh = state_store.get_record(_STATE_NAMESPACE_PRACTICE, event_key)
+                except RuntimeError as exc:
+                    # Without the current state a blend could repeat; retry next run.
+                    logger.warning("Could not re-read practice state for %s: %s", event_key, exc)
+                    retried_events.append(event_name)
+                    continue
                 if isinstance(fresh, dict):
                     state["races"][event_key] = fresh
             event_processed_sessions = {
@@ -778,14 +783,6 @@ def auto_update_practice_characteristics_if_needed(
             "retried_events": retried_events,
             "deferred_sessions": deferred_sessions,
         }
-
-    if race_key not in state["races"] and race_name in completed_by_race:
-        state["races"][race_key] = {
-            "sessions": focus_completed_sessions,
-            "updated_at": datetime.now(UTC).isoformat(),
-            "teams_updated": 0,
-        }
-        _save_practice_update_state(state, keys=[race_key])
 
     return {
         "updated": True,

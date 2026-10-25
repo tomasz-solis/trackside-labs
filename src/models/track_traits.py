@@ -148,11 +148,12 @@ def track_trait_adjustments(
 
         gaps = (load_team_race_pace(year) or {}).get("races") or {}
     prior = schedule[: schedule.index(target)]
-    profile = data["profiles"].get(target)
-    measured = (data["races"].get(target) or {}).get("profile")
-    if profile is None and measured:
+    profile = (data["races"].get(target) or {}).get("profile")
+    if profile:
         # The replay reads a finished season, where the target's profile holds its own
         # race degradation. Use the earlier races' median, as live does before the race.
         earlier = [data["races"][r] for r in prior if r in data["races"]]
-        profile = {**measured, "deg_severity": median_deg_severity(earlier)}
+        profile = {**profile, "deg_severity": median_deg_severity(earlier)}
+    else:
+        profile = data["profiles"].get(target)
     return fit_and_predict(data["races"], gaps, prior, profile, features)

@@ -156,6 +156,37 @@ def test_get_session_completion_state_returns_unknown_on_fastf1_error():
             assert detector.is_session_completed(2026, "Bahrain Grand Prix", "Q") is False
 
 
+def test_practice_without_loaded_laps_asks_openf1_without_a_warning(caplog):
+    detector = SessionDetector()
+    past_start = datetime.now(UTC) - timedelta(hours=3)
+
+    class _PracticeSessionWithoutLaps:
+        """Practice session stub as FastF1 leaves it when the archive refuses the load."""
+
+        def load(self, **_kwargs) -> None:
+            """Simulate a load that returns without data."""
+
+        @property
+        def laps(self):
+            """Match FastF1 behavior when laps were never loaded."""
+            raise DataNotLoadedError("The data you are trying to access has not been loaded yet.")
+
+    with patch("src.utils.session_detector.fastf1.get_event", return_value=_FakeEvent(past_start)):
+        with patch(
+            "src.utils.session_detector.fastf1.get_session",
+            return_value=_PracticeSessionWithoutLaps(),
+        ):
+            with patch.object(
+                detector, "_openf1_completion_state", return_value="unknown"
+            ) as openf1_state:
+                state = detector.get_session_completion_state(2026, "Bahrain Grand Prix", "FP1")
+
+    # Elapsed time alone must not mark it complete: the run waits for OpenF1.
+    assert state == "unknown"
+    openf1_state.assert_called_once_with(2026, "Bahrain Grand Prix", "FP1")
+    assert "Unexpected error" not in caplog.text
+
+
 def test_is_session_completed_competitive_ignores_unloaded_session_status():
     detector = SessionDetector()
     past_start = datetime.now(UTC) - timedelta(hours=4)

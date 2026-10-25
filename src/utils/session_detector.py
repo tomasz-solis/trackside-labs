@@ -259,7 +259,11 @@ class SessionDetector:
                     else "incomplete"
                 )
 
-            laps = getattr(session, "laps", None)
+            try:
+                laps = session.laps
+            except DataNotLoadedError:
+                # FastF1 has no data for this session (archive refused); OpenF1 decides.
+                return "unknown"
             has_laps = laps is not None and not laps.empty
             status_complete = self._session_status_completed(session)
             if status_complete is not None:

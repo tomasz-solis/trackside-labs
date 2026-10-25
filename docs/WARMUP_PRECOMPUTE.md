@@ -35,7 +35,7 @@ A sprint or race that has finished but has no published classification yet shows
 
 ## Data sources
 
-Session data comes from FastF1. Its archive needs an F1 TV login since 2026-10 (FastF1 #978). When FastF1 cannot load a session, session completion, competitive results and the race starting grid come from OpenF1 (`src/data/openf1.py`). Those rows carry `source: "openf1"`, and the counter `openf1_fallback_used_total` records each use. OpenF1's grid has no pit-lane marker. Set `TRACKSIDE_OPENF1_DISABLED=1` to turn the fallback off.
+Session data comes from FastF1. Its archive needs an F1 TV login since 2026-10 (FastF1 #978). FastF1 3.9 signs in from `F1_USERNAME` and `F1_PASSWORD` (an F1 account with F1 TV Access) and stores the token, valid about 4 days, in its user data folder; locally `python -m fastf1 auth f1tv --authenticate` does the same once. Without a login it answers 401 as before. When FastF1 cannot load a session, session completion, competitive results and the race starting grid come from OpenF1 (`src/data/openf1.py`). Those rows carry `source: "openf1"`, and the counter `openf1_fallback_used_total` records each use. OpenF1's grid has no pit-lane marker. Set `TRACKSIDE_OPENF1_DISABLED=1` to turn the fallback off.
 
 Practice laps, weather and car data for the FP blend and practice capture come from OpenF1 too (`src/data/openf1_session.py`): it fills the FastF1 session, so callers do not change. Measured against FastF1 on 2026 sessions:
 
@@ -63,7 +63,7 @@ A session is loaded from OpenF1 only after its scheduled end and once every driv
 
 During a live session OpenF1 answers 401 to every free request, past sessions included. The lock starts before the session: on 2026-10-24 it was on 29 minutes before Austin FP3 and off 82 minutes before, and it lifted about 30 minutes after FP3's scheduled end. The client then fails fast for 5 minutes. Expect the cron run before, during and just after each session to skip OpenF1 work. Cached responses expire after 10 minutes, so the web process picks up results published after its first look.
 
-FastF1 allows 500 calls an hour per process, and a refused session load spends up to 11. On 2026-10-24 one cold cron run used all 500 before reaching OpenF1. The cron therefore installs `install_archive_guard()` (`src/utils/fastf1_resilience.py`): after a 401 or 403 for a season, or a 404 for a session's `SessionInfo`, the same archive requests get the same answer for 10 minutes without a call. A cold replay of the cron's checks went from 501 calls (limit hit) to 138. If FastF1 still hits its limit, practice capture and `openf1_session.get_session` go to OpenF1.
+FastF1 allows 500 calls an hour per process, and a refused session load spends up to 11. On 2026-10-24 one cold cron run used all 500 before reaching OpenF1. The cron therefore installs `install_archive_guard()` (`src/utils/fastf1_resilience.py`): after a 401 for a season, or a 403 or 404 for a session's `SessionInfo`, the same archive requests get the same answer for 10 minutes without a call. Signed in, the F1 host answers 403 for a session it has not published, so only that session waits; a failed sign-in ends in a 401 and is retried once per 10 minutes. A cold replay of the cron's checks went from 501 calls (limit hit) to 138. If FastF1 still hits its limit, practice capture and `openf1_session.get_session` go to OpenF1.
 
 ## Scheduling
 

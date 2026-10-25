@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from threading import RLock
 from typing import Any
@@ -197,10 +197,12 @@ def _refused_status(keys: tuple[str, str | None]) -> int | None:
 
 def _note_refusal(url: str, keys: tuple[str, str | None], status: int) -> None:
     season, session = keys
-    if status in (401, 403):
+    first_page = bool(session) and url.split("?")[0].endswith("/SessionInfo.jsonStream")
+    if status == 401 or (status == 403 and not session):
         key = season
-    elif status == 404 and session and url.split("?")[0].endswith("/SessionInfo.jsonStream"):
+    elif status in (403, 404) and first_page and session:
         # SessionInfo is the first page FastF1 asks for; without it the session is absent.
+        # With an F1 TV token the F1 host answers 403 for a session not published yet.
         key = session
     else:
         return
@@ -219,9 +221,11 @@ def install_archive_guard() -> None:
     FastF1's archive has refused 2026 since about 2026-10-15 (FastF1 #978): the F1
     host answers 401 and the FastF1 mirror 404. Each refused session load still spent
     up to 11 of FastF1's 500 calls an hour, and one cron run used them all up before
-    the OpenF1 fallbacks ran. After a 401 or 403 for a season, or a 404 for a
+    the OpenF1 fallbacks ran. After a 401 for a season, or a 403 or 404 for a
     session's first page, the same requests get the same status for 10 minutes
     without a call. FastF1 then fails the load as before, and callers use OpenF1.
+    With an F1 TV token (FastF1 3.9) a failed sign-in also ends in a 401, so it is
+    retried once per 10 minutes, not on every request.
     """
     global _archive_guard_installed
     if _archive_guard_installed:
@@ -232,7 +236,7 @@ def install_archive_guard() -> None:
 
     fetch = Cache.requests_get
 
-    def requests_get(cls: type, url: str, **kwargs: Any) -> Any:
+    def guarded_get(url: str, **kwargs: Any) -> Any:
         keys = _archive_keys(url)
         if keys is not None:
             status = _refused_status(keys)
@@ -245,6 +249,18 @@ def install_archive_guard() -> None:
         response = fetch(url, **kwargs)
         if keys is not None:
             _note_refusal(url, keys, int(response.status_code))
+        return response
+
+    def requests_get(cls: type, url: str | Sequence[str], **kwargs: Any) -> Any:
+        # FastF1 3.9 passes the F1 host and the mirror together and keeps the first
+        # answer below 400; guard each one the same way.
+        if isinstance(url, str) or not url:
+            return guarded_get(url, **kwargs)  # type: ignore[arg-type]
+        response = None
+        for one in url:
+            response = guarded_get(one, **kwargs)
+            if int(response.status_code) < 400:
+                return response
         return response
 
     Cache.requests_get = classmethod(requests_get)

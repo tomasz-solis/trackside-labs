@@ -111,6 +111,18 @@ def test_archive_guard_skips_only_the_session_the_mirror_lacks(archive):
     ]
 
 
+def test_archive_guard_skips_only_an_unpublished_session_when_signed_in(archive):
+    # With an F1 TV token the F1 host answers 403 for a session it has not published.
+    cache, statuses, sent = archive
+    race = _F1.replace("2026-10-10_Qualifying", "2026-10-11_Race")
+    statuses[race + "SessionInfo.jsonStream"] = 403
+
+    assert cache.requests_get(race + "SessionInfo.jsonStream").status_code == 403
+    assert cache.requests_get(race + "TimingData.jsonStream").status_code == 403
+    assert cache.requests_get(_F1 + "SessionInfo.jsonStream").status_code == 200
+    assert sent == [race + "SessionInfo.jsonStream", _F1 + "SessionInfo.jsonStream"]
+
+
 def test_archive_guard_asks_again_after_ten_minutes(archive, monkeypatch):
     cache, statuses, sent = archive
     clock = {"now": 1000.0}
@@ -137,6 +149,15 @@ def test_fastf1_fetch_page_fails_as_before_and_asks_once(archive):
     assert _api.fetch_page(_PATH, "session_info") is None
     assert _api.fetch_page(_PATH, "timing_data") is None
     assert sent == [_F1 + "SessionInfo.jsonStream", _MIRROR + "SessionInfo.jsonStream"]
+
+
+def test_archive_guard_takes_url_pairs_and_stops_at_the_first_answer(archive):
+    # FastF1 3.9 passes the F1 host and the mirror together.
+    cache, statuses, sent = archive
+    pair = (_F1 + "SessionInfo.jsonStream", _MIRROR + "SessionInfo.jsonStream")
+
+    assert cache.requests_get(pair).status_code == 200
+    assert sent == [_F1 + "SessionInfo.jsonStream"]
 
 
 def test_install_archive_guard_wraps_once(archive):

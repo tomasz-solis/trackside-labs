@@ -47,7 +47,7 @@ deprecation==2.1.0
     # via
     #   postgrest
     #   storage3
-fastf1==3.8.1
+fastf1==3.9.0
     # via formula1-2026
 fonttools==4.61.1
     # via matplotlib

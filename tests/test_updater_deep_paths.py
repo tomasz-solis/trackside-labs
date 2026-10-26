@@ -7,7 +7,9 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
+from fastf1.exceptions import DataNotLoadedError
 
+from src.data import openf1_session
 from src.systems import updater
 from src.systems.updater_flow import extract_dnf_drivers
 
@@ -45,6 +47,7 @@ def test_load_race_session_enriches_results_and_uses_cache(patcher, tmp_path):
     results = pd.DataFrame({"Abbreviation": ["LEC"], "Position": [1]})
     session = MagicMock()
     session.results = results
+    session.laps = pd.DataFrame({"LapTime": [_timedelta_seconds(90.0)]})
 
     configure = MagicMock()
     patcher.setattr(updater.fastf1.Cache, "configure", configure)
@@ -61,7 +64,63 @@ def test_load_race_session_enriches_results_and_uses_cache(patcher, tmp_path):
     assert list(loaded_results["year"].unique()) == [2026]
     configure.assert_called_once()
     assert Path(configure.call_args.kwargs["cache_dir"]).parts == ("data", "raw", ".fastf1_cache")
-    session.load.assert_called_once_with(laps=True, telemetry=False, weather=True)
+    session.load.assert_called_once_with(laps=True, telemetry=False, weather=True, messages=True)
+
+
+class _RefusedSession:
+    """FastF1 session whose archive refused the laps (no F1 TV sign-in)."""
+
+    def load(self, **_kwargs):
+        return None
+
+    @property
+    def laps(self):
+        raise DataNotLoadedError("refused")
+
+
+def _fill_entry_list(session, *_args, **_kwargs):
+    # OpenF1 laps come with an entry list only, no finishing order.
+    session.results = pd.DataFrame({"Abbreviation": ["LEC", "HAM"], "TeamName": ["Ferrari"] * 2})
+
+
+@pytest.mark.parametrize(
+    ("session_name", "rows", "dnf_drivers"),
+    [
+        (
+            "R",
+            [
+                {"driver": "LEC", "team": "Ferrari", "position": 1, "dnf": False},
+                {"driver": "HAM", "team": "Ferrari", "position": 2, "dnf": True},
+            ],
+            {"HAM"},
+        ),
+        (
+            "Q",
+            [
+                {"driver": "LEC", "team": "Ferrari", "position": 1},
+                {"driver": "HAM", "team": "Ferrari", "position": 2},
+            ],
+            set(),
+        ),
+    ],
+)
+def test_load_competitive_session_takes_results_from_openf1_when_fastf1_refuses(
+    patcher, tmp_path, session_name, rows, dnf_drivers
+):
+    patcher.chdir(tmp_path)
+    session = _RefusedSession()
+    patcher.setattr(updater.fastf1.Cache, "configure", MagicMock())
+    patcher.setattr(updater.fastf1, "get_session", lambda year, race_name, name: session)
+    patcher.setattr(openf1_session, "load_session", _fill_entry_list)
+    patcher.setattr(updater.openf1, "fetch_session_results", lambda year, race_name, name: rows)
+
+    results, loaded = updater.load_competitive_session(2026, "Mexico City Grand Prix", session_name)
+
+    assert loaded is session
+    assert results["Abbreviation"].tolist() == ["LEC", "HAM"]
+    assert results["Position"].tolist() == [1.0, 2.0]
+    assert results["session_name"].unique().tolist() == [session_name]
+    assert extract_dnf_drivers(results) == dnf_drivers
 
 
 def test_extract_team_performance_missing_laps_or_team_column():

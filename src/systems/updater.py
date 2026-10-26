@@ -11,6 +11,7 @@ import fastf1
 import numpy as np
 import pandas as pd
 
+from src.data import openf1, openf1_session
 from src.data.actual_results_fetcher import _clean_result_str
 from src.extractors.matched_laps import (
     MatchedLapConfig,
@@ -41,6 +42,7 @@ from src.systems.updater_flow import (
     update_team_characteristics_core as _update_team_characteristics_core,
 )
 from src.utils import config_loader
+from src.utils.operational_observability import record_counter
 from src.utils.schema_validation import strip_legacy_bayesian_fields
 from src.utils.team_mapping import map_team_to_characteristics
 from src.utils.validation_helpers import normalize_weather_key
@@ -274,24 +276,51 @@ def _persist_bayesian_ratings_to_drivers(
     return touched
 
 
+def _openf1_results(year: int, race_name: str, session_name: str) -> pd.DataFrame:
+    """Return OpenF1's classification in the FastF1 result columns learning reads."""
+    rows = openf1.fetch_session_results(year, race_name, session_name)
+    results = pd.DataFrame(
+        {
+            "Abbreviation": [row["driver"] for row in rows],
+            "TeamName": [row["team"] for row in rows],
+            "Position": [float(row["position"]) for row in rows],
+        }
+    )
+    if all("dnf" in row for row in rows):
+        # FastF1 marks a race retirement with a letter; only digit or not matters.
+        results["ClassifiedPosition"] = [
+            "R" if row["dnf"] else str(row["position"]) for row in rows
+        ]
+    record_counter(
+        "openf1_fallback_used_total",
+        labels={"year": year, "race_name": race_name, "session": session_name, "what": "results"},
+    )
+    logger.warning("FastF1 had no %s %s %s results; using OpenF1", year, race_name, session_name)
+    return results
+
+
 def load_competitive_session(
     year: int,
     race_name: str,
     session_name: str,
-    *,
-    load_laps: bool,
 ) -> tuple[pd.DataFrame, fastf1.core.Session]:
-    """Load one competitive FastF1 session and annotate the results table."""
+    """Load one competitive session and annotate the results table.
+
+    Laps and weather come from OpenF1 when FastF1 has no laps, and results when
+    FastF1 has no finishing positions. Raises ``OpenF1Unavailable`` when neither has them.
+    """
     logger.info("Loading %s %s %s results...", year, race_name, session_name)
 
     cache_dir = Path("data/raw/.fastf1_cache")
     cache_dir.mkdir(parents=True, exist_ok=True)
     fastf1.Cache.configure(cache_dir=str(cache_dir))
 
-    session = fastf1.get_session(year, race_name, session_name)
-    session.load(laps=load_laps, telemetry=False, weather=True)
+    # messages: qualifying learning drops laps FastF1 flags as deleted.
+    session = openf1_session.get_session(year, race_name, session_name, weather=True, messages=True)
 
     results = session.results.copy()
+    if "Position" not in results.columns or results["Position"].isna().all():
+        results = _openf1_results(year, race_name, session_name)
     results["race_name"] = race_name
     results["year"] = year
     results["session_name"] = str(session_name).strip().upper()
@@ -300,13 +329,13 @@ def load_competitive_session(
 
 
 def load_race_session(year: int, race_name: str) -> tuple[pd.DataFrame, fastf1.core.Session]:
-    """Load race results and session from FastF1."""
-    return load_competitive_session(year, race_name, "R", load_laps=True)
+    """Load race results and session, from FastF1 or OpenF1."""
+    return load_competitive_session(year, race_name, "R")
 
 
 def load_qualifying_session(year: int, race_name: str) -> tuple[pd.DataFrame, fastf1.core.Session]:
-    """Load qualifying results and session from FastF1."""
-    return load_competitive_session(year, race_name, "Q", load_laps=True)
+    """Load qualifying results and session, from FastF1 or OpenF1."""
+    return load_competitive_session(year, race_name, "Q")
 
 
 def _build_position_observations(session_results: pd.DataFrame) -> dict[str, int]:
@@ -1060,7 +1089,7 @@ def update_from_race(
     Main entry point: Update all characteristics after a race.
 
     Workflow:
-    1. Load race results from FastF1
+    1. Load race results from FastF1 or OpenF1
     2. Update team performance from telemetry
     3. Update Bayesian driver ratings
     4. Reduce uncertainty
@@ -1074,7 +1103,7 @@ def update_from_race(
         logger.info("Loaded results for %s drivers\n", len(race_results))
     except (AttributeError, FileNotFoundError, OSError, RuntimeError, TypeError, ValueError) as e:
         logger.error("Failed to load race results: %s", e)
-        logger.error("Make sure race has completed and data is available via FastF1")
+        logger.error("Make sure race has completed and data is available via FastF1 or OpenF1")
         raise
 
     qualifying_session = None
@@ -1155,9 +1184,7 @@ def update_from_sprint_race(
         return
 
     try:
-        sprint_results, sprint_session = load_competitive_session(
-            year, race_name, "Sprint", load_laps=True
-        )
+        sprint_results, sprint_session = load_competitive_session(year, race_name, "Sprint")
         logger.info("Loaded sprint results for %s drivers", len(sprint_results))
     except (AttributeError, FileNotFoundError, OSError, RuntimeError, TypeError, ValueError) as exc:
         logger.warning(
@@ -1172,10 +1199,7 @@ def update_from_sprint_race(
     sprint_qualifying_session: Any | None = None
     try:
         sprint_qualifying_results, sprint_qualifying_session = load_competitive_session(
-            year,
-            race_name,
-            "SQ",
-            load_laps=True,
+            year, race_name, "SQ"
         )
         logger.info(
             "Loaded sprint qualifying results for %s drivers",

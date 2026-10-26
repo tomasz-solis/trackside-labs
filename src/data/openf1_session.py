@@ -494,14 +494,16 @@ def get_session(
     *,
     telemetry: bool = False,
     weather: bool = False,
+    messages: bool = False,
 ) -> fastf1.core.Session:
     """Return a loaded FastF1 session, filled from OpenF1 when FastF1 has no laps.
 
+    ``messages`` loads FastF1 race control, which sets its ``Deleted`` lap flag.
     Raises ``OpenF1Unavailable`` when neither source has laps.
     """
     session = fastf1.get_session(year, race_name, session_name)
     try:
-        session.load(laps=True, telemetry=telemetry, weather=weather, messages=False)
+        session.load(laps=True, telemetry=telemetry, weather=weather, messages=messages)
         if not session.laps.empty:
             return session
     except (DataNotLoadedError, RateLimitExceededError):

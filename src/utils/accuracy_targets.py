@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
 
@@ -152,7 +155,37 @@ def _prediction_is_sprint_weekend(prediction_data: dict[str, Any]) -> bool:
     return checkpoint_session in {"SQ", "SPRINT"}
 
 
+_BOUNDARY_STATE_MEMO: ContextVar[dict[str, Any] | None] = ContextVar(
+    "event_boundary_state_memo", default=None
+)
+
+
+@contextmanager
+def reuse_event_boundary_state() -> Iterator[None]:
+    """Load the event-boundary state once for every eligibility check inside the block.
+
+    The accuracy page checks hundreds of targets; each read the namespace again (352
+    reads, about 48 s per view). Outside the block every call reads fresh state, so a
+    writer in the same process never sees a stale copy.
+    """
+    token = _BOUNDARY_STATE_MEMO.set({})
+    try:
+        yield
+    finally:
+        _BOUNDARY_STATE_MEMO.reset(token)
+
+
 def _load_event_boundary_state() -> dict[str, Any]:
+    """Return the event-boundary state, once per ``reuse_event_boundary_state`` block."""
+    memo = _BOUNDARY_STATE_MEMO.get()
+    if memo is None:
+        return _read_event_boundary_state()
+    if "state" not in memo:
+        memo["state"] = _read_event_boundary_state()
+    return memo["state"]
+
+
+def _read_event_boundary_state() -> dict[str, Any]:
     """Load the latest known event-boundary schedule snapshot, database first.
 
     A fresh deploy has no local file, so DB modes must read the shared copy.

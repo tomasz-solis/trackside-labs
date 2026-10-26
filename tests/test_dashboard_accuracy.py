@@ -977,3 +977,21 @@ def test_build_target_metric_cards_surfaces_qualifying_summary_values():
         "Correlation",
     ]
     assert [card["value"] for card in cards] == [2.41, 18.0, 44.0, 71.0, 0.82]
+
+
+def test_reuse_event_boundary_state_reads_once_inside_the_block_only(patcher):
+    from src.utils import accuracy_targets
+
+    reads = []
+    patcher.setattr(
+        accuracy_targets, "_read_event_boundary_state", lambda: reads.append(1) or {"races": {}}
+    )
+
+    with accuracy_targets.reuse_event_boundary_state():
+        accuracy_targets._load_event_boundary_state()
+        accuracy_targets._load_event_boundary_state()
+    assert len(reads) == 1
+
+    accuracy_targets._load_event_boundary_state()
+    accuracy_targets._load_event_boundary_state()
+    assert len(reads) == 3

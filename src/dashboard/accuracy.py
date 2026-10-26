@@ -15,6 +15,7 @@ from src.utils.accuracy_targets import (
     PRIMARY_TARGET_KEYS,
     explicit_target_actuals,
     explicit_target_predictions,
+    reuse_event_boundary_state,
     synthesize_legacy_actuals,
     synthesize_legacy_targets,
     target_checkpoint_index,
@@ -188,9 +189,10 @@ class AccuracyPipeline:
             return summary
 
         snapshot_map = self._load_snapshot_map()
-        records, target_status_records, status_rows, excluded_target_count = (
-            self._collect_target_records(snapshot_map)
-        )
+        with reuse_event_boundary_state():
+            records, target_status_records, status_rows, excluded_target_count = (
+                self._collect_target_records(snapshot_map)
+            )
         self._prediction_status_rows = status_rows
         self._excluded_predictions = [
             row for row in status_rows if int(row.get("scored_target_count", 0)) <= 0

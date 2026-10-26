@@ -54,6 +54,37 @@ class RuntimeStateStore:
             logger.warning("Could not read runtime state from Supabase: %s", exc)
             return {}
 
+    def load_matching(
+        self,
+        namespace: str,
+        match: dict[str, str],
+        *,
+        newest_by: str,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """Return up to ``limit`` payloads whose top-level fields equal ``match``, newest first.
+
+        Filters and sorts inside the JSON in the database, so a large namespace is never
+        downloaded whole.
+        """
+        if not self.db_reads_enabled:
+            return []
+        try:
+            client = get_supabase_client()
+            query = client.table(_RUNTIME_STATE_TABLE).select("state").eq("namespace", namespace)
+            for field, value in match.items():
+                query = query.eq(f"state->>{field}", value)
+            result = query.order(f"state->>{newest_by}", desc=True).limit(limit).execute()
+            rows = cast(list[dict[str, Any]], result.data or [])
+            return [row["state"] for row in rows if isinstance(row.get("state"), dict)]
+        except (APIError, AttributeError, RuntimeError, TypeError, ValueError) as exc:
+            if self.db_writes_enabled:
+                raise RuntimeError(
+                    f"Supabase runtime state read failed for namespace={namespace}: {exc}"
+                ) from exc
+            logger.warning("Could not read runtime state from Supabase: %s", exc)
+            return []
+
     def count_records(self, namespace: str) -> int:
         """Return record count for a namespace without loading payload bodies."""
         if not self.db_reads_enabled:

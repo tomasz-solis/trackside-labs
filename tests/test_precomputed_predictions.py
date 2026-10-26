@@ -276,3 +276,43 @@ def test_prune_db_namespace_entries_uses_key_only_strategy_when_available():
         store=fake_store,
     )
     assert fake_store.deleted == ["k1", "k2"]
+
+
+def test_load_latest_prediction_for_boundary_queries_matches_not_the_namespace(patcher):
+    """The fallback asks the DB for matching rows and serves the newest valid one."""
+    calls = []
+    match = {
+        "year": 2026,
+        "race_name": "Mexico City Grand Prix",
+        "weather": "dry",
+        "boundary_signature": "sig",
+    }
+
+    class _Store:
+        def load_matching(self, namespace, match_fields, *, newest_by, limit):
+            calls.append((namespace, match_fields, newest_by, limit))
+            return [
+                {**match, "updated_at": "2026-10-26", "prediction_results": "not a dict"},
+                {**match, "updated_at": "2026-10-25", "prediction_results": {"race": {"p": 1}}},
+                {**match, "updated_at": "2026-10-24", "prediction_results": {"race": {"p": 2}}},
+            ]
+
+        def load_namespace(self, namespace):
+            raise AssertionError("the fallback must not download the whole namespace")
+
+    patcher.setattr(store, "should_read_db_first", lambda: True)
+    patcher.setattr(store, "RuntimeStateStore", _Store)
+
+    result = store.load_latest_prediction_for_boundary(
+        year=2026, race_name="Mexico City Grand Prix ", weather="Dry", boundary_signature="sig"
+    )
+
+    assert result["race"] == {"p": 1}
+    assert calls == [
+        (
+            "precomputed_predictions",
+            {**match, "year": "2026"},
+            "updated_at",
+            5,
+        )
+    ]

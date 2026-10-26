@@ -285,8 +285,8 @@ def load_latest_prediction_for_boundary(
     The boundary signature is kept exact so the served checkpoint stays correct; only
     the artifact hash is relaxed.
 
-    ponytail: linear scan of the namespace; fine as a cache-miss fallback (hundreds of
-    records). Add a race-indexed query if the store ever grows to thousands.
+    The database filters the namespace: read whole, its 1,486 rows were a 30 MB download
+    that the 512 MB web process parsed on every page load after a deploy.
     """
     weather_normalized = str(weather).strip().lower()
     boundary = str(boundary_signature)
@@ -317,8 +317,19 @@ def load_latest_prediction_for_boundary(
 
     if should_read_db_first():
         try:
-            namespace = RuntimeStateStore().load_namespace(_STATE_NAMESPACE_PRECOMPUTED_PREDICTIONS)
-            for payload in namespace.values():
+            matches = RuntimeStateStore().load_matching(
+                _STATE_NAMESPACE_PRECOMPUTED_PREDICTIONS,
+                {
+                    "year": str(int(year)),
+                    "race_name": str(race_name).strip(),
+                    "weather": weather_normalized,
+                    "boundary_signature": boundary,
+                },
+                newest_by="updated_at",
+                # A few spare rows in case the newest payload fails validation.
+                limit=5,
+            )
+            for payload in matches:
                 _consider(payload)
         except _STATE_ERRORS as exc:
             logger.warning("Could not scan precomputed predictions from DB: %s", exc)

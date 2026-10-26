@@ -182,3 +182,36 @@ def test_list_oldest_state_keys_orders_by_updated_at(patcher):
     assert keys == ["k_oldest", "k_next"]
     query.order.assert_called_once_with("updated_at", desc=False)
     query.limit.assert_called_once_with(2)
+
+
+def test_load_matching_filters_and_sorts_inside_the_json(patcher):
+    query = MagicMock()
+    for method in ("select", "eq", "order", "limit"):
+        getattr(query, method).return_value = query
+    query.execute.return_value = SimpleNamespace(
+        data=[{"state": {"race_name": "A"}}, {"state": None}]
+    )
+    client = MagicMock()
+    client.table.return_value = query
+
+    patcher.setattr("src.persistence.runtime_state_store.should_read_db_first", lambda: True)
+    patcher.setattr("src.persistence.runtime_state_store.should_write_to_db", lambda: True)
+    patcher.setattr("src.persistence.runtime_state_store.get_storage_mode", lambda: "db_only")
+    patcher.setattr("src.persistence.runtime_state_store.get_supabase_client", lambda: client)
+
+    loaded = RuntimeStateStore().load_matching(
+        "precomputed_predictions",
+        {"race_name": "A", "year": "2026"},
+        newest_by="updated_at",
+        limit=5,
+    )
+
+    assert loaded == [{"race_name": "A"}]
+    query.select.assert_called_once_with("state")
+    assert [c.args for c in query.eq.call_args_list] == [
+        ("namespace", "precomputed_predictions"),
+        ("state->>race_name", "A"),
+        ("state->>year", "2026"),
+    ]
+    query.order.assert_called_once_with("state->>updated_at", desc=True)
+    query.limit.assert_called_once_with(5)

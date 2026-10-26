@@ -196,6 +196,55 @@ def _force_file_only_storage() -> Any:
 
 
 @contextmanager
+def _walk_forward_car_track_traits(output_root: Path) -> Any:
+    """Point every car track traits read and write at the replay's own root."""
+    from src.extractors.car_track_traits import CAR_TRACK_TRAITS_ROOT_ENV
+
+    previous_root = os.environ.get(CAR_TRACK_TRAITS_ROOT_ENV)
+    os.environ[CAR_TRACK_TRAITS_ROOT_ENV] = str(Path(output_root).resolve())
+    try:
+        yield
+    finally:
+        if previous_root is None:
+            os.environ.pop(CAR_TRACK_TRAITS_ROOT_ENV, None)
+        else:
+            os.environ[CAR_TRACK_TRAITS_ROOT_ENV] = previous_root
+
+
+_TRAIT_SESSIONS = ("FP1", "FP2", "FP3", "SQ", "Q")
+
+
+def _refresh_replay_track_traits(
+    *,
+    year: int,
+    race_name: str,
+    checkpoint_session: str,
+    completed_races: list[str],
+    output_root: Path,
+) -> None:
+    """Measure the car track traits as the live warmup had them at this checkpoint.
+
+    Live refreshes them before each forecast: every completed race, plus this weekend's
+    track profile and practice gaps from the sessions run so far. Reading a finished
+    season instead hands a forecast tracks measured later, or none at all for races
+    the committed file never got (MODEL_LEDGER 2026-10-26).
+    """
+    from src.extractors.car_track_traits import refresh_car_track_traits
+
+    refresh_car_track_traits(
+        year,
+        completed_races,
+        upcoming_race=race_name,
+        store=ArtifactStore(data_root=output_root),
+        sessions_done=[
+            code
+            for code in _TRAIT_SESSIONS
+            if session_is_available_at_checkpoint(checkpoint_session, code)
+        ],
+    )
+
+
+@contextmanager
 def _walk_forward_team_strength_mapping(
     *,
     year: int,
@@ -348,6 +397,14 @@ def _reset_replay_artifacts(processed_dir: Path, year: int) -> None:
     )
 
 
+def _reset_replay_track_traits(processed_dir: Path, year: int) -> None:
+    """Empty the copied car track traits; the replay measures them walk-forward."""
+    _write_json(
+        processed_dir / "car_track_traits" / f"{int(year)}_car_track_traits.json",
+        {"year": int(year), "races": {}, "profiles": {}, "fp_gaps": {}},
+    )
+
+
 def _prepare_output_root(
     *,
     source_processed_dir: Path,
@@ -366,6 +423,7 @@ def _prepare_output_root(
     processed_dir = output_root / "processed"
     shutil.copytree(source_processed_dir, processed_dir)
     _reset_replay_artifacts(processed_dir, year=int(year))
+    _reset_replay_track_traits(processed_dir, year=int(year))
     return processed_dir
 
 
@@ -1145,7 +1203,7 @@ def run_historical_checkpoint_replay(
     if not processed_source.exists():
         raise FileNotFoundError(f"Processed source directory does not exist: {processed_source}")
 
-    with _force_file_only_storage():
+    with _force_file_only_storage(), _walk_forward_car_track_traits(replay_output_root):
         processed_dir = _prepare_output_root(
             source_processed_dir=processed_source,
             output_root=replay_output_root,
@@ -1206,6 +1264,13 @@ def run_historical_checkpoint_replay(
                 is_sprint = bool(is_sprint_weekend(year, race_name))
                 replay_checkpoints = set(checkpoint_sequence_for_weekend(is_sprint))
 
+                _refresh_replay_track_traits(
+                    year=year,
+                    race_name=race_name,
+                    checkpoint_session="PRE",
+                    completed_races=list(summary.race_updates),
+                    output_root=replay_output_root,
+                )
                 summary.checkpoints.append(
                     _build_race_checkpoint_record(
                         year=year,
@@ -1238,6 +1303,13 @@ def run_historical_checkpoint_replay(
                         summary.skipped_sessions.append(f"{race_name}::{normalized_session}")
 
                     if normalized_session in replay_checkpoints and normalized_session != "PRE":
+                        _refresh_replay_track_traits(
+                            year=year,
+                            race_name=race_name,
+                            checkpoint_session=normalized_session,
+                            completed_races=list(summary.race_updates),
+                            output_root=replay_output_root,
+                        )
                         summary.checkpoints.append(
                             _build_race_checkpoint_record(
                                 year=year,

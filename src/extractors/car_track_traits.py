@@ -19,7 +19,9 @@ All functions take loaded FastF1 sessions, so callers control caching and leakag
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Mapping
+import os
+import sys
+from collections.abc import Collection, Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -264,6 +266,15 @@ def race_deg_severity(session: Any) -> float:
 
 ARTIFACT_TYPE = "car_track_traits"
 _WEEKEND_SESSIONS = ("Q", "SQ", "FP3", "FP2", "FP1")
+# Data root of the store that holds the traits. The replay points it at its own root,
+# where it builds the traits walk-forward; unset, the live store under ``data`` is used.
+CAR_TRACK_TRAITS_ROOT_ENV = "CAR_TRACK_TRAITS_DATA_ROOT"
+# Cached fits built from this artifact, cleared whenever it is saved.
+_DERIVED_CACHES = (
+    ("src.models.track_traits", "track_trait_adjustments"),
+    ("src.models.practice_pace", "practice_adjustments"),
+    ("src.models.tyre_deg", "tyre_deg_slopes"),
+)
 
 
 def artifact_key(year: int) -> str:
@@ -272,7 +283,7 @@ def artifact_key(year: int) -> str:
 
 
 def committed_path(year: int) -> Path:
-    """Return the committed file that seeds the store and backs file mode and the replay."""
+    """Return the committed file that seeds the store and backs file mode."""
     root = Path(__file__).resolve().parents[2]
     return root / "data" / "processed" / "car_track_traits" / f"{year}_car_track_traits.json"
 
@@ -281,15 +292,14 @@ def load_car_track_traits(year: int, store: Any = None) -> dict[str, Any]:
     """Return ``{"races": {race: {...}}, "profiles": {race: profile}, "fp_gaps": {race: {FPn: gaps}}}``."""
     import json
 
-    from src.persistence.artifact_store import ArtifactStore
-
     try:
-        payload = (store or ArtifactStore(data_root="data")).load_artifact(
-            ARTIFACT_TYPE, artifact_key(year)
-        )
+        payload = (store or _default_store()).load_artifact(ARTIFACT_TYPE, artifact_key(year))
     except Exception:  # store outage must not stop a forecast
         payload = None
-    if not isinstance(payload, dict) or not isinstance(payload.get("races"), dict):
+    if os.environ.get(CAR_TRACK_TRAITS_ROOT_ENV):
+        # The replay's own traits only: the committed file holds races still to come.
+        payload = payload if isinstance(payload, dict) else {}
+    elif not isinstance(payload, dict) or not isinstance(payload.get("races"), dict):
         try:
             with open(committed_path(year)) as f:
                 payload = json.load(f)
@@ -300,6 +310,21 @@ def load_car_track_traits(year: int, store: Any = None) -> dict[str, Any]:
         "profiles": dict(payload.get("profiles") or {}),
         "fp_gaps": dict(payload.get("fp_gaps") or {}),
     }
+
+
+def _default_store() -> Any:
+    """Return the store the traits live in: the replay's root when set, else ``data``."""
+    from src.persistence.artifact_store import ArtifactStore
+
+    return ArtifactStore(data_root=os.environ.get(CAR_TRACK_TRAITS_ROOT_ENV) or "data")
+
+
+def _clear_derived_caches() -> None:
+    """Drop cached fits built from the traits, so the next forecast reads the saved ones."""
+    for module_name, function_name in _DERIVED_CACHES:
+        module = sys.modules.get(module_name)
+        if module is not None:  # a module not imported yet has nothing cached
+            getattr(module, function_name).cache_clear()
 
 
 def _team_of(session: Any) -> dict[str, str]:
@@ -348,19 +373,25 @@ def median_deg_severity(races: Iterable[Mapping[str, Any]]) -> float:
 
 
 def measure_weekend_profile(
-    year: int, race_name: str, newer_than: str | None = None
+    year: int,
+    race_name: str,
+    newer_than: str | None = None,
+    sessions: Collection[str] | None = None,
 ) -> dict[str, Any] | None:
     """Return the track profile from this weekend's latest dry completed session, or None.
 
     Geometry, not a result, so any completed session of the weekend may be used; a wet
     one is skipped. The search stops at ``newer_than``, the session the stored profile
-    came from, so an unchanged weekend loads no car data. The profile records its
-    session; degradation severity is left to the caller.
+    came from, so an unchanged weekend loads no car data. ``sessions`` limits the search
+    to sessions already run (the replay's checkpoint); None tries all. The profile
+    records its session; degradation severity is left to the caller.
     """
     from src.data.openf1_session import get_session
     from src.systems.testing_updater_metrics import _session_is_predominantly_wet
 
     for code in _WEEKEND_SESSIONS:
+        if sessions is not None and code not in sessions:
+            continue
         if code == newer_than:
             return None
         try:
@@ -378,13 +409,18 @@ def measure_weekend_profile(
 _PRACTICE_SESSIONS = ("FP1", "FP2", "FP3")
 
 
-def measure_practice_gaps(year: int, race_name: str, have: set[str]) -> dict[str, dict[str, float]]:
-    """Return team best-lap gaps for each completed FP session not in ``have``."""
+def measure_practice_gaps(
+    year: int, race_name: str, have: set[str], sessions: Collection[str] | None = None
+) -> dict[str, dict[str, float]]:
+    """Return team best-lap gaps for each completed FP session not in ``have``.
+
+    ``sessions`` limits it to sessions already run (the replay's checkpoint); None tries all.
+    """
     from src.data.openf1_session import get_session
 
     out: dict[str, dict[str, float]] = {}
     for code in _PRACTICE_SESSIONS:
-        if code in have:
+        if code in have or (sessions is not None and code not in sessions):
             continue
         try:
             session = get_session(year, race_name, code)
@@ -401,20 +437,25 @@ def refresh_car_track_traits(
     completed_races: list[str],
     upcoming_race: str | None = None,
     store: Any = None,
+    sessions_done: Collection[str] | None = None,
 ) -> dict[str, list[str]]:
-    """Measure completed races and the upcoming track the artifact lacks; save if changed."""
+    """Measure completed races and the upcoming track the artifact lacks; save if changed.
+
+    ``sessions_done`` names the upcoming weekend's sessions already run. Live leaves it
+    None: a session not run yet fails to load. The replay passes its checkpoint's
+    sessions, because every session of a finished season loads.
+    """
     from datetime import UTC, datetime
 
-    from src.persistence.artifact_store import ArtifactStore
-
-    store = store or ArtifactStore(data_root="data")
+    store = store or _default_store()
     payload = load_car_track_traits(year, store=store)
     added: dict[str, list[str]] = {"races": [], "profiles": [], "fp_gaps": []}
     for race_name in [*completed_races, *([upcoming_race] if upcoming_race else [])]:
         have = set(payload["fp_gaps"].get(race_name, {}))
         if have >= set(_PRACTICE_SESSIONS):
             continue
-        new = measure_practice_gaps(year, race_name, have)
+        sessions = sessions_done if race_name == upcoming_race else None
+        new = measure_practice_gaps(year, race_name, have, sessions=sessions)
         if new:
             payload["fp_gaps"].setdefault(race_name, {}).update(new)
             added["fp_gaps"].append(race_name)
@@ -433,7 +474,9 @@ def refresh_car_track_traits(
         )
     if upcoming_race and upcoming_race not in payload["races"]:
         stored = payload["profiles"].get(upcoming_race) or {}
-        profile = measure_weekend_profile(year, upcoming_race, newer_than=stored.get("session"))
+        profile = measure_weekend_profile(
+            year, upcoming_race, newer_than=stored.get("session"), sessions=sessions_done
+        )
         if profile:
             profile["deg_severity"] = median_deg_severity(payload["races"].values())
             payload["profiles"][upcoming_race] = profile
@@ -450,4 +493,5 @@ def refresh_car_track_traits(
             artifact_key(year),
             {"year": int(year), "last_updated": datetime.now(UTC).isoformat(), **clean},
         )
+        _clear_derived_caches()
     return added

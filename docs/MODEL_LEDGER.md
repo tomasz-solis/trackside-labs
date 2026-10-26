@@ -1330,6 +1330,32 @@ In seconds the champion inputs got about 0 weight (team 0.003): least squares on
 
 In the replay the track fit took the target's profile from the finished season file, so its `deg_severity` came from that race's own result. Live has only the median of earlier races before the race. The 2026-10-03 entry calls the replay profile "geometry, not a result"; geometry yes, degradation no. The qualifying track fit (on since model 3.2) uses `deg`, so every replay root since 3.2, `Z_base_33_r17_*` included, holds the leak, and so did the +0.0048 / +0.0035 correlation that adopted it. Fix: the replay uses the earlier races' median, as live does (`src/models/track_traits.py`). Same change, live only: the upcoming track's profile now moves to the weekend's latest dry session each warmup instead of keeping the first one measured (plan item 8). Verdict `open` until `Z_base_34_r17_*` is rebuilt on this code and compared with `Z_base_33_r17_*`; if the track fit's gain goes, retest it without `deg`.
 
+## 2026-10-26: served vs replay at Singapore: `gap`, the replay had no qualifying track fit
+
+Singapore item B, steps 2 and 3. A check, not a model change.
+
+Served: production `prediction` artifacts, model 3.3, code `ad6f0b65` (cron live 2026-10-06 to 10-16), no learned state. Replay: `L0_learning_off_s42/_s43` (learning off, as production ran) on code `a036886c`. Metric: mean absolute rank difference over 22 drivers. Seed floor: the same metric between the two L0 seeds. MAE here is plain, all 22 drivers.
+
+| Checkpoint | Target | Served vs L0, s42 / s43 | Seed floor | MAE served | MAE L0, s42 / s43 |
+|---|---|---|---|---|---|
+| FP1 | Main qualifying | 1.00 / 1.27 | 0.55 | 2.36 | 2.36 / 2.36 |
+| FP1 | Sprint qualifying | 1.36 / 1.36 | 0.18 | 2.09 | 2.27 / 2.18 |
+| FP1 | Sprint race | 1.18 / 1.18 | 0.73 | 4.45 | 5.09 / 4.91 |
+| FP1 | Grand Prix race | 0.55 / 0.55 | 0.00 | 2.91 | 2.82 / 2.82 |
+| SQ | Main qualifying | 1.18 / 1.27 | 0.36 | 2.73 | 2.45 / 2.55 |
+| SQ | Sprint race | 0.00 / 0.00 | 0.00 | 4.91 | 4.91 / 4.91 |
+| SQ | Grand Prix race | 0.73 / 0.82 | 0.64 | 3.00 | 2.91 / 3.18 |
+
+**First differing input: the qualifying track fit.** The gap is team level: both Aston Martins sit 4 to 6 places higher in the served order, both Alpines 2 to 4 lower. Served applied the Singapore fit from production `car_track_traits` v2 (2026-10-09 10:02 UTC, with the weekend's track profile): Aston Martin +0.383 s/lap, Alpine -0.263, the other nine teams within 0.07. The replay forces file mode and reads the committed `data/processed/car_track_traits/2026_car_track_traits.json`, last updated 2026-10-03 with 15 races and no profiles, so rounds 16 and 17 (Bahrain, Singapore) got no track fit. Ranked without those two teams, served vs L0 falls to 0.33 to 0.56 against a floor of 0.22 to 0.33. The practice snapshots match field for field (FP1 1,087, SQ 948), and the qualifying code between the two commits differs only behind switches that were off.
+
+No leak into the replay: it lacked an input live had. Which side scored better is mixed and one weekend, so no verdict on the fit.
+
+**Step 3, Italy and Spain, lead only.** Served there is model 3.0, so code differs. Qualifying served vs L0 is 1.05 to 1.29 against a floor of 0.00 to 0.45 at all six FP checkpoints. Italy: served qualifying MAE 2.82 to 3.09 against L0 2.14 to 2.52. Spain: served 1.91 to 2.36 against 2.33 to 2.67. The own-race degradation leak (2026-10-25) moves the Italy and Spain fit by 0.004 and 0.009 s/lap at most, too small to matter. The 3.0 to 3.3 changes stay the lead.
+
+**Consequence.** The committed traits file at HEAD is still the 2026-10-03 copy. `Z_base_34_r17_*` rebuilt on it would again run rounds 16 and 17 without the track fit live has every weekend. Adopt no qualifying verdict from a replay until the replay reads the traits live saw, then rerun this diff.
+
+**Update 2026-10-26: replay traits built walk-forward, not replayed yet.** The replay now starts from empty traits and refreshes them before every checkpoint, as the live warmup does: the completed races, plus this weekend's track profile and practice gaps from the sessions run by the checkpoint. Check at Singapore FP1, traits rebuilt from FastF1 for the 16 earlier races: the track fit matches production v2 for all 11 teams to 0.001 s/lap (Aston Martin +0.383, Alpine -0.263). PRE has no fit, as live. At SQ the profile moves to the SQ session (plan item 8), so the fit shrinks (Aston Martin +0.335, Alpine -0.226). Cost: about 10 s per newly completed race and 10 to 40 s per checkpoint. Every root before `Z_base_34_r17_*` predates this.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

@@ -42,10 +42,18 @@ def _grid(*drivers: str) -> list[dict]:
 
 
 def _run_replay_recording_order(
-    monkeypatch, tmp_path: Path, plan: list[dict], **replay_kwargs
+    monkeypatch, tmp_path: Path, plan: list[dict], traits_events: bool = False, **replay_kwargs
 ) -> list[str]:
-    """Run the replay loop with every data step stubbed, returning the call order."""
+    """Run the replay loop with every data step stubbed, returning the call order.
+
+    ``traits_events`` also records each car track traits refresh.
+    """
     events: list[str] = []
+
+    def _traits(*, race_name, checkpoint_session, completed_races, **_kwargs):
+        if traits_events:
+            events.append(f"traits {race_name} {checkpoint_session} after {completed_races}")
+
     sprint_races = {"Chinese Grand Prix"}
 
     def _apply(*, event_name, session_name, **_kwargs):
@@ -76,6 +84,7 @@ def _run_replay_recording_order(
         replay_module, "_walk_forward_team_strength_mapping", lambda **_kwargs: nullcontext()
     )
     monkeypatch.setattr(replay_module, "_build_race_checkpoint_record", _checkpoint)
+    monkeypatch.setattr(replay_module, "_refresh_replay_track_traits", _traits)
     monkeypatch.setattr(
         replay_module,
         "update_from_sprint_race",
@@ -93,6 +102,29 @@ def _run_replay_recording_order(
         year=2026, source_processed_dir=source, output_root=tmp_path / "out", **replay_kwargs
     )
     return events
+
+
+def test_traits_are_refreshed_before_every_checkpoint_from_earlier_races(monkeypatch, tmp_path):
+    """Each forecast sees the traits of the races before it and its sessions so far."""
+    plan = [
+        {"event_name": "Australian Grand Prix", "sessions": ["FP1", "Q", "R"], "cache_dirs": []},
+        {"event_name": "Japanese Grand Prix", "sessions": ["FP1", "Q", "R"], "cache_dirs": []},
+    ]
+
+    events = _run_replay_recording_order(monkeypatch, tmp_path, plan, traits_events=True)
+
+    assert [event for event in events if not event.startswith("apply")] == [
+        "traits Australian Grand Prix PRE after []",
+        "checkpoint Australian Grand Prix PRE",
+        "traits Australian Grand Prix FP1 after []",
+        "checkpoint Australian Grand Prix FP1",
+        "race_update Australian Grand Prix",
+        "traits Japanese Grand Prix PRE after ['Australian Grand Prix']",
+        "checkpoint Japanese Grand Prix PRE",
+        "traits Japanese Grand Prix FP1 after ['Australian Grand Prix']",
+        "checkpoint Japanese Grand Prix FP1",
+        "race_update Japanese Grand Prix",
+    ]
 
 
 def test_normal_weekend_checkpoints_are_built_before_later_sessions(monkeypatch, tmp_path):

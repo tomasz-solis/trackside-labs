@@ -11,6 +11,7 @@ from src.utils.historical_replay import (
     HistoricalReplaySummary,
     ReplayConfigOverride,
     _apply_session_update,
+    _refresh_replay_track_traits,
     _reset_replay_artifacts,
     _resolve_race_section_for_replay,
     apply_target_scoring_policy,
@@ -222,3 +223,35 @@ def test_a_testing_day_still_fails_closed(monkeypatch, tmp_path):
             cache_dirs=["data/raw/.fastf1_cache"],
             processed_dir=tmp_path,
         )
+
+
+@pytest.mark.parametrize(
+    ("checkpoint", "sessions"),
+    [("PRE", []), ("FP2", ["FP1", "FP2"]), ("SQ", ["FP1", "FP2", "FP3", "SQ"])],
+)
+def test_replay_measures_traits_from_sessions_run_by_the_checkpoint(
+    monkeypatch, tmp_path: Path, checkpoint: str, sessions: list[str]
+) -> None:
+    """Q never reaches a practice checkpoint's traits; earlier races are all complete."""
+    from src.extractors import car_track_traits
+
+    calls = []
+    monkeypatch.setattr(
+        car_track_traits,
+        "refresh_car_track_traits",
+        lambda year, completed, **kwargs: calls.append((completed, kwargs)),
+    )
+
+    _refresh_replay_track_traits(
+        year=2026,
+        race_name="Singapore Grand Prix",
+        checkpoint_session=checkpoint,
+        completed_races=["Bahrain Grand Prix"],
+        output_root=tmp_path,
+    )
+
+    ((completed, kwargs),) = calls
+    assert completed == ["Bahrain Grand Prix"]
+    assert kwargs["upcoming_race"] == "Singapore Grand Prix"
+    assert kwargs["sessions_done"] == sessions
+    assert kwargs["store"].data_root == tmp_path

@@ -92,11 +92,11 @@ def test_refresh_measures_only_missing_races_and_the_upcoming_track(monkeypatch)
     monkeypatch.setattr(
         ctt,
         "measure_weekend_profile",
-        lambda y, r, newer_than=None: (
+        lambda y, r, newer_than=None, sessions=None: (
             None if newer_than == "FP1" else {"full_throttle": 0.5, "session": "FP1"}
         ),
     )
-    monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have: {})
+    monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have, sessions=None: {})
     store = _Store()
 
     added = ctt.refresh_car_track_traits(2026, ["R0", "R1"], upcoming_race="R2", store=store)
@@ -240,7 +240,7 @@ def test_unmeasurable_traits_are_saved_as_null_without_a_warning(monkeypatch, ca
         "measure_completed_race",
         lambda y, r: {"traits": {"A": {"fast": float("nan"), "top_speed": 3.0}}, "profile": {}},
     )
-    monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have: {})
+    monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have, sessions=None: {})
     store = _Store()
 
     with caplog.at_level(logging.INFO):
@@ -275,3 +275,100 @@ def test_live_config_drops_braking_since_model_33():
 
     features = set(config_loader.get("baseline_predictor.qualifying.track_trait_features"))
     assert features == set(tt.TRAIT_TO_SHARE) - {"braking"}
+
+
+def test_weekend_profile_and_practice_gaps_skip_sessions_not_run_at_the_checkpoint(monkeypatch):
+    from types import SimpleNamespace
+
+    import pandas as pd
+
+    from src.data import openf1_session
+
+    loads: list[str] = []
+
+    def _get_session(year, race_name, code, telemetry=False, weather=False):
+        loads.append(code)  # a finished season: every session loads
+        return SimpleNamespace(
+            laps=pd.DataFrame({"LapTime": [90.0]}),
+            weather_data=pd.DataFrame({"Rainfall": [False]}),
+        )
+
+    monkeypatch.setattr(openf1_session, "get_session", _get_session)
+    monkeypatch.setattr(ctt, "track_profile", lambda session: {"full_throttle": 0.6})
+    monkeypatch.setattr(ctt, "team_quali_gaps", lambda session, team_of: {"A": 0.0})
+    monkeypatch.setattr(ctt, "_team_of", lambda session: {})
+
+    profile = ctt.measure_weekend_profile(2026, "X", sessions={"FP1", "FP2"})
+    gaps = ctt.measure_practice_gaps(2026, "X", set(), sessions={"FP1", "FP2"})
+
+    assert profile == {"full_throttle": 0.6, "session": "FP2"}
+    assert set(gaps) == {"FP1", "FP2"}
+    assert not {"Q", "SQ", "FP3"} & set(loads)
+
+
+def test_refresh_limits_only_the_upcoming_race_to_the_sessions_done(monkeypatch):
+    class _Store:
+        payload = {"races": {"R0": {"traits": {}, "profile": {"deg_severity": 0.0}}}}
+
+        def load_artifact(self, artifact_type, artifact_key):
+            return self.payload
+
+        def save_artifact(self, artifact_type, artifact_key, data):
+            self.payload = data
+
+    practice_calls = []
+    monkeypatch.setattr(
+        ctt,
+        "measure_practice_gaps",
+        lambda y, r, have, sessions=None: practice_calls.append((r, sessions)) or {},
+    )
+    profile_calls = []
+    monkeypatch.setattr(
+        ctt,
+        "measure_weekend_profile",
+        lambda y, r, newer_than=None, sessions=None: profile_calls.append((r, sessions)),
+    )
+
+    ctt.refresh_car_track_traits(
+        2026, ["R0"], upcoming_race="R1", store=_Store(), sessions_done=["FP1"]
+    )
+
+    assert practice_calls == [("R0", None), ("R1", ["FP1"])]
+    assert profile_calls == [("R1", ["FP1"])]
+
+
+def test_replay_root_never_falls_back_to_the_committed_file(monkeypatch, tmp_path):
+    from src.utils.historical_replay import _reset_replay_track_traits
+
+    monkeypatch.setenv("USE_DB_STORAGE", "file_only")
+    monkeypatch.setenv(ctt.CAR_TRACK_TRAITS_ROOT_ENV, str(tmp_path))
+    assert ctt.load_car_track_traits(2026)["races"] == {}  # no file at all
+
+    _reset_replay_track_traits(tmp_path / "processed", 2026)
+
+    assert ctt.load_car_track_traits(2026) == {"races": {}, "profiles": {}, "fp_gaps": {}}
+
+
+def test_saving_traits_clears_the_fits_cached_from_them(monkeypatch):
+    from src.utils import weekend
+
+    class _Store:
+        def load_artifact(self, artifact_type, artifact_key):
+            return {"races": {}}
+
+        def save_artifact(self, artifact_type, artifact_key, data):
+            pass
+
+    monkeypatch.setattr(weekend, "get_schedule_rows", lambda year: [])
+    monkeypatch.setattr(ctt, "measure_completed_race", lambda y, r: {"traits": {}, "profile": {}})
+    monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have, sessions=None: {})
+    tt.track_trait_adjustments.cache_clear()
+    tt.track_trait_adjustments(2026, "R1", "qualifying")
+    assert tt.track_trait_adjustments.cache_info().currsize == 1
+
+    ctt.refresh_car_track_traits(2026, ["R0"], store=_Store())
+
+    assert tt.track_trait_adjustments.cache_info().currsize == 0
+    for module_name, function_name in ctt._DERIVED_CACHES:  # a rename must not slip by
+        module = __import__(module_name, fromlist=[function_name])
+        assert callable(getattr(module, function_name).cache_clear)

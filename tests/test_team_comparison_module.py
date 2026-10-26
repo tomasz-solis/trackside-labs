@@ -1894,11 +1894,13 @@ def test_snapshot_history_cache_token_prefers_db_rows_in_db_mode(patcher, tmp_pa
         }
     ]
 
-    patcher.setattr(
-        team_comparison.ArtifactStore,
-        "list_artifacts",
-        lambda self, artifact_type, key_prefix=None, limit=100: list(db_rows),
-    )
+    asked_fields = []
+
+    def _list_artifacts(self, artifact_type, key_prefix=None, limit=100, data_fields=None):
+        asked_fields.append(data_fields)
+        return list(db_rows)
+
+    patcher.setattr(team_comparison.ArtifactStore, "list_artifacts", _list_artifacts)
 
     first_token = team_comparison._snapshot_history_cache_token(2027)
     db_rows.append(
@@ -1916,6 +1918,8 @@ def test_snapshot_history_cache_token_prefers_db_rows_in_db_mode(patcher, tmp_pa
     assert first_token.startswith("rows:")
     assert second_token.startswith("rows:")
     assert first_token != second_token
+    # The token runs on every view, so it must not download snapshot payloads.
+    assert asked_fields == [("captured_at", "session_started_at")] * 2
 
 
 def test_build_snapshot_history_dataframe_keeps_missing_team_snapshot_as_gap_row():

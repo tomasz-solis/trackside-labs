@@ -309,3 +309,24 @@ def test_list_files_driver_debuts_supports_single_json(tmp_path):
     assert len(rows) == 1
     assert rows[0]["artifact_key"] == "driver_debuts"
     assert rows[0]["version"] == 1
+
+
+def test_list_db_reads_only_the_asked_data_fields(patcher, tmp_path):
+    store = ArtifactStore(data_root=tmp_path)
+    query = MagicMock()
+    for method in ("select", "eq", "like", "order", "limit"):
+        getattr(query, method).return_value = query
+    query.execute.return_value = SimpleNamespace(
+        data=[{"artifact_key": "alpha", "version": 2, "captured_at": "t1", "started": None}]
+    )
+    supabase = MagicMock()
+    supabase.table.return_value = query
+    patcher.setattr(artifact_store_module, "get_supabase_client", lambda: supabase)
+
+    listed = store._list_db("custom", "a", 10, ("captured_at", "started"))
+
+    query.select.assert_called_once_with(
+        "artifact_key, version, run_id, created_at, "
+        "captured_at:data->>captured_at, started:data->>started"
+    )
+    assert listed == [{"artifact_key": "alpha", "version": 2, "data": {"captured_at": "t1"}}]

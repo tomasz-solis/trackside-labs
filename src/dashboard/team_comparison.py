@@ -275,6 +275,8 @@ def _snapshot_history_cache_token(year: int) -> str:
             artifact_type=SNAPSHOT_ARTIFACT_TYPE,
             key_prefix=f"{year}::",
             limit=600,
+            # The token runs on every view; full payloads were 7.5 MB for 253 snapshots.
+            data_fields=("captured_at", "session_started_at"),
         )
         row_fingerprints: list[tuple[str, str, str, str]] = []
         for row in rows:

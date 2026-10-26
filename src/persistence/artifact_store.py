@@ -186,12 +186,17 @@ class ArtifactStore:
         artifact_type: str,
         key_prefix: str | None = None,
         limit: int = 100,
+        data_fields: tuple[str, ...] | None = None,
     ) -> list[dict[str, Any]]:
-        """List artifacts of given type. Returns artifact metadata sorted by created_at DESC."""
+        """List artifacts of given type. Returns artifact metadata sorted by created_at DESC.
+
+        ``data_fields`` limits each DB row's ``data`` to those top-level fields, read in
+        the database; file rows keep their full payload.
+        """
         # Try DB first if configured
         if should_read_db_first():
             try:
-                db_rows = self._list_db(artifact_type, key_prefix, limit)
+                db_rows = self._list_db(artifact_type, key_prefix, limit, data_fields)
                 if db_rows or self.storage_mode == "db_only":
                     return db_rows
             except (APIError, AttributeError, RuntimeError, TypeError, ValueError) as e:
@@ -561,13 +566,22 @@ class ArtifactStore:
         return None
 
     def _list_db(
-        self, artifact_type: str, key_prefix: str | None, limit: int
+        self,
+        artifact_type: str,
+        key_prefix: str | None,
+        limit: int,
+        data_fields: tuple[str, ...] | None = None,
     ) -> list[dict[str, Any]]:
         """List artifacts from Supabase."""
         supabase = get_supabase_client()
 
+        data_select = (
+            ", ".join(f"{field}:data->>{field}" for field in data_fields)
+            if data_fields is not None
+            else "data"
+        )
         query = supabase.table("artifacts").select(
-            "artifact_key, version, run_id, created_at, data"
+            f"artifact_key, version, run_id, created_at, {data_select}"
         )
         query = query.eq("artifact_type", artifact_type)
 
@@ -577,4 +591,10 @@ class ArtifactStore:
         query = query.order("created_at", desc=True).limit(limit)
 
         result = query.execute()
-        return cast(list[dict[str, Any]], result.data) if result.data else []
+        rows = cast(list[dict[str, Any]], result.data) if result.data else []
+        if data_fields is not None:
+            for row in rows:
+                # Missing JSON fields come back as null; drop them as an absent key would be.
+                fields = {field: row.pop(field, None) for field in data_fields}
+                row["data"] = {key: value for key, value in fields.items() if value is not None}
+        return rows

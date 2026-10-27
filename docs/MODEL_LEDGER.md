@@ -1356,6 +1356,89 @@ No leak into the replay: it lacked an input live had. Which side scored better i
 
 **Update 2026-10-26: replay traits built walk-forward, not replayed yet.** The replay now starts from empty traits and refreshes them before every checkpoint, as the live warmup does: the completed races, plus this weekend's track profile and practice gaps from the sessions run by the checkpoint. Check at Singapore FP1, traits rebuilt from FastF1 for the 16 earlier races: the track fit matches production v2 for all 11 teams to 0.001 s/lap (Aston Martin +0.383, Alpine -0.263). PRE has no fit, as live. At SQ the profile moves to the SQ session (plan item 8), so the fit shrinks (Aston Martin +0.335, Alpine -0.226). Cost: about 10 s per newly completed race and 10 to 40 s per checkpoint. Every root before `Z_base_34_r17_*` predates this.
 
+## 2026-10-26: walk-forward car track traits and the own-race deg fix: `unresolvable`; `Z_base_34_r17_*` is the champion baseline
+
+The replay now measures car track traits walk-forward, as live does (`26cee190`), and gives the target the earlier races' median deg (`265b3620`). Both fix the replay, so they stay whatever the score.
+
+Roots: `Z_base_34_r17_s42` / `_s43`, model 3.4, code `26cee190`, round 17, Windows laptop, about 90 min per seed. 62 paired checkpoints (sprint race 18). Seed floor from that pair.
+
+Traits alone, against `C_sq_result_blend_07_*` (the 3.4 settings on the old traits):
+
+| Target | Metric | s42 delta, better/worse/tied | s43 delta, better/worse/tied | Floor delta |
+|---|---|---|---|---|
+| Main qualifying | Correlation | -0.0003, 19/17/26 | +0.0003, 19/22/21 | -0.0003 |
+| Main qualifying | MAE | +0.0078, 10/13/39 | -0.0014, 12/13/37 | -0.0074 |
+| Grand Prix race | Correlation | +0.0019, 28/24/10 | -0.0059, 18/30/14 | -0.0013 |
+| Grand Prix race | MAE | -0.0088, 22/20/20 | +0.0237, 15/25/22 | -0.0045 |
+| Sprint race | Correlation | +0.0025, 3/2/13 | +0.0013, 4/3/11 | -0.0008 |
+
+Every cell is `unresolvable` except Grand Prix correlation on s43: `worse`, CI -0.0113 to -0.0013. On s42 it goes the other way. The code between the C roots and `26cee190` also differs by FastF1 3.9.0 and the OpenF1 learning fallback, so that race move has no single cause.
+
+Against `Z_base_33_r17_*` (model 3.3): main qualifying correlation +0.0038 / +0.0042, MAE -0.054 / -0.059 (s43 `better`, CI -0.1325 to -0.0003). That is the 3.4 sprint qualifying blend, the same gain as the 2026-10-18 C entry. The traits add nothing on top.
+
+Singapore served vs replay, rerun at FP1 (mean absolute rank difference, s42 / s43):
+
+| Target | Served vs `Z_base_33` | Served vs `Z_base_34` | `Z_base_34` seed floor |
+|---|---|---|---|
+| Main qualifying | 1.55 / 1.45 | 1.00 / 1.09 | 0.36 |
+| Sprint qualifying | 1.64 / 1.55 | 1.09 / 1.18 | 0.09 |
+| Sprint race | 1.73 / 1.64 | 1.18 / 1.36 | 0.55 |
+| Grand Prix race | 1.18 / 1.27 | 1.09 / 1.18 | 0.55 |
+
+Aston Martin and Alpine now sit where served had them. The rest stays above the floor: the replay learns and served did not. SQ is not comparable, since 3.4 blends the SQ result and the profile moves to the SQ session. Served PRE was model 3.0.
+
+What it means:
+
+1. The own-race deg leak and the missing round 16 and 17 fit did not lift the replay's qualifying score. Nothing here reopens a qualifying verdict measured on `Z_base_33_r17_*`.
+2. Whether the track fit still earns its place is not answered: both sides ran with the fit on. The 2026-10-25 entry stays `open` on that. It needs an arm on this code with `baseline_predictor.qualifying.track_trait_adjustment: false`.
+3. Later arms compare against `Z_base_34_r17_*`.
+
+## 2026-10-27: qualifying track fit off, on walk-forward traits: `worse`; the fit stays
+
+Arm `TF_track_fit_off_s42` / `_s43`: `baseline_predictor.qualifying.track_trait_adjustment: false`, one line off `config/default.yaml`. Baseline `Z_base_34_r17_s42` / `_s43` (code `26cee190`, model 3.4), seed floor from that pair. 62 paired checkpoints, sprint race 18.
+
+| Target | Metric | s42 delta, CI, better/worse/tied | s43 delta, CI, better/worse/tied | Floor delta |
+|---|---|---|---|---|
+| Main qualifying | Correlation | -0.0032, -0.0061 to -0.0004, 12/26/24, `worse` | -0.0025, -0.0050 to -0.0001, 16/21/25, `unresolvable` | -0.0003 |
+| Main qualifying | MAE | +0.0334, +0.0027 to +0.0648, 11/19/32, `worse` | +0.0289, -0.0038 to +0.0594, 9/18/35, `unresolvable` | -0.0074 |
+| Grand Prix race | Correlation | +0.0017, 22/22/18, `unresolvable` | +0.0027, 25/20/17, `unresolvable` | -0.0013 |
+| Sprint race | Correlation | -0.0031, 3/3/12, `unresolvable` | -0.0014, 3/2/13, `unresolvable` | -0.0008 |
+
+Turning the fit off loses on qualifying on both seeds. s42 is beyond the floor; s43 sits at its edge, same direction. The fit's gain is +0.0032 / +0.0025 correlation on honest traits, against +0.0048 / +0.0035 at adoption (2026-10-03) with the own-race deg leak. About two thirds of it was real.
+
+This closes the 2026-10-25 entry: measured, the fit keeps its place. The retest without `deg` is not needed. The `config/default.yaml` comment on the switch still quotes the leaky +0.0048 / +0.0035.
+
+## 2026-10-27: safety car leader noise fix: `unresolvable`, measured by a paired probe, not a replay
+
+`e0b69b3d` stops safety car bunching from adding up to 0.12 s of noise to the leader. The fix has no switch, so instead of a replay arm the old function body was patched back in at run time and both versions predicted the same races.
+
+Protocol: code `26cee190`, file mode. Every completed 2026 race (17, through the United States Grand Prix), grid from the actual qualifying result, dry, 300 simulations. Seed 42 new vs seed 42 old, beside seed 42 vs 43 on the new code. Metric: mean absolute rank difference over 22 drivers; MAE against the race result.
+
+| | New vs old, seed 42 | Seed 42 vs 43 |
+|---|---|---|
+| Mean rank difference | 0.075 | 0.684 |
+| Races with any move | 2 of 17 | 16 of 17 |
+
+15 races are identical. Austria moves 14 drivers (1.18, its seed floor 1.09); Azerbaijan moves 2 (0.09). Both moved races score slightly better with the fix; MAE over all 17 is 3.406 new against 3.417 old. The leader and P2 cannot swap at the restart (gap 0.60 s, noise 0.12 s each), so the rare moves come from later draws that depend on the gap, which act like a reseed.
+
+The effect is about a ninth of the seed floor, so a replay arm would be `unresolvable` too. The fix stays: it matches the docstring. Not checked: sprints, predicted grids, other seeds.
+
+## 2026-10-27: race and sprint band widening (D): coverage into target on both seeds; verdict for Tomasz
+
+Arm `D_widening_on_s42` / `_s43`: `learning.race_interval_widening: true`. Baseline `Z_base_34_r17_s42` / `_s43` (code `26cee190`, model 3.4), 62 checkpoints. The order is identical in all 154 target forecasts per seed; 78 race and sprint bands change. Metric: share of drivers whose actual position falls inside p5 to p95, and the mean width in places. Target 85 to 95% (the production gate uses 87 to 93%).
+
+| Target, checkpoints | Coverage baseline, s42 / s43 | Coverage widening, s42 / s43 | Width baseline / widening |
+|---|---|---|---|
+| Sprint race, all | 74.4% / 73.4% | 90.1% / 90.4% | 6.8 / 10.0 to 10.4 |
+| Sprint race, SQ (grid known) | 48% / 49% | 89% / 90% | 2.2 / 9.3 to 9.8 |
+| Grand Prix race, all | 81.3% / 81.3% | 87.5% / 88.1% | 9.6 / 11.3 |
+| Grand Prix race, PRE | 78% / 78% | 84% / 85% | 9.5 / 11.1 to 11.2 |
+| Grand Prix race, SQ | 75% / 75% | 85% / 85% | 9.0 / 11.0 |
+
+Main qualifying is unchanged at 94.1% / 94.2%. The learned radius ends at the 6.0 cap (`learning.interval_max_adjustment`) on both seeds for race and sprint, so the cap sets the width, and coverage still lands in target.
+
+Live effect if adopted: the production learning state (read 2026-10-27) holds 110 race residuals, radius 6.0, and no sprint residuals. The sprint history started with `a036886c` (live 2026-10-17), after Singapore, the last 2026 sprint. So switching on now widens Grand Prix bands only; sprint bands change once 20 sprint residuals exist.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

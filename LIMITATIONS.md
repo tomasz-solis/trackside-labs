@@ -44,13 +44,15 @@ Each circuit has its own safety car probability and overtaking difficulty in `20
 
 Fix: extract per-circuit safety car and lap 1 incident rates from past races and test them against the current values in a backtest.
 
-## 8. Intervals are off in both directions
+## 8. Honest bands are wide, so the dashboard shows a narrower one
 
-Each driver gets a p5 to p95 interval, and the learning system can widen it once enough residuals exist. The target is 90% coverage.
+Each driver gets a p5 to p95 band with a 90% target. Since model 3.5 the learning system widens race and sprint bands as it already did for qualifying. On `Z_base_34_r17_*`, the 17-round replay of 3.4, the widening takes Grand Prix coverage from 81% to 88% and sprint from 74% to 90% (48% to 89% once the sprint grid is known). An honest 90% race band is about 10 to 11 places, too wide to show as the range a driver is likely to finish in.
 
-Race p5/p95 is too narrow: measured 2026-09-27 on `data/historical_replay_m1s42_r14` (895 race finishers), coverage is 86% overall (92/95/89/67% by predicted-position bucket 1-5/6-10/11-16/17-22, the back of the field worst). An honest 90% band there needs about 10 to 11 positions, too wide to show as "the range a driver is likely to finish in". Qualifying p5/p95 covers 95.3% on the same replay (n=784) and 75.5% on the forecasts actually published (`docs/MODEL_CALIBRATION.md`). The difference is the learned widening: the replay applied it, production never did, because the learning state was not persisted there (`docs/MODEL_LEDGER.md`, 2026-10-10). With the widening the published bands would have covered 90.3%. The dashboard's race and qualifying tables show a separate "Likely range" instead: a fitted band around the shown position that held about 6 in 10 past results (59-63% leave-one-race-out, see `docs/MODEL_LEDGER.md` 2026-10-01). p5/p95 itself is unchanged and still used for evaluation.
+So the race and qualifying tables show a "Likely range" instead: the 25th to 75th percentile of past error around the shown position, as whole places that include it. It is about 4 to 7 places and held 59 to 63% of results leave-one-race-out (refitted 2026-10-27, `docs/MODEL_LEDGER.md`). The back of the Grand Prix field is the loose part: 7 places, holding 73%, because finishers there gain places when cars ahead retire. p5/p95 stays for evaluation.
 
-Fix: more races, then replay the widening before tightening anything.
+Production has no sprint residuals yet: the sprint history began after the last 2026 sprint, so live sprint bands stay unwidened until 20 sprint residuals exist.
+
+Fix: refit the likely range as races are added; give the back of the field its own treatment of retirements ahead.
 
 ## 9. Components can help alone and hurt together
 

@@ -18,6 +18,9 @@ validates the band out of sample instead of on its own fitting data.
 Usage:
     uv run python scripts/fit_race_band_quantiles.py
     uv run python scripts/fit_race_band_quantiles.py --replay-root data/historical_replay_m1s42_r14 --year 2026
+    uv run python scripts/fit_race_band_quantiles.py --replay-root <root_s42> <root_s43>
+
+Several roots pool their residuals; leave-one-race-out holds a race out of all of them.
 """
 
 from __future__ import annotations
@@ -155,7 +158,7 @@ def _format_yaml_snippet(
     sprint_table: dict[str, dict[str, float]],
     qualifying_table: dict[str, dict[str, float]],
     *,
-    replay_root: Path,
+    replay_roots: list[Path],
     year: int,
     fitted_date: str,
 ) -> str:
@@ -165,7 +168,7 @@ def _format_yaml_snippet(
         "  race:",
         "    likely_range:",
         f"      # Fitted {fitted_date} by scripts/fit_race_band_quantiles.py",
-        f"      # against {replay_root.as_posix()} ({year})",
+        f"      # against {', '.join(root.as_posix() for root in replay_roots)} ({year})",
     ]
     tables = (("race", race_table), ("sprint", sprint_table), ("qualifying", qualifying_table))
     for table_name, table in tables:
@@ -185,8 +188,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--replay-root",
         type=Path,
-        default=Path("data/historical_replay_m1s42_r14"),
-        help="Replay root containing predictions/<year>/<race>/*.json.",
+        nargs="+",
+        default=[Path("data/historical_replay_m1s42_r14")],
+        help="Replay roots containing predictions/<year>/<race>/*.json; several are pooled.",
     )
     parser.add_argument("--year", type=int, default=2026, help="Replay season to fit on.")
     parser.add_argument(
@@ -203,7 +207,11 @@ def main() -> None:
     tables: dict[str, dict[str, dict[str, float]]] = {}
     coverage: dict[str, dict[str, float]] = {}
     for target in TARGETS:
-        residuals = load_residuals(args.replay_root, args.year, target)
+        residuals = [
+            residual
+            for root in args.replay_root
+            for residual in load_residuals(root, args.year, target)
+        ]
         tables[target] = fit_quantiles(residuals)
         coverage[target] = leave_one_race_out_coverage(residuals)
         print(f"\n=== {target} ===")
@@ -235,7 +243,7 @@ def main() -> None:
             race_table,
             sprint_table,
             tables.get("main_qualifying", {}),
-            replay_root=args.replay_root,
+            replay_roots=args.replay_root,
             year=args.year,
             fitted_date=args.fitted_date,
         )

@@ -4,7 +4,7 @@ F1 race weekend predictions for the 2026 regulation reset. The model forecasts q
 
 The hard part is deciding how much to trust each source. The 2025 baseline is stale after a rules change. Testing is current, but teams hide pace. Friday practice is fresh, but noisy. The model is built around that tradeoff.
 
-Model version: `3.4`. Every model change and its measured result is in `docs/MODEL_LEDGER.md`.
+Model version: `3.5`. Every model change and its measured result is in `docs/MODEL_LEDGER.md`.
 
 ## How it works
 
@@ -42,6 +42,7 @@ The plan: start from last year's order, add testing, and let each session's data
 | Race order from simulated pace | The grid carries most of it. Halving the grid anchor cost about 0.017 race correlation. Three race pace additions (car traits, tyre wear, practice) were too small to measure. |
 | Car traits by track | Adopted for qualifying as model 3.2: correlation +0.005 and +0.004 on two seeds, against a seed-noise floor of 0.003. No measurable gain for the race. |
 | Use the sprint qualifying result | Adopted as model 3.4: after sprint qualifying, main qualifying is pulled 70% toward its order. MAE at that checkpoint 2.51 to 1.87 and 2.50 to 1.90 on two seeds, better on 5 of 6 sprint weekends. Race effect below the noise floor. |
+| Honest race bands | Adopted as model 3.5: the race and sprint p5 to p95 band widens with learned residuals. Coverage 81% to 88% for the Grand Prix and 74% to 90% for the sprint on two seeds; the order is unchanged. The dashboard shows a narrower fitted likely range, about 4 to 7 places. |
 | Train an ML model on the same data | Ridge and gradient boosting, refitted before each race, do not beat the blend. Qualifying is a tie (MAE 1.64 vs 1.76, interval crosses zero), the race is worse (3.50 vs 3.07). |
 
 Where it stands, rounds 5 to 14, last checkpoint before qualifying: rank correlation 0.930 and MAE 1.76 places for qualifying, 0.721 and 3.07 for the race. That is today's model replayed over the season. The forecasts actually published, scored over all 16 weekends, are in `docs/MODEL_CALIBRATION.md`: MAE 2.90 for qualifying and 3.38 for the race. Those cover every round, each forecast by the model version live at the time. On that record qualifying is 0.18 places worse than repeating the last race's order, so the production gate currently fails. Today's model, replayed, beats that naive order by about 0.6 places. What it still does badly is in `LIMITATIONS.md`.

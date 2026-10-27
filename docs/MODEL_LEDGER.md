@@ -1439,6 +1439,24 @@ Main qualifying is unchanged at 94.1% / 94.2%. The learned radius ends at the 6.
 
 Live effect if adopted: the production learning state (read 2026-10-27) holds 110 race residuals, radius 6.0, and no sprint residuals. The sprint history started with `a036886c` (live 2026-10-17), after Singapore, the last 2026 sprint. So switching on now widens Grand Prix bands only; sprint bands change once 20 sprint residuals exist.
 
+## 2026-10-27: band widening adopted as model 3.5; likely range refitted
+
+`learning.race_interval_widening: true`, on the evidence in the entry above. Verdict `adopted`, decided by Tomasz. Version 3.4 to 3.5 in `config/default.yaml`, `src/utils/model_version.py` and `src/utils/config_schema.py`.
+
+Shown on the dashboard: the order is unchanged and so is the likely range. The confidence column (chance of finishing within one place) is computed from the published p5/p95, so it drops where the band widens: on the replay 236 of 1,747 race rows (seed 42), from 77% to 47% on average, against 42% that actually finished within one place. Overall race confidence 44.6% to 40.5%, actual 34%.
+
+Same change: the dashboard likely range is refitted on both seeds of `Z_base_34_r17_*` (`scripts/fit_race_band_quantiles.py` now pools several roots). Finishers only. "Holds" is on those same residuals; the last column holds each race out of its own fit:
+
+| Table, bucket | Shown before | Shown now | Holds before | Holds now | Holds now, race held out |
+|---|---|---|---|---|---|
+| Grand Prix, all buckets | unchanged | unchanged | 55 to 73% | same | 57 to 73% |
+| Sprint, 11-16 | -2 to +1 | -3 to +1 | 55.1% | 61.9% | 55.7% |
+| Sprint, 17-22 | -4 to 0 | -5 to 0 | 61.8% | 76.3% | 65.3% |
+| Qualifying, 1-5 | 0 to +2 | -1 to +3 | 47.6% | 69.2% | 62.7% |
+| Qualifying, 6-10 | -2 to +2 | -2 to +1 | 61.0% | 53.7% | 54.3% |
+
+Pooled: 63% race, 62% sprint, 59% qualifying, the same as the 2026-10-01 fit. Ranges stay 3 to 7 places wide.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

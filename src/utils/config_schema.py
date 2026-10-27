@@ -51,7 +51,7 @@ class RegulationEra(StrictConfigModel):
 class ModelConfig(StrictConfigModel):
     """Model release metadata shared across generated artifacts."""
 
-    version: str = Field(default="3.4", min_length=1)
+    version: str = Field(default="3.5", min_length=1)
     # The seconds gap between a fast car and a slow one is a property of the
     # regulations. Fitting a seconds mapping across a regulation boundary averages
     # two different fields and describes neither, so calibration is scoped to an era
@@ -113,7 +113,7 @@ class LearningConfig(StrictConfigModel):
     interval_target_coverage: float = Field(default=0.90, ge=0.0, le=1.0)
     interval_max_adjustment: float = Field(default=6.0, ge=0.0)
     apply_adaptive_calibration: bool = True
-    race_interval_widening: bool = False
+    race_interval_widening: bool = True
 
 
 class TrackDefaultsConfig(StrictConfigModel):

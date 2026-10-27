@@ -757,7 +757,7 @@ def test_qualifying_table_shows_likely_range_not_90pct(patcher):
 
     text = " ".join(value for _kind, value in calls)
     assert "Likely range" in text
-    assert "P1-P3" in text  # shipped qualifying table 1-5 is q25 0 / q75 +2
+    assert "P1-P4" in text  # shipped qualifying table 1-5 is q25 -0.25 / q75 +3
     assert "90%" not in text
 
 

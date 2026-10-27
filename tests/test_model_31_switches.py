@@ -63,7 +63,7 @@ def _finish_order(cfg) -> list[str]:
 
 
 def test_shipped_31_switches():
-    assert config_loader.get("model.version") == "3.4"
+    assert config_loader.get("model.version") == "3.5"
     assert config_loader.get("baseline_predictor.race.finish_order_sort") == "median_rank"
     assert config_loader.get("baseline_predictor.race.overtake_gap_from_lap_start") is True
     assert config_loader.get("baseline_predictor.race.dnf_per_lap_hazard") is False
@@ -107,8 +107,8 @@ def test_learned_race_radius_widens_bands_and_never_moves_the_order():
     assert all(row["p5"] <= row["position"] <= row["p95"] for row in rows)
 
 
-def test_race_interval_widening_is_off_by_default():
-    assert config_loader.get("learning.race_interval_widening") is False
+def test_race_interval_widening_is_on_since_3_5():
+    assert config_loader.get("learning.race_interval_widening") is True
     assert config_loader.get("learning.apply_adaptive_calibration") is True
 
 

@@ -37,7 +37,7 @@ grid:
     #   LAW: TSU
 
 model:
-  version: "3.4"
+  version: "3.5"
   # Regulation eras for seconds calibration. The gap between a fast car and a slow
   # one is set by the regulations, so team_strength_seconds_mapping is fitted within
   # one era and never across a boundary: pooling 2022-2025 with 2026 produced a slope
@@ -124,9 +124,9 @@ learning:
   # Replay arm only (what production ran before the state was persisted).
   apply_adaptive_calibration: true
   # Widen race and sprint p5-p95 with the learned radius, as qualifying already does.
-  # The radius was always zero before 2026-10-11 because no race residuals were
-  # recorded. Bands only; the order is untouched. Off until replayed (Singapore item D).
-  race_interval_widening: false
+  # Bands only; the order and the shown likely range are untouched. On since 3.5:
+  # replay coverage sprint 74% to 90%, Grand Prix 81% to 88% (MODEL_LEDGER 2026-10-27).
+  race_interval_widening: true
 
 # Track Characteristics
 track_defaults:
@@ -922,23 +922,23 @@ baseline_predictor:
     # around the shown position, by shown position. A 90% band needs ~10
     # places, too wide to be useful. Shown as whole places that always include
     # the shown position, so it covers about 6 in 10: 63% race, 62% sprint,
-    # 59% qualifying (leave-one-race-out). Fitted 2026-10-01 by
-    # scripts/fit_race_band_quantiles.py on data/historical_replay_m1s42_r14.
-    # Refit as the season adds races.
+    # 59% qualifying (leave-one-race-out). Refitted 2026-10-27 by
+    # scripts/fit_race_band_quantiles.py on both seeds of
+    # data/historical_replay_arms/Z_base_34_r17_*. Refit as the season adds races.
     likely_range:
       race:
         "1-5": {q25: -1.00, q75: 2.00}
         "6-10": {q25: -3.00, q75: 1.00}
         "11-16": {q25: -4.00, q75: 0.00}
-        "17-22": {q25: -6.00, q75: -1.25}
+        "17-22": {q25: -6.00, q75: -2.00}
       sprint:
-        "1-5": {q25: -0.50, q75: 2.00}
+        "1-5": {q25: -1.00, q75: 2.00}
         "6-10": {q25: -2.00, q75: 1.00}
-        "11-16": {q25: -2.00, q75: 1.00}
-        "17-22": {q25: -4.00, q75: -1.00}
+        "11-16": {q25: -3.00, q75: 1.00}
+        "17-22": {q25: -5.00, q75: -1.00}
       qualifying:
-        "1-5": {q25: 0.00, q75: 2.00}
-        "6-10": {q25: -2.00, q75: 2.00}
+        "1-5": {q25: -0.25, q75: 3.00}
+        "6-10": {q25: -2.00, q75: 1.00}
         "11-16": {q25: -3.00, q75: 2.00}
         "17-22": {q25: -2.00, q75: 0.00}
 

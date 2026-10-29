@@ -11,7 +11,9 @@ Car traits, per team, relative to the field median of the same session:
   per-lap trend (fuel burn, track evolution); seconds per lap, negative is better.
 
 Track composition, from one reference lap: share of lap time at full throttle, in
-each corner class, and braking; plus the field's median degradation.
+each corner class, and braking; plus the field's median degradation. Over every
+driver's fastest lap: median top speed and the median clipping share (2026 cars run
+out of deployable energy on long straights and slow down at full throttle).
 
 All functions take loaded FastF1 sessions, so callers control caching and leakage.
 """
@@ -38,6 +40,10 @@ _APEX_WINDOW_M = 75.0
 _BRAKE_LOOKBACK_M = 400.0
 _HEAVY_BRAKING_DROP_KPH = 60.0
 _FULL_THROTTLE = 98.0
+# Clipping: at full throttle, no brake, above 200 km/h, slowing faster than 2 km/h per
+# second. 2026 Q: Baku 19%, Montreal 18%, Monza 8%, Monaco and Hungaroring 4%.
+CLIP_MIN_KPH = 200.0
+CLIP_DECEL_KPH_PER_S = 2.0
 _MIN_STINT_LAPS = 6
 
 
@@ -211,7 +217,43 @@ def track_profile(session: Any) -> dict[str, float]:
         "fast": float(dt[~full & (speed > FAST_MIN_KPH)].sum() / total),
         "braking": float(dt[brake].sum() / total),
         "lap_time_s": float(lap["LapTime"].total_seconds()),
+        **energy_profile(session),
     }
+
+
+def clipping_share(tel: pd.DataFrame) -> float:
+    """Return the share of full-throttle time above 200 km/h with the car slowing down."""
+    t = tel["Time"].dt.total_seconds().to_numpy()
+    v = tel["Speed"].to_numpy(dtype=float)
+    dt = np.diff(t, prepend=t[0])
+    dv = np.diff(v, prepend=v[0])
+    rate = np.divide(dv, dt, out=np.zeros_like(dv), where=dt > 0)  # km/h per second
+    on = (
+        (tel["Throttle"].to_numpy(dtype=float) >= _FULL_THROTTLE)
+        & ~tel["Brake"].to_numpy(dtype=bool)
+        & (v >= CLIP_MIN_KPH)
+    )
+    total = dt[on].sum()
+    if total <= 0:
+        return 0.0
+    return float(dt[on & (rate < -CLIP_DECEL_KPH_PER_S)].sum() / total)
+
+
+def energy_profile(session: Any) -> dict[str, float]:
+    """Return the median top speed and clipping share over each driver's fastest lap."""
+    tops, clips = [], []
+    for lap in _fastest_laps(session).values():
+        try:
+            tel = lap.get_car_data()
+        except Exception:  # no car data for this driver
+            continue
+        if len(tel) < 3:
+            continue
+        tops.append(float(tel["Speed"].max()))
+        clips.append(clipping_share(tel))
+    if not tops:
+        return {}
+    return {"top_speed_kph": float(np.median(tops)), "clipping": float(np.median(clips))}
 
 
 def race_compound_deg(session: Any) -> dict[str, float]:

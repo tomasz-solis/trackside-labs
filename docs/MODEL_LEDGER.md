@@ -1508,6 +1508,19 @@ Check against the 16 dry 2026 races, the 2026 value being that race's deg over t
 
 A modest prior: 13% less error than flat. Largest misses: Barcelona 3.29 measured against 1.39, Austria 1.85 against 0.89, China 0.55 against 1.16, Canada below zero against 0.75. Qatar at 0.60 contradicts its reputation as a hard track on tyres (2023 ran a stint limit, 2024 fitted below zero); treat it as suspect. Single-race 2026 values are noisy, so part of the miss is the target. Nothing reads the field yet; plan item 1 is the first arm that does. Not checked: per-compound severity, traffic beyond the 3 s and 2 s trims, the 2026 Bahrain event at Sepang (no history).
 
+## 2026-10-29: track top speed and energy clipping in the track profile: measured, not used yet
+
+`track_profile` now adds `top_speed_kph` and `clipping` (median over every driver's fastest lap). Clipping is the share of full-throttle time above 200 km/h with the car slowing faster than 2 km/h per second: the 2026 car running out of deployable energy. The cron already re-measures the upcoming track's profile from the weekend's latest dry session before it predicts (stage 0d), so both fields follow each session.
+
+| 2026 qualifying | Top speed, km/h | Clipping |
+|---|---|---|
+| Baku | 322 | 0.178 |
+| Monza | 336 | 0.112 |
+| Singapore | 307 | 0.010 |
+| Monaco | 287 | 0.000 |
+
+No model reads either field (`TRAIT_TO_SHARE` maps neither), so forecasts are unchanged. Races measured before this change lack both fields. Plan item 9 decides whether they enter the model, through a replay arm.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

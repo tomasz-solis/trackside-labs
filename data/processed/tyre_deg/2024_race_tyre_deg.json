@@ -1,0 +1,159 @@
+{
+  "races": {
+    "Abu Dhabi Grand Prix": {
+      "deg": 0.0494,
+      "laps_used": 876,
+      "race": "Abu Dhabi Grand Prix",
+      "trend": -0.0613,
+      "wet_share": 0.0
+    },
+    "Australian Grand Prix": {
+      "deg": 0.019,
+      "laps_used": 818,
+      "race": "Australian Grand Prix",
+      "trend": -0.057,
+      "wet_share": 0.0
+    },
+    "Austrian Grand Prix": {
+      "deg": 0.0301,
+      "laps_used": 1222,
+      "race": "Austrian Grand Prix",
+      "trend": -0.0268,
+      "wet_share": 0.0
+    },
+    "Azerbaijan Grand Prix": {
+      "deg": 0.0286,
+      "laps_used": 812,
+      "race": "Azerbaijan Grand Prix",
+      "trend": -0.0692,
+      "wet_share": 0.0
+    },
+    "Bahrain Grand Prix": {
+      "deg": 0.0379,
+      "laps_used": 979,
+      "race": "Bahrain Grand Prix",
+      "trend": -0.071,
+      "wet_share": 0.0
+    },
+    "Belgian Grand Prix": {
+      "deg": 0.0368,
+      "laps_used": 711,
+      "race": "Belgian Grand Prix",
+      "trend": -0.0887,
+      "wet_share": 0.0
+    },
+    "British Grand Prix": {
+      "deg": 0.0997,
+      "laps_used": 553,
+      "race": "British Grand Prix",
+      "trend": -0.0639,
+      "wet_share": 0.243
+    },
+    "Chinese Grand Prix": {
+      "deg": 0.0681,
+      "laps_used": 718,
+      "race": "Chinese Grand Prix",
+      "trend": -0.0691,
+      "wet_share": 0.0
+    },
+    "Dutch Grand Prix": {
+      "deg": 0.0417,
+      "laps_used": 1316,
+      "race": "Dutch Grand Prix",
+      "trend": -0.0389,
+      "wet_share": 0.0
+    },
+    "Emilia Romagna Grand Prix": {
+      "deg": 0.0499,
+      "laps_used": 1126,
+      "race": "Emilia Romagna Grand Prix",
+      "trend": -0.0317,
+      "wet_share": 0.0
+    },
+    "Hungarian Grand Prix": {
+      "deg": 0.0381,
+      "laps_used": 1181,
+      "race": "Hungarian Grand Prix",
+      "trend": -0.0484,
+      "wet_share": 0.0
+    },
+    "Italian Grand Prix": {
+      "deg": 0.0242,
+      "laps_used": 898,
+      "race": "Italian Grand Prix",
+      "trend": -0.0581,
+      "wet_share": 0.0
+    },
+    "Japanese Grand Prix": {
+      "deg": 0.0412,
+      "laps_used": 735,
+      "race": "Japanese Grand Prix",
+      "trend": -0.0859,
+      "wet_share": 0.0
+    },
+    "Las Vegas Grand Prix": {
+      "deg": 0.0235,
+      "laps_used": 787,
+      "race": "Las Vegas Grand Prix",
+      "trend": -0.0725,
+      "wet_share": 0.0
+    },
+    "Mexico City Grand Prix": {
+      "deg": 0.0358,
+      "laps_used": 1045,
+      "race": "Mexico City Grand Prix",
+      "trend": -0.0466,
+      "wet_share": 0.0
+    },
+    "Miami Grand Prix": {
+      "deg": 0.0225,
+      "laps_used": 912,
+      "race": "Miami Grand Prix",
+      "trend": -0.0534,
+      "wet_share": 0.0
+    },
+    "Monaco Grand Prix": {
+      "deg": 0.0027,
+      "laps_used": 1022,
+      "race": "Monaco Grand Prix",
+      "trend": -0.056,
+      "wet_share": 0.0
+    },
+    "Qatar Grand Prix": {
+      "deg": -0.0155,
+      "laps_used": 648,
+      "race": "Qatar Grand Prix",
+      "trend": -0.0656,
+      "wet_share": 0.0
+    },
+    "Saudi Arabian Grand Prix": {
+      "deg": 0.0449,
+      "laps_used": 765,
+      "race": "Saudi Arabian Grand Prix",
+      "trend": -0.1099,
+      "wet_share": 0.0
+    },
+    "Singapore Grand Prix": {
+      "deg": 0.0587,
+      "laps_used": 1065,
+      "race": "Singapore Grand Prix",
+      "trend": -0.0461,
+      "wet_share": 0.0
+    },
+    "Spanish Grand Prix": {
+      "deg": 0.0763,
+      "laps_used": 1167,
+      "race": "Spanish Grand Prix",
+      "trend": -0.0621,
+      "wet_share": 0.0
+    },
+    "United States Grand Prix": {
+      "deg": 0.0343,
+      "laps_used": 865,
+      "race": "United States Grand Prix",
+      "trend": -0.0714,
+      "wet_share": 0.0
+    }
+  },
+  "season": 2024
+}

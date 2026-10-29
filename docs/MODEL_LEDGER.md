@@ -1483,6 +1483,31 @@ Rejected on the way, by a paired probe (protocol of the 2026-10-27 safety car en
 
 Gaps: the Malaysian Grand Prix entry has no `vsc_prob`; the 2026 event named Spanish Grand Prix resolves to no track entry, so it counts in the season rate but is not refitted.
 
+## 2026-10-29: track tyre deg severity (plan item 17): measured, not used yet
+
+`scripts/extract_tyre_deg_severity.py` fits one regression per dry race over clean green laps: lap time = driver intercept + compound offset + deg x tyre age + trend x lap number. A stop resets tyre age while lap number keeps rising, so deg is separated from fuel burn and track evolution. Per-season measurements live in `data/processed/tyre_deg/`.
+
+| Season | Races measured, dry | Median deg, s per lap of tyre age | Trend, s per lap |
+|---|---|---|---|
+| 2023 | 20, 18 | 0.027 | -0.08 to -0.03 |
+| 2024 | 22, 21 | 0.037 | -0.11 to -0.03 |
+| 2025 | 21, 21 | 0.044 | -0.08 to -0.02 |
+| 2026 | 17, 16 | 0.044 | -0.07 to -0.01 |
+
+A race is skipped when within-driver tyre age and lap number correlate above 0.95: one stop on the same lap for the whole field leaves deg and trend unidentified (Baku 2023 fitted -7.45 and +7.39, Spa 2025 -5.04 and +4.99). A race with more than 10% intermediate or wet laps is not dry.
+
+`tyre_deg_severity` in the 2026 track file is each track's median of deg over its season median across 2023-25, pulled toward 1.0 as if two more seasons read 1.0. Range 0.60 (Qatar, Monaco) to 1.39 (Barcelona, Spa); Mexico City 1.14. Same-season values are not used: every track races once a season, so none exists before the race it would inform.
+
+Check against the 16 dry 2026 races, the 2026 value being that race's deg over the 2026 median:
+
+| Prior | Rank correlation | Mean abs error, relative |
+|---|---|---|
+| Flat 1.0 | - | 0.567 |
+| 2025 only (13 tracks) | 0.70 | 0.485 |
+| Shipped rule, 2023-25 | 0.61 | 0.491 |
+
+A modest prior: 13% less error than flat. Largest misses: Barcelona 3.29 measured against 1.39, Austria 1.85 against 0.89, China 0.55 against 1.16, Canada below zero against 0.75. Qatar at 0.60 contradicts its reputation as a hard track on tyres (2023 ran a stint limit, 2024 fitted below zero); treat it as suspect. Single-race 2026 values are noisy, so part of the miss is the target. Nothing reads the field yet; plan item 1 is the first arm that does. Not checked: per-compound severity, traffic beyond the 3 s and 2 s trims, the 2026 Bahrain event at Sepang (no history).
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

@@ -384,6 +384,8 @@ TRACK_CHARACTERISTICS_SCHEMA = {
                         "overtaking_avg_changes_per_lap": {"type": "number", "minimum": 0.0},
                         "overtaking_years_analyzed": {"type": "integer", "minimum": 0},
                         "overtaking_observed_races": {"type": "integer", "minimum": 0},
+                        "tyre_deg_severity": {"type": "number", "minimum": 0.0, "maximum": 5.0},
+                        "tyre_deg_seasons": {"type": "integer", "minimum": 0},
                         "straights_pct": {"type": "number", "minimum": 0.0, "maximum": 100.0},
                         "slow_corners_pct": {"type": "number", "minimum": 0.0, "maximum": 100.0},
                         "medium_corners_pct": {"type": "number", "minimum": 0.0, "maximum": 100.0},

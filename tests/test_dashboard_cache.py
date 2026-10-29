@@ -48,6 +48,7 @@ def test_get_file_timestamps_reports_existing_and_missing_files(patcher):
     existing_files = {
         "data/2025_pirelli_info.json": b"pirelli",
         "config/default.yaml": b"defaults",
+        "data/processed/track_characteristics/2026_track_characteristics.json": b"tracks",
     }
     patcher.setattr(
         cache,
@@ -66,6 +67,11 @@ def test_get_file_timestamps_reports_existing_and_missing_files(patcher):
         hashlib.sha1(existing_files["config/default.yaml"]).hexdigest(),
     )
     assert timestamps["data/2026_pirelli_info.json"] == (0, "")
+    # The simulator reads safety car rates from this file, so DB-backed modes must hash it too.
+    assert (
+        timestamps["data/processed/track_characteristics/2026_track_characteristics.json"][0] == 6
+    )
+    assert "data/processed/car_characteristics/2026_car_characteristics.json" not in timestamps
     assert timestamps["src/models/regulations.py"] == (0, "")
     assert timestamps["src/predictors/baseline_2026.py"] == (0, "")
     assert timestamps["src/predictors/baseline/data_support.py"] == (0, "")

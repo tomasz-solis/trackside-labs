@@ -58,7 +58,6 @@ _RUNTIME_PREDICTION_INPUT_FILES = [
     "data/processed/car_characteristics/{year}_car_characteristics.json",
     "data/processed/driver_characteristics/{year}_driver_characteristics.json",
     "data/processed/driver_characteristics.json",
-    "data/processed/track_characteristics/{year}_track_characteristics.json",
     "data/systems/practice_characteristics_state.json",
 ]
 _FILE_FINGERPRINT_CACHE: dict[str, tuple[int, int, tuple[int, str]]] = {}
@@ -290,6 +289,9 @@ def _get_file_timestamps(
         # from before the change, until an unrelated season artifact happens to bump
         # the hash.
         "data/processed/team_strength_seconds_mapping/latest.json",
+        # Same for track characteristics: the simulator reads pit loss and safety car and
+        # VSC rates from this committed file, while the DB copy only moves on a backfill.
+        f"data/processed/track_characteristics/{season_year}_track_characteristics.json",
         *_prediction_code_files(),
     ]
     runtime_files = [

@@ -1457,6 +1457,32 @@ Same change: the dashboard likely range is refitted on both seeds of `Z_base_34_
 
 Pooled: 63% race, 62% sprint, 59% qualifying, the same as the 2026-10-01 fit. Ranges stay 3 to 7 places wide.
 
+## 2026-10-29: 2026 safety car and VSC rates refitted: `unresolvable`; shipped as a data correction
+
+`scripts/refit_neutralisation_rates.py` counts races with a safety car and races with a VSC from race control messages (FastF1 cache, OpenF1 where FastF1 needs a login), with one rule for every season. The preseason file sat below even its own source years:
+
+| | 2023-25 | 2026, 18 races | Preseason file, calendar mean | Refit |
+|---|---|---|---|---|
+| Safety car | 33/70 (47%) | 9/18 (50%) | 0.357 | 0.484 |
+| VSC | 27/70 (39%) | 13/18 (72%) | 0.260 | 0.532 |
+
+2023-25 counts as one extra season. Every calendar track moves by the same log-odds shift, so each keeps its preseason rank (Mexico City safety car 0.35 to 0.49, VSC 0.25 to 0.53). No track is refitted from its own race. Pit loss and the SC/VSC pit discounts are unchanged.
+
+Arm `N_neutral_rates_s42` / `_s43`: code `47a1c035` plus the refitted file (model 3.5). Baseline `D_widening_on_s42` / `_s43` (the 3.5 logic with the old rates), 62 checkpoints.
+
+| | s42 | s43 |
+|---|---|---|
+| Grand Prix correlation | +0.0013 [-0.0021, +0.0055] | +0.0013 [-0.0007, +0.0035] |
+| Grand Prix MAE | -0.0023 | -0.0065 |
+| Grand Prix p5-p95 coverage | 87.5% to 88.0% | 88.1% to 88.0% |
+| Sprint p5-p95 coverage | 90.1% to 90.1% | 90.4% to 90.1% |
+
+Every race and sprint metric is `unresolvable (below seed floor)`; qualifying is identical. Band width stays 11.3 places. Shipped because the rates now match the counted seasons and the bands hold. Not walk-forward: the 2026 count includes rounds after each checkpoint, but it is one season number per kind, so the leak is small.
+
+Rejected on the way, by a paired probe (protocol of the 2026-10-27 safety car entry): per-track 2026 pit loss plus per-track rates shrunk with one race each moved orders 0.717 against a seed floor of 0.684, MAE 3.406 both, in-sample. Pit loss (in-lap start to out-lap end, minus the median of non-pitting cars on those laps) reads high where green stops are few: Australia 29.0 s from 9 stops, Canada 27.3 s. The SC and VSC pit discount cannot be measured this way, because the saving comes after the stop; config stays 12 s and 5 s.
+
+Gaps: the Malaysian Grand Prix entry has no `vsc_prob`; the 2026 event named Spanish Grand Prix resolves to no track entry, so it counts in the season rate but is not refitted.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

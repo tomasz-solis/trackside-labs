@@ -1521,6 +1521,23 @@ A modest prior: 13% less error than flat. Largest misses: Barcelona 3.29 measure
 
 No model reads either field (`TRAIT_TO_SHARE` maps neither), so forecasts are unchanged. Races measured before this change lack both fields. Plan item 9 decides whether they enter the model, through a replay arm.
 
+## 2026-10-30: carry-over tyre deg scaled by track severity (plan item 1): `unresolvable`; better before practice, worse after
+
+Arm `T1_carry_over_severity_s42` / `_s43`: `baseline_predictor.race.tyre_deg_model: carry_over`. The field wear slope per compound is the median over earlier 2026 races of each race's slope divided by its track's `tyre_deg_severity`, times the target track's severity, plus the carry-over team factor; practice slopes are ignored. Baseline `N_neutral_rates_s42` / `_s43` (model 3.5, live; the three commits since change no forecast). Uncommitted code on `c8b49864`, `--through-round 17`, 62 checkpoints. Qualifying is identical (never activated).
+
+| Race correlation delta | Seed 42 | Seed 43 |
+|---|---|---|
+| All 62 checkpoints | -0.0003 | -0.0026 |
+| PRE (17) | +0.0128 | +0.0090 |
+| FP1 (17) | -0.0009 | -0.0009 |
+| FP2 (11) | -0.0078 | -0.0119 |
+| FP3 (11) | -0.0021 | -0.0014 |
+| SQ (6) | -0.0182 | -0.0255 |
+
+Race MAE -0.0125 / +0.0194 and sprint correlation +0.0018 / +0.0004, all `unresolvable (below seed floor)`. Same split as the 2026-10-04 arm (PRE +0.0086 / +0.0053), with a larger PRE gain. Before practice the practice slopes come from another weekend; after it they are noisy but carry this weekend's long-run pace, which the carry-over drops.
+
+PRE only, synthesized from the two runs (arm accuracy at PRE, baseline elsewhere; not a replay): race correlation +0.0035 / +0.0025, CI [+0.0011, +0.0060] / [+0.0006, +0.0047]; race MAE -0.025 / -0.020, CI excludes zero on both seeds; both still below the seed floor. Sprint correlation -0.0007 / -0.0013. Default stays `practice`; plan item 1 is closed. The PRE-only split is not pursued: it was picked after looking at the results, a replay on the same races and seeds would only repeat them, and the 5 PRE forecasts left in 2026 cannot resolve an effect this size. The severity scaling stays behind the switch.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

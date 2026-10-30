@@ -10,18 +10,51 @@ def _race(compound_deg, deg_by_team):
     return {"compound_deg": compound_deg, "traits": {t: {"deg": v} for t, v in deg_by_team.items()}}
 
 
-def test_field_slope_is_the_median_raw_slope_over_earlier_races():
+def test_field_slope_is_the_median_wear_slope_over_earlier_races():
     races = {
         "R1": _race({"SOFT": 0.01, "MEDIUM": 0.0}, {}),
         "R2": _race({"SOFT": 0.03}, {}),
         "R3": _race({"SOFT": -0.30}, {}),  # an outlier like Monaco does not drag the median
     }
 
-    slopes = td.field_raw_slopes(races, ["R1", "R2", "R3"])
+    slopes = td.field_wear_slopes(races, ["R1", "R2", "R3"], 0.05, {})
 
-    assert slopes["SOFT"] == pytest.approx(0.01)
-    assert slopes["MEDIUM"] == pytest.approx(0.0)
-    assert slopes["HARD"] == pytest.approx(td.FALLBACK_RAW_SLOPE["HARD"])  # no data yet
+    assert slopes["SOFT"] == pytest.approx(0.06)
+    assert slopes["MEDIUM"] == pytest.approx(0.05)
+    assert slopes["HARD"] == pytest.approx(td.FALLBACK_RAW_SLOPE["HARD"] + 0.05)  # no data yet
+
+
+def test_field_slope_removes_each_track_severity():
+    races = {"Easy": _race({"SOFT": 0.01}, {}), "Hard": _race({"SOFT": 0.07}, {})}
+
+    slopes = td.field_wear_slopes(races, ["Easy", "Hard"], 0.05, {"Easy": 0.6, "Hard": 1.2})
+
+    assert slopes["SOFT"] == pytest.approx(0.1)  # both read 0.1 at a typical track
+
+
+def test_slopes_scale_by_the_target_track_severity(monkeypatch):
+    from src.data import track_data_loader
+    from src.extractors import car_track_traits
+    from src.utils import weekend
+
+    td.tyre_deg_slopes.cache_clear()
+    monkeypatch.setattr(
+        weekend, "get_schedule_rows", lambda year: [("R1", "conventional"), ("T", "conventional")]
+    )
+    monkeypatch.setattr(
+        car_track_traits,
+        "load_car_track_traits",
+        lambda year: {"races": {"R1": _race({"SOFT": 0.05, "MEDIUM": 0.0, "HARD": 0.0}, {})}},
+    )
+    monkeypatch.setattr(
+        track_data_loader, "track_deg_severity", lambda race, year: {"R1": 1.0, "T": 1.5}[race]
+    )
+
+    field, _ = td.tyre_deg_slopes(2026, "T", 0.05)
+    td.tyre_deg_slopes.cache_clear()
+
+    assert field["SOFT"] == pytest.approx(0.15)
+    assert field["MEDIUM"] == pytest.approx(0.075)
 
 
 def test_team_estimate_grows_with_evidence_and_stays_shrunk():

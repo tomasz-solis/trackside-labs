@@ -8,6 +8,11 @@ same moment does, and that is governed by true wear. So the slope is the observe
 slope plus the real per-lap fuel gain (about 1.6 kg/lap x 0.03 s/kg), not the
 simulator's own fuel model.
 
+Tracks differ: each earlier race's slope is divided by its track's
+``tyre_deg_severity`` (2023-25 history, 1.0 typical) before the median, and the result
+is multiplied by the target track's, so a run of easy tracks does not set the level for
+a hard one. A track without a severity counts as 1.0.
+
 Per team, degradation is a small, persistent car trait (true sd about 0.009 s/lap per
 lap against one-race noise of about 0.032), so it is estimated by a one-dimensional
 Kalman filter over earlier races: start from 0 (the field), update with each race's
@@ -30,16 +35,28 @@ DRIFT_SD = 0.002
 FALLBACK_RAW_SLOPE = {"SOFT": 0.017, "MEDIUM": 0.0, "HARD": 0.0}
 
 
-def field_raw_slopes(races_data: Mapping[str, Any], prior_races: Sequence[str]) -> dict[str, float]:
-    """Return the median observed raw stint slope per compound over ``prior_races``."""
+def field_wear_slopes(
+    races_data: Mapping[str, Any],
+    prior_races: Sequence[str],
+    fuel_gain_per_lap: float,
+    severity: Mapping[str, float],
+) -> dict[str, float]:
+    """Return the median true wear slope per compound over ``prior_races`` at a typical track.
+
+    True wear is the observed raw stint slope plus the fuel gain; each race's is divided
+    by its track's severity (missing counts as 1.0).
+    """
     out = {}
     for compound in COMPOUNDS:
         values = [
-            float(races_data[r]["compound_deg"][compound])
+            (float(races_data[r]["compound_deg"][compound]) + fuel_gain_per_lap)
+            / severity.get(r, 1.0)
             for r in prior_races
             if compound in (races_data.get(r) or {}).get("compound_deg", {})
         ]
-        out[compound] = median(values) if values else FALLBACK_RAW_SLOPE[compound]
+        out[compound] = (
+            median(values) if values else FALLBACK_RAW_SLOPE[compound] + fuel_gain_per_lap
+        )
     return out
 
 
@@ -71,6 +88,7 @@ def tyre_deg_slopes(
     Uses only races the schedule places before ``race_name``. None when the race is
     not in the schedule, so callers keep their current slopes.
     """
+    from src.data.track_data_loader import track_deg_severity
     from src.extractors.car_track_traits import load_car_track_traits
     from src.utils.weekend import get_schedule_rows
 
@@ -87,6 +105,7 @@ def tyre_deg_slopes(
         return None
     races_data = load_car_track_traits(year)["races"]
     prior = schedule[: schedule.index(target)]
-    raw = field_raw_slopes(races_data, prior)
-    field = {c: max(0.0, raw[c] + float(fuel_gain_per_lap)) for c in COMPOUNDS}
+    severity = {race: track_deg_severity(race, year) or 1.0 for race in [*prior, target]}
+    typical = field_wear_slopes(races_data, prior, float(fuel_gain_per_lap), severity)
+    field = {c: max(0.0, typical[c] * severity[target]) for c in COMPOUNDS}
     return field, team_deg_deltas(races_data, prior)

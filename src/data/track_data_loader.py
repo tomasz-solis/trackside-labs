@@ -207,6 +207,19 @@ def _load_track_characteristics_tracks(path_str: str) -> dict[str, Any]:
     return cast(dict[str, Any], data.get("tracks", {}))
 
 
+def track_deg_severity(race_name: str, year: int = 2026) -> float | None:
+    """Return the race's track ``tyre_deg_severity`` (1.0 typical), or None when unmeasured."""
+    path = _resolve_track_characteristics_path(year)
+    if path is None:
+        return None
+    try:
+        key = resolve_track_data_key(race_name, year=year)
+    except CircuitResolutionError:
+        return None
+    entry = _load_track_characteristics_tracks(str(path)).get(key or "", {})
+    return _coerce_float(entry.get("tyre_deg_severity"))
+
+
 def _resolve_pirelli_path(year: int) -> Path | None:
     """Resolve season-aware Pirelli file with fallback ordering."""
     for candidate_year in _pirelli_candidate_years(year):

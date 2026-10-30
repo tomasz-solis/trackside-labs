@@ -67,6 +67,21 @@ def _fastest_laps(session: Any) -> dict[str, Any]:
     return out
 
 
+def _fastest_lap_with_car_data(laps: dict[str, Any]) -> tuple[Any, pd.DataFrame]:
+    """Return the quickest of ``laps`` that has car data, with that data.
+
+    OpenF1 sessions can lack car data for one driver; the next quickest lap stands in.
+    """
+    for lap in sorted(laps.values(), key=lambda lap: lap["LapTime"]):
+        try:
+            tel = lap.get_car_data()
+        except Exception:  # no car data for this driver
+            continue
+        if len(tel) >= 3:
+            return lap, tel
+    raise ValueError("no fastest lap has car data")
+
+
 def corner_distances(session: Any) -> np.ndarray:
     """Return corner apex distances from FastF1 circuit info, or from the speed trace.
 
@@ -78,7 +93,8 @@ def corner_distances(session: Any) -> np.ndarray:
         return corners.drop_duplicates("Number")["Distance"].to_numpy(dtype=float)
     except Exception:  # FastF1 has no circuit info for this event
         pass
-    tel = session.laps.pick_fastest().get_car_data().add_distance()
+    _, tel = _fastest_lap_with_car_data(_fastest_laps(session))
+    tel = tel.add_distance()
     dist = tel["Distance"].to_numpy(dtype=float)
     speed = tel["Speed"].to_numpy(dtype=float)
     apexes: list[float] = []
@@ -200,9 +216,9 @@ def team_quali_gaps(session: Any, team_of: dict[str, str]) -> dict[str, float]:
 
 
 def track_profile(session: Any) -> dict[str, float]:
-    """Return a track's lap composition from the session's fastest lap."""
-    lap = session.laps.pick_fastest()
-    tel = lap.get_car_data()
+    """Return a track's lap composition from the session's fastest lap with car data."""
+    laps = _fastest_laps(session)
+    _, tel = _fastest_lap_with_car_data(laps)
     dt = tel["Time"].dt.total_seconds().diff().fillna(0.0).to_numpy()
     speed = tel["Speed"].to_numpy(dtype=float)
     full = tel["Throttle"].to_numpy(dtype=float) >= _FULL_THROTTLE
@@ -216,7 +232,7 @@ def track_profile(session: Any) -> dict[str, float]:
         ),
         "fast": float(dt[~full & (speed > FAST_MIN_KPH)].sum() / total),
         "braking": float(dt[brake].sum() / total),
-        "lap_time_s": float(lap["LapTime"].total_seconds()),
+        "lap_time_s": float(min(lap["LapTime"] for lap in laps.values()).total_seconds()),
         **energy_profile(session),
     }
 

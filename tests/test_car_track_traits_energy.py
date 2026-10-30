@@ -1,4 +1,4 @@
-"""Tests for the track profile's top speed and energy clipping measures."""
+"""Tests for the track profile: fastest lap choice, top speed and energy clipping."""
 
 from __future__ import annotations
 
@@ -62,6 +62,37 @@ def test_energy_profile_takes_medians_and_skips_drivers_without_car_data(monkeyp
 
     assert profile["top_speed_kph"] == 320.0  # median of 300, 320, 330
     assert profile["clipping"] == 0.0  # median of 0, 0, about 1
+
+
+class _TimedLap(dict):
+    def __init__(self, seconds, tel):
+        super().__init__(LapTime=pd.Timedelta(seconds=seconds))
+        self._tel = tel
+
+    def get_car_data(self):
+        if self._tel is None:
+            raise KeyError("12")
+        return self._tel
+
+
+def test_track_profile_uses_next_fastest_lap_when_fastest_has_no_car_data(monkeypatch):
+    slow_corner = _telemetry([80.0] * 20, throttle=40.0)
+    laps = {"A": _TimedLap(90.0, None), "B": _TimedLap(90.5, slow_corner)}
+    monkeypatch.setattr(car_track_traits, "_fastest_laps", lambda session: laps)
+
+    profile = car_track_traits.track_profile(object())
+
+    assert profile["slow"] == 1.0  # B's lap: all slow, part throttle
+    assert profile["lap_time_s"] == 90.0  # timing still says A was fastest
+
+
+def test_track_profile_raises_when_no_lap_has_car_data(monkeypatch):
+    monkeypatch.setattr(
+        car_track_traits, "_fastest_laps", lambda session: {"A": _TimedLap(90.0, None)}
+    )
+
+    with pytest.raises(ValueError, match="no fastest lap has car data"):
+        car_track_traits.track_profile(object())
 
 
 def test_energy_profile_is_empty_without_any_car_data(monkeypatch):

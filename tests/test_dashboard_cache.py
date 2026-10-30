@@ -112,7 +112,7 @@ def test_get_artifact_versions_combines_store_and_file_timestamps(patcher):
         3,
         "2026-02-02T00:00:00",
     )
-    assert versions["track_characteristics::2026::track_characteristics"] == (0, "")
+    assert "track_characteristics::2026::track_characteristics" not in versions
     assert versions["config/default.yaml"] == (9, "9.1")
 
 
@@ -182,8 +182,6 @@ def test_get_artifact_versions_supports_non_default_year(patcher):
                 return {"version": 11, "last_updated": "2027-02-01T00:00:00"}
             if artifact_key == "2027::driver_characteristics":
                 return {"version": 5, "updated_at": "2027-02-02T00:00:00"}
-            if artifact_key == "2027::track_characteristics":
-                return {"version": 2, "updated_at": "2027-02-03T00:00:00"}
             return None
 
     patcher.setattr(cache, "ArtifactStore", _Store)
@@ -201,10 +199,6 @@ def test_get_artifact_versions_supports_non_default_year(patcher):
     assert versions["driver_characteristics::2027::driver_characteristics"] == (
         5,
         "2027-02-02T00:00:00",
-    )
-    assert versions["track_characteristics::2027::track_characteristics"] == (
-        2,
-        "2027-02-03T00:00:00",
     )
 
 

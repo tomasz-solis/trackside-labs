@@ -892,40 +892,30 @@ class BaselineDataMixin:
 
         return driver_data
 
-    def _load_track_characteristics(
-        self,
-        store: ArtifactStore,
-        target_year: int,
-    ) -> dict:
-        """Load, validate, and return the track-characteristics payload.
+    def _load_track_characteristics(self, target_year: int) -> dict:
+        """Load, validate, and return the committed track-characteristics payload.
 
-        Returns an empty dict when no track file exists (non-fatal).
+        Always the file, never the store: the race simulator reads the same file, so
+        both see one copy. Returns an empty dict when no track file exists (non-fatal).
         Raises ValueError if a file is found but fails schema validation.
         """
-        track_data = store.load_artifact(
-            artifact_type="track_characteristics",
-            artifact_key=f"{target_year}::track_characteristics",
+        fallback = nearest_season_payload_path(
+            self.data_dir / "track_characteristics",
+            suffix="track_characteristics",
+            target_year=target_year,
         )
-        source_year = target_year
-        if not track_data:
-            logger.warning("Could not load track characteristics from DB, falling back to file")
-            fallback = nearest_season_payload_path(
-                self.data_dir / "track_characteristics",
-                suffix="track_characteristics",
-                target_year=target_year,
+        if fallback is None:
+            logger.warning("Track characteristics not found")
+            return {}
+        source_year, track_file = fallback
+        with open(track_file) as f:
+            track_data = json.load(f)
+        if source_year != target_year:
+            logger.warning(
+                "Using %s track characteristics as preseason proxy for season %s.",
+                source_year,
+                target_year,
             )
-            if fallback is None:
-                logger.warning("Track characteristics not found")
-                return {}
-            source_year, track_file = fallback
-            with open(track_file) as f:
-                track_data = json.load(f)
-            if source_year != target_year:
-                logger.warning(
-                    "Using %s track characteristics as preseason proxy for season %s.",
-                    source_year,
-                    target_year,
-                )
 
         if track_data:
             track_data = self._build_cross_season_track_proxy_payload(
@@ -1114,7 +1104,7 @@ class BaselineDataMixin:
         driver_payload = self._load_driver_characteristics(store, target_year)
         self.drivers = driver_payload["drivers"]
 
-        track_payload = self._load_track_characteristics(store, target_year)
+        track_payload = self._load_track_characteristics(target_year)
         self.tracks = track_payload.get("tracks", {})
         if self.tracks:
             logger.info("Loaded track characteristics for %s circuits", len(self.tracks))

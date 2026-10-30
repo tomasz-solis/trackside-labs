@@ -31,7 +31,7 @@ Any mode except `file_only` needs `SUPABASE_URL` (checked at startup, must be `h
 | `operational_events` | Counters and alerts |
 | `app_events` | Dashboard telemetry. RLS forced, `service_role` only, no IPs, emails or raw user agents |
 
-Baseline artifact keys: `2026::car_characteristics`, `2026::driver_characteristics`, `2026::track_characteristics`, `driver_debuts`.
+Baseline artifact keys: `2026::car_characteristics`, `2026::driver_characteristics`, `driver_debuts`. Track characteristics live only in git (`data/processed/track_characteristics/`): the predictor and the race simulator both read the committed file.
 
 Adaptive learning state (driver errors, teammate gaps, interval residuals) is the artifact `learning_state::learning_state`. Rebuild it from saved forecasts with `uv run python scripts/rebuild_learning_state.py --env-file .env.local` (dry run; `--apply` saves, never during a race weekend).
 

@@ -205,28 +205,9 @@ def discover_artifacts(
         except Exception as e:
             print(f"  [WARN]  Failed to load {debut_file}: {e}")
 
-    # 5. Track characteristics (multiple years)
-    track_chars_dir = data_root / "processed" / "track_characteristics"
-    if track_chars_dir.exists():
-        for file in sorted(track_chars_dir.glob("*_track_characteristics.json")):
-            try:
-                data = _load_json_file(file)
-                year = file.stem.split("_")[0]
-                artifacts.append(
-                    {
-                        "file_path": file,
-                        "artifact_type": "track_characteristics",
-                        "artifact_key": f"{year}::track_characteristics",
-                        "data": data,
-                        "version": data.get("version", 1),
-                        "checksum": compute_checksum(data),
-                    }
-                )
-                print(f"  Found: {file.relative_to(data_root)}")
-            except Exception as e:
-                print(f"  [WARN]  Failed to load {file}: {e}")
+    # Track characteristics stay in git only: the predictor and simulator read the file.
 
-    # 6. Learning state artifact (legacy compatibility)
+    # 5. Learning state artifact (legacy compatibility)
     learning_file = data_root / "learning_state.json"
     if learning_file.exists():
         try:
@@ -246,7 +227,7 @@ def discover_artifacts(
         except Exception as e:
             print(f"  [WARN]  Failed to load {learning_file}: {e}")
 
-    # 7. Predictions (scan all years/races only when explicitly requested)
+    # 6. Predictions (scan all years/races only when explicitly requested)
     predictions_dir = data_root / "predictions"
     if predictions_dir.exists() and not include_predictions:
         print("  Skipped: predictions/ (use --include-predictions for an explicit sync)")

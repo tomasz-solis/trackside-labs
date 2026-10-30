@@ -117,7 +117,6 @@ def get_artifact_versions(year: int = _DEFAULT_SEASON) -> dict[str, tuple[int, s
     artifacts_to_track = [
         ("car_characteristics", f"{season_year}::car_characteristics"),
         ("driver_characteristics", f"{season_year}::driver_characteristics"),
-        ("track_characteristics", f"{season_year}::track_characteristics"),
         ("team_race_pace", f"{season_year}::team_race_pace"),
         ("team_strength_seconds_mapping", "latest"),
         ("car_track_traits", f"{season_year}::car_track_traits"),

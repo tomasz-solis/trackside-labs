@@ -206,6 +206,22 @@ def test_load_data_falls_back_to_files(tmp_path, patcher, sample_payloads):
     assert predictor.year == 2026
 
 
+def test_load_data_reads_tracks_from_the_file_not_the_store(tmp_path, patcher, sample_payloads):
+    car, drivers, tracks = sample_payloads
+    data_dir = tmp_path / "processed"
+    _write_baseline_files(data_dir, car, drivers, tracks)
+    stale = {"year": 2026, "tracks": {"Bahrain Grand Prix": {"pit_stop_loss": 99.0}}}
+    store = StubStore(payloads={("track_characteristics", "2026::track_characteristics"): stale})
+    predictor = DummyPredictor(data_dir=data_dir, artifact_store=store)
+    patcher.setattr(data_mixin_module, "validate_team_characteristics", _noop_schema_validator)
+    patcher.setattr(data_mixin_module, "validate_driver_characteristics", _noop_schema_validator)
+    patcher.setattr("src.utils.driver_validation.validate_driver_data", lambda payload: [])
+
+    predictor.load_data()
+
+    assert predictor.tracks["Bahrain Grand Prix"]["pit_stop_loss"] == pytest.approx(22.0)
+
+
 def test_load_data_canonicalizes_sauber_key_to_audi(tmp_path, patcher, sample_payloads):
     car, drivers, tracks = sample_payloads
     car["teams"] = {

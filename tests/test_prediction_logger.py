@@ -281,6 +281,35 @@ def test_update_actuals(temp_predictions_dir, sample_quali_prediction, sample_ra
     assert len(prediction["actuals"]["race"]) == 3
 
 
+def test_update_actuals_can_leave_learning_for_later(
+    temp_predictions_dir, sample_quali_prediction, sample_race_prediction
+):
+    """The replay attaches actuals per checkpoint but learns once the weekend is over."""
+    logger = PredictionLogger(predictions_dir=temp_predictions_dir)
+    logger.save_prediction(
+        year=2026,
+        race_name="Bahrain Grand Prix",
+        session_name="FP1",
+        qualifying_prediction=sample_quali_prediction,
+        race_prediction=sample_race_prediction,
+        weather="dry",
+    )
+    learned = []
+    logger.learning_system.update_from_prediction_record = learned.append
+
+    success = logger.update_actuals(
+        year=2026,
+        race_name="Bahrain Grand Prix",
+        session_name="FP1",
+        race_results=[{"driver": "Verstappen", "team": "Red Bull"}],
+        update_learning=False,
+    )
+
+    assert success is True
+    assert learned == []
+    assert logger.load_prediction(2026, "Bahrain Grand Prix", "FP1")["actuals"]["race"]
+
+
 def test_save_prediction_and_update_actuals_with_targets(
     temp_predictions_dir,
     sample_quali_prediction,

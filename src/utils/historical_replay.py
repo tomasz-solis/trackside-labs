@@ -1020,6 +1020,7 @@ def _build_race_checkpoint_record(
         qualifying_results=qualifying_actual,
         race_results=race_actual,
         target_actual_results=target_actual_results,
+        update_learning=False,
     )
 
     saved_prediction = logger_instance.load_prediction(year, race_name, checkpoint_session)
@@ -1095,6 +1096,25 @@ def _build_race_checkpoint_record(
         metrics_by_target=filtered_metrics,
         information_cutoff_at=information_cutoff_at,
     )
+
+
+def _learn_from_weekend(
+    *,
+    year: int,
+    race_name: str,
+    checkpoint_sessions: list[str],
+    output_root: Path,
+) -> None:
+    """Feed a finished weekend's checkpoint forecasts to the learning state, in order.
+
+    Live learns from a race once it is over. Learning after each checkpoint let the next
+    checkpoint of the same weekend see this race's result (ledger 2026-10-31).
+    """
+    prediction_logger = PredictionLogger(predictions_dir=str(output_root / "predictions"))
+    for checkpoint_session in checkpoint_sessions:
+        prediction = prediction_logger.load_prediction(year, race_name, checkpoint_session)
+        if prediction is not None:
+            prediction_logger.learning_system.update_from_prediction_record(prediction)
 
 
 def _save_challenger_snapshots(
@@ -1325,6 +1345,16 @@ def run_historical_checkpoint_replay(
                             )
                         )
 
+                _learn_from_weekend(
+                    year=year,
+                    race_name=race_name,
+                    checkpoint_sessions=[
+                        record.checkpoint_session
+                        for record in summary.checkpoints
+                        if record.race_name == race_name
+                    ],
+                    output_root=replay_output_root,
+                )
                 if is_sprint:
                     update_from_sprint_race(
                         year,

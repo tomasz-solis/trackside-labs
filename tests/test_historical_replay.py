@@ -164,6 +164,58 @@ def test_a_replay_before_qualifying_keeps_predicting_the_grid(monkeypatch):
     assert [row["driver"] for row in seen["grid"]] == ["NOR", "VER", "PIA"]
 
 
+def test_replay_learns_from_a_weekend_only_after_its_last_checkpoint(monkeypatch, tmp_path):
+    """No checkpoint may see learning from its own race's result, as live never does."""
+    from contextlib import nullcontext
+
+    import src.utils.historical_replay as replay
+
+    log: list[tuple[str, str, object]] = []
+    sessions = ["FP1", "FP2", "FP3", "Q", "R"]
+    monkeypatch.setattr(replay, "_force_file_only_storage", nullcontext)
+    monkeypatch.setattr(replay, "_walk_forward_car_track_traits", lambda root: nullcontext())
+    monkeypatch.setattr(replay, "_walk_forward_team_strength_mapping", lambda **kw: nullcontext())
+    monkeypatch.setattr(replay, "_prepare_output_root", lambda **kw: tmp_path / "processed")
+    monkeypatch.setattr(replay, "_build_replay_predictor_config", lambda: None)
+    monkeypatch.setattr(
+        replay,
+        "_season_snapshot_plan",
+        lambda year: [{"event_name": race, "sessions": sessions} for race in ("A GP", "B GP")],
+    )
+    monkeypatch.setattr(replay, "is_sprint_weekend", lambda year, race: False)
+    monkeypatch.setattr(replay, "_apply_session_update", lambda **kw: True)
+    monkeypatch.setattr(replay, "_refresh_replay_track_traits", lambda **kw: None)
+    monkeypatch.setattr(replay, "update_from_race", lambda *a, **kw: None)
+
+    def _record(**kw):
+        log.append(("predict", kw["race_name"], kw["checkpoint_session"]))
+        return replay.ReplayCheckpointRecord(
+            year=2026,
+            race_name=kw["race_name"],
+            checkpoint_session=kw["checkpoint_session"],
+            weekend_format="normal",
+            prediction_path="",
+            state_summary_path="",
+        )
+
+    monkeypatch.setattr(replay, "_build_race_checkpoint_record", _record)
+    monkeypatch.setattr(
+        replay,
+        "_learn_from_weekend",
+        lambda **kw: log.append(("learn", kw["race_name"], kw["checkpoint_sessions"])),
+    )
+
+    replay.run_historical_checkpoint_replay(source_processed_dir=tmp_path, output_root=tmp_path)
+
+    weekend = ["PRE", "FP1", "FP2", "FP3"]
+    assert log == [
+        *[("predict", "A GP", cp) for cp in weekend],
+        ("learn", "A GP", weekend),
+        *[("predict", "B GP", cp) for cp in weekend],
+        ("learn", "B GP", weekend),
+    ]
+
+
 def test_an_unusable_practice_session_is_skipped_not_fatal(monkeypatch, tmp_path):
     """FastF1 publishes 2026 Barcelona FP1 with no team names; the weekend still replays."""
 

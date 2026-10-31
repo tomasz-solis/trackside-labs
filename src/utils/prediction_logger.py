@@ -347,8 +347,13 @@ class PredictionLogger:
         race_results: ActualResultRows | None = None,
         run_id: str | None = None,
         target_actual_results: dict[str, ActualResultRows | None] | None = None,
+        update_learning: bool = True,
     ) -> bool:
-        """Attach actual results to a saved prediction."""
+        """Attach actual results to a saved prediction.
+
+        ``update_learning`` False skips the learning update, for a caller that learns
+        from the race later.
+        """
         prediction = self.load_prediction(year, race_name, session_name, run_id=run_id)
         if prediction is None:
             return False
@@ -435,6 +440,8 @@ class PredictionLogger:
                 exc,
             )
 
+        if not update_learning:
+            return True
         try:
             learning_summary = self.learning_system.update_from_prediction_record(prediction)
             if learning_summary.get("sessions_updated", 0) > 0:

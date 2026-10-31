@@ -77,7 +77,7 @@ test-github-chunk-b: ensure-python ensure-pytest
 	$(PYTHON) scripts/run_pytest_chunk.py --letters defgh -- -q
 
 test-github-chunk-c: ensure-python ensure-pytest
-	$(PYTHON) scripts/run_pytest_chunk.py --letters ilmnop -- -q
+	$(PYTHON) scripts/run_pytest_chunk.py --letters ijklmnop -- -q
 
 test-github-chunk-d: ensure-python ensure-pytest
 	$(PYTHON) scripts/run_pytest_chunk.py --letters qrs -- -q

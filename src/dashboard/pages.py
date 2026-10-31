@@ -982,7 +982,7 @@ def render_model_insights_page() -> None:
             {
                 "label": "Learning",
                 "value": "Gated",
-                "meta": "Results update the learned corrections.",
+                "meta": "Results set how wide the bands are.",
                 "tone": "success",
             },
             {

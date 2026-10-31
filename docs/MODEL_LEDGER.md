@@ -58,15 +58,19 @@ Correlation resolves about twice as finely as MAE and barely moves with the seed
 
 `compare_replay_arms.py` verdicts: `better` / `worse` (CI excludes zero and clears the floor), `noise` (CI includes zero), `unresolvable (below seed floor)`, `identical (never activated)` (every checkpoint tied, so the change provably did nothing, which is a finding).
 
-**Current floor: 2026-09-27**, leak-free replay, seed pair `data/historical_replay_m1s42_r14` / `data/historical_replay_m1s43_r14`, `--through-round 14`, race-weekend bootstrap. Baseline arm: `m1s42_r14`.
+**Removal arms (plan item 5), rule fixed 2026-10-31 before arms 3 and 4.** A hand-tuned layer goes unless switching it off leans worse on the primary metric on both seeds or widens the race tails (share of misses of 10 or more places). Nothing resolves at 17 races, and these layers were never validated, so keeping one needs evidence that it helps. Guardrails become logged alerts, not silent rewrites of the forecast. The rule judges order only; a layer that sets bands is judged on coverage (2026-10-31).
 
-| Target | Correlation | MAE | 2026-09-25 (superseded) |
+**Level check, added 2026-10-31.** Before quoting a replay level, compare its MAE at a checkpoint with the served accuracy snapshots at the same checkpoint. The learning leak showed as replay FP3 race MAE 3.01 against 3.76 served. A paired delta cannot catch a leak both arms share.
+
+**Current floor: 2026-10-31**, replay with the learning leak fixed, seed pair `data/historical_replay_arms/C35_clean_s42` / `_s43` (model 3.5), `--through-round 17`, race-weekend bootstrap. The threshold is the widest bound of the seed pair's interval. Baseline for 3.6: `C35_adjust_off_s42` / `_s43`, same config.
+
+| Target | Correlation | MAE | 2026-09-27 (superseded) |
 |---|---|---|---|
-| Qualifying | 0.0027 | 0.054 | 0.0035, 0.054 |
-| Race | 0.0067 | 0.076 | 0.0110, 0.058 |
-| Sprint race | 0.0080 | 0.100 | 0.0078, 0.079 |
+| Qualifying | 0.0026 | 0.040 | 0.0027, 0.054 |
+| Race | 0.0079 | 0.078 | 0.0067, 0.076 |
+| Sprint race | 0.0064 | 0.091 | 0.0080, 0.100 |
 
-The 2026-09-25 floor used race seed streams that were 299 of 300 identical between seeds, and a per-checkpoint bootstrap. See the 2026-09-27 entry.
+The 2026-09-27 floor (`m1s42_r14` / `m1s43_r14`, 14 rounds) was measured on a replay that still leaked each race's result into its own practice checkpoints. The 2026-09-25 floor used race seed streams that were 299 of 300 identical between seeds, and a per-checkpoint bootstrap. See the 2026-09-27 entry.
 
 Older floors (2026-09-12, 13 rounds; 2026-09-21, 14 rounds) were measured on a replay that leaked future inputs. Keep them only for reading the entries gated on them.
 
@@ -81,6 +85,9 @@ Older floors (2026-09-12, 13 rounds; 2026-09-21, 14 rounds) were measured on a r
 | 2026-10-02 | Model 3.1: finish order sorted by median rank; overtake gaps read from the start-of-lap snapshot. | Both `unresolvable` (below the seed floor), adopted on correctness. See the 2026-10-02 entry | 3.1 commit |
 | 2026-10-03 | Model 3.2: qualifying adds each team's car traits x track adjustment (top speed, corner classes, braking, deg, fitted walk-forward on qualifying gaps). | Qualifying corr +0.0048 / +0.0035 on seeds 42 / 43, both `better` beyond the floor; race unresolvable | 3.2 commit |
 | 2026-10-07 | Model 3.3: braking removed from the qualifying track trait adjustment (`track_trait_features`). | Neutral on both seeds (quali corr -0.0000 / -0.0004), adopted on correctness: FastF1 Brake channel unreliable | 3.3 commit |
+| 2026-10-18 | Model 3.4: main qualifying pulled 70% toward the actual sprint qualifying order. | Qualifying MAE at the SQ checkpoint 2.51 -> 1.87 / 2.50 -> 1.90 (leaky replay). See the 2026-10-18 entry | `efefb7e3` |
+| 2026-10-27 | Model 3.5: race and sprint p5-p95 widened with the learned residual radius. | Coverage 81% -> 88% Grand Prix, 74% -> 90% sprint (leaky replay); 85% and 87% on the leak-free replay of 3.6 | `47a1c035` |
+| 2026-10-31 | Model 3.6: learned driver and teammate position shift off (`learning.max_adjustment: 0.0`). | Leak-free replay: race corr +0.0035 / +0.0057, race MAE -0.045 / -0.063, qualifying MAE -0.091 / -0.084. See the 2026-10-31 entries | 3.6 commit |
 
 Residual after that, same measurement: SAI -5.67, LAW +6.44, BOR +4.44, ALO -4.11, VER -4.11. Team-strength errors (Williams over-rated, RB under-rated), which the centring fix does not touch.
 
@@ -1061,6 +1068,8 @@ Arm `Q_traits_no_braking_s42` / `_s43`: `baseline_predictor.qualifying.track_tra
 
 Qualifying ridge MAE change -0.17 / -0.14 per race, CI crosses zero on both seeds (6 better, 4 worse): `unresolvable`. Race: every pure ML variant is worse (simple ridge +0.45 MAE, CI above zero); gradient boosting is worst everywhere (308 rows is too few). The blend is within noise.
 
+**Superseded 2026-10-31:** the live model's numbers here came from a replay that leaked each race's result into its own practice checkpoints; the ML models never read that state. Rerun on the leak-free replay: entry "ML challengers on the leak-free replay".
+
 Feature importance (pace-only ridge, group permutation): qualifying practice share falls from 56% (Canada) to 34% (Spain) while recent results rise from 26% to 47%; race follows the same pattern (practice 45% to 35%, results 36% to 49%). Practice pace and practice car traits are collinear, so their split between groups is not meaningful. Car traits x track and track features stay near 0%.
 
 ## 2026-10-10: the report's qualifying stabilizer was never live; on the replay it is `noise`, leaning worse
@@ -1214,6 +1223,8 @@ Grand Prix race: below the seed floor. Sprint race: identical, as designed. Verd
 Verdict `unresolvable`: the switch stays off. Grand Prix rows move slightly although the switch only touches sprints; cause not checked, below the floor either way.
 
 **The rerun the 2026-10-11 entry asked for is not needed for B and C.** The outputs were on one machine, and that machine still has them. The widening bug changed bands only, so the order metrics behind B and C stand. B stays measured worse with learning off (the default is on); C stays measured better at 0.7 and off until adopted. D still needs a rebuilt baseline with widening off plus a widening-on arm, both seeds.
+
+**Superseded 2026-10-31:** B was measured on a replay that leaked each race's result into its own practice checkpoints through this learning. On the clean replay, learning off leans better (entry "learning off, gain caps off and racecraft shift off on clean 3.5").
 
 ## 2026-10-18: sprint qualifying blend (C): per-weekend table and leak test, verdict for Tomasz
 
@@ -1537,6 +1548,179 @@ Arm `T1_carry_over_severity_s42` / `_s43`: `baseline_predictor.race.tyre_deg_mod
 Race MAE -0.0125 / +0.0194 and sprint correlation +0.0018 / +0.0004, all `unresolvable (below seed floor)`. Same split as the 2026-10-04 arm (PRE +0.0086 / +0.0053), with a larger PRE gain. Before practice the practice slopes come from another weekend; after it they are noisy but carry this weekend's long-run pace, which the carry-over drops.
 
 PRE only, synthesized from the two runs (arm accuracy at PRE, baseline elsewhere; not a replay): race correlation +0.0035 / +0.0025, CI [+0.0011, +0.0060] / [+0.0006, +0.0047]; race MAE -0.025 / -0.020, CI excludes zero on both seeds; both still below the seed floor. Sprint correlation -0.0007 / -0.0013. Default stays `practice`; plan item 1 is closed. The PRE-only split is not pursued: it was picked after looking at the results, a replay on the same races and seeds would only repeat them, and the 5 PRE forecasts left in 2026 cannot resolve an effect this size. The severity scaling stays behind the switch.
+
+## 2026-10-30: main race movement floor off (plan item 5, arm 1): `unresolvable`, leans worse; the floor stays
+
+Arm `R5_floor_off_s42` / `_s43`: `main_race_movement_floor` and `main_race_movement_floor_track_scale` 0, so the re-rank by 20th-percentile samples never runs; the movement ceiling is unchanged. Baseline `N_neutral_rates_s42` / `_s43` (model 3.5), code `01759f2a`, `--through-round 17`, 62 checkpoints. Qualifying and sprint are identical on both seeds, so today's commits left the baseline valid.
+
+| Grand Prix race | Seed 42 | Seed 43 |
+|---|---|---|
+| Checkpoints changed | 6 of 62 | 8 of 62 |
+| Correlation delta | -0.0026 [-0.0059, +0.0000] | -0.0011 [-0.0032, +0.0004] |
+| MAE delta | -0.0057 | +0.0037 |
+
+All `unresolvable (below seed floor)`. The floor fires from Belgium on; the largest moves are Zandvoort SQ (-0.065 / -0.052 without it) and Spa FP3 (-0.092, seed 42). Removing it leans worse on correlation on both seeds, like arms J and M, so it stays, as they did.
+
+## 2026-10-31: race gain caps off (plan item 5, arm 2): `unresolvable`, leans better on both seeds; verdict for Tomasz
+
+Arm `R5b_gain_caps_off_s42` / `_s43`: `final_blend.max_gain_floor` and `max_gain_ceiling` 30, so no driver's position or samples are capped at 4 to 11 places ahead of the grid. Baseline `N_neutral_rates_s42` / `_s43` (model 3.5), code `01759f2a`, `--through-round 17`, 62 checkpoints. Qualifying identical on both seeds.
+
+| Metric | Seed 42 | Seed 43 |
+|---|---|---|
+| Race correlation | +0.0035 [-0.0025, +0.0104] | +0.0003 [-0.0038, +0.0040] |
+| Race MAE | -0.0191 [-0.0410, +0.0022] | -0.0170 [-0.0457, +0.0106] |
+| Race within 3 | +0.73 | +0.44 |
+| Sprint correlation | -0.0009 | +0.0003 |
+| Race p5 to p95 coverage | 88.0% to 88.2% | 88.0% to 88.2% |
+| Sprint coverage | 90.1% to 90.6% | 90.1% to 90.6% |
+
+All `unresolvable (below seed floor)`; coverage stays inside 87 to 93%, ranges widen 0.1 to 0.4 places. Largest moves: Spa FP1 +0.10 (seed 42); Zandvoort SQ -0.060 / -0.046, where the movement floor also mattered.
+
+Tails: race misses of 10 or more places 7.4% to 7.4% (seed 42) and 7.8% to 8.0% (seed 43), 15 or more 2.8% / 2.8% and 2.9% / 2.8%, worst miss 21 places either way ([Likely] DNFs, which no cap touches). Decision by Tomasz, 2026-10-31, under the removal rule: the caps go in model 3.6, shipped after Mexico City.
+
+## 2026-10-31: racecraft position shift off (plan item 5, arm 3): `unresolvable`, removed under the rule
+
+Arm `R5c_racecraft_off_s42` / `_s43`: `final_blend.max_driver_adjustment_positions` 0, so the post-simulation shift of up to 1.2 places from overtaking skill, race advantage, driver skill and elite status is zero. Skill and race pace still act inside the simulation. Baseline `R5b_gain_caps_off_s42` / `_s43` (model 3.6: the uncommitted 3.6 code gives identical output to that arm on fixed grids), `--through-round 17`, 62 checkpoints. Qualifying identical on both seeds.
+
+| Metric | Seed 42 | Seed 43 |
+|---|---|---|
+| Race correlation | +0.0006 [-0.0003, +0.0016], 16/16/30 | +0.0016 [-0.0012, +0.0051], 17/17/28 |
+| Race MAE | -0.0064 [-0.0172, +0.0047] | +0.0016 [-0.0149, +0.0179] |
+| Race within 3 | +0.37 | -0.15 |
+| Sprint correlation | +0.0016 | -0.0012 |
+| Race p5 to p95 coverage | 88.2% to 88.2% | 88.2% to 88.3% |
+| Sprint coverage | 90.6% to 90.6% | 90.6% to 90.6% |
+
+All `unresolvable (below seed floor)`. Race correlation leans better on both seeds by the mean, with checkpoints split evenly. Tails: race misses of 10 or more places 100 to 101 (seed 42) and 108 to 107 (seed 43) of 1,353; 15 or more 38 to 39 and 38 to 38; worst miss 21 either way. Neither condition for keeping the layer holds, so it goes in model 3.6 with the gain caps. Arm M (2026-10-02) made the same change on 3.1, one seed, 14 rounds, with the caps still on, and leaned the other way (race corr -0.0017, MAE +0.0125). Neither result resolves; the rule decides on the current baseline. Code output with the layer deleted is identical to this arm on fixed grids.
+
+## 2026-10-31: the replay leaked each race's result into its own later checkpoints; fixed
+
+**Leak.** The replay attached actuals and updated the learning state after every checkpoint (`update_actuals` in `_build_race_checkpoint_record`). The next checkpoint of the same weekend loaded that state, so FP1 to FP3 and SQ forecasts were nudged by the race they were forecasting. Qualifying forecasts learned from the qualifying result the same way. Live never did this: results arrive after the session. Size on `R5c_racecraft_off_s42`, rebuilt from the saved records (race adjustment only, [Likely] on the exact sizes):
+
+| Checkpoint | Mean shift per driver | Max | Toward the actual result |
+|---|---|---|---|
+| FP1 | 0.30 places | 1.70 | 67% |
+| FP2 | 0.48 | 2.34 | 61% |
+| FP3 | 0.65 | 2.83 | 61% |
+| SQ | 0.42 | 1.49 | 48% |
+
+**Fix.** The replay learns from a weekend after its last checkpoint, in checkpoint order (`_learn_from_weekend`). No replay checkpoint comes after qualifying or the sprint, so this matches live exactly. A 2-round smoke run learned Australia at 15:34:34, after its FP3 forecast (15:34:24) and before China PRE (15:35:04). Live code is unchanged.
+
+**What it puts in doubt.** Every replay root before this fix. Paired arm verdicts are least affected (both sides leak, though not equally). Most affected: the learning-off result of 2026-10-11 (learning worth 0.2 to 0.3 places), the 3.5 band coverage (88% race, 90% sprint; the learned radius also used the same race's misses), and the README replay figures, which quote the FP3 checkpoint.
+
+**Reruns, rules fixed before any result.** Leak-free roots `C36_clean_s42/_s43` (3.6, working tree), `C35_clean_s42/_s43` (3.5: `01759f2a` plus this fix, in a separate checkout) and `C36_L0_clean_s42/_s43` (3.6, `learning.apply_adaptive_calibration: false`).
+
+- 3.6 against 3.5: the removal rule applies. If 3.6 leans worse on the race primary metric on both seeds, or widens the tails, 3.6 does not ship and the two removals are rerun one at a time.
+- Learning off against 3.6: the learned driver and teammate adjustment and the learned band radius are hand-tuned layers too (scales 0.18, 0.10, 0.70, cap 2.5), so the same rule decides whether they stay.
+- The README replay figures and the 3.5 coverage claim are restated from the clean roots.
+
+**Measured size.** Same 3.6 code, leaky `R5c_racecraft_off` against clean `C36_clean`, 62 race checkpoints and 18 sprint checkpoints per seed. Every primary metric is `worse` on clean data on both seeds, so the leak flattered every replay figure before this fix.
+
+| Metric | Seed 42 leaky to clean | Seed 43 leaky to clean |
+|---|---|---|
+| Race correlation | 0.672 to 0.616 (11/49/2) | 0.669 to 0.615 (10/49/3) |
+| Race MAE | 3.57 to 3.96 | 3.57 to 3.98 |
+| Qualifying correlation | 0.861 to 0.833 | 0.861 to 0.833 |
+| Qualifying MAE | 2.34 to 2.64 | 2.33 to 2.63 |
+| Sprint correlation | 0.796 to 0.783 | 0.794 to 0.783 |
+| Race band coverage | 88.2% to 85.7% | 88.3% to 85.8% |
+| Race misses of 10+ (of 1,353) | 101 to 119 | 107 to 123 |
+| Sprint band coverage | 90.6% to 88.6% | 90.6% to 87.8% |
+
+The 90% race band now covers 86%: it is too narrow on clean data.
+
+**Where the leak sat, and the live check.** MAE by checkpoint on the 12 normal weekends (240 driver rows each, seed 42; seed 43 within 0.07). PRE barely moves, the practice checkpoints move a lot. Live forecasts never leaked: served accuracy snapshots on the 10 normal 2026 weekends with all four checkpoints (models 2.0 to 3.4, so level only) match the clean replay, not the leaky one.
+
+| Race MAE | PRE | FP1 | FP2 | FP3 |
+|---|---|---|---|---|
+| Leaky replay | 3.83 | 3.38 | 3.10 | 3.01 |
+| Clean replay | 3.86 | 3.81 | 3.78 | 3.90 |
+| Served, live | 3.86 | 3.85 | 3.64 | 3.76 |
+
+| Qualifying MAE | PRE | FP1 | FP2 | FP3 |
+|---|---|---|---|---|
+| Leaky replay | 2.77 | 2.50 | 2.20 | 1.95 |
+| Clean replay | 2.82 | 2.88 | 2.65 | 2.73 |
+| Served, live | 2.91 | 2.92 | 3.02 | 2.79 |
+
+Practice sessions barely improve either forecast: about 0.1 places for qualifying and none for the race. The gain the leaky replay showed was the leak.
+
+## 2026-10-31: model 3.6 against 3.5 on the clean replay: `unresolvable`, does not ship under the removal rule
+
+Baseline `C35_clean_s42/_s43` (`01759f2a` plus the leak fix). Candidate `C36_clean_s42/_s43` (gain caps and racecraft shift removed). 62 race and 18 sprint checkpoints per seed. Qualifying is identical.
+
+| Metric | Seed 42 | Seed 43 |
+|---|---|---|
+| Race correlation | -0.0040 [-0.0073, -0.0008] 22/29/11 | -0.0020 [-0.0043, -0.0000] 20/26/16 |
+| Race MAE | +0.021 | +0.003 |
+| Sprint correlation | -0.0012 | -0.0011 |
+| Race band coverage | 85.0% to 85.7% | 85.2% to 85.8% |
+| Race misses of 10+ (of 1,353) | 119 to 119 | 120 to 123 |
+| Race misses of 15+ | 46 to 49 | 46 to 48 |
+
+The seed floor on race correlation is 0.0079 (widest bound of the `C35_clean` seed pair's interval), so both deltas are below it. The rule fixed in the leak entry is a lean, not significance: race correlation leans worse on both seeds, which is enough. The rule's tail measure, misses of 10+, is flat on seed 42 and +3 on seed 43; misses of 15+ grow on both. 3.6 does not ship. On the leaky replay the cap removal led by 0.02 MAE on both seeds; on clean data the pair leans the other way.
+
+**Next, rules fixed before any result.**
+
+- Each removal reruns alone on clean 3.5 under the same rule against `C35_clean`: `C35_caps_off_*` (`R5b_gain_caps_off.yaml`, max_gain floor and ceiling 30) and `C35_racecraft_off_*` (`max_driver_adjustment_positions: 0.0`).
+- Learning off is measured against 3.5, not 3.6, because 3.6 does not ship: `C35_L0_clean_*` (`apply_adaptive_calibration: false`). This replaces `C36_L0_clean_*` from the leak entry.
+
+## 2026-10-31: learning off, gain caps off and racecraft shift off on clean 3.5: caps and racecraft stay, the learned position adjustment goes
+
+Baseline `C35_clean_s42/_s43`. One change per arm, 62 race, 62 qualifying and 18 sprint checkpoints per seed. Seed floor on race correlation 0.0079. Every race delta is `unresolvable` (below the floor); the removal rule decides on the lean.
+
+| Arm | Race corr s42 / s43 | Race MAE s42 / s43 | Race misses of 10+ s42 / s43 (base 119 / 120) | Decision |
+|---|---|---|---|---|
+| `C35_caps_off` (max_gain floor and ceiling 30) | -0.0039 / -0.0009 | +0.018 / -0.004 | 121 / 123 | Stays: leans worse on both, tails widen on both |
+| `C35_racecraft_off` (`max_driver_adjustment_positions: 0.0`) | -0.0026 / -0.000006 | +0.008 / -0.002 | 118 / 120 | Stays: leans worse on both, by a hair on seed 43 (20 checkpoints better, 12 worse). The rule says lean, so it stays |
+| `C35_L0_clean` (`apply_adaptive_calibration: false`) | +0.0069 / +0.0037 | -0.061 / -0.039 | 117 / 116 | Position adjustment goes |
+
+Learning off also improves qualifying: correlation +0.0077 / +0.0067, MAE -0.091 / -0.084 (`noise`, 33/18 and 34/18 checkpoints better). Sprint correlation +0.0005 / +0.0017. Caps and racecraft never touch qualifying.
+
+**The band half of learning stays, a deviation from the rule fixed above.** `apply_adaptive_calibration: false` also drops the learned band radius, and race band coverage falls from 85.0% / 85.2% to 73.2% / 72.9% (sprint 87.1% to 67.3% / 67.5%). The removal rule judges order (correlation, misses of 10+), so it cannot judge a band. The radius was adopted on coverage evidence (model 3.5, entry 2026-10-27), and this arm confirms it. The leak entry put the radius under the rule before any result; keeping it is a post-hoc call on a metric the rule does not cover.
+
+**Next, fixed before the result.** Arm `C35_adjust_off_s42/_s43`: `learning.max_adjustment: 0.0`, which zeroes the learned driver and teammate adjustment in qualifying and race and keeps the radius. Expected: order metrics identical to `C35_L0_clean` on every checkpoint, race coverage within 1 point of `C35_clean`. If both hold it ships as model 3.6 after Mexico City. If the order differs, it gets its own read under the rule.
+
+## 2026-10-31: learned position adjustment off, band kept (`C35_adjust_off`): passes the removal rule, model 3.6 after Mexico City
+
+Arm `C35_adjust_off_s42/_s43`: `learning.max_adjustment: 0.0`. Qualifying is identical to `C35_L0_clean` on all 62 checkpoints. The race order is not: race grid sampling reads the qualifying p5 to p95 width (`grid_uncertainty.py`), and the learned qualifying radius widens it. So the arm gets its own read against `C35_clean`, as fixed above:
+
+| Metric | Seed 42 | Seed 43 |
+|---|---|---|
+| Race correlation | +0.0035 (31/27/4) | +0.0057 (29/27/6) |
+| Race MAE | -0.045 | -0.063 |
+| Qualifying correlation | +0.0077 | +0.0067 |
+| Qualifying MAE | -0.091 | -0.084 |
+| Sprint correlation | -0.0011 | +0.0008 |
+| Race band coverage | 85.0% to 84.8% | 85.2% to 84.6% |
+| Race misses of 10+ (of 1,353) | 119 to 118 | 120 to 115 |
+| Race misses of 15+ | 46 to 47 | 46 to 48 |
+
+Race deltas are `unresolvable` (below the floor of 0.0079), qualifying is `noise`. Under the rule: removing it leans better on both seeds and the tail measure (10+) narrows, so the learned driver and teammate adjustment goes. Coverage stays within 1 point. Model 3.6 is 3.5 plus `learning.max_adjustment: 0.0`, shipped after Mexico City. Results are still learned from, so the band radius keeps updating.
+
+## 2026-10-31: ML challengers on the leak-free replay: the qualifying ridge beats the live model
+
+Replay `C35_adjust_off_s42/_s43` (model 3.6). The challengers never read the learned state, so the leak flattered only the live model in the 2026-10-08 probe.
+
+Probe, `scripts/probe_ml_challenger.py`, rounds 5 to 17, last checkpoint before qualifying, mean of two seeds (report regenerated in `data/model_diagnostics/2026/ml_challenger_probe.md`):
+
+| Target | Live model corr / MAE | Ridge, 7 simple features incl. the live forecast | 50/50 live + ridge |
+|---|---|---|---|
+| Qualifying | 0.887 / 2.12 | 0.899 / 1.98 | 0.894 / 1.98 |
+| Race | 0.642 / 3.69 | 0.659 / 3.63 | 0.662 / 3.51 |
+
+Ridge against live, MAE per race: qualifying -0.167 [-0.326, -0.018] (8 races better, 4 worse) and -0.161 [-0.311, -0.014] (7, 3); race -0.057 and -0.062, intervals cross zero.
+
+The live challenger `qualifying_ridge` (stacked on the champion forecast, form, teammate gap and practice pace), every checkpoint it forecast, `compare_replay_arms.py` with the champion as baseline:
+
+| Seed | Checkpoints | Corr | MAE | Better / worse |
+|---|---|---|---|---|
+| 42 | 48 | +0.0144 [+0.0049, +0.0238] | -0.189 [-0.303, -0.075] | 31 / 9 |
+| 43 | 48 | +0.0123 [+0.0018, +0.0226] | -0.177 [-0.297, -0.061] | 29 / 11 |
+
+`better` on both seeds, beyond the qualifying floor (0.0026, 0.040). `qualifying_laptime` is `noise`. The naive `previous_event_order` loses to the champion by 0.51 places in qualifying and 1.0 in the race.
+
+Limits: the challengers barely depend on the seed, so two seeds are close to one draw for them. 17 races. Promotion follows `docs/MODEL_PROMOTION.md` and is Tomasz's call; not adopted until then.
 
 ## Adding an entry
 

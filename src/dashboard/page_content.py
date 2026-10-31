@@ -23,7 +23,8 @@ One model makes both the qualifying and the race forecast.
 - Shows a likely range for each driver.
 
 **4. Learning**
-- Each saved forecast is scored against the result, and the model learns per-driver and teammate errors.
+- Each saved forecast is scored against the result. The misses set how wide each driver's band is.
+- Per-driver and teammate errors are tracked but no longer shift the order: since 3.6, tests showed the shift made forecasts slightly worse.
 - It skips replays, duplicate runs and missing or partial results.
 
 **5. Model changes**
@@ -33,7 +34,8 @@ One model makes both the qualifying and the race forecast.
 **6. What 2026 showed**
 - The grid predicts the race better than simulated pace, so the race forecast leans on qualifying.
 - Car traits by track help the qualifying forecast. For the race the gain was too small to measure.
-- Trained ML models (ridge, gradient boosting) did not beat this blend.
+- Practice barely improves the forecast: about 0.1 places for qualifying, none for the race.
+- A ridge model stacked on this forecast beats it for qualifying and ties for the race. It runs beside the live model and is not served yet.
 """
 
 QUALIFYING_HYPERPARAMETERS_MARKDOWN = """
@@ -41,7 +43,7 @@ QUALIFYING_HYPERPARAMETERS_MARKDOWN = """
 - Team 60%, driver 40% to start
 - Practice pace when available, testing runs otherwise
 - With no session data, weights rebalance and teammate and experience limits apply
-- Learned corrections apply once there is history
+- Learned band width applies once there is history
 - Car traits by track: top speed, slow, medium and fast corners, tyre wear
 - Output: projected grid and likely range
 """

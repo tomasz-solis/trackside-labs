@@ -4,7 +4,7 @@
 
 Data is scarce at the start of a season and grows every race. Three choices follow from that:
 
-1. **Blend signals, do not train a model.** Mid-season there is too little data to train one. The predictor blends three explicit signals (baseline, testing, current season) with a weight schedule that depends on the race number. The trust shift stays visible and auditable. Checked on 2026-10-08: ridge and gradient boosting, refitted before each race, did not beat the blend (`docs/MODEL_LEDGER.md`).
+1. **Blend signals, do not train a model.** Mid-season there is too little data to train one. The predictor blends three explicit signals (baseline, testing, current season) with a weight schedule that depends on the race number. The trust shift stays visible and auditable. Rechecked on 2026-10-31 on the leak-free replay: a ridge refitted before each race now beats the blend for qualifying (MAE 1.98 to 2.03 against 2.12) and ties for the race; gradient boosting is worse for the race. The ridge runs as the `qualifying_ridge` challenger and promotion is open (`docs/MODEL_LEDGER.md`).
 2. **The dashboard only reads.** Background workers generate every forecast ahead of time, so users never wait on a simulation.
 3. **One storage interface.** `ArtifactStore` writes local files in development and Supabase in production (Render), with the same code in both.
 

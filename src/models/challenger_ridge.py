@@ -2,7 +2,8 @@
 
 Ledger 2026-10-08: a ridge on seven features, one of them the champion's own forecast,
 scored corr 0.935 vs 0.930 and MAE 1.64 vs 1.76 on rounds 5 to 14 (``unresolvable``).
-Here it forecasts main qualifying at every checkpoint, refitted each time on earlier
+On the leak-free replay of 3.6 this challenger beats the champion on both seeds, MAE
+-0.19 and -0.18 (ledger 2026-10-31). Here it forecasts main qualifying at every checkpoint, refitted each time on earlier
 events only:
 
 - training rows: each earlier event's forecast saved at its last checkpoint before

@@ -38,5 +38,5 @@ If a doc and the code disagree, trust the code.
 
 - `fixes/`: design and fix records, mostly the May 2026 work to separate driver ratings from car pace. Start with `fixes/master_execution_plan.md`.
 - `QUALIFYING_RACE_CHALLENGER.md` and `RAW_LAPS_REPLAY_HANDOFF.md`: shelved research; the code is on `shelved/challenger-research`.
-- `../data/model_diagnostics/2026/ml_challenger_probe.md`: the ML challenger that did not beat the live model.
+- `../data/model_diagnostics/2026/ml_challenger_probe.md`: the ML challenger probe, rerun 2026-10-31 on the leak-free replay. A ridge beats the live model for qualifying and ties for the race.
 - Other shelved branches: `shelved/car-traits-v2`, `shelved/dnf-calibration`.

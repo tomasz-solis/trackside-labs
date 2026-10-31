@@ -63,7 +63,8 @@ def _finish_order(cfg) -> list[str]:
 
 
 def test_shipped_31_switches():
-    assert config_loader.get("model.version") == "3.5"
+    assert config_loader.get("model.version") == "3.6"
+    assert config_loader.get("learning.max_adjustment") == 0.0
     assert config_loader.get("baseline_predictor.race.finish_order_sort") == "median_rank"
     assert config_loader.get("baseline_predictor.race.overtake_gap_from_lap_start") is True
     assert config_loader.get("baseline_predictor.race.dnf_per_lap_hazard") is False

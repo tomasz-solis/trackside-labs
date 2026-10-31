@@ -37,7 +37,7 @@ grid:
     #   LAW: TSU
 
 model:
-  version: "3.5"
+  version: "3.6"
   # Regulation eras for seconds calibration. The gap between a fast car and a slow
   # one is set by the regulations, so team_strength_seconds_mapping is fitted within
   # one era and never across a boundary: pooling 2022-2025 with 2026 produced a slope
@@ -113,7 +113,9 @@ learning:
   min_samples: 3
   driver_error_scale: 0.18
   teammate_gap_scale: 0.10
-  max_adjustment: 2.5
+  # 0 turns off the learned driver and teammate position shift. Off since 3.6: on the
+  # leak-free replay it made qualifying and the race slightly worse (MODEL_LEDGER 2026-10-31).
+  max_adjustment: 0.0
   # Interval calibration uses completed prediction residuals to apply a
   # conformal-style half-width floor when the published p5-p95 bands have been
   # empirically too tight.
@@ -124,8 +126,8 @@ learning:
   # Replay arm only (what production ran before the state was persisted).
   apply_adaptive_calibration: true
   # Widen race and sprint p5-p95 with the learned radius, as qualifying already does.
-  # Bands only; the order and the shown likely range are untouched. On since 3.5:
-  # replay coverage sprint 74% to 90%, Grand Prix 81% to 88% (MODEL_LEDGER 2026-10-27).
+  # Bands only; the order and the shown likely range are untouched. On since 3.5.
+  # Leak-free replay coverage of 3.6: Grand Prix 85%, sprint 87% (MODEL_LEDGER 2026-10-31).
   race_interval_widening: true
 
 # Track Characteristics

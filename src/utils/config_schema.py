@@ -51,7 +51,7 @@ class RegulationEra(StrictConfigModel):
 class ModelConfig(StrictConfigModel):
     """Model release metadata shared across generated artifacts."""
 
-    version: str = Field(default="3.6", min_length=1)
+    version: str = Field(default="3.7", min_length=1)
     # The seconds gap between a fast car and a slow one is a property of the
     # regulations. Fitting a seconds mapping across a regulation boundary averages
     # two different fields and describes neither, so calibration is scoped to an era
@@ -802,6 +802,9 @@ class GridAnchorConfig(StrictConfigModel):
     main_max: float = Field(default=0.57, ge=0.0)
     sprint_min: float = Field(default=0.78, ge=0.0)
     low_confidence_scale: float = Field(default=0.30, ge=0.0)
+    # Grand Prix weight fitted from earlier races instead of the constants above.
+    learned: bool = False
+    learned_min_races: int = Field(default=4, ge=1)
     source_calibrated: GridAnchorSourceCalibratedConfig = Field(
         default_factory=GridAnchorSourceCalibratedConfig
     )

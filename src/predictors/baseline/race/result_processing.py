@@ -631,6 +631,7 @@ def build_finish_order(
     learned_interval_radius: float,
     enforce_non_increasing: Any,
     base_seed: int,
+    learned_grid_anchor_weight: float | None = None,
 ) -> list[dict[str, Any]]:
     """Convert aggregated simulation outputs into the final finish-order payload."""
     fo_cfg = _load_finish_order_config(
@@ -643,6 +644,10 @@ def build_finish_order(
         grid_position_samples_by_driver=grid_position_samples_by_driver,
         field_size=field_size,
     )
+    # A learned weight replaces the hand-set Grand Prix weight; a sprint keeps its own.
+    grid_anchor_weight = fo_cfg.grid_anchor_weight
+    if learned_grid_anchor_weight is not None and not is_sprint:
+        grid_anchor_weight = float(learned_grid_anchor_weight)
 
     finish_order: list[dict[str, Any]] = []
     blended_samples_by_driver: dict[str, list[float]] = {}
@@ -671,7 +676,7 @@ def build_finish_order(
         # simulation already starts him from the penalised slot, so anchoring him there
         # again charges the penalty twice. The informative weight is therefore zero for
         # him, and untouched for everyone else.
-        driver_anchor_weight = 0.0 if info.get("is_penalised") else fo_cfg.grid_anchor_weight
+        driver_anchor_weight = 0.0 if info.get("is_penalised") else grid_anchor_weight
 
         position_std = np.std(positions)
         confidence = max(
@@ -797,6 +802,13 @@ def build_finish_order(
                 "driver": driver_code,
                 "team": info["team"],
                 "median_position": median_pos,
+                # Blend inputs, kept because median_position and position_blend_score are
+                # overwritten below: fitting the grid anchor needs the unblended values.
+                "sim_median_position": float(median_pos),
+                "grid_reference_position": round(reference_grid_pos, 4),
+                "grid_anchor_weight": round(float(driver_anchor_weight), 4),
+                "racecraft_adjustment": round(float(racecraft_adjustment), 4),
+                "max_gain": round(float(max_gain), 4),
                 "position_blend_score": round(position_blend_score, 4),
                 "p5": int(np.percentile(blended_position_samples, 5)),
                 "p95": int(np.percentile(blended_position_samples, 95)),

@@ -58,6 +58,7 @@ class RaceSimulationDeps:
     generate_pit_strategy: Callable[..., PitStrategy]
     simulate_race_lap_by_lap: Callable[..., RaceSimulationResult]
     aggregate_simulation_results: Callable[[list[RaceSimulationResult]], dict[str, Any]]
+    get_learned_grid_anchor_weight: Callable[[], float | None] | None = None
 
 
 def _build_weather_feature_context(
@@ -492,6 +493,9 @@ def predict_race_core(
         ),
         enforce_non_increasing=deps.enforce_non_increasing,
         base_seed=base_seed,
+        learned_grid_anchor_weight=(
+            deps.get_learned_grid_anchor_weight() if deps.get_learned_grid_anchor_weight else None
+        ),
     )
 
     return {

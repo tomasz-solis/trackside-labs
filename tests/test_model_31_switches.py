@@ -63,7 +63,7 @@ def _finish_order(cfg) -> list[str]:
 
 
 def test_shipped_31_switches():
-    assert config_loader.get("model.version") == "3.6"
+    assert config_loader.get("model.version") == "3.7"
     assert config_loader.get("learning.max_adjustment") == 0.0
     assert config_loader.get("baseline_predictor.race.finish_order_sort") == "median_rank"
     assert config_loader.get("baseline_predictor.race.overtake_gap_from_lap_start") is True
@@ -131,3 +131,21 @@ def test_race_interval_widening_switch_gates_the_live_predictor():
     assert radius(True, "race") == 5.0
     assert radius(True, "sprint") == 5.0
     assert radius(False, "qualifying") == 5.0
+
+
+def test_learned_grid_anchor_switch_gates_the_live_predictor():
+    """Off keeps the hand-set weight (None); on serves the fitted one."""
+    from types import SimpleNamespace
+
+    from src.predictors.baseline_2026 import Baseline2026Predictor
+
+    def weight(switch: bool) -> float | None:
+        stub = SimpleNamespace(
+            calibration_system=SimpleNamespace(get_grid_anchor_weight=lambda **_: 0.75),
+            config={"baseline_predictor.race.grid_anchor.learned": switch},
+        )
+        return Baseline2026Predictor._get_learned_grid_anchor_weight(stub)
+
+    assert weight(False) is None
+    assert weight(True) == 0.75
+    assert config_loader.get("baseline_predictor.race.grid_anchor.learned") is True

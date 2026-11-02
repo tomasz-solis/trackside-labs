@@ -52,6 +52,7 @@ class SystematicLearningSystem:
                 "driver_position_error": {"qualifying": {}, "race": {}},
                 "teammate_gap_error": {"qualifying": {}, "race": {}},
                 "interval_residual_history": {"qualifying": [], "race": []},
+                "grid_anchor_fit": {"numerator": 0.0, "denominator": 0.0, "races": []},
                 "event_history": [],
             },
         }
@@ -125,6 +126,9 @@ class SystematicLearningSystem:
         for session_name in ("qualifying", "race", "sprint"):
             if not isinstance(interval_history.get(session_name), list):
                 interval_history[session_name] = []
+
+        if not isinstance(adaptive.get("grid_anchor_fit"), dict):
+            adaptive["grid_anchor_fit"] = {"numerator": 0.0, "denominator": 0.0, "races": []}
 
         if not isinstance(adaptive.get("event_history"), list):
             adaptive["event_history"] = []
@@ -448,6 +452,53 @@ class SystematicLearningSystem:
 
         return len(common_drivers)
 
+    def _update_grid_anchor_fit(self, prediction_data: dict[str, Any]) -> int:
+        """Add one Grand Prix forecast to the least-squares fit of the grid anchor weight.
+
+        The race order blends ``(1 - w) * sim + w * grid - racecraft``. Race rows keep
+        those inputs, so ``w`` can be fitted to the actual finish. Penalised drivers carry
+        weight 0 by rule and are left out. Same fit as scripts/probe_learned_grid_anchor.py.
+        """
+        target = ((prediction_data.get("targets") or {}).get("grand_prix_race")) or {}
+        actual_rows = (
+            ((prediction_data.get("actuals") or {}).get("targets") or {}).get("grand_prix_race")
+        ) or []
+        actual_positions: dict[str, int] = {}
+        for row in actual_rows:
+            driver_code = self._normalize_driver_code(row.get("driver"))
+            position = self._coerce_position(row.get("position"))
+            if driver_code is not None and position is not None:
+                actual_positions[driver_code] = position
+
+        numerator = denominator = 0.0
+        used = 0
+        for row in target.get("predicted_order") or []:
+            actual = actual_positions.get(self._normalize_driver_code(row.get("driver")) or "")
+            try:
+                sim = float(row["sim_median_position"])
+                grid = float(row["grid_reference_position"])
+                weight = float(row["grid_anchor_weight"])
+                racecraft = float(row.get("racecraft_adjustment", 0.0))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if actual is None or weight == 0.0:
+                continue
+            gap = grid - sim
+            numerator += (actual - sim + racecraft) * gap
+            denominator += gap * gap
+            used += 1
+        if not used:
+            return 0
+
+        fit = self.state["adaptive_calibration"]["grid_anchor_fit"]
+        fit["numerator"] = float(fit.get("numerator", 0.0)) + numerator
+        fit["denominator"] = float(fit.get("denominator", 0.0)) + denominator
+        races = fit.setdefault("races", [])
+        race_name = (prediction_data.get("metadata") or {}).get("race_name")
+        if race_name and race_name not in races:
+            races.append(race_name)
+        return used
+
     def update_from_prediction_record(
         self,
         prediction_data: dict[str, Any],
@@ -532,6 +583,7 @@ class SystematicLearningSystem:
                 "skip_reason": record_skip_reason,
             }
 
+        self._update_grid_anchor_fit(prediction_data)
         metadata = prediction_data.get("metadata", {})
         event_entry = {
             "race_name": metadata.get("race_name"),
@@ -738,3 +790,11 @@ class SystematicLearningSystem:
             max_adjustment=max_adjustment,
         )
         return float(summary["learned_radius"])
+
+    def get_grid_anchor_weight(self, *, min_races: int = 4) -> float | None:
+        """Return the fitted Grand Prix grid anchor weight in [0, 1], or None before ``min_races``."""
+        fit = self.state.get("adaptive_calibration", {}).get("grid_anchor_fit") or {}
+        denominator = float(fit.get("denominator", 0.0))
+        if len(fit.get("races") or []) < max(1, min_races) or denominator <= 0.0:
+            return None
+        return self._clip(float(fit.get("numerator", 0.0)) / denominator, 0.0, 1.0)

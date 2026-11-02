@@ -37,7 +37,7 @@ grid:
     #   LAW: TSU
 
 model:
-  version: "3.6"
+  version: "3.7"
   # Regulation eras for seconds calibration. The gap between a fast car and a slow
   # one is set by the regulations, so team_strength_seconds_mapping is fitted within
   # one era and never across a boundary: pooling 2022-2025 with 2026 produced a slope
@@ -891,6 +891,10 @@ baseline_predictor:
       main_max: 0.57
       sprint_min: 0.85
       low_confidence_scale: 0.30
+      # 3.7: the Grand Prix weight is fitted from earlier races (ledger 2026-11-01).
+      # The constants above serve until learned_min_races races are in, and sprints.
+      learned: true
+      learned_min_races: 4
       # Challenger-only replay calibrations. Empty values make
       # r2_source_anchor fail closed to the champion's resolved weight.
       source_calibrated: {}

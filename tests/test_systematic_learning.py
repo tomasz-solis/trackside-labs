@@ -376,3 +376,51 @@ def test_race_rows_without_a_band_record_nothing(tmp_path):
     system.update_from_prediction_record(record)
 
     assert system.state["adaptive_calibration"]["interval_residual_history"]["race"] == []
+
+
+def _anchor_record(race_name: str, run_id: str) -> dict:
+    """A forecast whose Grand Prix rows keep the blend inputs, plus the actual result.
+
+    Each actual sits halfway between the simulated median and the grid, so the fit is 0.5.
+    ANT is penalised (weight 0) and finished far from both; the fit must leave him out.
+    """
+    record = _sample_prediction_record()
+    record["metadata"].update({"race_name": race_name, "run_id": run_id})
+    inputs = {"NOR": (1, 3, 2), "PIA": (5, 1, 3), "VER": (2, 10, 6), "HAD": (9, 5, 7)}
+    rows = [
+        {
+            "driver": driver,
+            "sim_median_position": float(sim),
+            "grid_reference_position": float(grid),
+            "grid_anchor_weight": 0.57,
+            "racecraft_adjustment": 0.0,
+        }
+        for driver, (sim, grid, _actual) in inputs.items()
+    ]
+    rows.append({**rows[0], "driver": "ANT", "grid_reference_position": 20.0})
+    rows[-1]["grid_anchor_weight"] = 0.0
+    actual = [{"driver": d, "position": a} for d, (_s, _g, a) in inputs.items()]
+    record["targets"] = {"grand_prix_race": {"predicted_order": rows}}
+    record["actuals"]["targets"] = {"grand_prix_race": [*actual, {"driver": "ANT", "position": 1}]}
+    return record
+
+
+def test_grid_anchor_weight_is_fitted_once_enough_races_are_in(tmp_path):
+    system = SystematicLearningSystem(state_file=tmp_path / "learning_state.json")
+
+    system.update_from_prediction_record(_anchor_record("Bahrain Grand Prix", "run-1"))
+    assert system.get_grid_anchor_weight(min_races=1) == 0.5
+    assert system.get_grid_anchor_weight(min_races=2) is None
+
+    system.update_from_prediction_record(_anchor_record("Saudi Arabian Grand Prix", "run-2"))
+    assert system.get_grid_anchor_weight(min_races=2) == 0.5
+
+
+def test_forecasts_without_blend_inputs_fit_no_grid_anchor(tmp_path):
+    """Forecasts saved before 2026-11-01 lack the inputs and must not count as a race."""
+    system = SystematicLearningSystem(state_file=tmp_path / "learning_state.json")
+
+    system.update_from_prediction_record(_sample_prediction_record())
+
+    assert system.state["adaptive_calibration"]["grid_anchor_fit"]["races"] == []
+    assert system.get_grid_anchor_weight(min_races=1) is None

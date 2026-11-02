@@ -1722,6 +1722,72 @@ The live challenger `qualifying_ridge` (stacked on the champion forecast, form, 
 
 Limits: the challengers barely depend on the seed, so two seeds are close to one draw for them. 17 races. Promotion follows `docs/MODEL_PROMOTION.md` and is Tomasz's call; not adopted until then.
 
+## 2026-11-01: learned grid anchor weight, rules before results
+
+**Idea.** The race order blends the simulated median with the predicted grid: `(1 - w) * sim + w * grid`, with `w` set by six hand-set constants (`grid_anchor.*`, 0.42 to 0.57 for a Grand Prix). Fit `w` instead, walk-forward, from earlier races.
+
+**Data.** Race rows now keep the blend inputs (`sim_median_position`, `grid_reference_position`, `grid_anchor_weight`, `racecraft_adjustment`, `max_gain`); order is unchanged. Roots `C36_diag_s42/_s43`: 3.6 plus those fields. Check first: their metrics equal `C35_adjust_off` exactly.
+
+**Sizing, fixed before any result.** Grand Prix rows, every race checkpoint. Rebuild the blend score from the row inputs, with the gain floor, for the current `w` and for a learned `w`. Learned `w` for race r: least squares over all rows of races before r, clipped to [0, 1], one weight for every track. Score rounds 5 to 17, race correlation primary, MAE secondary, learned against current on the rebuilt scores. Null: the same fit on training actuals shuffled within each race checkpoint, 200 draws.
+
+- Learned beats hand-set on race correlation, and beats the null's 95th percentile, on both seeds: build the switch and run an arm pair. Beating the null alone is not enough: a fit on shuffled actuals lands far from a good weight, so the null sits below zero when the hand-set weight is already near its best.
+- Otherwise the learned anchor is dead and the hand-set anchor stays.
+
+**Arm rule, if built.** It removes six hand-set constants, so the removal rule applies: it replaces them unless it leans worse on race correlation on both seeds or widens misses of 10+.
+
+## 2026-11-01: learned grid anchor sizing passes on both seeds; arm pair next
+
+`C36_diag_s42/_s43` save the same order as `C35_adjust_off` on all 62 checkpoints and 154 target orders per seed, so the new row fields change nothing.
+
+`scripts/probe_learned_grid_anchor.py`, rounds 5 to 17, 48 checkpoints per seed:
+
+| | Seed 42 | Seed 43 |
+|---|---|---|
+| Rebuilt hand-set order vs saved, mean Spearman | 0.9915 | 0.9910 |
+| Learned weight, round 5 to round 17 | 0.91 to 0.75 | 0.95 to 0.76 |
+| Race correlation, learned minus hand-set | +0.0107 | +0.0047 |
+| Race MAE, learned minus hand-set | -0.011 | -0.004 |
+| Checkpoints better / worse / tied | 30 / 17 / 1 | 23 / 23 / 2 |
+| Null 95th percentile, 200 shuffles | -0.0050 | -0.0079 |
+
+Passes the rule fixed above on both seeds, so the switch is built and the arm pair runs.
+
+The hand-set weight is 0.57 on all 1,353 Grand Prix rows of both seeds. The `main_max` cap binds every time, so `base`, `track_scale`, `min`, `low_confidence_scale` and `anchor_scale` do nothing for the Grand Prix on this replay. The fit wants more grid anchoring (about 0.75), not less. No replay row is penalised.
+
+Limits: seed 43 is below the race floor (0.0079) and splits 23/23 by checkpoint. The rebuild leaves out the points floor and the rank-sample reorder. The arm pair decides.
+
+**Switch.** `baseline_predictor.race.grid_anchor.learned` (default off) and `learned_min_races: 4`, since the sizing scored from round 5. The learning state sums the least-squares terms from every Grand Prix forecast it learns from. Forecasts without the blend inputs add nothing. Sprints keep `sprint_min`.
+
+**Arm.** `C37_anchor_s42/_s43` (switch on) against `C36_diag_s42/_s43`, rule as fixed above.
+
+**Before shipping, if it passes.** Live forecasts saved before this change have no blend inputs, so live needs 4 new races before the weight applies, unless the live state is seeded from the replay sums. [Unknown] whether live learns a forecast after qualifying and then skips its race result as a duplicate `run_id`; check `session_automation.py` first.
+
+## 2026-11-01: learned grid anchor arm (`C37_anchor`): `unresolvable`, passes the removal rule
+
+Arm `C37_anchor_s42/_s43`: `grid_anchor.learned: true`, against `C36_diag_s42/_s43` (same code, switch off). Qualifying and sprint are identical on every checkpoint. Rounds 1 to 4 keep 0.57; from round 5 the Grand Prix uses the fitted weight, 0.91 falling to 0.73 (seed 42) and 0.95 to 0.74 (seed 43).
+
+| Metric, Grand Prix | Seed 42 | Seed 43 |
+|---|---|---|
+| Race correlation | -0.0012 [-0.0092, +0.0076] (22/24/16) | +0.0034 [-0.0028, +0.0097] (26/22/14) |
+| Race MAE | +0.033 | -0.010 |
+| Band coverage | 84.8% to 84.3% | 84.6% to 84.6% |
+| Misses of 10+ (of 1,353) | 118 to 118 | 115 to 111 |
+| Misses of 15+ | 47 to 44 | 48 to 45 |
+
+Both race deltas are `unresolvable` (below the floor of 0.0079). Under the rule fixed above: it does not lean worse on both seeds and misses of 10+ do not widen, so the learned weight replaces the hand-set Grand Prix weight. Coverage stays within 1 point.
+
+The sizing overstated the gain: +0.0107 and +0.0047 there, -0.0012 and +0.0034 here. The arm is a tie.
+
+Limits:
+
+- The switch removes no constant. The hand-set weight still serves rounds 1 to 4, and the sprint still reads `base`, `track_scale` and `sprint_min`. What it replaces is the 0.57 Grand Prix weight from round 5.
+- The replay never learns from the Belgian or Dutch Grand Prix, in this arm and in every baseline: their checkpoints carry an `information_cutoff_at`, the replay stamps `predicted_at` with wall-clock time, and `_learning_skip_reason` reads that as retrospective. So the arm fitted on 15 races, the sizing on 17. Paired arms skip the same races, so verdicts stand; the replay's learned state differs from live. Separate fix.
+- Not adopted yet. Live forecasts saved before this change carry no blend inputs, so live falls back to 0.57 until 4 new races are learned, unless its state is seeded from the replay sums. Turning it on is Tomasz's call.
+
+## 2026-11-02: model 3.7 turns the learned grid anchor on, without seeding
+
+Model 3.7 is 3.6 plus `grid_anchor.learned: true`, on the 2026-11-01 arm verdict. Live is not seeded from the replay sums, so live keeps 0.57 until 4 races with blend inputs are learned. The config schema keeps `learned` off by default, so older arm configs replay as before.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

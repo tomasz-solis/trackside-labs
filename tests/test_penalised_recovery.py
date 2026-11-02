@@ -63,7 +63,9 @@ def test_validation_preserves_the_qualifying_position():
     assert "qualifying_position" not in validated[1]
 
 
-def _finish_order_for(is_penalised: bool) -> dict:
+def _finish_order_for(
+    is_penalised: bool, learned_weight: float | None = None, is_sprint: bool = False
+) -> dict:
     """Run the finish-order blend over a full field with one back-of-grid quick car.
 
     Twenty-one drivers line up in grid order and the simulation keeps them there. The
@@ -119,7 +121,7 @@ def _finish_order_for(is_penalised: bool) -> dict:
         grid_position_samples_by_driver=grid_samples,
         field_size=22,
         weather="dry",
-        is_sprint=False,
+        is_sprint=is_sprint,
         input_confidence=None,
         cfg=_Cfg(),
         race_params={},
@@ -128,8 +130,30 @@ def _finish_order_for(is_penalised: bool) -> dict:
         learned_interval_radius=0.0,
         enforce_non_increasing=lambda values: values,
         base_seed=42,
+        learned_grid_anchor_weight=learned_weight,
     )
     return {row["driver"]: row for row in order}
+
+
+def test_a_race_row_records_the_blend_inputs():
+    """The unblended inputs survive on the row, so the grid anchor can be fitted later."""
+    row = _finish_order_for(False)["BACK"]
+    penalised = _finish_order_for(True)["BACK"]
+
+    assert row["sim_median_position"] == 4.0
+    assert row["grid_reference_position"] == 22.0
+    assert 0.0 < row["grid_anchor_weight"] < 1.0
+    assert row["max_gain"] > 0.0
+    assert penalised["grid_anchor_weight"] == 0.0
+
+
+def test_a_learned_weight_replaces_the_grand_prix_weight_only():
+    hand_set = _finish_order_for(False)["BACK"]["grid_anchor_weight"]
+
+    assert _finish_order_for(False, learned_weight=0.9)["BACK"]["grid_anchor_weight"] == 0.9
+    assert _finish_order_for(True, learned_weight=0.9)["BACK"]["grid_anchor_weight"] == 0.0
+    sprint = _finish_order_for(False, learned_weight=0.1, is_sprint=True)["BACK"]
+    assert sprint["grid_anchor_weight"] not in (0.1, hand_set)
 
 
 def test_a_penalised_driver_keeps_the_recovery_the_simulation_gave_him():

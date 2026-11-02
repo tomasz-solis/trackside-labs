@@ -170,6 +170,18 @@ class BaselineRacePredictionMixin:
             logger.debug("Could not load learned race interval radius: %s", exc)
             return 0.0
 
+    def _get_learned_grid_anchor_weight(self) -> float | None:
+        """Return the fitted Grand Prix grid anchor weight, or None to keep the hand-set one."""
+        cfg = getattr(self, "config", config_loader)
+        calibration_system = getattr(self, "calibration_system", None)
+        getter = getattr(calibration_system, "get_grid_anchor_weight", None)
+        if not callable(getter) or not bool(
+            cfg.get("baseline_predictor.race.grid_anchor.learned", False)
+        ):
+            return None
+        min_races = int(cfg.get("baseline_predictor.race.grid_anchor.learned_min_races", 4))
+        return getter(min_races=min_races)
+
     def _load_race_residual_model(self) -> Any | None:
         """Load the persisted race residual model when enabled."""
         cfg = getattr(self, "config", config_loader)
@@ -348,6 +360,7 @@ class BaselineRacePredictionMixin:
                     prepare_driver_info_with_compounds=self._prepare_driver_info_with_compounds,
                     get_learned_position_adjustment=self._get_learned_position_adjustment,
                     get_learned_interval_radius=self._get_learned_interval_radius,
+                    get_learned_grid_anchor_weight=self._get_learned_grid_anchor_weight,
                     apply_race_residual_model=self._apply_race_residual_model,
                     get_conformal_interval_radius=self._get_conformal_interval_radius,
                     enforce_non_increasing=self._enforce_non_increasing,

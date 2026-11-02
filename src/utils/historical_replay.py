@@ -43,6 +43,7 @@ from src.utils.accuracy_targets import (
     fastf1_session_name,
     legacy_target_keys_for_prediction,
     target_session_name,
+    use_fastf1_schedule,
     weekend_format_name,
 )
 from src.utils.checkpoint_reconstruction import compute_information_cutoff_at
@@ -946,7 +947,7 @@ def _build_race_checkpoint_record(
         checkpoint_session,
         is_sprint=is_sprint,
     )
-    information_cutoff_at = compute_information_cutoff_at(
+    information_cutoff_at = _replay_clock(
         year=year,
         race_name=race_name,
         checkpoint_session=checkpoint_session,
@@ -1006,6 +1007,9 @@ def _build_race_checkpoint_record(
             .strip()
             .upper(),
             "information_cutoff_at": information_cutoff_at,
+            # Replay clock: stamp the forecast at its cutoff, the latest moment live could
+            # have made it, so the learner treats it as live (ledger 2026-11-02).
+            "predicted_at": information_cutoff_at,
             "excluded_scoring_targets": sorted(excluded_scoring_targets),
             **prediction_model_diagnostics_for_sections(
                 qualifying_section=qualifying_section,
@@ -1098,6 +1102,22 @@ def _build_race_checkpoint_record(
     )
 
 
+def _replay_clock(*, year: int, race_name: str, checkpoint_session: str, is_sprint: bool) -> str:
+    """Return a checkpoint's information cutoff, which the replay also stamps as its time."""
+    information_cutoff_at = compute_information_cutoff_at(
+        year=year,
+        race_name=race_name,
+        checkpoint_session=checkpoint_session,
+        is_sprint=is_sprint,
+    )
+    if information_cutoff_at is None:
+        raise RuntimeError(
+            f"No session schedule for {race_name} {checkpoint_session}: "
+            "the replay cannot set its clock."
+        )
+    return information_cutoff_at
+
+
 def _learn_from_weekend(
     *,
     year: int,
@@ -1113,8 +1133,16 @@ def _learn_from_weekend(
     prediction_logger = PredictionLogger(predictions_dir=str(output_root / "predictions"))
     for checkpoint_session in checkpoint_sessions:
         prediction = prediction_logger.load_prediction(year, race_name, checkpoint_session)
-        if prediction is not None:
-            prediction_logger.learning_system.update_from_prediction_record(prediction)
+        if prediction is None:
+            raise RuntimeError(f"Replay lost its {race_name} {checkpoint_session} forecast.")
+        result = prediction_logger.learning_system.update_from_prediction_record(prediction)
+        # Live learns from every forecast of a finished weekend. A replay that skips one
+        # measures a different model; it learned 15 of 17 weekends before 2026-11-02.
+        if result.get("skipped"):
+            raise RuntimeError(
+                f"Replay did not learn from {race_name} {checkpoint_session}: "
+                f"{result.get('skip_reason')}."
+            )
 
 
 def _save_challenger_snapshots(
@@ -1223,7 +1251,11 @@ def run_historical_checkpoint_replay(
     if not processed_source.exists():
         raise FileNotFoundError(f"Processed source directory does not exist: {processed_source}")
 
-    with _force_file_only_storage(), _walk_forward_car_track_traits(replay_output_root):
+    with (
+        _force_file_only_storage(),
+        use_fastf1_schedule(),
+        _walk_forward_car_track_traits(replay_output_root),
+    ):
         processed_dir = _prepare_output_root(
             source_processed_dir=processed_source,
             output_root=replay_output_root,

@@ -307,3 +307,71 @@ def test_replay_measures_traits_from_sessions_run_by_the_checkpoint(
     assert kwargs["upcoming_race"] == "Singapore Grand Prix"
     assert kwargs["sessions_done"] == sessions
     assert kwargs["store"].data_root == tmp_path
+
+
+class _BelgianSchedule:
+    """FastF1 event stub: FP2 of the 2026 Belgian GP, naive UTC as FastF1 returns it."""
+
+    def get_session_date(self, identifier, utc=False):
+        import pandas as pd
+
+        if identifier != "FP2":
+            raise ValueError(identifier)
+        return pd.Timestamp("2026-07-17 15:00:00")
+
+
+def test_the_replay_clock_reads_the_fastf1_schedule_not_local_state(monkeypatch):
+    """Local boundary state held 2 of 17 weekends, so the replay clock depended on the machine."""
+    from src.utils import accuracy_targets
+    from src.utils import historical_replay as replay
+
+    monkeypatch.setattr(accuracy_targets, "_fastf1_event", lambda year, race: _BelgianSchedule())
+    monkeypatch.setattr(accuracy_targets, "_load_event_boundary_state", lambda: {})
+    clock = {
+        "year": 2026,
+        "race_name": "Belgian Grand Prix",
+        "checkpoint_session": "FP1",
+        "is_sprint": False,
+    }
+
+    with accuracy_targets.use_fastf1_schedule():
+        assert replay._replay_clock(**clock) == "2026-07-17T14:59:59+00:00"
+    with pytest.raises(RuntimeError, match="cannot set its clock"):
+        replay._replay_clock(**clock)
+
+
+def test_a_forecast_on_the_replay_clock_is_learned_and_a_wall_clock_one_is_not(tmp_path):
+    from src.systems.systematic_learning import SystematicLearningSystem
+
+    system = SystematicLearningSystem(state_file=tmp_path / "learning_state.json")
+    cutoff = "2026-07-17T14:59:59+00:00"
+    on_clock = {"metadata": {"information_cutoff_at": cutoff, "predicted_at": cutoff}}
+    wall_clock = {
+        "metadata": {"information_cutoff_at": cutoff, "predicted_at": "2026-11-01T18:56:36+00:00"}
+    }
+
+    assert system._learning_skip_reason(on_clock) is None
+    assert system._learning_skip_reason(wall_clock) == "retrospective_prediction"
+
+
+def test_a_weekend_the_replay_cannot_learn_from_fails_the_replay(monkeypatch, tmp_path):
+    from src.utils import historical_replay as replay
+
+    class _Learning:
+        def update_from_prediction_record(self, prediction):
+            return {"skipped": True, "skip_reason": "retrospective_prediction"}
+
+    class _Logger:
+        def __init__(self, predictions_dir):
+            self.learning_system = _Learning()
+
+        def load_prediction(self, year, race_name, session_name):
+            return {"metadata": {}} if session_name == "FP1" else None
+
+    monkeypatch.setattr(replay, "PredictionLogger", _Logger)
+    weekend = {"year": 2026, "race_name": "Belgian Grand Prix", "output_root": tmp_path}
+
+    with pytest.raises(RuntimeError, match="FP1: retrospective_prediction"):
+        replay._learn_from_weekend(checkpoint_sessions=["FP1"], **weekend)
+    with pytest.raises(RuntimeError, match="lost its Belgian Grand Prix FP2 forecast"):
+        replay._learn_from_weekend(checkpoint_sessions=["FP2"], **weekend)

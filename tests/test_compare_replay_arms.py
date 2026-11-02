@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import numpy as np
 import pytest
 from scripts.compare_replay_arms import (
@@ -10,6 +13,8 @@ from scripts.compare_replay_arms import (
     _bootstrap_ci,
     analyze_arm,
     assign_verdicts,
+    race_tails,
+    replay_health,
 )
 
 TARGET = "main_qualifying"
@@ -178,3 +183,57 @@ def test_bootstrap_ci_singleton_weekends_matches_old_iid_checkpoint_bootstrap() 
     naive_ci = tuple(float(v) for v in np.percentile(naive_means, [2.5, 97.5]))
 
     assert clustered_ci == naive_ci
+
+
+def _write_forecast(root: Path, race: str, session: str, *, stamped: bool) -> None:
+    cutoff = "2026-07-17T14:59:59+00:00"
+    forecast = {
+        "metadata": {
+            "race_name": race,
+            "information_cutoff_at": cutoff,
+            "predicted_at": cutoff if stamped else "2026-11-01T18:56:36+00:00",
+        },
+        "targets": {
+            "grand_prix_race": {
+                "predicted_order": [
+                    {"driver": "AAA", "position": 1, "p5": 1, "p95": 3},
+                    {"driver": "BBB", "position": 2, "p5": 1, "p95": 4},
+                    {"driver": "CCC", "position": 3, "p5": 2, "p95": 5},
+                ]
+            }
+        },
+        "actuals": {
+            "targets": {
+                "grand_prix_race": [
+                    {"driver": "AAA", "position": 16},
+                    {"driver": "BBB", "position": 2},
+                    {"driver": "CCC", "position": 14},
+                ]
+            }
+        },
+    }
+    path = root / "predictions" / "2026" / race.lower().replace(" ", "_") / f"{session}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(forecast), encoding="utf-8")
+
+
+def test_replay_health_flags_a_root_that_learned_less_than_live(tmp_path: Path) -> None:
+    """The pre-2026-11-02 replay learned 15 of 17 weekends; health must say so."""
+    _write_forecast(tmp_path, "Belgian Grand Prix", "fp1", stamped=False)
+    _write_forecast(tmp_path, "British Grand Prix", "fp1", stamped=True)
+    events = [{"race_name": "British Grand Prix"}]
+    state = {"adaptive_calibration": {"event_history": events}}
+    (tmp_path / "learning_state.json").write_text(json.dumps(state), encoding="utf-8")
+
+    health = replay_health(tmp_path, 2026)
+
+    assert (health.weekends, health.learned, health.off_clock) == (2, 1, 1)
+    assert not health.ok
+
+
+def test_race_tails_count_misses_and_band_coverage(tmp_path: Path) -> None:
+    _write_forecast(tmp_path, "British Grand Prix", "fp1", stamped=True)
+
+    tails = race_tails(tmp_path, 2026)
+
+    assert (tails.rows, tails.misses_10, tails.misses_15, tails.covered) == (3, 2, 1, 1)

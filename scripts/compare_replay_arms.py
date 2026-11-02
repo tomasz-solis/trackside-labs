@@ -84,6 +84,115 @@ def _load_target_metrics(root: Path, year: int, target: str) -> MetricsByCheckpo
     return metrics_by_checkpoint
 
 
+@dataclass
+class ReplayHealth:
+    """Whether a replay root learned like live. Ledger 2026-11-02."""
+
+    weekends: int
+    learned: int
+    off_clock: int
+
+    @property
+    def ok(self) -> bool:
+        """Every weekend learned and every forecast stamped at its information cutoff."""
+        return self.weekends > 0 and self.learned == self.weekends and self.off_clock == 0
+
+
+@dataclass
+class RaceTails:
+    """Grand Prix misses by size and p5 to p95 band coverage over every checkpoint row."""
+
+    rows: int
+    misses_10: int
+    misses_15: int
+    covered: int
+
+
+def _saved_forecasts(root: Path, year: int) -> list[dict]:
+    """Every saved checkpoint forecast under one replay root."""
+    return [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted((root / "predictions" / str(year)).glob("*/*.json"))
+    ]
+
+
+def replay_health(root: Path, year: int) -> ReplayHealth:
+    """Count replayed weekends, weekends in the learning state, and forecasts off the replay clock.
+
+    Before 2026-11-02 the replay stamped forecasts with wall-clock time, so the learner
+    skipped any weekend whose cutoff was known as made after the fact.
+    """
+    forecasts = _saved_forecasts(root, year)
+    weekends = {str(f.get("metadata", {}).get("race_name", "")) for f in forecasts} - {""}
+    off_clock = sum(
+        1
+        for f in forecasts
+        if not f.get("metadata", {}).get("information_cutoff_at")
+        or f["metadata"].get("predicted_at") != f["metadata"]["information_cutoff_at"]
+    )
+    learned: set[str] = set()
+    state_path = root / "learning_state.json"
+    if state_path.exists():
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        events = (state.get("adaptive_calibration") or {}).get("event_history") or []
+        learned = {str(event.get("race_name", "")) for event in events}
+    return ReplayHealth(len(weekends), len(weekends & learned), off_clock)
+
+
+def race_tails(root: Path, year: int, target: str = "grand_prix_race") -> RaceTails:
+    """Count misses of 10+ and 15+ places and band coverage for one target's rows."""
+    rows = misses_10 = misses_15 = covered = 0
+    for forecast in _saved_forecasts(root, year):
+        actual_rows = ((forecast.get("actuals") or {}).get("targets") or {}).get(target) or []
+        actual = {str(row["driver"]): int(row["position"]) for row in actual_rows}
+        predicted = ((forecast.get("targets") or {}).get(target) or {}).get("predicted_order")
+        for row in predicted or []:
+            if str(row.get("driver")) not in actual:
+                continue
+            finish = actual[str(row["driver"])]
+            miss = abs(int(row["position"]) - finish)
+            rows += 1
+            misses_10 += miss >= 10
+            misses_15 += miss >= 15
+            if row.get("p5") is not None and row.get("p95") is not None:
+                covered += int(row["p5"]) <= finish <= int(row["p95"])
+    return RaceTails(rows, misses_10, misses_15, covered)
+
+
+def _print_health(roots: list[Path], year: int) -> bool:
+    """Print each root's replay health; return False if any root fails it."""
+    all_ok = True
+    print("=== REPLAY HEALTH ===")
+    for root in roots:
+        health = replay_health(root, year)
+        print(
+            f"  {root.name}: {health.learned} of {health.weekends} weekends learned, "
+            f"{health.off_clock} forecasts off the replay clock"
+        )
+        all_ok = all_ok and health.ok
+    if not all_ok:
+        print(
+            "  WARNING: a root did not learn like live. Its verdicts on learned layers are not "
+            "valid; rebuild it (ledger 2026-11-02)."
+        )
+    print()
+    return all_ok
+
+
+def _print_tails(baseline_root: Path, candidate_root: Path, year: int) -> None:
+    """Print Grand Prix tails and coverage, baseline to candidate."""
+    before, after = race_tails(baseline_root, year), race_tails(candidate_root, year)
+    if not before.rows or not after.rows:
+        return
+    print(f"  grand_prix_race tails ({before.rows} rows, baseline to candidate):")
+    print(f"    misses of 10+: {before.misses_10} to {after.misses_10}")
+    print(f"    misses of 15+: {before.misses_15} to {after.misses_15}")
+    print(
+        f"    p5 to p95 coverage: {100 * before.covered / before.rows:.1f}% to "
+        f"{100 * after.covered / after.rows:.1f}%"
+    )
+
+
 _SUMMARY_CHECKPOINT_LINE = re.compile(r"^- (?P<race>.+) (?P<session>[A-Z0-9]+):$")
 
 
@@ -401,7 +510,7 @@ def main() -> int:
     fallback_race_names = {key[0] for metrics in baseline_by_target.values() for key in metrics}
     schedule_order = _schedule_order(baseline_root, fallback_race_names)
 
-    had_error = False
+    had_error = not _print_health(list(dict.fromkeys(roots_to_check)), args.year)
 
     floor_rows_by_target: dict[str, list[MetricRow]] | None = None
     if floor_roots is not None:
@@ -443,6 +552,7 @@ def main() -> int:
         assign_verdicts(rows_by_target, floor_rows_by_target)
         print(f"=== CANDIDATE: {candidate_root} vs BASELINE: {baseline_root} ===")
         _print_rows_by_target(rows_by_target)
+        _print_tails(baseline_root, candidate_root, args.year)
         for target in targets:
             if "correlation" in {row.metric for row in rows_by_target.get(target, [])}:
                 _print_movers(

@@ -62,6 +62,10 @@ Correlation resolves about twice as finely as MAE and barely moves with the seed
 
 **Level check, added 2026-10-31.** Before quoting a replay level, compare its MAE at a checkpoint with the served accuracy snapshots at the same checkpoint. The learning leak showed as replay FP3 race MAE 3.01 against 3.76 served. A paired delta cannot catch a leak both arms share.
 
+**Replay parity, added 2026-11-02.** The replay must learn like live. Each forecast is stamped at its information cutoff from the FastF1 schedule (`use_fastf1_schedule`), never from local runtime state, and `_learn_from_weekend` fails the replay when the learner skips a forecast. `compare_replay_arms.py` prints each root's health (weekends learned, forecasts off the replay clock) and the Grand Prix tails and coverage. A root with a health warning gives no verdict on a learned layer. Roots built before 2026-11-02 learned 15 of 17 weekends.
+
+**Each fixed rule says why it fits, added 2026-11-02.** Name what the arm removes or adds, then the rule. The removal rule assumes the arm deletes hand-set decisions; the learned anchor deleted none (2026-11-01). "On both seeds" holds for the tails test too: misses of 10+ widen only when they rise on both seeds.
+
 **Current floor: 2026-10-31**, replay with the learning leak fixed, seed pair `data/historical_replay_arms/C35_clean_s42` / `_s43` (model 3.5), `--through-round 17`, race-weekend bootstrap. The threshold is the widest bound of the seed pair's interval. Baseline for 3.6: `C35_adjust_off_s42` / `_s43`, same config.
 
 | Target | Correlation | MAE | 2026-09-27 (superseded) |
@@ -1787,6 +1791,35 @@ Limits:
 ## 2026-11-02: model 3.7 turns the learned grid anchor on, without seeding
 
 Model 3.7 is 3.6 plus `grid_anchor.learned: true`, on the 2026-11-01 arm verdict. Live is not seeded from the replay sums, so live keeps 0.57 until 4 races with blend inputs are learned. The config schema keeps `learned` off by default, so older arm configs replay as before.
+
+## 2026-11-02: the replay learned 15 of 17 weekends; fixed, rules fixed before the re-check
+
+**Defect.** Every replay root, baselines included, never learned from the Belgian or Dutch Grand Prix (7 of 62 checkpoints). The replay took a forecast's information cutoff from `data/systems/event_boundary_refresh_state.json`, local runtime state that held only those two events on this machine, and stamped `predicted_at` with wall-clock time. `_learning_skip_reason` read `predicted_at > information_cutoff_at` as a forecast made after the fact. The other 15 weekends had no cutoff, so they passed. The same file chose round 1's PRE car snapshot: live would use the Testing 2 snapshot, the replay found none. So the replay depended on the machine and learned less than live.
+
+**Fix.** Inside the replay, `_scheduled_session_start` reads the FastF1 schedule. Each forecast is stamped at its cutoff, the latest moment live could have made it, so it passes the same learning check as live. `_learn_from_weekend` raises on a skipped or missing forecast; a missing schedule raises too. `compare_replay_arms.py` reports replay health, tails and coverage.
+
+**Checked on a 2-round replay (`T_audit_s42`).** 7 of 7 forecasts learned, all on the replay clock. Against `C37_anchor_s42` only Australian PRE changed (both targets): the Testing 2 snapshot. A file-open audit found no read of `data/systems/`; inputs are tracked files, the FastF1 cache, the root itself, and the untracked `data/processed/driver_characteristics.json`, read for metadata only [Likely: the 2026 driver file it falls back from exists].
+
+**Exposed verdicts.** Only verdicts on learned layers: the learned driver shift (off since 3.6, 2026-10-31), the learned anchor (3.7, 2026-11-01) and race band widening (3.5). Paired arms skipped the same weekends, so order-only verdicts stand.
+
+**Re-check, rules fixed before any result.** Model 3.7 on the fixed replay, `--through-round 17`, seeds 42 and 43:
+
+| Root | Change from 3.7 | What it re-checks |
+|---|---|---|
+| `C37_parity` | none | baseline and new floor |
+| `C37_shift_on` | `learning.max_adjustment: 2.5` | 3.6 |
+| `C37_anchor_off` | `grid_anchor.learned: false` | 3.7 |
+| `C37_widening_off` | `learning.race_interval_widening: false` | 3.5 |
+
+1. Health: every root 17 of 17 weekends learned, 0 forecasts off the replay clock. Otherwise stop.
+2. Isolation: `C37_parity` against `C37_anchor` has the same `main_qualifying` order on every checkpoint except Australian PRE, and the same scored checkpoints per target. Otherwise stop and find the cause before any verdict.
+3. Floor: from `C37_parity_s42` / `_s43`, recorded here.
+4. Shift. It adds learned corrections to qualifying and race order. It stays off unless `C37_shift_on` leans better than `C37_parity` on race or qualifying correlation on both seeds, or has fewer race misses of 10+ on both seeds. Same test as the 3.6 removal, from the other side.
+5. Anchor. It replaces the 0.57 Grand Prix weight from round 5. It stays unless `C37_parity` leans worse than `C37_anchor_off` on race correlation on both seeds, or has more race misses of 10+ on both seeds.
+6. Widening. A band layer: it stays unless `C37_widening_off` puts race band coverage closer to 90% on both seeds.
+7. A layer that flips is reverted in config with a version bump before any push. 3.6, 3.7 and this fix ship on Tomasz's "push" only after all three hold.
+
+Not re-checked: the learned qualifying radius has no verdict of its own; it sits under `learning.apply_adaptive_calibration`.
 
 ## Adding an entry
 

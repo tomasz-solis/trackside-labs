@@ -84,6 +84,8 @@ def _run_replay_recording_order(
         replay_module, "_walk_forward_team_strength_mapping", lambda **_kwargs: nullcontext()
     )
     monkeypatch.setattr(replay_module, "_build_race_checkpoint_record", _checkpoint)
+    # The stubbed checkpoints save no forecast, so there is nothing to learn from.
+    monkeypatch.setattr(replay_module, "_learn_from_weekend", lambda **_kwargs: None)
     monkeypatch.setattr(replay_module, "_refresh_replay_track_traits", _traits)
     monkeypatch.setattr(
         replay_module,

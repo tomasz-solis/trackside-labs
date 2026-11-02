@@ -7,7 +7,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
-from typing import Any
+from functools import lru_cache
+from typing import Any, cast
 
 from src.utils.data_paths import resolve_repo_data_path
 
@@ -207,6 +208,54 @@ def _read_event_boundary_state() -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+_FASTF1_SCHEDULE: ContextVar[bool] = ContextVar("fastf1_schedule", default=False)
+
+
+@contextmanager
+def use_fastf1_schedule() -> Iterator[None]:
+    """Read session starts from the FastF1 schedule inside the block.
+
+    The boundary snapshot is runtime state that holds only the events this machine
+    refreshed. A replay that read it learned from 2 of 17 weekends less than live and
+    picked its round-1 car snapshot differently (ledger 2026-11-02).
+    """
+    token = _FASTF1_SCHEDULE.set(True)
+    try:
+        yield
+    finally:
+        _FASTF1_SCHEDULE.reset(token)
+
+
+@lru_cache(maxsize=64)
+def _fastf1_event(year: int, race_name: str) -> Any:
+    import fastf1
+
+    from src.utils.fastf1_resilience import call_with_resilience
+
+    return call_with_resilience(
+        "fastf1_get_event",
+        lambda: fastf1.get_event(year, race_name),
+        labels={"year": year, "race_name": race_name},
+    )
+
+
+def fastf1_session_start(*, year: int, race_name: str, session_name: str) -> datetime | None:
+    """Return a session's scheduled start in UTC from the FastF1 event schedule."""
+    import pandas as pd
+
+    try:
+        start = _fastf1_event(int(year), str(race_name).strip()).get_session_date(
+            fastf1_session_name(session_name), utc=True
+        )
+    except ValueError:
+        return None
+    if pd.isna(start):
+        return None
+    start = pd.Timestamp(start)
+    start = start.tz_localize(UTC) if start.tzinfo is None else start.tz_convert(UTC)
+    return cast(datetime, start.to_pydatetime())
+
+
 def _scheduled_session_start(
     *,
     year: int,
@@ -214,6 +263,8 @@ def _scheduled_session_start(
     session_name: str,
 ) -> datetime | None:
     """Return scheduled session start from the locally persisted boundary snapshot."""
+    if _FASTF1_SCHEDULE.get():
+        return fastf1_session_start(year=year, race_name=race_name, session_name=session_name)
     state = _load_event_boundary_state()
     races = state.get("races", {})
     if not isinstance(races, dict):

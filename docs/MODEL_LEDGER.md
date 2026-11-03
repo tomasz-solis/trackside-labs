@@ -66,13 +66,15 @@ Correlation resolves about twice as finely as MAE and barely moves with the seed
 
 **Each fixed rule says why it fits, added 2026-11-02.** Name what the arm removes or adds, then the rule. The removal rule assumes the arm deletes hand-set decisions; the learned anchor deleted none (2026-11-01). "On both seeds" holds for the tails test too: misses of 10+ widen only when they rise on both seeds.
 
-**Current floor: 2026-10-31**, replay with the learning leak fixed, seed pair `data/historical_replay_arms/C35_clean_s42` / `_s43` (model 3.5), `--through-round 17`, race-weekend bootstrap. The threshold is the widest bound of the seed pair's interval. Baseline for 3.6: `C35_adjust_off_s42` / `_s43`, same config.
+**Current floor: 2026-11-03**, replay that learns every weekend, seed pair `data/historical_replay_arms/C37_parity_s42` / `_s43` (model 3.7), `--through-round 17`, race-weekend bootstrap. The threshold is the widest bound of the seed pair's interval. This pair is also the 3.7 baseline.
 
-| Target | Correlation | MAE | 2026-09-27 (superseded) |
-|---|---|---|---|
-| Qualifying | 0.0026 | 0.040 | 0.0027, 0.054 |
-| Race | 0.0079 | 0.078 | 0.0067, 0.076 |
-| Sprint race | 0.0064 | 0.091 | 0.0080, 0.100 |
+| Target | Correlation | MAE | 2026-10-31, `C35_clean` (superseded) | 2026-09-27 (superseded) |
+|---|---|---|---|---|
+| Qualifying | 0.0048 | 0.039 | 0.0026, 0.040 | 0.0027, 0.054 |
+| Race | 0.0077 | 0.050 | 0.0079, 0.078 | 0.0067, 0.076 |
+| Sprint race | 0.0077 | 0.109 | 0.0064, 0.091 | 0.0080, 0.100 |
+
+The 2026-10-31 floor came from roots that learned 15 of 17 weekends (2026-11-02 entry).
 
 The 2026-09-27 floor (`m1s42_r14` / `m1s43_r14`, 14 rounds) was measured on a replay that still leaked each race's result into its own practice checkpoints. The 2026-09-25 floor used race seed streams that were 299 of 300 identical between seeds, and a per-checkpoint bootstrap. See the 2026-09-27 entry.
 
@@ -1820,6 +1822,32 @@ Model 3.7 is 3.6 plus `grid_anchor.learned: true`, on the 2026-11-01 arm verdict
 7. A layer that flips is reverted in config with a version bump before any push. 3.6, 3.7 and this fix ship on Tomasz's "push" only after all three hold.
 
 Not re-checked: the learned qualifying radius has no verdict of its own; it sits under `learning.apply_adaptive_calibration`.
+
+## 2026-11-03: parity re-check, 3.6, 3.7 and band widening hold
+
+Rules fixed in the 2026-11-02 entry. 8 roots, `--through-round 17`, seeds 42 and 43, commit `0dec60da`.
+
+1. Health: all 8 roots learned 17 of 17 weekends, 0 forecasts off the replay clock.
+2. Isolation: `C37_parity` against `C37_anchor` differs in `main_qualifying` only at Australian PRE, on both seeds; scored checkpoints 62 / 18 / 62 on both. Grand Prix orders also differ at 15 and 12 later checkpoints, including before Belgium [Likely: Australian PRE now uses the Testing 2 snapshot, and its forecast feeds the learned anchor and band fits].
+3. Floor: table at the top.
+
+| Arm, against `C37_parity` | Metric | Seed 42 | Seed 43 | Rule result |
+|---|---|---|---|---|
+| `C37_shift_on` | Qualifying corr | -0.0067 | -0.0048 | leans worse on both |
+| | Race corr | -0.0006 | -0.0012 | leans worse on both |
+| | Race misses of 10+ | 118 to 117 | 111 to 114 | not fewer on both |
+| `C37_anchor_off` | Race corr | +0.0004 | -0.0007 | split |
+| | Race misses of 10+ | 118 to 118 | 111 to 115 | parity not higher on both |
+| `C37_widening_off` | Grand Prix coverage | 84.1% to 77.7% | 84.5% to 78.1% | further from 90% |
+| | Sprint coverage | 86.3% to 71.6% | 86.8% to 72.3% | further from 90% |
+
+Verdicts:
+
+- Learned shift stays off: 3.6 holds.
+- Learned anchor stays: 3.7 holds. Against the rule: race MAE leans toward anchor off on both seeds (-0.030, -0.010), under the 0.050 floor, and misses of 15+ lean toward the anchor (45 to 47, 46 to 48). Neither is in the rule.
+- Band widening stays. Its arm leaves every order identical, as a band-only layer should.
+
+The anchor arm is `identical` on qualifying and sprint; it only touches the Grand Prix. 3.6, 3.7 and the parity fix may ship.
 
 ## Adding an entry
 

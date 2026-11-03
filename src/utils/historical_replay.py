@@ -1377,16 +1377,18 @@ def run_historical_checkpoint_replay(
                             )
                         )
 
-                _learn_from_weekend(
-                    year=year,
-                    race_name=race_name,
-                    checkpoint_sessions=[
-                        record.checkpoint_session
-                        for record in summary.checkpoints
-                        if record.race_name == race_name
-                    ],
-                    output_root=replay_output_root,
-                )
+                # Live learns once the race is over; a weekend still in progress has no results.
+                if "R" in {str(s).strip().upper() for s in plan_entry.get("sessions", [])}:
+                    _learn_from_weekend(
+                        year=year,
+                        race_name=race_name,
+                        checkpoint_sessions=[
+                            record.checkpoint_session
+                            for record in summary.checkpoints
+                            if record.race_name == race_name
+                        ],
+                        output_root=replay_output_root,
+                    )
                 if is_sprint:
                     update_from_sprint_race(
                         year,

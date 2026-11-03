@@ -165,7 +165,10 @@ def test_a_replay_before_qualifying_keeps_predicting_the_grid(monkeypatch):
 
 
 def test_replay_learns_from_a_weekend_only_after_its_last_checkpoint(monkeypatch, tmp_path):
-    """No checkpoint may see learning from its own race's result, as live never does."""
+    """No checkpoint may see learning from its own race's result, as live never does.
+
+    A weekend still in progress (no race cached) is forecast but not learned from.
+    """
     from contextlib import nullcontext
 
     import src.utils.historical_replay as replay
@@ -180,7 +183,10 @@ def test_replay_learns_from_a_weekend_only_after_its_last_checkpoint(monkeypatch
     monkeypatch.setattr(
         replay,
         "_season_snapshot_plan",
-        lambda year: [{"event_name": race, "sessions": sessions} for race in ("A GP", "B GP")],
+        lambda year: (
+            [{"event_name": race, "sessions": sessions} for race in ("A GP", "B GP")]
+            + [{"event_name": "C GP", "sessions": ["FP1"]}]
+        ),
     )
     monkeypatch.setattr(replay, "is_sprint_weekend", lambda year, race: False)
     monkeypatch.setattr(replay, "_apply_session_update", lambda **kw: True)
@@ -213,6 +219,8 @@ def test_replay_learns_from_a_weekend_only_after_its_last_checkpoint(monkeypatch
         ("learn", "A GP", weekend),
         *[("predict", "B GP", cp) for cp in weekend],
         ("learn", "B GP", weekend),
+        ("predict", "C GP", "PRE"),
+        ("predict", "C GP", "FP1"),
     ]
 
 

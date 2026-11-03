@@ -13,6 +13,7 @@ from pathlib import Path
 import fastf1
 import pandas as pd
 
+from src.data.actual_results_fetcher import is_competitive_session_completed
 from src.persistence.config import should_read_db_first, should_write_to_db, should_write_to_file
 from src.persistence.runtime_state_store import RuntimeStateStore
 from src.utils.weekend import is_sprint_weekend, should_skip_schedule_event
@@ -150,31 +151,9 @@ def get_completed_races(year: int = 2026) -> list[str]:
 
                 if event_date.to_pydatetime() < now:
                     race_name = event["EventName"]
-                    # Try to load session metadata to confirm data is available.
-                    try:
-                        session = fastf1.get_session(year, race_name, "R")
-                        if session is None:
-                            continue
-                        session.load(laps=False, telemetry=False, weather=False, messages=False)
-                        results = getattr(session, "results", None)
-                        if results is None:
-                            continue
-                        try:
-                            if len(results) == 0:
-                                continue
-                        except TypeError as exc:
-                            logger.debug("Result length check failed: %s", exc)
+                    # The check the actuals use: FastF1, then OpenF1 when FastF1 cannot tell.
+                    if is_competitive_session_completed(year, race_name, "R"):
                         completed.append(race_name)
-                    except (
-                        ValueError,
-                        KeyError,
-                        AttributeError,
-                        TypeError,
-                        FileNotFoundError,
-                        RuntimeError,
-                    ) as e:
-                        logger.debug("Race %s not available yet: %s", race_name, e)
-                        continue  # Race not available yet
 
         return completed
 

@@ -319,13 +319,14 @@ class TestAutoUpdaterExecution:
 
 
 class TestCompletedRacesDetection:
-    """Test detection of completed races from FastF1."""
+    """Test detection of completed races from the event schedule."""
+
+    _CHECK = "src.utils.auto_updater.is_competitive_session_completed"
 
     def test_get_completed_races_recent(self, temp_data_dir):
-        """Test get_completed_races returns only recent races."""
+        """Only races dated in the past and confirmed finished are completed."""
         from src.utils.auto_updater import get_completed_races
 
-        # Mock FastF1 schedule
         mock_schedule = pd.DataFrame(
             {
                 "EventName": [
@@ -341,19 +342,13 @@ class TestCompletedRacesDetection:
             }
         )
 
-        with patch("fastf1.get_event_schedule") as mock_get_schedule:
-            with patch("fastf1.get_session") as mock_get_session:
-                mock_get_schedule.return_value = mock_schedule
-                mock_session = MagicMock()
-                mock_session.results = pd.DataFrame([{"Position": 1}])
-                mock_get_session.return_value = mock_session
-
+        with patch("fastf1.get_event_schedule", return_value=mock_schedule):
+            with patch(self._CHECK, return_value=True) as check:
                 completed = get_completed_races(year=2026)
 
-        assert len(completed) == 2
-        assert "Australian Grand Prix" in completed
-        assert "Chinese Grand Prix" in completed
-        assert "Japanese Grand Prix" not in completed
+        assert completed == ["Australian Grand Prix", "Chinese Grand Prix"]
+        check.assert_any_call(2026, "Australian Grand Prix", "R")
+        assert check.call_count == 2
 
     def test_get_completed_races_handles_timezone_aware_dates(self, temp_data_dir):
         """Timezone-aware event dates should be handled without naive/aware comparison errors."""
@@ -369,19 +364,14 @@ class TestCompletedRacesDetection:
             }
         )
 
-        with patch("fastf1.get_event_schedule") as mock_get_schedule:
-            with patch("fastf1.get_session") as mock_get_session:
-                mock_get_schedule.return_value = mock_schedule
-                mock_session = MagicMock()
-                mock_session.results = pd.DataFrame([{"Position": 1}])
-                mock_get_session.return_value = mock_session
-
+        with patch("fastf1.get_event_schedule", return_value=mock_schedule):
+            with patch(self._CHECK, return_value=True):
                 completed = get_completed_races(year=2026)
 
         assert completed == ["Australian Grand Prix"]
 
-    def test_get_completed_races_requires_session_load(self, temp_data_dir):
-        """Race is treated as completed only after FastF1 session load succeeds."""
+    def test_get_completed_races_skips_a_race_not_confirmed_finished(self, temp_data_dir):
+        """A past race the completion check does not confirm is not learned from yet."""
         from src.utils.auto_updater import get_completed_races
 
         mock_schedule = pd.DataFrame(
@@ -390,67 +380,39 @@ class TestCompletedRacesDetection:
                 "EventDate": [datetime.now() - timedelta(days=2)],
             }
         )
-        mock_session = MagicMock()
-        mock_session.results = pd.DataFrame([{"Position": 1}])
 
-        with patch("fastf1.get_event_schedule") as mock_get_schedule:
-            with patch("fastf1.get_session") as mock_get_session:
-                mock_get_schedule.return_value = mock_schedule
-                mock_get_session.return_value = mock_session
-
+        with patch("fastf1.get_event_schedule", return_value=mock_schedule):
+            with patch(self._CHECK, return_value=False):
                 completed = get_completed_races(year=2026)
+
+        assert completed == []
+
+    def test_a_race_fastf1_cannot_load_counts_once_openf1_has_results(self, temp_data_dir):
+        """FastF1 failing must not hide a finished race: OpenF1 decides, as for actuals."""
+        from src.utils.auto_updater import get_completed_races
+
+        mock_schedule = pd.DataFrame(
+            {
+                "EventName": ["Australian Grand Prix"],
+                "EventDate": [datetime.now() - timedelta(days=2)],
+            }
+        )
+        event = MagicMock()
+        event.get_session_date.return_value = datetime.now(UTC) - timedelta(days=2)
+        broken_session = MagicMock()
+        broken_session.load.side_effect = RuntimeError("archive refused the load")
+
+        with patch("fastf1.get_event_schedule", return_value=mock_schedule):
+            with patch("src.utils.session_detector.fastf1.get_event", return_value=event):
+                with patch(
+                    "src.utils.session_detector.fastf1.get_session", return_value=broken_session
+                ):
+                    with patch(
+                        "src.data.openf1.session_completion_state", return_value="completed"
+                    ):
+                        completed = get_completed_races(year=2026)
 
         assert completed == ["Australian Grand Prix"]
-        mock_session.load.assert_called_once_with(
-            laps=False,
-            telemetry=False,
-            weather=False,
-            messages=False,
-        )
-
-    def test_get_completed_races_skips_when_session_load_fails(self, temp_data_dir):
-        """Session load failures should not mark race as completed."""
-        from src.utils.auto_updater import get_completed_races
-
-        mock_schedule = pd.DataFrame(
-            {
-                "EventName": ["Australian Grand Prix"],
-                "EventDate": [datetime.now() - timedelta(days=2)],
-            }
-        )
-        mock_session = MagicMock()
-        mock_session.load.side_effect = RuntimeError("Data not yet loaded")
-
-        with patch("fastf1.get_event_schedule") as mock_get_schedule:
-            with patch("fastf1.get_session") as mock_get_session:
-                mock_get_schedule.return_value = mock_schedule
-                mock_get_session.return_value = mock_session
-
-                completed = get_completed_races(year=2026)
-
-        assert completed == []
-
-    def test_get_completed_races_skips_when_results_missing(self, temp_data_dir):
-        """Session metadata loads are ignored when results payload is empty."""
-        from src.utils.auto_updater import get_completed_races
-
-        mock_schedule = pd.DataFrame(
-            {
-                "EventName": ["Australian Grand Prix"],
-                "EventDate": [datetime.now() - timedelta(days=2)],
-            }
-        )
-        mock_session = MagicMock()
-        mock_session.results = pd.DataFrame()
-
-        with patch("fastf1.get_event_schedule") as mock_get_schedule:
-            with patch("fastf1.get_session") as mock_get_session:
-                mock_get_schedule.return_value = mock_schedule
-                mock_get_session.return_value = mock_session
-
-                completed = get_completed_races(year=2026)
-
-        assert completed == []
 
     def test_get_completed_races_excludes_testing_events(self, temp_data_dir):
         """Testing events should never be treated as completed races to learn from."""
@@ -474,13 +436,8 @@ class TestCompletedRacesDetection:
             }
         )
 
-        with patch("fastf1.get_event_schedule") as mock_get_schedule:
-            with patch("fastf1.get_session") as mock_get_session:
-                mock_get_schedule.return_value = mock_schedule
-                mock_session = MagicMock()
-                mock_session.results = pd.DataFrame([{"Position": 1}])
-                mock_get_session.return_value = mock_session
-
+        with patch("fastf1.get_event_schedule", return_value=mock_schedule):
+            with patch(self._CHECK, return_value=True):
                 completed = get_completed_races(year=2026)
 
         assert completed == ["Australian Grand Prix"]

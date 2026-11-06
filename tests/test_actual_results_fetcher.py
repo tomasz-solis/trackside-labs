@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
+from src.data import openf1
 from src.data.actual_results_fetcher import fetch_actual_session_results
 
 
@@ -90,6 +91,28 @@ def test_fetch_actual_session_results_fails_closed_on_malformed_row():
 
     with patch("src.data.actual_results_fetcher.fastf1.get_session", return_value=mock_session):
         results = fetch_actual_session_results(2026, "Bahrain Grand Prix", "Q")
+
+    assert results is None
+
+
+def test_fetch_actual_session_results_never_saves_a_missing_team_as_the_text_none():
+    """Mexico City 2026: FastF1 gave HIR no TeamName and the race row was saved as "None"."""
+    rows = [{"Abbreviation": "HIR", "TeamName": None, "Position": 1}]
+    rows.extend(
+        {"Abbreviation": f"DRV{i}", "TeamName": "Scuderia Ferrari", "Position": i}
+        for i in range(2, 21)
+    )
+    mock_session = MagicMock()
+    mock_session.results = pd.DataFrame(rows)
+
+    with (
+        patch("src.data.actual_results_fetcher.fastf1.get_session", return_value=mock_session),
+        patch(
+            "src.data.actual_results_fetcher.openf1.fetch_session_results",
+            side_effect=openf1.OpenF1Unavailable("closed"),
+        ),
+    ):
+        results = fetch_actual_session_results(2026, "Mexico City Grand Prix", "R")
 
     assert results is None
 

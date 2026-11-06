@@ -288,8 +288,8 @@ def _fetch_fastf1_session_results(
                 if not driver:
                     raise ValueError("missing driver identifier")
 
-                team_raw = row.get("TeamName")
-                team_raw_str = str(team_raw).strip()
+                # A missing TeamName must fail the row, never become the text "None".
+                team_raw_str = _clean_result_str(row.get("TeamName"))
                 if not team_raw_str:
                     raise ValueError("missing team name")
                 team = map_team_to_characteristics(team_raw_str) or team_raw_str

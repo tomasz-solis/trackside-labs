@@ -473,6 +473,27 @@ def test_get_driver_data_or_fallback_uses_teammate_profile_for_missing_lineup_dr
     assert prep.drivers["LIN"] == fallback
 
 
+def test_get_driver_data_or_fallback_covers_a_substitute_missing_from_the_season_lineup():
+    """Mexico City 2026: HIR replaced OCO, was in no lineup file, and every forecast failed."""
+    prep = DummyPreparation()
+    prep.config = DummyConfig({"baseline_predictor.qualifying.default_skill": 0.5})
+    prep.drivers = {
+        "BEA": {
+            "pace": {"quali_pace": 0.60, "race_pace": 0.60},
+            "racecraft": {"skill_score": 0.55, "overtaking_skill": 0.55},
+            "dnf_risk": {"dnf_rate": 0.05},
+            "experience": {"tier": "developing"},
+        }
+    }
+    with patch("src.utils.lineups.load_current_lineups", return_value={"Haas": ["OCO", "BEA"]}):
+        with patch.object(prep, "_infer_missing_driver_experience_tier", return_value="rookie"):
+            fallback = prep._get_driver_data_or_fallback("HIR", "Haas")
+
+    assert fallback["experience"]["tier"] == "rookie"
+    assert fallback["pace"]["quali_pace"] < 0.60
+    assert prep.drivers["HIR"] == fallback
+
+
 def test_missing_driver_fallback_applies_reduced_second_year_penalties():
     prep = DummyPreparation()
     prep.config = DummyConfig(

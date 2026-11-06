@@ -17,7 +17,8 @@ from src.utils.lap_by_lap_simulator import simulate_race_lap_by_lap
 # ---------------------------------------------------------------------------
 # Original test (kept -- uses lazy import to avoid supabase chain in CI)
 # ---------------------------------------------------------------------------
-def test_prepare_driver_info_with_unknown_driver_raises():
+def test_prepare_driver_info_gives_a_driver_without_a_profile_the_fallback():
+    """A seated substitute with no stored profile must not take the forecast down."""
     from src.predictors.baseline.race.preparation_mixin import BaselineRacePreparationMixin
 
     class _DummyPreparation(BaselineRacePreparationMixin):
@@ -39,11 +40,13 @@ def test_prepare_driver_info_with_unknown_driver_raises():
 
     prep = _DummyPreparation()
 
-    with pytest.raises(ValueError, match="Driver .* not found"):
-        prep._prepare_driver_info_with_compounds(
-            qualifying_grid=[{"driver": "UNKNOWN", "team": "McLaren", "position": 1}],
-            race_name="Bahrain Grand Prix",
-        )
+    info_map, _ = prep._prepare_driver_info_with_compounds(
+        qualifying_grid=[{"driver": "UNKNOWN", "team": "McLaren", "position": 1}],
+        race_name="Bahrain Grand Prix",
+    )
+
+    assert "UNKNOWN" in info_map
+    assert prep.drivers["UNKNOWN"]["experience"]["tier"]
 
 
 # ---------------------------------------------------------------------------

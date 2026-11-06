@@ -140,27 +140,19 @@ class BaselineRacePreparationMixin:
             current_year=current_year,
         )
 
-    def _is_known_lineup_driver(self, driver_code: str, team: str) -> bool:
-        """Return True if driver is in configured active lineups."""
-        current_lineups = self._load_current_lineups_for_preparation()
-
-        team_drivers = current_lineups.get(team, [])
-        if driver_code in team_drivers:
-            return True
-        return any(driver_code in drivers for drivers in current_lineups.values())
-
     def _get_driver_data_or_fallback(self, driver_code: str, team: str) -> dict:
-        """Return driver data, using defaults for known active-lineup drivers."""
+        """Return driver data, or a teammate-based rookie profile for a seated driver without one.
+
+        A race substitute is seated but absent from the season lineup file, so the fallback
+        must not depend on that file: Mexico City 2026 (OCO -> HIR) lost its FP3 and Q forecasts.
+        """
         driver_data = self.drivers.get(driver_code)
         if driver_data:
             return driver_data
 
-        if self._is_known_lineup_driver(driver_code, team):
-            fallback = self._build_missing_driver_fallback(driver_code, team)
-            self.drivers[driver_code] = fallback
-            return fallback
-
-        raise ValueError(f"Driver {driver_code} not found in loaded characteristics")
+        fallback = self._build_missing_driver_fallback(driver_code, team)
+        self.drivers[driver_code] = fallback
+        return fallback
 
     def _get_teammate_driver_data(self, driver_code: str, team: str) -> tuple[str, dict] | None:
         """Return teammate data from configured current lineups when available."""

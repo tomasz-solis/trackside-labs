@@ -5,34 +5,17 @@ Live race predictions with historical accuracy tracking.
 """
 
 import logging
-import os
 from pathlib import Path
 
 import streamlit as st
 
+from src.utils.env_file import load_env_file
 
-def _load_local_env(path: str = ".env.local") -> None:
-    """Load KEY=VALUE lines from a local env file into the process environment.
-
-    `streamlit run` does not read .env files, so without this the app starts in
-    file_only persistence mode (USE_DB_STORAGE unset) and never reads the
-    Supabase-backed forecast store. Real environment variables always win; we only
-    fill values that aren't already set. No dependency: the file is trivial KEY=VALUE.
-    """
-    env_file = Path(path)
-    if not env_file.exists():
-        return
-    for raw in env_file.read_text().splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
-
-
-# Must run before importing anything under `src`: the persistence layer validates
-# USE_DB_STORAGE / SUPABASE_* at import time, so the env has to be populated first.
-_load_local_env()
+# `streamlit run` reads no .env file. Fill the env before importing anything else under
+# `src`: the persistence layer validates USE_DB_STORAGE / SUPABASE_* at import time.
+# Render has no .env.local; its real environment variables always win.
+if Path(".env.local").exists():
+    load_env_file(Path(".env.local"))
 
 from src.dashboard import (  # noqa: E402
     BRAND_NAME,

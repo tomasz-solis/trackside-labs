@@ -17,7 +17,7 @@ def load_env_file(env_file: Path) -> None:
 
     Existing environment variables take precedence: the file only fills gaps, so an
     explicitly exported value is never overwritten. Blank lines, comments, and lines
-    without ``=`` are skipped.
+    without ``=`` are skipped. One matching pair of surrounding quotes is removed.
 
     Raises:
         FileNotFoundError: If ``env_file`` does not exist.
@@ -29,6 +29,8 @@ def load_env_file(env_file: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        key = key.strip()
+        key, value = key.strip(), value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
         if key:
-            os.environ.setdefault(key, value.strip())
+            os.environ.setdefault(key, value)

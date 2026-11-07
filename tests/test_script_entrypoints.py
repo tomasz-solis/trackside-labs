@@ -256,6 +256,25 @@ def test_warmup_env_file_fills_missing_without_overriding(tmp_path, monkeypatch)
     assert os.environ["USE_DB_STORAGE"] == "dual_write"  # exported value preserved
 
 
+def test_load_env_file_removes_one_matching_pair_of_quotes(tmp_path, monkeypatch):
+    """app.py stripped quotes and scripts did not; the shared helper now does for both."""
+    from src.utils.env_file import load_env_file
+
+    env_file = tmp_path / ".env.local"
+    env_file.write_text('TL_A="db_only"\nTL_B=\'x\'\nTL_C=say "hi"\nTL_D="open\n', encoding="utf-8")
+    for key in ("TL_A", "TL_B", "TL_C", "TL_D"):
+        monkeypatch.delenv(key, raising=False)
+
+    load_env_file(env_file)
+
+    import os
+
+    assert os.environ["TL_A"] == "db_only"
+    assert os.environ["TL_B"] == "x"
+    assert os.environ["TL_C"] == 'say "hi"'
+    assert os.environ["TL_D"] == '"open'
+
+
 def test_warmup_load_env_file_missing_raises(tmp_path):
     module = _load_module("warmup_env_file_missing_script", "scripts/warmup_precompute.py")
     with pytest.raises(FileNotFoundError):

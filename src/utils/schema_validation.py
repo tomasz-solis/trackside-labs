@@ -262,6 +262,7 @@ DRIVER_CHARACTERISTICS_SCHEMA = {
         "carried_over_from": _YEAR_VALUE,
         "bayesian_last_updated_year": _YEAR_VALUE,
         "years": {"type": "array", "items": _YEAR_VALUE},
+        "applied_events": {"type": "array", "items": {"type": "string"}},
         "drivers": {
             "type": "object",
             "patternProperties": {
@@ -291,6 +292,7 @@ TEAM_CHARACTERISTICS_SCHEMA = {
         "directionality_last_updated": _STRING_OR_NULL,
         "directionality_meta": {"type": "object"},
         "checkpoint_snapshot": _CHECKPOINT_SNAPSHOT_SCHEMA,
+        "applied_events": {"type": "array", "items": {"type": "string"}},
         "teams": {
             "type": "object",
             "patternProperties": {

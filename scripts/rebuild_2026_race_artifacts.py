@@ -158,6 +158,8 @@ def _reset_artifact_from_payload(path: Path, payload: dict[str, Any], *, year: i
     reset_payload = deepcopy(payload)
     reset_payload["year"] = int(year)
     reset_payload["version"] = 1
+    # The rebuild replays every race, so no learning step may count as already applied.
+    reset_payload.pop("applied_events", None)
     _write_json(path, reset_payload)
 
 
@@ -172,6 +174,7 @@ def _reset_car_artifact(car_file: Path, *, year: int) -> None:
     payload["version"] = 1
     payload["races_completed"] = 0
     payload["data_freshness"] = "BASELINE_PRESEASON"
+    payload.pop("applied_events", None)
 
     for team_name, team_data in teams.items():
         if not isinstance(team_data, dict):
@@ -210,6 +213,7 @@ def _reset_driver_artifact(
     target_payload["year"] = int(year)
     target_payload["version"] = 1
     target_payload["bayesian_last_updated_year"] = int(year)
+    target_payload.pop("applied_events", None)
     _write_json(driver_file, target_payload)
 
 

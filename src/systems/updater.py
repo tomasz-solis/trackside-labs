@@ -36,6 +36,10 @@ from src.systems.driver_update_trace import (
     snapshot_driver_update_state,
 )
 from src.systems.updater_flow import (
+    event_already_applied,
+    record_applied_event,
+)
+from src.systems.updater_flow import (
     extract_dnf_drivers as _extract_dnf_drivers,
 )
 from src.systems.updater_flow import (
@@ -465,10 +469,15 @@ def extract_team_performance_from_telemetry(
 
 
 def update_team_characteristics(
-    race_results: pd.DataFrame, session: fastf1.core.Session, characteristics_file: Path
+    race_results: pd.DataFrame,
+    session: fastf1.core.Session,
+    characteristics_file: Path,
+    *,
+    event_key: str | None = None,
 ) -> None:
-    """Update team performance ratings from race telemetry."""
+    """Update team performance ratings from race telemetry, once per ``event_key``."""
     _update_team_characteristics_core(
+        event_key=event_key,
         race_results=race_results,
         session=session,
         characteristics_file=characteristics_file,
@@ -635,8 +644,12 @@ def update_bayesian_driver_ratings(
     race_matched_lap_aggregates: pd.DataFrame | None = None,
     qualifying_matched_lap_aggregates: pd.DataFrame | None = None,
     trace_rows: list[dict[str, Any]] | None = None,
+    event_key: str | None = None,
 ) -> None:
-    """Update driver state from completed sessions with fully wet dry-state routing."""
+    """Update driver state from completed sessions with fully wet dry-state routing.
+
+    Applied once per ``event_key``: a retry after a partial failure skips it.
+    """
     logger.info("Updating Bayesian driver ratings...")
 
     from src.models.priors_factory import PriorsFactory
@@ -650,6 +663,9 @@ def update_bayesian_driver_ratings(
     bayesian = BayesianDriverRanking(priors, grid_size=grid_size)
     store = ArtifactStore(data_root=data_root)
     driver_payload = _load_driver_characteristics_payload(store, season_year)
+    if event_already_applied(driver_payload, event_key):
+        logger.info("Driver characteristics already include %s; skipping", event_key)
+        return
     drivers_payload = driver_payload.get("drivers") if isinstance(driver_payload, dict) else None
     if isinstance(drivers_payload, dict):
         strip_legacy_bayesian_fields(drivers_payload)
@@ -948,6 +964,7 @@ def update_bayesian_driver_ratings(
         logger.warning("Bayesian update produced no persisted driver changes")
         return
 
+    record_applied_event(driver_payload, event_key)
     _persist_driver_characteristics_payload(store, driver_payload, season_year)
     logger.info(
         "Updated Bayesian ratings for %s drivers, blended skill for %s, "
@@ -1138,9 +1155,10 @@ def update_from_race(
         else None
     )
 
+    event_key = f"{int(year)}::{str(race_name).strip()}::R"
     char_file = Path(data_dir) / "car_characteristics" / f"{year}_car_characteristics.json"
     if char_file.exists():
-        update_team_characteristics(race_results, session, char_file)
+        update_team_characteristics(race_results, session, char_file, event_key=event_key)
     else:
         logger.warning("Team characteristics file not found: %s", char_file)
 
@@ -1153,6 +1171,7 @@ def update_from_race(
         "qualifying_weather": qualifying_weather,
         "race_matched_lap_aggregates": race_matched_lap_aggregates,
         "qualifying_matched_lap_aggregates": qualifying_matched_lap_aggregates,
+        "event_key": event_key,
     }
     if trace_rows is not None:
         update_kwargs["trace_rows"] = trace_rows
@@ -1243,6 +1262,10 @@ def update_from_sprint_race(
     store = ArtifactStore(data_root=data_root_path)
     season_year = _coerce_season_year(sprint_results, default_year=year)
     driver_payload = _load_driver_characteristics_payload(store, season_year)
+    sprint_event_key = f"{int(year)}::{str(race_name).strip()}::Sprint"
+    if event_already_applied(driver_payload, sprint_event_key):
+        logger.info("Driver characteristics already include %s; skipping", sprint_event_key)
+        return
 
     if not isinstance(driver_payload, dict) or not isinstance(driver_payload.get("drivers"), dict):
         logger.warning("No driver characteristics available for sprint update")
@@ -1448,6 +1471,7 @@ def update_from_sprint_race(
             )
         )
 
+    record_applied_event(driver_payload, sprint_event_key)
     _persist_driver_characteristics_payload(store, driver_payload, season_year)
     logger.info(
         "Sprint update applied for %s drivers: Bayesian (confidence=%.2f), "

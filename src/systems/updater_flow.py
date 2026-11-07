@@ -355,6 +355,30 @@ def _save_characteristics_payload(
         logger.info("Updated team characteristics (v%s) in %s", new_version, characteristics_file)
 
 
+def event_already_applied(payload: Any, event_key: str | None) -> bool:
+    """Return True when a learning step already saved ``event_key`` into ``payload``.
+
+    Learning one race takes several saves (sprint drivers, race teams, race drivers),
+    and the race is marked learned only after all of them. Each step records its event
+    in the payload it saves, so a retry after a partial failure skips the steps that
+    already landed instead of blending the same evidence twice.
+    """
+    return (
+        bool(event_key)
+        and isinstance(payload, dict)
+        and event_key in (payload.get("applied_events") or [])
+    )
+
+
+def record_applied_event(payload: dict[str, Any], event_key: str | None) -> None:
+    """Add ``event_key`` to the payload's ``applied_events`` before it is saved."""
+    if not event_key:
+        return
+    events = payload.setdefault("applied_events", [])
+    if event_key not in events:
+        events.append(event_key)
+
+
 def update_team_characteristics_core(
     *,
     race_results: pd.DataFrame,
@@ -368,6 +392,7 @@ def update_team_characteristics_core(
     aggregate_compound_samples_fn: AggregateCompoundSamplesFn,
     config_get_fn: ConfigGetFn,
     logger: logging.Logger,
+    event_key: str | None = None,
 ) -> None:
     """Update team performance ratings and compound metrics from race telemetry."""
     logger.info("Updating team characteristics from race telemetry...")
@@ -376,6 +401,9 @@ def update_team_characteristics_core(
         artifact_store_factory=artifact_store_factory,
         logger=logger,
     )
+    if event_already_applied(char_data, event_key):
+        logger.info("Team characteristics already include %s; skipping", event_key)
+        return
 
     team_names = list(char_data["teams"].keys())
     race_pace = extract_team_performance_from_telemetry_fn(session, team_names)
@@ -440,6 +468,7 @@ def update_team_characteristics_core(
         default=int(char_data.get("races_completed", 0)),
     )
     _refresh_team_race_count_notes(char_data=char_data, year=int(year))
+    record_applied_event(char_data, event_key)
 
     _save_characteristics_payload(
         store=store,

@@ -123,6 +123,12 @@ class TestDriverCharacteristicsSchema:
         """Accept a small but structurally valid driver payload."""
         validate_driver_characteristics(_driver_payload())
 
+    def test_valid_driver_data_with_applied_events(self):
+        """Learning steps record their events; the loader must still accept the payload."""
+        validate_driver_characteristics(
+            {**_driver_payload(), "applied_events": ["2026::Bahrain Grand Prix::R"]}
+        )
+
     def test_invalid_missing_drivers_key(self):
         """Reject payloads without the required drivers map."""
         with pytest.raises(ValueError, match="drivers"):
@@ -210,6 +216,12 @@ class TestTeamCharacteristicsSchema:
     def test_valid_nested_team_data(self):
         """Accept the richer nested team structure the predictor consumes."""
         validate_team_characteristics(_team_payload())
+
+    def test_valid_team_data_with_applied_events(self):
+        """Learning steps record their events; the loader must still accept the payload."""
+        validate_team_characteristics(
+            {**_team_payload(), "applied_events": ["2026::Bahrain Grand Prix::R"]}
+        )
 
     def test_valid_team_data_with_checkpoint_snapshot_metadata(self):
         """Allow checkpoint snapshot metadata on overlaid car-characteristics payloads."""

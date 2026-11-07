@@ -237,6 +237,57 @@ def test_update_team_characteristics_position_fallback_and_file_save(patcher, tm
     assert Path(str(characteristics_file) + ".backup").exists()
 
 
+def test_update_team_characteristics_applies_one_race_once_across_retries(patcher, tmp_path):
+    """A retry after a later learning step failed must not blend the same race twice."""
+    characteristics_file = (
+        tmp_path / "processed" / "car_characteristics" / "2026_car_characteristics.json"
+    )
+    _write_characteristics_file(characteristics_file)
+
+    class FailingStore:
+        def __init__(self, data_root):
+            self.data_root = data_root
+
+        def load_artifact(self, artifact_type, artifact_key):
+            return None
+
+        def save_artifact(self, artifact_type, artifact_key, data, version):
+            raise RuntimeError("db save failed")
+
+    patcher.setattr(updater, "ArtifactStore", FailingStore)
+    patcher.setattr(
+        updater, "extract_team_performance_from_telemetry", lambda session, team_names: {}
+    )
+    patcher.setattr(updater, "map_team_to_characteristics", lambda raw, known_teams: str(raw))
+    race_results = pd.DataFrame({"TeamName": ["Ferrari"], "Position": [2]})
+    session = SimpleNamespace(event=None, name="Race Session", laps=pd.DataFrame())
+
+    for _ in range(2):
+        updater.update_team_characteristics(
+            race_results, session, characteristics_file, event_key="2026::Bahrain Grand Prix::R"
+        )
+
+    saved = json.loads(characteristics_file.read_text())
+    assert saved["teams"]["Ferrari"]["races_completed"] == 1
+    assert saved["applied_events"] == ["2026::Bahrain Grand Prix::R"]
+    assert saved["version"] == 2
+
+
+def test_update_bayesian_driver_ratings_skips_an_event_already_applied(patcher):
+    """The race's driver step landed before a later failure; the retry must skip it."""
+    payload = {"drivers": {}, "applied_events": ["2026::Bahrain Grand Prix::R"]}
+    patcher.setattr(updater, "ArtifactStore", lambda data_root: object())
+    patcher.setattr(updater, "_load_driver_characteristics_payload", lambda store, year: payload)
+
+    def _fail(*_args, **_kwargs):
+        raise AssertionError("an applied event was blended again")
+
+    patcher.setattr(updater, "_restore_bayesian_state", _fail)
+    race_results = pd.DataFrame({"Abbreviation": ["VER"], "Position": [1]})
+
+    updater.update_bayesian_driver_ratings(race_results, event_key="2026::Bahrain Grand Prix::R")
+
+
 def test_update_team_characteristics_uses_full_position_fallback_for_partial_telemetry(
     patcher, tmp_path
 ):

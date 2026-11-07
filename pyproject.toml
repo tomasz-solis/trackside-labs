@@ -23,7 +23,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "black>=24,<26",
   "mypy>=1.18,<2",
   "types-PyYAML>=6.0.12",
   "pre-commit>=3.7,<5",
@@ -38,10 +37,6 @@ dev = [
   "ruff==0.15.1",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ["py313"]
-
 [tool.ruff]
 line-length = 100
 target-version = "py313"
@@ -51,8 +46,8 @@ extend-exclude = ["notebooks"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 ignore = [
-  "E203", # black compat
-  "E501", # black doesn't wrap long strings/f-strings reliably
+  "E203", # ruff format puts spaces around slice colons
+  "E501", # ruff format does not wrap long strings or f-strings
 ]
 
 [tool.ruff.lint.isort]

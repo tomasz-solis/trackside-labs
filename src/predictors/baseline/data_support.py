@@ -285,3 +285,89 @@ def _merge_team_payload(existing: object, incoming: object) -> object:
     if _is_missing_payload_value(existing) and not _is_missing_payload_value(incoming):
         return deepcopy(incoming)
     return deepcopy(existing)
+
+
+def build_proxy_note(
+    existing_note: object,
+    *,
+    source_year: int,
+    target_year: int,
+    label: str,
+) -> str:
+    """Append one short note explaining a cross-season proxy fallback."""
+    base_note = str(existing_note).strip() if isinstance(existing_note, str) else ""
+    proxy_note = (
+        f"Proxy fallback: reused {source_year} {label} as preseason priors for season "
+        f"{target_year}."
+    )
+    return f"{base_note} {proxy_note}".strip() if base_note else proxy_note
+
+
+def cross_season_team_proxy(data: dict, *, source_year: int, target_year: int) -> dict:
+    """Rewrite one season's car characteristics into preseason state for the next."""
+    if source_year == target_year:
+        return data
+
+    proxy = deepcopy(data)
+    proxy["year"] = target_year
+    proxy["data_freshness"] = "BASELINE_PRESEASON"
+    proxy["races_completed"] = 0
+    proxy["checkpoint_snapshot"] = {}
+    proxy.pop("applied_events", None)
+    proxy["note"] = build_proxy_note(
+        proxy.get("note"),
+        source_year=source_year,
+        target_year=target_year,
+        label="car characteristics",
+    )
+
+    teams = proxy.get("teams", {})
+    if isinstance(teams, dict):
+        for team_payload in teams.values():
+            if not isinstance(team_payload, dict):
+                continue
+            team_payload["current_season_performance"] = []
+            team_payload["races_completed"] = 0
+
+    return proxy
+
+
+def cross_season_driver_proxy(data: dict, *, source_year: int, target_year: int) -> dict:
+    """Rewrite one season's driver characteristics into preseason priors for the next."""
+    if source_year == target_year:
+        return data
+
+    proxy = deepcopy(data)
+    proxy["year"] = target_year
+    proxy["carried_over_from"] = source_year
+    proxy.pop("applied_events", None)
+    proxy["note"] = build_proxy_note(
+        proxy.get("note"),
+        source_year=source_year,
+        target_year=target_year,
+        label="driver characteristics",
+    )
+    drivers = proxy.get("drivers", {})
+    if isinstance(drivers, dict):
+        for driver_payload in drivers.values():
+            if not isinstance(driver_payload, dict):
+                continue
+            driver_payload["bayesian"] = {}
+    return proxy
+
+
+def cross_season_track_proxy(data: dict, *, source_year: int, target_year: int) -> dict:
+    """Rewrite cross-season track priors so historical replay stays explicit."""
+    if source_year == target_year:
+        return data
+
+    proxy = deepcopy(data)
+    proxy["year"] = target_year
+    proxy["data_freshness"] = "BASELINE_PRESEASON"
+    proxy["note"] = build_proxy_note(
+        proxy.get("note"),
+        source_year=source_year,
+        target_year=target_year,
+        label="track characteristics",
+    )
+    return proxy

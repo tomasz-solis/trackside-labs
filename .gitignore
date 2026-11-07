@@ -34,6 +34,9 @@ Thumbs.db
 data/raw/
 # Generated file
 data/processed/driver_characteristics.json
+# A new season's state is seeded at runtime (src/systems/season_rollover.py); 2025 and 2026 stay tracked.
+data/processed/car_characteristics/*_car_characteristics.json
+data/processed/driver_characteristics/*_driver_characteristics.json
 data/validation/
 *.parquet
 

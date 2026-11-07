@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from src.persistence.artifact_store import ArtifactStore
+from src.predictors.baseline.data_support import nearest_season_payload_path
 from src.types.prediction_types import DriverRaceInfo, QualifyingGridEntry
 from src.utils import config_loader
 from src.utils.schema_validation import validate_track_characteristics
@@ -249,12 +250,18 @@ class BaselineRacePreparationMixin:
 
         try:
             season_year = int(getattr(self, "season_year", getattr(self, "year", 2026)))
-            track_file = Path(
-                f"data/processed/track_characteristics/{season_year}_track_characteristics.json"
+            # Same rule as the predictor's track loader: a new season reads the nearest one.
+            nearest = nearest_season_payload_path(
+                Path("data/processed/track_characteristics"),
+                suffix="track_characteristics",
+                target_year=season_year,
             )
+            if nearest is None:
+                raise FileNotFoundError(f"No track characteristics near season {season_year}")
+            source_year, track_file = nearest
             with open(track_file) as f:
                 track_data = json.load(f)
-                validate_track_characteristics(track_data, expected_year=season_year)
+                validate_track_characteristics(track_data, expected_year=source_year)
                 tracks = track_data["tracks"]
                 # Key on the resolved physical circuit, not the GP name, so a migrating
                 # name (e.g. Spanish GP -> Madrid) never reads another circuit's value.

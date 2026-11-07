@@ -100,6 +100,23 @@ def test_load_track_overtaking_difficulty_from_file_and_fallbacks(tmp_path):
             assert prep._load_track_overtaking_difficulty("Qatar Grand Prix") == 0.5
 
 
+def test_load_track_overtaking_difficulty_reads_the_previous_season_before_a_new_one_has_a_file(
+    tmp_path,
+):
+    """2027 has no track file yet; every track must not fall to the 0.5 default."""
+    track_dir = tmp_path / "data" / "processed" / "track_characteristics"
+    track_dir.mkdir(parents=True)
+    (track_dir / "2026_track_characteristics.json").write_text(
+        json.dumps({"tracks": {"Qatar Grand Prix": {"overtaking_difficulty": 0.82}}})
+    )
+    prep = DummyPreparation()
+    prep.season_year = 2027
+
+    with _working_directory(tmp_path):
+        with patch.object(prep_module, "validate_track_characteristics", lambda p, **k: None):
+            assert prep._load_track_overtaking_difficulty("Qatar Grand Prix") == 0.82
+
+
 def test_load_track_overtaking_difficulty_handles_schema_validation_error(tmp_path):
     track_dir = tmp_path / "data" / "processed" / "track_characteristics"
     track_dir.mkdir(parents=True)

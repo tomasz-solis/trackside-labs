@@ -665,6 +665,20 @@ class _WarmupRunState:
     max_file_entries: int = 2048
 
 
+def _stage_seed_season(ctx: _WarmupRunState) -> None:
+    """Start a new season from last season's end state, once, before anything reads it."""
+    if ctx.dry_run:
+        return
+    from src.systems.season_rollover import seed_season_from_previous
+
+    try:
+        seed_season_from_previous(ctx.year)
+    except _WARMUP_ERRORS as exc:
+        # Readers still fall back to the nearest season file, so warmup can go on.
+        logger.warning("Could not seed season %s from %s: %s", ctx.year, ctx.year - 1, exc)
+        ctx.summary.errors.append(f"season_seed: {exc}")
+
+
 def _stage_learn_completed_races(ctx: _WarmupRunState) -> None:
     """Stage 0: learn from completed races before hashing prediction artifacts."""
     if ctx.dry_run:
@@ -1379,6 +1393,7 @@ def run_warmup_precompute_cycle(
     )
 
     try:
+        _stage_seed_season(ctx)
         _stage_learn_completed_races(ctx)
         if summary.race_learning_pending:
             summary.status = "not_ready"

@@ -1157,10 +1157,11 @@ def update_from_race(
 
     event_key = f"{int(year)}::{str(race_name).strip()}::R"
     char_file = Path(data_dir) / "car_characteristics" / f"{year}_car_characteristics.json"
-    if char_file.exists():
+    try:
+        # The store comes first, so a season with no committed file still learns.
         update_team_characteristics(race_results, session, char_file, event_key=event_key)
-    else:
-        logger.warning("Team characteristics file not found: %s", char_file)
+    except FileNotFoundError:
+        logger.warning("No team characteristics in the store or at %s", char_file)
 
     data_dir_path = Path(data_dir)
     data_root = data_dir_path.parent if data_dir_path.name == "processed" else data_dir_path

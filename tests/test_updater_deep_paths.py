@@ -1206,8 +1206,12 @@ def test_update_bayesian_driver_ratings_writes_year_scoped_fallback_on_store_sav
     assert not legacy_fallback.exists()
 
 
-def test_update_from_race_skips_team_update_when_characteristics_missing(patcher, tmp_path):
-    """Driver updates should inherit the replay data root when team data is absent."""
+def test_update_from_race_still_updates_drivers_when_team_data_missing(patcher, tmp_path):
+    """No team data in the store or on disk: drivers still learn, from the replay data root.
+
+    The team step is tried even without a committed file, because a new season's team
+    state lives only in the store.
+    """
     data_dir = tmp_path / "processed"
     (data_dir / "car_characteristics").mkdir(parents=True)
 
@@ -1221,14 +1225,14 @@ def test_update_from_race_skips_team_update_when_characteristics_missing(patcher
         "load_qualifying_session",
         lambda year, race_name: (qualifying_results, session),
     )
-    team_update = MagicMock()
+    team_update = MagicMock(side_effect=FileNotFoundError("no team data"))
     bayesian_update = MagicMock()
     patcher.setattr(updater, "update_team_characteristics", team_update)
     patcher.setattr(updater, "update_bayesian_driver_ratings", bayesian_update)
 
     updater.update_from_race(2026, "Bahrain Grand Prix", str(data_dir))
 
-    team_update.assert_not_called()
+    team_update.assert_called_once()
     bayesian_update.assert_called_once()
     call_args, call_kwargs = bayesian_update.call_args
     assert call_args[0] is race_results

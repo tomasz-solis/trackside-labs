@@ -20,6 +20,9 @@ from src.predictors.baseline.compound_updates import update_compound_characteris
 from src.predictors.baseline.data_support import (
     canonicalize_team_payload_keys,
     coerce_non_negative_int,
+    cross_season_driver_proxy,
+    cross_season_team_proxy,
+    cross_season_track_proxy,
     driver_characteristics_fallback_paths,
     extract_target_actual_rows,
     infer_payload_year_from_path,
@@ -754,7 +757,7 @@ class BaselineDataMixin:
         except ValueError as e:
             logger.error("Failed to load team characteristics: %s", e)
             raise
-        return self._build_cross_season_team_proxy_payload(
+        return cross_season_team_proxy(
             data,
             source_year=source_year,
             target_year=target_year,
@@ -869,7 +872,7 @@ class BaselineDataMixin:
                     stripped,
                 )
 
-        driver_data = self._build_cross_season_driver_proxy_payload(
+        driver_data = cross_season_driver_proxy(
             driver_data,
             source_year=source_year,
             target_year=target_year,
@@ -918,7 +921,7 @@ class BaselineDataMixin:
             )
 
         if track_data:
-            track_data = self._build_cross_season_track_proxy_payload(
+            track_data = cross_season_track_proxy(
                 track_data,
                 source_year=source_year,
                 target_year=target_year,
@@ -930,105 +933,6 @@ class BaselineDataMixin:
                 raise
 
         return self._supplement_track_layout_fields(track_data)
-
-    @staticmethod
-    def _build_proxy_note(
-        existing_note: object,
-        *,
-        source_year: int,
-        target_year: int,
-        label: str,
-    ) -> str:
-        """Append one short note explaining a cross-season proxy fallback."""
-        base_note = str(existing_note).strip() if isinstance(existing_note, str) else ""
-        proxy_note = (
-            f"Proxy fallback: reused {source_year} {label} as preseason priors for season "
-            f"{target_year}."
-        )
-        return f"{base_note} {proxy_note}".strip() if base_note else proxy_note
-
-    def _build_cross_season_team_proxy_payload(
-        self,
-        data: dict[str, Any],
-        *,
-        source_year: int,
-        target_year: int,
-    ) -> dict[str, Any]:
-        """Rewrite cross-season team payloads into preseason proxy state."""
-        if source_year == target_year:
-            return data
-
-        proxy = deepcopy(data)
-        proxy["year"] = target_year
-        proxy["data_freshness"] = "BASELINE_PRESEASON"
-        proxy["races_completed"] = 0
-        proxy["checkpoint_snapshot"] = {}
-        proxy["note"] = self._build_proxy_note(
-            proxy.get("note"),
-            source_year=source_year,
-            target_year=target_year,
-            label="car characteristics",
-        )
-
-        teams = proxy.get("teams", {})
-        if isinstance(teams, dict):
-            for team_payload in teams.values():
-                if not isinstance(team_payload, dict):
-                    continue
-                team_payload["current_season_performance"] = []
-                team_payload["races_completed"] = 0
-
-        return proxy
-
-    def _build_cross_season_driver_proxy_payload(
-        self,
-        data: dict[str, Any],
-        *,
-        source_year: int,
-        target_year: int,
-    ) -> dict[str, Any]:
-        """Rewrite cross-season driver priors so schema and notes match the replay year."""
-        if source_year == target_year:
-            return data
-
-        proxy = deepcopy(data)
-        proxy["year"] = target_year
-        proxy["carried_over_from"] = source_year
-        proxy["note"] = self._build_proxy_note(
-            proxy.get("note"),
-            source_year=source_year,
-            target_year=target_year,
-            label="driver characteristics",
-        )
-        drivers = proxy.get("drivers", {})
-        if isinstance(drivers, dict):
-            for driver_payload in drivers.values():
-                if not isinstance(driver_payload, dict):
-                    continue
-                driver_payload["bayesian"] = {}
-        return proxy
-
-    def _build_cross_season_track_proxy_payload(
-        self,
-        data: dict[str, Any],
-        *,
-        source_year: int,
-        target_year: int,
-    ) -> dict[str, Any]:
-        """Rewrite cross-season track priors so historical replay stays explicit."""
-        if source_year == target_year:
-            return data
-
-        proxy = deepcopy(data)
-        proxy["year"] = target_year
-        proxy["data_freshness"] = "BASELINE_PRESEASON"
-        proxy["note"] = self._build_proxy_note(
-            proxy.get("note"),
-            source_year=source_year,
-            target_year=target_year,
-            label="track characteristics",
-        )
-        return proxy
 
     def _supplement_track_layout_fields(self, track_data: dict) -> dict:
         """Fill missing layout-mix fields from the extracted track-profile cache.

@@ -328,6 +328,17 @@ def cross_season_team_proxy(data: dict, *, source_year: int, target_year: int) -
                 continue
             team_payload["current_season_performance"] = []
             team_payload["races_completed"] = 0
+            # A session's blend weight is 0.25 / sqrt(sessions so far + 1). Kept at the
+            # 2026 count (~110), new-season testing would move the car profile by ~2%.
+            # The values stay as the prior; only the count restarts.
+            profiles = team_payload.get("testing_characteristics_profiles")
+            for testing in [
+                team_payload.get("testing_characteristics"),
+                *(profiles.values() if isinstance(profiles, dict) else []),
+            ]:
+                if isinstance(testing, dict):
+                    testing["sessions_used"] = 0
+                    testing["sessions_blended"] = 0
 
     return proxy
 

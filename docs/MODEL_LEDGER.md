@@ -1849,6 +1849,30 @@ Verdicts:
 
 The anchor arm is `identical` on qualifying and sprint; it only touches the Grand Prix. 3.6, 3.7 and the parity fix may ship.
 
+## 2026-11-08: challengers re-scored on 3.7, and the first live record
+
+Baseline `C37_parity_s42` / `_s43` (commit `0dec60da`). `compare_replay_arms.py` with each `<root>/challengers/<name>` as candidate, the seed floor, `--targets main_qualifying`: 48 checkpoints, 17 races. Both champion roots learned 17 of 17 weekends; the health warning on the challenger roots (0 of 0) is expected, they hold no learning state.
+
+| Challenger | Seed | Corr | MAE | MAE better / worse | Verdict |
+|---|---|---|---|---|---|
+| `qualifying_ridge` | 42 | +0.0144 [+0.0049, +0.0238] | -0.189 [-0.303, -0.075] | 31 / 9 | better |
+| `qualifying_ridge` | 43 | +0.0123 [+0.0018, +0.0226] | -0.177 [-0.297, -0.061] | 29 / 11 | better |
+| `qualifying_laptime` | 42 | +0.0119 [-0.0027, +0.0261] | -0.138 [-0.338, +0.063] | 29 / 17 | noise |
+| `qualifying_laptime` | 43 | +0.0112 [-0.0026, +0.0260] | -0.115 [-0.311, +0.076] | 27 / 20 | noise |
+
+The numbers equal the 2026-10-31 run on `C35_adjust_off`: 3.7 changed only the Grand Prix, so the qualifying champion did not move.
+
+Live, `score_challengers.py --year 2026` on 2026-11-08: 7 forecasts with actuals from 2 weekends (Austin PRE to FP3, Mexico City PRE to FP2; Mexico City FP3 and Q were never saved).
+
+| Challenger | Champion MAE | Challenger MAE | Better / worse / tied |
+|---|---|---|---|
+| `qualifying_laptime` | 2.314 | 1.938 | 4 / 2 / 1 |
+| `qualifying_ridge` | 2.314 | 2.099 | 3 / 4 / 0 |
+
+Ridge is worse at every Austin checkpoint and better at every Mexico City one: 1 weekend each way.
+
+Verdict: the replay `better` holds for ridge. Live has too few weekends to confirm it. Not adopted; promotion is Tomasz's call (`docs/MODEL_PROMOTION.md`).
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

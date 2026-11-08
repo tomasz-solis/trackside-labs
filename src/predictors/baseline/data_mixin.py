@@ -49,6 +49,7 @@ from src.predictors.baseline.testing_profiles import (
     compute_testing_profile_modifier,
     get_testing_characteristics_for_profile,
 )
+from src.systems.testing_prior_selection import apply_testing_prior_choice
 from src.systems.weight_schedule import (
     SCHEDULES,
     calculate_blended_performance,
@@ -757,10 +758,8 @@ class BaselineDataMixin:
         except ValueError as e:
             logger.error("Failed to load team characteristics: %s", e)
             raise
-        return cross_season_team_proxy(
-            data,
-            source_year=source_year,
-            target_year=target_year,
+        return apply_testing_prior_choice(
+            cross_season_team_proxy(data, source_year=source_year, target_year=target_year)
         )
 
     def _apply_team_payload(self, data: dict, target_year: int) -> int:

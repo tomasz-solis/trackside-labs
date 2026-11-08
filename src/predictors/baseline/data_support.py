@@ -314,6 +314,7 @@ def cross_season_team_proxy(data: dict, *, source_year: int, target_year: int) -
     proxy["races_completed"] = 0
     proxy["checkpoint_snapshot"] = {}
     proxy.pop("applied_events", None)
+    proxy.pop("seeded_from", None)
     proxy["note"] = build_proxy_note(
         proxy.get("note"),
         source_year=source_year,
@@ -328,6 +329,7 @@ def cross_season_team_proxy(data: dict, *, source_year: int, target_year: int) -
                 continue
             team_payload["current_season_performance"] = []
             team_payload["races_completed"] = 0
+            team_payload.pop("testing_reset", None)
             # A session's blend weight is 0.25 / sqrt(sessions so far + 1). Kept at the
             # 2026 count (~110), new-season testing would move the car profile by ~2%.
             # The values stay as the prior; only the count restarts.

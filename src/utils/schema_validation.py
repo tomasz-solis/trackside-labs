@@ -195,6 +195,21 @@ _TESTING_CHARACTERISTICS_SCHEMA = {
     "additionalProperties": False,
 }
 
+_TESTING_RESET_SCHEMA = {
+    "type": "object",
+    "propertyNames": {"enum": ["balanced", "short_run", "long_run"]},
+    "additionalProperties": {
+        "type": "object",
+        "properties": {
+            "metrics": {"type": "object", "additionalProperties": {"type": "number"}},
+            "sessions": {"type": "integer", "minimum": 0},
+            "prior": {"type": "number"},
+            "observed": {"type": "array", "items": {"type": "number"}},
+        },
+        "additionalProperties": False,
+    },
+}
+
 _CHECKPOINT_DRIVER_DELTA_SECONDS_LIMIT = 30.0
 
 _CHECKPOINT_DRIVER_DELTAS_SCHEMA = {
@@ -293,6 +308,7 @@ TEAM_CHARACTERISTICS_SCHEMA = {
         "directionality_meta": {"type": "object"},
         "checkpoint_snapshot": _CHECKPOINT_SNAPSHOT_SCHEMA,
         "applied_events": {"type": "array", "items": {"type": "string"}},
+        "seeded_from": _YEAR_VALUE,
         "teams": {
             "type": "object",
             "patternProperties": {
@@ -328,6 +344,7 @@ TEAM_CHARACTERISTICS_SCHEMA = {
                             },
                             "additionalProperties": _TESTING_CHARACTERISTICS_SCHEMA,
                         },
+                        "testing_reset": _TESTING_RESET_SCHEMA,
                         "checkpoint_driver_deltas_seconds": _CHECKPOINT_DRIVER_DELTAS_SCHEMA,
                         "compound_characteristics": {
                             "type": "object",

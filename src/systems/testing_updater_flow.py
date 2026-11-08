@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from src.persistence.artifact_store import ArtifactStore
+from src.systems.testing_prior_selection import track_session
 from src.utils.car_snapshot_history import (
     merge_snapshot_team_metrics,
     resolve_session_snapshot_metadata,
@@ -541,6 +542,18 @@ def apply_team_updates(
                 profile_data.get("sessions_blended") or profile_data.get("sessions_used")
             )
             current_profile_session_ids = team_profile_sessions_used[team_name].get(profile, set())
+            if characteristics.get("seeded_from") is not None:
+                track_session(
+                    team_data,
+                    profile,
+                    {
+                        name: profile_metrics[name]
+                        for name in testing_characteristic_metrics
+                        if name in profile_metrics
+                    },
+                    profile_data,
+                    len(current_profile_session_ids),
+                )
             effective_profile_weight = float(
                 np.clip(
                     new_weight / max((max(previous_profile_sessions_blended, 0) + 1) ** 0.5, 1.0),

@@ -31,6 +31,7 @@ def _end_of_2026() -> dict[str, dict]:
                     "uncertainty": 0.12,
                     "current_season_performance": [0.80, 0.83],
                     "races_completed": 2,
+                    "testing_reset": {"short_run": {"metrics": {}, "sessions": 9}},
                 }
             },
         },
@@ -64,6 +65,8 @@ def test_seed_starts_2027_from_the_2026_end_state_as_preseason_priors():
     assert car["races_completed"] == 0
     assert car["data_freshness"] == "BASELINE_PRESEASON"
     assert "applied_events" not in car
+    assert car["seeded_from"] == 2026  # turns on per-team scoring of the prior
+    assert "testing_reset" not in car["teams"]["McLaren"]
     mclaren = car["teams"]["McLaren"]
     assert mclaren["overall_performance"] == 0.85  # learned strength carries over
     assert mclaren["current_season_performance"] == []

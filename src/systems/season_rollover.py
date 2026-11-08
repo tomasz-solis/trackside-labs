@@ -48,6 +48,10 @@ def seed_season_from_previous(year: int, store: Any = None) -> list[str]:
             continue
         payload = to_preseason(previous, source_year=year - 1, target_year=year)
         payload["version"] = 1
+        if artifact_type == "car_characteristics":
+            # Turns on per-team scoring of the carried-over testing profile
+            # (src/systems/testing_prior_selection.py).
+            payload["seeded_from"] = year - 1
         validate(payload, expected_year=year)
         store.save_artifact(artifact_type, f"{year}::{artifact_type}", payload, version=1)
         logger.info("Seeded %s %s from the %s end state", year, artifact_type, year - 1)

@@ -418,6 +418,7 @@ def _strip_testing_practice_enrichment(characteristics: dict[str, Any]) -> dict[
         team_data.pop("testing_characteristics", None)
         team_data.pop("testing_characteristics_profiles", None)
         team_data.pop("compound_characteristics", None)
+        team_data.pop("testing_reset", None)
 
     return reset_payload
 

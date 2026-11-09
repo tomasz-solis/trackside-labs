@@ -302,7 +302,7 @@ def test_get_predictor_rebuilds_when_a_tracked_artifact_changes(patcher):
     builds: list[int] = []
     patcher.setattr(
         cache,
-        "_construct_predictor",
+        "construct_predictor",
         lambda year: (builds.append(year), f"predictor-{len(builds)}")[1],
     )
     cache._build_predictor.clear()

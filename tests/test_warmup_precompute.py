@@ -1,6 +1,9 @@
 """Tests for background warmup precompute orchestration."""
 
+import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -1732,3 +1735,19 @@ def test_warmup_lock_is_taken_over_only_from_an_earlier_cron_run(
         assert calls[0][2] == "render-cron:"
     else:
         assert not calls[0][1].startswith("render-cron:")
+
+
+def test_cron_imports_load_neither_streamlit_nor_scipy():
+    """The cron runs in 512 MiB; Streamlit and scipy.stats cost its imports ~80 MB."""
+    code = (
+        "import sys, src.dashboard.warmup; "
+        "print(sorted({m.split('.')[0] for m in sys.modules} & {'streamlit', 'scipy'}))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert result.stdout.strip().splitlines()[-1] == "[]"

@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 import numpy as np
-from scipy.stats import spearmanr
+import pandas as pd
 
 from src.utils.accuracy_targets import (
     explicit_target_actuals,
@@ -118,7 +118,10 @@ class PredictionMetrics:
         if len(predicted_positions) < 2:
             return 0.0
 
-        correlation, _ = spearmanr(predicted_positions, actual_positions_list)
+        # Spearman as Pearson on average ranks, as scipy does; scipy.stats costs the cron ~50 MB.
+        correlation = (
+            pd.Series(predicted_positions).rank().corr(pd.Series(actual_positions_list).rank())
+        )
         return float(correlation) if not np.isnan(correlation) else 0.0
 
     @staticmethod

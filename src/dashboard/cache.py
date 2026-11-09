@@ -8,8 +8,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import streamlit as st
-
 from src.persistence.config import should_read_db_first
 from src.utils.data_paths import resolve_repo_data_path
 
@@ -80,6 +78,8 @@ def __getattr__(name: str) -> Any:
         from src.persistence.artifact_store import ArtifactStore as artifact_store_class
 
         return artifact_store_class
+    if name == "_build_predictor":
+        return _cached_predictor_builder()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -357,11 +357,24 @@ def artifact_versions_digest(artifact_versions: Mapping[str, tuple[int, str]]) -
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-@st.cache_resource(show_spinner=False)
-def _build_predictor(artifact_digest: str, year: int):
+def _build_predictor_uncached(artifact_digest: str, year: int):
     """Build one predictor per (artifact fingerprint, season)."""
     _ = artifact_digest  # cache key only; the fingerprint itself is not needed here
-    return _construct_predictor(year)
+    return construct_predictor(year)
+
+
+def _cached_predictor_builder() -> Any:
+    """Return the Streamlit-cached predictor builder, importing Streamlit on first use.
+
+    The cron imports this module but builds its predictor directly; Streamlit costs it ~30 MB.
+    """
+    builder = globals().get("_build_predictor")
+    if builder is None:
+        import streamlit as st
+
+        builder = st.cache_resource(show_spinner=False)(_build_predictor_uncached)
+        globals()["_build_predictor"] = builder
+    return builder
 
 
 def get_predictor(_artifact_versions: dict[str, tuple[int, str]], year: int = _DEFAULT_SEASON):
@@ -370,10 +383,10 @@ def get_predictor(_artifact_versions: dict[str, tuple[int, str]], year: int = _D
     ``_artifact_versions`` keeps its underscore for backwards compatibility with the
     existing call sites; the digest derived from it is what the cache keys on.
     """
-    return _build_predictor(artifact_versions_digest(_artifact_versions), int(year))
+    return _cached_predictor_builder()(artifact_versions_digest(_artifact_versions), int(year))
 
 
-def _construct_predictor(year: int):
+def construct_predictor(year: int):
     """Construct a fresh predictor with a reloaded config."""
     from src.predictors.baseline_2026 import Baseline2026Predictor
     from src.utils.config_loader import Config

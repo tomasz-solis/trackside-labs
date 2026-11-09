@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import fastf1
 
-from src.dashboard.cache import get_artifact_versions, get_predictor
+from src.dashboard.cache import construct_predictor, get_artifact_versions
 from src.dashboard.checkpoint_predictor import build_checkpoint_overlay_predictor
 from src.dashboard.precomputed_predictions import (
     build_precomputed_base_features_key,
@@ -365,11 +365,9 @@ def _resolve_checkpoint_context(
 
 
 def _load_predictor(artifact_versions: dict[str, tuple[int, str]], *, year: int) -> Any:
-    """Load the predictor, supporting the older call signature too."""
-    try:
-        return get_predictor(artifact_versions, year=year)
-    except TypeError:
-        return get_predictor(artifact_versions)
+    """Build this run's predictor; a run builds one, so it needs no Streamlit cache."""
+    _ = artifact_versions  # the caller hashes it; the build reads the store directly
+    return construct_predictor(year)
 
 
 def _refresh_anchor_practice_characteristics(

@@ -7,8 +7,6 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-import streamlit as st
-
 from src.persistence.config import should_read_db_first, should_write_to_db, should_write_to_file
 from src.persistence.runtime_state_store import RuntimeStateStore
 from src.utils.data_paths import resolve_repo_data_path
@@ -64,6 +62,10 @@ def __getattr__(name: str) -> Any:
         module = _fastf1_module()
         globals()[name] = module
         return module
+    if name == "st":
+        import streamlit
+
+        return streamlit
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -355,6 +357,8 @@ def auto_update_if_needed(force_recheck: bool = False, year: int = 2026) -> None
             excluded, so this does not re-check or re-learn a learned race.
         year: Season year to evaluate for newly completed races
     """
+    import streamlit as st  # web only; the cron imports this module too
+
     from src.utils.auto_updater import auto_update_from_races, needs_update
 
     needs_update_flag, new_races = needs_update(year=year, force_recheck=force_recheck)

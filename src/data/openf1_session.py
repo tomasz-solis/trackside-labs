@@ -1,4 +1,4 @@
-"""Fill a FastF1 ``Session`` from OpenF1 when FastF1 cannot load its laps.
+"""Fill a FastF1 ``Session`` from OpenF1 when FastF1 cannot load its laps, or needs car data.
 
 FastF1's archive needs an F1 TV login since 2026-10 (FastF1 #978). OpenF1 serves
 the same timing feed free for finished sessions. This module writes OpenF1 laps,
@@ -498,12 +498,18 @@ def get_session(
 ) -> fastf1.core.Session:
     """Return a loaded FastF1 session, filled from OpenF1 when FastF1 has no laps.
 
+    ``telemetry`` loads the whole session from OpenF1 with car data, as the replay does.
+    FastF1's telemetry adds every car's position data; signed in to F1 TV, that took
+    the 512 MiB cron over its limit on a wet qualifying (2026-11-08).
     ``messages`` loads FastF1 race control, which sets its ``Deleted`` lap flag.
     Raises ``OpenF1Unavailable`` when neither source has laps.
     """
     session = fastf1.get_session(year, race_name, session_name)
+    if telemetry:
+        load_session(session, year, race_name, session_name, car_data=True)
+        return session
     try:
-        session.load(laps=True, telemetry=telemetry, weather=weather, messages=messages)
+        session.load(laps=True, telemetry=False, weather=weather, messages=messages)
         if not session.laps.empty:
             return session
     except (DataNotLoadedError, RateLimitExceededError):

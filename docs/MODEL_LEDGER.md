@@ -1873,6 +1873,22 @@ Ridge is worse at every Austin checkpoint and better at every Mexico City one: 1
 
 Verdict: the replay `better` holds for ridge. Live has too few weekends to confirm it. Not adopted; promotion is Tomasz's call (`docs/MODEL_PROMOTION.md`).
 
+## 2026-11-09: live car traits measured from OpenF1 car data
+
+Forced, not measured for gain. Signed in to F1 TV, FastF1 loaded every car's position data for São Paulo's wet qualifying and took the 512 MiB cron over its limit; every run from 2026-11-08 20:05 died retrying it. Live now loads telemetry sessions from OpenF1, as local runs and the replay do without an F1 TV login. Races measured before São Paulo keep their FastF1 values.
+
+Mexico City Grand Prix, OpenF1 against the stored FastF1 traits (11 teams):
+
+| Trait | Mean abs diff | Team spread (sd) | Rank corr |
+|---|---|---|---|
+| top_speed | 0.00 | 2.57 | 1.00 |
+| slow | 0.48 | 1.49 | 0.93 |
+| medium | 3.06 | 5.80 | 0.86 |
+| fast | 0.95 | 4.91 | 0.94 |
+| braking | 0.20 | 0.22 | 0.94 |
+
+Track profile within 0.003 on every field. Corner classes move because the two paths place corners differently. The qualifying trait adjustment (on since 3.2) reads `top_speed`, `slow`, `medium`, `fast`, `deg`; from São Paulo on it gets OpenF1-measured traits. Not replayed.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

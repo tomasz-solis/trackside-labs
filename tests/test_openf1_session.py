@@ -374,10 +374,26 @@ def test_get_session_keeps_fastf1_laps_and_falls_back_when_refused():
         patch.object(fastf1, "get_session", return_value=refused),
         patch.object(openf1_session, "load_session") as fill,
     ):
+        assert openf1_session.get_session(2026, "Singapore Grand Prix", "Q") is refused
+        fill.assert_called_once_with(refused, 2026, "Singapore Grand Prix", "Q", car_data=False)
+
+
+def test_get_session_takes_car_data_from_openf1_without_loading_fastf1():
+    """FastF1 telemetry adds every car's position data; it took the cron over 512 MiB."""
+
+    class _NeverLoad:
+        def load(self, **_kwargs):
+            raise AssertionError("FastF1 must not load a telemetry session")
+
+    session = _NeverLoad()
+    with (
+        patch.object(fastf1, "get_session", return_value=session),
+        patch.object(openf1_session, "load_session") as fill,
+    ):
         assert (
-            openf1_session.get_session(2026, "Singapore Grand Prix", "Q", telemetry=True) is refused
+            openf1_session.get_session(2026, "São Paulo Grand Prix", "Q", telemetry=True) is session
         )
-        fill.assert_called_once_with(refused, 2026, "Singapore Grand Prix", "Q", car_data=True)
+        fill.assert_called_once_with(session, 2026, "São Paulo Grand Prix", "Q", car_data=True)
 
 
 def test_load_session_refuses_a_session_that_has_not_finished():

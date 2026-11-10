@@ -1889,6 +1889,27 @@ Mexico City Grand Prix, OpenF1 against the stored FastF1 traits (11 teams):
 
 Track profile within 0.003 on every field. Corner classes move because the two paths place corners differently. The qualifying trait adjustment (on since 3.2) reads `top_speed`, `slow`, `medium`, `fast`, `deg`; from São Paulo on it gets OpenF1-measured traits. Not replayed.
 
+## 2026-11-10: qualifying_ridge live after São Paulo, and the promotion call
+
+Baseline: the champion as served, per forecast: 3.4 at Austin, 3.5 at Mexico City, 3.7 at São Paulo (3.7 kept the 3.6 qualifying order, ledger 2026-11-08). `score_challengers.py --year 2026 --env-file .env.local` on 2026-11-10: 11 `main_qualifying` forecasts with actuals from 3 weekends, all logged on the dry scenario.
+
+| Challenger | Champion MAE | Challenger MAE | Better / worse / tied |
+|---|---|---|---|
+| `qualifying_ridge` | 3.071 | 3.116 | 3 / 8 / 0 |
+| `qualifying_laptime` | 3.071 | 3.056 | 4 / 6 / 1 |
+
+Mean MAE per weekend:
+
+| Weekend | Checkpoints | Champion | Ridge | Laptime |
+|---|---|---|---|---|
+| Austin | PRE to FP3 | 1.73 | 1.87 | 1.80 |
+| Mexico City | PRE to FP2 | 3.09 | 2.41 | 2.13 |
+| São Paulo | PRE to FP3 | 4.40 | 4.90 | 5.01 |
+
+São Paulo qualifying was wet, and every São Paulo forecast seated OCO, who did not race (CAM did). Both apply to all three models.
+
+Verdict: replay `better` stands (ledger 2026-11-08). Live, ridge is better on 1 weekend and worse on 2, so it fails the gate rule "not worse on more weekends than better"; 3 weekends give no interval. Tomasz promotes ridge for `main_qualifying` anyway, on the replay evidence. `open` until the served change is built and replayed.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

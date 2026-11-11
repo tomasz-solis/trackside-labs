@@ -26,6 +26,7 @@ One model makes both the qualifying and the race forecast.
 - Each saved forecast is scored against the result. The misses set how wide each driver's band is.
 - Per-driver and teammate errors are tracked but no longer shift the order: since 3.6, tests showed the shift made forecasts slightly worse.
 - Since 3.7, results also set how much the Grand Prix forecast leans on the grid, once 4 races are in.
+- Since 3.8, a ridge model refitted on earlier races sets the qualifying order, and the race starts from it.
 - It skips replays, duplicate runs and missing or partial results.
 
 **5. Model changes**

@@ -398,6 +398,11 @@ def compute_base_features(
     is_sprint: bool,
 ) -> dict[str, Any]:
     """Load race inputs once and serialize weather-invariant features for reuse."""
+    try:
+        history = PredictionLogger().get_all_predictions(int(year))
+    except _WARMUP_ERRORS as exc:
+        logger.warning("Could not read saved predictions for the ridge order: %s", exc)
+        history = None
     return _warmup_prediction_builders.compute_base_features(
         year,
         target_race,
@@ -413,6 +418,7 @@ def compute_base_features(
         derive_race_input_confidence_fn=_derive_race_input_confidence,
         cap_predicted_main_race_input_confidence_fn=cap_predicted_main_race_input_confidence,
         logger_instance=logger,
+        historical_predictions=history,
     )
 
 

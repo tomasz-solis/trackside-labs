@@ -26,6 +26,7 @@ from src.dashboard.prediction_flow import (
     build_starting_grid_note,
 )
 from src.dashboard.race_context import attach_starting_grid_context
+from src.models.challenger_ridge import ridge_qualifying_section
 from src.models.team_strength_mapping import (
     TEAM_STRENGTH_SECONDS_MAPPING_PATH_ENV,
     fit_linear_team_strength_mapping,
@@ -484,8 +485,12 @@ def _resolve_qualifying_section_for_replay(
     qualifying_stage: str,
     actual_cache: dict[tuple[int, str, str], list[QualifyingGridEntry]],
     sprint_qualifying_result: list[QualifyingGridEntry] | None = None,
+    historical_predictions: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], list[QualifyingGridEntry], str]:
-    """Return the checkpoint-appropriate qualifying payload for one target session."""
+    """Return the checkpoint-appropriate qualifying payload for one target session.
+
+    A predicted main grid is reordered by the ridge from ``historical_predictions``, as live.
+    """
     if session_is_available_at_checkpoint(checkpoint_session, target_session):
         actual_grid = _fetch_actual_session_results(
             year=year,
@@ -515,6 +520,15 @@ def _resolve_qualifying_section_for_replay(
             else {}
         ),
     )
+    if qualifying_stage == "main":
+        section = ridge_qualifying_section(
+            section,
+            predictor=predictor,
+            historical_predictions=historical_predictions,
+            year=year,
+            race_name=race_name,
+            checkpoint_session=checkpoint_session,
+        )
     section = deepcopy(section)
     section["grid_source"] = "PREDICTED"
     section["result_mode"] = "PREDICTED"
@@ -610,6 +624,7 @@ def build_checkpoint_prediction_results(
     weather: str,
     is_sprint: bool,
     actual_cache: dict[tuple[int, str, str], list[QualifyingGridEntry]],
+    historical_predictions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build all still-relevant prediction sections for one replay checkpoint."""
     checkpoint = str(checkpoint_session).strip().upper()
@@ -652,6 +667,7 @@ def build_checkpoint_prediction_results(
             actual_cache=actual_cache,
             # Only set once sprint qualifying is inside the checkpoint.
             sprint_qualifying_result=sprint_grid if sprint_grid_source == "ACTUAL" else None,
+            historical_predictions=historical_predictions,
         )
         main_race_input_confidence = derive_race_input_confidence(
             main_quali,
@@ -696,6 +712,7 @@ def build_checkpoint_prediction_results(
         target_session="Q",
         qualifying_stage="main",
         actual_cache=actual_cache,
+        historical_predictions=historical_predictions,
     )
     race_input_confidence = derive_race_input_confidence(
         qualifying,
@@ -914,6 +931,7 @@ def _build_race_checkpoint_record(
         is_sprint=is_sprint,
     )
 
+    logger_instance = PredictionLogger(predictions_dir=str(output_root / "predictions"))
     prediction_results = build_checkpoint_prediction_results(
         predictor=predictor,
         year=year,
@@ -922,6 +940,7 @@ def _build_race_checkpoint_record(
         weather=weather,
         is_sprint=is_sprint,
         actual_cache=actual_cache,
+        historical_predictions=logger_instance.get_all_predictions(year),
     )
     target_predictions = prediction_targets_for_checkpoint(
         prediction_results=prediction_results,
@@ -954,7 +973,6 @@ def _build_race_checkpoint_record(
         is_sprint=is_sprint,
     )
 
-    logger_instance = PredictionLogger(predictions_dir=str(output_root / "predictions"))
     target_actual_results = _build_target_actual_results(
         year=year,
         race_name=race_name,

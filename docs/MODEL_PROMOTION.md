@@ -4,7 +4,7 @@ A model change is a challenger until it proves it helps. Reset-year signals are 
 
 ## Current model
 
-Version `3.7`. 3.1 to 3.7 are small: median-rank finish order, car traits by track for qualifying, braking dropped from those traits, the sprint qualifying result blended into main qualifying, learned widening of race bands, the learned driver and teammate shift switched off, a learned Grand Prix grid anchor weight (champion history in `docs/MODEL_LEDGER.md`). 3.0 was the big one. It changed a mechanism, not a calibration. Positions in the race simulation used to change whenever a faster car's cumulative time passed another's, whether or not a pass happened (98.4% of simulated position changes at Monaco had no pass). Now a position change needs a completed pass. 3.0 also measured team race pace from green-flag laps, fitted `skill_improvement_max` to the real teammate gap, and stopped re-anchoring a penalised driver to their penalty grid slot. Numbers are in `docs/MODEL_LEDGER.md`.
+Version `3.8`. 3.1 to 3.8 are small: median-rank finish order, car traits by track for qualifying, braking dropped from those traits, the sprint qualifying result blended into main qualifying, learned widening of race bands, the learned driver and teammate shift switched off, a learned Grand Prix grid anchor weight, the `qualifying_ridge` order for main qualifying (champion history in `docs/MODEL_LEDGER.md`). 3.0 was the big one. It changed a mechanism, not a calibration. Positions in the race simulation used to change whenever a faster car's cumulative time passed another's, whether or not a pass happened (98.4% of simulated position changes at Monaco had no pass). Now a position change needs a completed pass. 3.0 also measured team race pace from green-flag laps, fitted `skill_improvement_max` to the real teammate gap, and stopped re-anchoring a penalised driver to their penalty grid slot. Numbers are in `docs/MODEL_LEDGER.md`.
 
 Targets are judged separately: `main_qualifying`, `grand_prix_race`, `sprint_qualifying`, `sprint_race`. A challenger can win one target without being promoted for all.
 
@@ -47,7 +47,7 @@ A challenger forecasts beside the champion at every saved checkpoint and is scor
 | Production (warmup cron) | `challengers` in each saved forecast | `uv run python scripts/score_challengers.py --year 2026 --env-file .env.local` |
 | Replay | the same, plus snapshots under `<root>/challengers/<name>` | `compare_replay_arms.py --baseline <root> --candidate <root>/challengers/<name> --seed-floor <s42 root> <s43 root>` |
 
-`previous_event_order` repeats the previous event's actual order for the same target: the naive baseline the champion has to beat. `qualifying_ridge` is the 2026-10-08 probe's stacked ridge for main qualifying, refitted on earlier events at every checkpoint. `qualifying_laptime` predicts each driver's qualifying gap in seconds from car pace, track fit, practice and driver form, without the champion's forecast.
+`previous_event_order` repeats the previous event's actual order for the same target: the naive baseline the champion has to beat. `qualifying_ridge` is the 2026-10-08 probe's stacked ridge for main qualifying, refitted on earlier events at every checkpoint. Since 3.8 it serves main qualifying (`baseline_predictor.qualifying.ridge_order`), so it no longer runs as a challenger. `qualifying_laptime` predicts each driver's qualifying gap in seconds from car pace, track fit, practice and driver form, without the champion's forecast.
 
 ## Promotion gate
 

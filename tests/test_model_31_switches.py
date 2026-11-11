@@ -63,7 +63,7 @@ def _finish_order(cfg) -> list[str]:
 
 
 def test_shipped_31_switches():
-    assert config_loader.get("model.version") == "3.7"
+    assert config_loader.get("model.version") == "3.8"
     assert config_loader.get("learning.max_adjustment") == 0.0
     assert config_loader.get("baseline_predictor.race.finish_order_sort") == "median_rank"
     assert config_loader.get("baseline_predictor.race.overtake_gap_from_lap_start") is True
@@ -149,3 +149,9 @@ def test_learned_grid_anchor_switch_gates_the_live_predictor():
     assert weight(False) is None
     assert weight(True) == 0.75
     assert config_loader.get("baseline_predictor.race.grid_anchor.learned") is True
+
+
+def test_ridge_order_switch_is_on_in_the_live_config():
+    """3.8 serves the qualifying_ridge order (ledger 2026-11-10)."""
+    assert config_loader.get("baseline_predictor.qualifying.ridge_order") is True
+    assert "qualifying_ridge" not in config_loader.get("challengers.enabled")

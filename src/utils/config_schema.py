@@ -51,7 +51,7 @@ class RegulationEra(StrictConfigModel):
 class ModelConfig(StrictConfigModel):
     """Model release metadata shared across generated artifacts."""
 
-    version: str = Field(default="3.7", min_length=1)
+    version: str = Field(default="3.8", min_length=1)
     # The seconds gap between a fast car and a slow one is a property of the
     # regulations. Fitting a seconds mapping across a regulation boundary averages
     # two different fields and describes neither, so calibration is scoped to an era
@@ -431,6 +431,8 @@ class BaselineQualifyingConfig(StrictConfigModel):
     ) = None
     practice_pace_adjustment: bool = Field(default=False)
     sprint_quali_result_blend_weight: float = Field(default=0.7, ge=0.0, le=1.0)
+    # Serve the qualifying_ridge order for predicted main qualifying (model 3.8).
+    ridge_order: bool = Field(default=False)
     practice_data_team_weight_multiplier: float = Field(default=0.94, ge=0.0)
     practice_data_skill_weight_multiplier: float = Field(default=1.12, ge=0.0)
     practice_data_team_compression_multiplier: float = Field(default=0.88, ge=0.0)
@@ -1091,7 +1093,6 @@ class ChallengersConfig(StrictConfigModel):
     enabled: list[str] = Field(
         default_factory=lambda: [
             "previous_event_order",
-            "qualifying_ridge",
             "qualifying_laptime",
         ]
     )

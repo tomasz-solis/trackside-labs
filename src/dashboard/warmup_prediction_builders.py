@@ -7,6 +7,7 @@ import time
 from copy import deepcopy
 from typing import Any
 
+from src.models.challenger_ridge import ridge_qualifying_section
 from src.utils.grid_penalties import apply_grid_penalties
 
 from .prediction_checkpointing import (
@@ -49,8 +50,13 @@ def compute_base_features(
     derive_race_input_confidence_fn: Any,
     cap_predicted_main_race_input_confidence_fn: Any,
     logger_instance: logging.Logger = logger,
+    historical_predictions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Load weather-invariant race inputs once for one race checkpoint."""
+    """Load weather-invariant race inputs once for one race checkpoint.
+
+    ``historical_predictions`` are the season's saved forecasts; the ridge (model 3.8)
+    reorders a predicted main qualifying grid from them.
+    """
     checkpoint_session = resolve_prediction_checkpoint_session(
         checkpoint,
         is_sprint=is_sprint,
@@ -159,6 +165,14 @@ def compute_base_features(
                     else {}
                 ),
             )
+            main_quali = ridge_qualifying_section(
+                main_quali,
+                predictor=predictor,
+                historical_predictions=historical_predictions,
+                year=year,
+                race_name=target_race,
+                checkpoint_session=checkpoint_session,
+            )
             if allow_main_quali_results:
                 main_grid, main_grid_source = fetch_grid_if_available_fn(
                     year,
@@ -234,6 +248,14 @@ def compute_base_features(
             n_simulations=qualifying_n_simulations,
             practice_signal_mode="stored_profiles",
             checkpoint_session_name=checkpoint_session,
+        )
+        qualifying = ridge_qualifying_section(
+            qualifying,
+            predictor=predictor,
+            historical_predictions=historical_predictions,
+            year=year,
+            race_name=target_race,
+            checkpoint_session=checkpoint_session,
         )
         if allow_main_quali_results:
             qualifying_grid, grid_source = fetch_grid_if_available_fn(

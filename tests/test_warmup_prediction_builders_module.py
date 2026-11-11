@@ -203,6 +203,54 @@ def test_compute_base_features_does_not_refresh_q_grid_after_fp3():
     assert result["race_input_confidence"] == 0.35
 
 
+def test_compute_base_features_starts_the_race_from_the_served_ridge_order(monkeypatch):
+    """Model 3.8: the ridge reorders predicted qualifying before the race grid is built."""
+    calls = []
+
+    def reverse(section, **kwargs):
+        calls.append(kwargs)
+        grid = [
+            {**row, "position": position}
+            for position, row in enumerate(reversed(section["grid"]), start=1)
+        ]
+        return {**section, "grid": grid}
+
+    monkeypatch.setattr(warmup_prediction_builders, "ridge_qualifying_section", reverse)
+
+    class _Predictor:
+        def predict_qualifying(self, **kwargs):
+            del kwargs
+            return {
+                "grid": [
+                    {"position": 1, "driver": "NOR", "team": "McLaren"},
+                    {"position": 2, "driver": "RUS", "team": "Mercedes"},
+                ]
+            }
+
+    history = [{"metadata": {"race_name": "Chinese Grand Prix"}}]
+    result = warmup_prediction_builders.compute_base_features(
+        2026,
+        "Australian Grand Prix",
+        "FP3",
+        "artifact_hash",
+        "boundary_signature",
+        predictor=_Predictor(),
+        is_sprint=False,
+        get_prediction_precompute_config_fn=lambda: {},
+        fetch_actual_competitive_results_if_completed_fn=lambda **kwargs: (None, "INCOMPLETE"),
+        build_actual_qualifying_section_fn=lambda grid, session_name: {"grid": grid},
+        fetch_grid_if_available_fn=lambda *args, **kwargs: None,
+        derive_race_input_confidence_fn=lambda qualifying_payload, grid_source: 0.35,
+        cap_predicted_main_race_input_confidence_fn=lambda *args, **kwargs: 0.0,
+        historical_predictions=history,
+    )
+
+    assert [row["driver"] for row in result["qualifying"]["grid"]] == ["RUS", "NOR"]
+    assert [row["driver"] for row in result["qualifying_grid_for_race"]] == ["RUS", "NOR"]
+    assert calls[0]["historical_predictions"] is history
+    assert calls[0]["checkpoint_session"] == "FP3"
+
+
 def test_compute_weather_predictions_rejects_unknown_weather():
     """Weather overlays should fail fast when scenario selection is invalid."""
     with pytest.raises(ValueError, match="Invalid weather scenario"):

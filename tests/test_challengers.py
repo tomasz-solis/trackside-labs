@@ -208,7 +208,6 @@ def test_replay_writes_challenger_snapshots_where_compare_replay_arms_reads(tmp_
 def test_config_enables_the_naive_challenger_and_skips_unknown_names():
     assert enabled_challengers() == [
         "previous_event_order",
-        "qualifying_ridge",
         "qualifying_laptime",
     ]
 
@@ -308,6 +307,110 @@ def test_ridge_reads_no_practice_at_pre(monkeypatch):
     )
 
     assert not [key for key in store.loaded if "Monaco" in key]
+
+
+# --- ridge order served (model 3.8) ------------------------------------------------------
+
+
+def _served_grid() -> list[dict]:
+    return [
+        {
+            **row,
+            "median_position": float(row["position"]),
+            "p5": row["position"],
+            "p95": row["position"] + 1,
+        }
+        for row in _rows(*DRIVERS)
+    ]
+
+
+def _ridge_order_setup(monkeypatch, *, events: int = 5, switch: bool = True):
+    from types import SimpleNamespace
+
+    current, _, predictor, _ = _ridge_ctx(monkeypatch, "Monaco Grand Prix", "FP1", events)
+    # Earlier actuals reverse the champion, so the ridge moves drivers.
+    history = [
+        _ridge_prediction(race, "FP3", _rows(*DRIVERS), _rows(*reversed(DRIVERS)))
+        for race in RIDGE_RACES[:events]
+    ]
+    predictor = SimpleNamespace(
+        artifact_store=predictor.artifact_store,
+        data_dir="",
+        config={"baseline_predictor.qualifying.ridge_order": switch},
+    )
+    return current, history, predictor
+
+
+def _serve(section, history, predictor):
+    from src.models.challenger_ridge import ridge_qualifying_section
+
+    return ridge_qualifying_section(
+        section,
+        predictor=predictor,
+        historical_predictions=history,
+        year=2026,
+        race_name="Monaco Grand Prix",
+        checkpoint_session="FP1",
+    )
+
+
+def test_served_ridge_order_matches_the_challenger_and_moves_bands(monkeypatch):
+    current, history, predictor = _ridge_order_setup(monkeypatch)
+    grid = _served_grid()
+    current["targets"]["main_qualifying"]["predicted_order"] = grid
+
+    served = _serve({"grid": grid}, history, predictor)
+    challenger = run_challengers(
+        current, historical_predictions=history, predictor=predictor, names=["qualifying_ridge"]
+    )["qualifying_ridge"]["targets"]["main_qualifying"]["predicted_order"]
+
+    assert served["qualifying_order_source"] == "qualifying_ridge"
+    assert [row["driver"] for row in served["grid"]] == [row["driver"] for row in challenger]
+    assert [row["position"] for row in served["grid"]] == list(range(1, 7))
+    champion = {row["driver"]: row for row in grid}
+    shifts = []
+    for row in served["grid"]:
+        before = champion[row["driver"]]
+        shift = row["position"] - before["position"]
+        shifts.append(shift)
+        assert row["champion_position"] == before["position"]
+        assert row["median_position"] == min(6, max(1, before["median_position"] + shift))
+        assert row["p5"] == min(6, max(1, before["p5"] + shift))
+        assert row["p95"] == min(6, max(1, before["p95"] + shift))
+    assert any(shifts)
+
+
+@pytest.mark.parametrize("events, switch", [(5, False), (3, True)])
+def test_served_order_stays_the_champion_when_off_or_short_of_history(monkeypatch, events, switch):
+    _, history, predictor = _ridge_order_setup(monkeypatch, events=events, switch=switch)
+    section = {"grid": _served_grid()}
+
+    assert _serve(section, history, predictor) is section
+
+
+def test_served_order_stays_the_champion_when_the_ridge_fails(monkeypatch):
+    import src.models.challenger_ridge as ridge
+
+    _, history, predictor = _ridge_order_setup(monkeypatch)
+
+    def boom(ctx):
+        raise ValueError("no fit")
+
+    monkeypatch.setattr(ridge, "qualifying_ridge", boom)
+    section = {"grid": _served_grid()}
+
+    assert _serve(section, history, predictor) is section
+
+
+def test_ridge_reads_the_champion_slot_of_a_served_forecast():
+    from src.models.challenger_ridge import _champion_order
+
+    rows = [
+        {"driver": "VER", "position": 1, "champion_position": 3},
+        {"driver": "NOR", "position": 2},
+    ]
+
+    assert _champion_order(rows) == {"VER": 3, "NOR": 2}
 
 
 # --- qualifying_laptime ----------------------------------------------------------------

@@ -1910,6 +1910,28 @@ São Paulo qualifying was wet, and every São Paulo forecast seated OCO, who did
 
 Verdict: replay `better` stands (ledger 2026-11-08). Live, ridge is better on 1 weekend and worse on 2, so it fails the gate rule "not worse on more weekends than better"; 3 weekends give no interval. Tomasz promotes ridge for `main_qualifying` anyway, on the replay evidence. `open` until the served change is built and replayed.
 
+## 2026-11-11: model 3.8 serves the qualifying_ridge order, and the race starts from it
+
+The ridge reorders the predicted main qualifying grid. Each driver's `median_position`, `p5` and `p95` move with them, so the Grand Prix simulation starts from the ridge grid. `champion_position` keeps the champion's slot, which the ridge reads as a feature at later events. Switch `baseline_predictor.qualifying.ridge_order`; `qualifying_ridge` left `challengers.enabled`.
+
+Baseline `C37_parity_s42` / `_s43` (commit `0dec60da`), seed floor from the same pair. Candidate `C38_ridge_s42` / `_s43` on `e6fa5cc3` plus this change, `--through-round 17`. Health: 17 of 17 weekends learned on all four roots, 62 checkpoints each, Barcelona FP1 skipped in all four.
+
+Isolation: the ridge served at 48 checkpoints on both seeds, the same 48 the challenger scored; the first 4 weekends keep the champion order (fewer than 4 earlier events). At those 14 checkpoints, 3.7 and 3.8 forecasts are identical for every target on both seeds, so the 16 commits since `0dec60da` changed nothing there.
+
+| Target | Metric | Seed 42 | Seed 43 | Verdict |
+|---|---|---|---|---|
+| `main_qualifying` | corr | +0.0111 [+0.0033, +0.0196], 34 / 14 / 14 | +0.0092 [+0.0007, +0.0181], 32 / 15 / 15 | better |
+| `main_qualifying` | MAE | -0.151 [-0.247, -0.063], 33 / 9 / 20 | -0.133 [-0.233, -0.043], 29 / 12 / 21 | better |
+| `grand_prix_race` | corr | +0.0127 [-0.0019, +0.0299], 28 / 19 / 15 | +0.0092 [-0.0085, +0.0290], 28 / 20 / 14 | noise |
+| `grand_prix_race` | MAE | -0.058 [-0.185, +0.058], 25 / 19 / 18 | -0.046 [-0.177, +0.084], 24 / 20 / 18 | noise / unresolvable |
+| `sprint_race` | corr | -0.0016 | +0.0016 | unresolvable |
+
+Counts are checkpoints better / worse / tied. Grand Prix misses of 10+: 118 to 113 and 111 to 116. Race p5 to p95 coverage: 84.1% to 83.6% and 84.5% to 83.9%.
+
+The qualifying gain equals the challenger's diluted over 62 checkpoints: -0.19 and -0.18 on its 48 are -0.147 and -0.139 here.
+
+Verdict: `adopted` as 3.8. Qualifying `better` on both seeds; the race leans better on both seeds but stays inside noise. Not yet live.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

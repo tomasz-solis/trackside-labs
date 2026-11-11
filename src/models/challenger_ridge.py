@@ -1,4 +1,8 @@
-"""Challenger ``qualifying_ridge``: the ML probe's stacked qualifying ridge, run live.
+"""``qualifying_ridge``: the ML probe's stacked qualifying ridge, served since model 3.8.
+
+``ridge_qualifying_section`` reorders the champion's predicted main qualifying grid,
+and the race starts from that grid (ledger 2026-11-10). ``qualifying_ridge`` is the
+same forecast as a challenger, for replay roots built before 3.8.
 
 Ledger 2026-10-08: a ridge on seven features, one of them the champion's own forecast,
 scored corr 0.935 vs 0.930 and MAE 1.64 vs 1.76 on rounds 5 to 14 (``unresolvable``).
@@ -61,6 +65,15 @@ def _order(rows: Sequence[dict[str, Any]] | None) -> dict[str, int]:
     }
 
 
+def _champion_order(rows: Sequence[dict[str, Any]] | None) -> dict[str, int]:
+    """The champion's slots; a forecast served by the ridge (3.8) keeps them in ``champion_position``."""
+    return {
+        str(row["driver"]): int(row.get("champion_position") or row["position"])
+        for row in rows or []
+        if row.get("driver") and row.get("position") is not None
+    }
+
+
 def _teams(rows: Sequence[dict[str, Any]] | None) -> dict[str, str]:
     return {str(row["driver"]): str(row.get("team", "")) for row in rows or [] if row.get("driver")}
 
@@ -118,7 +131,7 @@ def _feature_rows(
     team_practice = ml.practice_features_from_payloads(practice)
     driver_practice = ml.driver_practice_deltas_from_payloads(practice)
     team_gap = ml._centred_mean(quali_gaps, [name for name in names if name in quali_gaps])
-    champion = _order(champion_rows)
+    champion = _champion_order(champion_rows)
     current_team = _teams(champion_rows)
     rows = []
     for driver, team in current_team.items():
@@ -229,3 +242,60 @@ def qualifying_ridge(ctx: Any) -> dict[str, list[dict[str, Any]]]:
             )
         ]
     }
+
+
+def ridge_qualifying_section(
+    section: dict[str, Any],
+    *,
+    predictor: Any,
+    historical_predictions: list[dict[str, Any]] | None,
+    year: int,
+    race_name: str,
+    checkpoint_session: str,
+) -> dict[str, Any]:
+    """Return a predicted main qualifying section in the ridge's order (model 3.8).
+
+    Each driver keeps the champion's row, with ``median_position``, ``p5`` and ``p95``
+    moved by the same number of places, because the race samples its starting grid
+    around them. ``champion_position`` keeps the champion's slot, which the ridge reads
+    as a feature at later events. The section comes back unchanged when
+    ``baseline_predictor.qualifying.ridge_order`` is off, before ``MIN_TRAINING_EVENTS``
+    earlier events, or when the ridge fails.
+    """
+    from src.models.challengers import ChallengerContext
+    from src.utils import config_loader
+
+    cfg = getattr(predictor, "config", None) or config_loader
+    grid = list(section.get("grid") or [])
+    if not cfg.get("baseline_predictor.qualifying.ridge_order", False) or not grid:
+        return section
+    ctx = ChallengerContext(
+        year=int(year),
+        race_name=str(race_name).strip(),
+        checkpoint_session=str(checkpoint_session).strip().upper(),
+        champion_targets={TARGET: grid},
+        historical_predictions=historical_predictions or [],
+        predictor=predictor,
+        prediction_data={"metadata": {"year": int(year), "race_name": str(race_name).strip()}},
+    )
+    try:
+        ranked = qualifying_ridge(ctx).get(TARGET)
+    except Exception as exc:  # noqa: BLE001 - the champion order serves when the ridge fails
+        logger.warning("Ridge qualifying order failed for %s %s: %s", year, race_name, exc)
+        return section
+    if not ranked:
+        return section
+
+    champion = {str(row["driver"]): row for row in grid}
+    field_size = len(grid)
+    served = []
+    for ranked_row in ranked:
+        row = dict(champion[str(ranked_row["driver"])])
+        shift = int(ranked_row["position"]) - int(row["position"])
+        for key in ("median_position", "p5", "p95"):
+            if isinstance(row.get(key), int | float):
+                row[key] = min(field_size, max(1, row[key] + shift))
+        row["champion_position"] = int(row["position"])
+        row["position"] = int(ranked_row["position"])
+        served.append(row)
+    return {**section, "grid": served, "qualifying_order_source": "qualifying_ridge"}

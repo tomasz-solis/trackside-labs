@@ -37,7 +37,7 @@ grid:
     #   LAW: TSU
 
 model:
-  version: "3.7"
+  version: "3.8"
   # Regulation eras for seconds calibration. The gap between a fast car and a slow
   # one is set by the regulations, so team_strength_seconds_mapping is fitted within
   # one era and never across a boundary: pooling 2022-2025 with 2026 produced a slope
@@ -333,6 +333,10 @@ baseline_predictor:
     # qualifying order, once sprint qualifying has run. 0 is off. Adopted at 0.7 as
     # model 3.4 (MODEL_LEDGER 2026-10-18, Singapore item C).
     sprint_quali_result_blend_weight: 0.7
+    # 3.8: serve the qualifying_ridge order for predicted main qualifying, and start the
+    # race from it (MODEL_LEDGER 2026-11-10). Needs 4 earlier events; the champion order
+    # serves before that and when the ridge fails.
+    ridge_order: true
     testing_fallback_short_weight_min: 0.35
     testing_fallback_short_weight_max: 0.85
     testing_fallback_divergence_scale: 1.4
@@ -1034,5 +1038,4 @@ testing:
 challengers:
   enabled:
     - previous_event_order
-    - qualifying_ridge
     - qualifying_laptime

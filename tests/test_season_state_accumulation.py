@@ -171,6 +171,41 @@ class TestApplyTeamPerformanceUpdates:
         assert team["preseason_overall_performance"] == 0.14
 
 
+class TestLiveFormKeepsRaceRound:
+    """A missed round must not make later live scores look older (plan row 29)."""
+
+    @staticmethod
+    def _apply(team: dict, race_round: int | None) -> dict:
+        char_data = {"teams": {"Ferrari": {"uncertainty": 0.2, "overall_performance": 0.5, **team}}}
+        _apply_team_performance_updates(
+            char_data=char_data,
+            race_pace={"Ferrari": 0.6},
+            config_get_fn=lambda key, default=None: default,
+            logger=logging.getLogger(__name__),
+            now_iso="2026-07-26T16:01:55",
+            race_round=race_round,
+        )
+        return char_data["teams"]["Ferrari"]
+
+    def test_round_is_stored_with_each_score(self):
+        team = self._apply({"current_season_performance": []}, race_round=1)
+        team = self._apply(team, race_round=3)
+
+        assert team["current_season_performance"] == [0.6, 0.6]
+        assert team["current_season_performance_rounds"] == [1, 3]
+
+    def test_a_list_saved_without_rounds_stays_unlabelled(self):
+        team = self._apply({"current_season_performance": [0.4, 0.5]}, race_round=3)
+
+        assert team["current_season_performance"] == [0.4, 0.5, 0.6]
+        assert "current_season_performance_rounds" not in team
+
+    def test_weights_follow_the_round(self):
+        assert _recency_weighted_mean([0.1, 0.9], recency_exponent=1.0, rounds=[1, 3]) == (
+            pytest.approx((0.1 * 1 + 0.9 * 3) / 4)
+        )
+
+
 class TestPositionFallbackKeepsMargin:
     """The fallback must score the size of the gap, not just the finishing order.
 

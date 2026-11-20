@@ -63,8 +63,9 @@ from src.utils.weekend import get_schedule_rows, is_sprint_weekend
 logger = logging.getLogger(__name__)
 
 DEFAULT_EXCLUDED_SCORING_TARGETS = frozenset({TARGET_SPRINT_QUALIFYING})
-_NORMAL_REPLAY_CHECKPOINTS = ("PRE", "FP1", "FP2", "FP3")
-_SPRINT_REPLAY_CHECKPOINTS = ("PRE", "FP1", "SQ")
+# Live also forecasts the race after qualifying, from the actual grid, and learns from it.
+_NORMAL_REPLAY_CHECKPOINTS = ("PRE", "FP1", "FP2", "FP3", "Q")
+_SPRINT_REPLAY_CHECKPOINTS = ("PRE", "FP1", "SQ", "Q")
 # A practice session can be genuinely unusable: FastF1 publishes 2026 Barcelona FP1 with
 # laps but no team names, so no team profile can be extracted from it. A weekend like that
 # still happened, and the checkpoint after it is simply the state that preceded it. Only

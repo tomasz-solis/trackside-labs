@@ -278,6 +278,8 @@ def get_compound_adjusted_team_strength(
     compound_chars = team_data.get("compound_characteristics", {})
 
     min_laps_threshold = cfg.get("baseline_predictor.race.min_laps_for_compound_data", 10)
+    if not cfg.get("baseline_predictor.race.compound_pace_modifier", True):
+        return base_strength
     if not should_use_compound_adjustments_fn(
         compound_chars,
         min_laps_threshold=min_laps_threshold,

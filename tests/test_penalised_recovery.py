@@ -128,7 +128,6 @@ def _finish_order_for(
         weather_feature_modifiers={},
         get_learned_position_adjustment=lambda **_: 0.0,
         learned_interval_radius=0.0,
-        enforce_non_increasing=lambda values: values,
         base_seed=42,
         learned_grid_anchor_weight=learned_weight,
     )

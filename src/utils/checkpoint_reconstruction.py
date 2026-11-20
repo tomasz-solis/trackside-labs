@@ -369,8 +369,10 @@ def build_snapshot_overlay_car_characteristics(
 def _resolve_dashboard_simulation_count(kind: str) -> int:
     """Resolve default dashboard simulation counts without importing rendering code."""
     if str(kind).strip().lower() == "qualifying":
-        return int(config_loader.get("prediction_precompute.qualifying_n_simulations", 100))
-    return int(config_loader.get("prediction_precompute.race_n_simulations", 100))
+        return int(
+            config_loader.get("dashboard.prediction_precompute.qualifying_n_simulations", 300)
+        )
+    return int(config_loader.get("dashboard.prediction_precompute.race_n_simulations", 300))
 
 
 def _derive_race_input_confidence(

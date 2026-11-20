@@ -629,7 +629,6 @@ def build_finish_order(
     weather_feature_modifiers: dict[str, float],
     get_learned_position_adjustment: Any,
     learned_interval_radius: float,
-    enforce_non_increasing: Any,
     base_seed: int,
     learned_grid_anchor_weight: float | None = None,
 ) -> list[dict[str, Any]]:
@@ -663,6 +662,10 @@ def build_finish_order(
         for driver_code, info in driver_info_map.items()
     }
 
+    # Grid and simulation draws are close to independent, so averaging them draw by draw
+    # also halves each driver's spread (sd 4.7 to 2.5 places, ledger 2026-11-16). On,
+    # the anchor moves every draw by the same amount and the spread stays the simulation's.
+    keep_spread = bool(cfg.get("baseline_predictor.race.grid_anchor_keeps_spread", False))
     for driver_code, median_pos in aggregated["median_positions"].items():
         info = driver_info_map[driver_code]
         positions = aggregated["position_distributions"][driver_code]
@@ -759,6 +762,7 @@ def build_finish_order(
         position_blend_score = max(position_blend_score, min_position_score)
 
         blended_position_samples = []
+        simulation_median = float(np.median(positions)) if len(positions) else 0.0
         for position_sample, grid_position_sample in zip(
             positions,
             grid_position_samples,
@@ -769,15 +773,16 @@ def build_finish_order(
                 if info.get("is_penalised")
                 else max(1.0, float(grid_position_sample) - max_gain)
             )
-            blended_position_samples.append(
-                max(
-                    (
-                        ((1.0 - driver_anchor_weight) * position_sample)
-                        + (driver_anchor_weight * float(grid_position_sample))
-                        - racecraft_adjustment
-                    ),
-                    min_sample_position_score,
+            if keep_spread:
+                anchored_sample = position_sample + driver_anchor_weight * (
+                    float(grid_position_sample) - simulation_median
                 )
+            else:
+                anchored_sample = ((1.0 - driver_anchor_weight) * position_sample) + (
+                    driver_anchor_weight * float(grid_position_sample)
+                )
+            blended_position_samples.append(
+                max(anchored_sample - racecraft_adjustment, min_sample_position_score)
             )
         if learned_position_adjustment:
             blended_position_samples = [
@@ -826,16 +831,16 @@ def build_finish_order(
 
     podium_prob_by_driver, rank_samples_by_driver = _compute_podium_probabilities(
         blended_samples_by_driver=blended_samples_by_driver,
-        cfg=cfg,
-        base_seed=base_seed,
     )
     for row in finish_order:
-        row["podium_probability"] = round(podium_prob_by_driver.get(row["driver"], 0.0), 1)
+        # Whole percent: with 300 draws a shown chance has a standard error of up to
+        # 2.9 points, so a decimal would claim precision the simulation lacks.
+        row["podium_probability"] = float(round(podium_prob_by_driver.get(row["driver"], 0.0)))
         rank_samples = rank_samples_by_driver.get(row["driver"], [])
         if rank_samples:
-            # Share of simulations the driver wins. Not smoothed like podium %, so a
-            # driver shown second can carry the higher win chance in a close fight.
-            row["win_probability"] = round(100.0 * float(np.mean(np.equal(rank_samples, 1))), 1)
+            # Share of simulations the driver wins. In a close fight the driver shown
+            # second can carry the higher win or podium chance.
+            row["win_probability"] = float(round(100.0 * float(np.mean(np.equal(rank_samples, 1)))))
             row["position_blend_score"] = round(float(np.mean(rank_samples)), 4)
             row["median_position"] = int(np.median(rank_samples))
             row["p5"] = int(np.percentile(rank_samples, 5))
@@ -864,12 +869,6 @@ def build_finish_order(
             track_overtaking=float(fo_cfg.track_overtaking),
             cfg=cfg,
         )
-
-    if cfg.get("baseline_predictor.race.podium_probability.enforce_monotonic", True):
-        raw_podium_values = [float(row.get("podium_probability", 0.0)) for row in finish_order]
-        smoothed_values = enforce_non_increasing(raw_podium_values)
-        for row, smoothed in zip(finish_order, smoothed_values, strict=True):
-            row["podium_probability"] = round(float(np.clip(smoothed, 0.0, 100.0)), 1)
 
     apply_learned_interval_radius(
         finish_order=finish_order,
@@ -948,10 +947,12 @@ def assign_order_confidence(
 def _compute_podium_probabilities(
     *,
     blended_samples_by_driver: dict[str, list[float]],
-    cfg: Any,
-    base_seed: int,
 ) -> tuple[dict[str, float], dict[str, list[int]]]:
-    """Estimate podium probability from blended position samples."""
+    """Rank every driver within each joint simulation draw; return podium % and ranks.
+
+    Draw ``i`` of every driver comes from the same simulated race, so the ranks stay
+    one coherent scenario and the podium chances add up to 300%.
+    """
     podium_prob_by_driver: dict[str, float] = {}
     rank_samples_by_driver: dict[str, list[int]] = {
         driver: [] for driver in blended_samples_by_driver.keys()
@@ -965,35 +966,11 @@ def _compute_podium_probabilities(
         return podium_prob_by_driver, rank_samples_by_driver
 
     podium_counts: dict[str, int] = {driver: 0 for driver in blended_samples_by_driver}
-    minimum_podium_samples = int(
-        cfg.get("baseline_predictor.race.podium_probability.min_sample_count", 250)
-    )
-    minimum_podium_samples = max(1, minimum_podium_samples)
-    use_resampling = sample_count < minimum_podium_samples
-    draw_count = minimum_podium_samples if use_resampling else sample_count
-
-    resample_rng = None
-    if use_resampling:
-        resample_seed_offset = int(
-            cfg.get("baseline_predictor.race.podium_probability.resample_seed_offset", 99173)
-        )
-        resample_rng = np.random.default_rng(base_seed + resample_seed_offset)
-
-    for sample_idx in range(draw_count):
-        if resample_rng is None:
-            ranked_scores = [
-                (driver_code, samples[sample_idx])
-                for driver_code, samples in blended_samples_by_driver.items()
-            ]
-        else:
-            ranked_scores = [
-                (
-                    driver_code,
-                    samples[int(resample_rng.integers(0, sample_count))],
-                )
-                for driver_code, samples in blended_samples_by_driver.items()
-            ]
-
+    for sample_idx in range(sample_count):
+        ranked_scores = [
+            (driver_code, samples[sample_idx])
+            for driver_code, samples in blended_samples_by_driver.items()
+        ]
         ranked = sorted(ranked_scores, key=lambda item: (item[1], item[0]))
         for rank_index, (driver_code, _) in enumerate(ranked, start=1):
             rank_samples_by_driver[driver_code].append(rank_index)
@@ -1001,7 +978,7 @@ def _compute_podium_probabilities(
             podium_counts[driver_code] += 1
 
     podium_prob_by_driver = {
-        driver: (count / draw_count) * 100.0 for driver, count in podium_counts.items()
+        driver: (count / sample_count) * 100.0 for driver, count in podium_counts.items()
     }
     return podium_prob_by_driver, rank_samples_by_driver
 

@@ -67,7 +67,7 @@ def compute_order_confidence(
     sample_array = sample_array[np.isfinite(sample_array)]
     if sample_array.size == 0:
         midpoint = (float(conf_min) + float(conf_max)) / 2.0
-        return float(round(np.clip(midpoint, conf_min, conf_max), 1))
+        return float(round(np.clip(midpoint, conf_min, conf_max)))
 
     deviations = sample_array - float(predicted_position)
 
@@ -93,7 +93,8 @@ def compute_order_confidence(
     # deviations have been scaled into a continuous quantity.
     band = max(0.0, float(tolerance)) + 0.5
     within_fraction = float(np.mean(scaled_abs_deviation <= band)) * 100.0
-    return float(round(np.clip(within_fraction, float(conf_min), float(conf_max)), 1))
+    # Whole percent, like the race odds: 300 draws cannot support a decimal.
+    return float(round(np.clip(within_fraction, float(conf_min), float(conf_max))))
 
 
 def within_tolerance(

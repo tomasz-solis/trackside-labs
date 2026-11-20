@@ -67,7 +67,11 @@ def _race_results() -> list[dict]:
     return rows
 
 
-def _fake_get(results_by_session: dict[int, list[dict]], grid: list[dict] | None = None):
+def _fake_get(
+    results_by_session: dict[int, list[dict]],
+    grid: list[dict] | None = None,
+    positions: list[dict] | None = None,
+):
     def fake(endpoint, **params):
         if endpoint == "meetings":
             return _MEETINGS
@@ -79,6 +83,8 @@ def _fake_get(results_by_session: dict[int, list[dict]], grid: list[dict] | None
             return results_by_session.get(params["session_key"], [])
         if endpoint == "starting_grid":
             return grid or []
+        if endpoint == "position":
+            return positions or []
         raise AssertionError(endpoint)
 
     return fake
@@ -117,7 +123,7 @@ def test_rate_limited_request_is_retried(monkeypatch):
     import urllib.error
 
     monkeypatch.delenv(openf1.DISABLE_ENV)
-    monkeypatch.setattr(openf1, "_RATE_LIMIT_WAIT_SECONDS", 0.0)
+    monkeypatch.setattr(openf1, "_RETRY_WAIT_SECONDS", (0.0, 0.0, 0.0, 0.0))
     monkeypatch.setattr(openf1, "_MIN_INTERVAL_SECONDS", 0.0)
     calls = []
 
@@ -140,6 +146,38 @@ def test_rate_limited_request_is_retried(monkeypatch):
     monkeypatch.setattr(openf1.urllib.request, "urlopen", fake_urlopen)
     assert openf1._get("meetings", year=2026) == [{"meeting_key": 1}]
     assert len(calls) == 2
+
+
+def test_cut_read_is_retried_and_a_lasting_failure_is_a_transport_error(monkeypatch):
+    """A car data body cut short raises IncompleteRead, which is not an OSError."""
+    import http.client
+    import socket
+    import urllib.error
+
+    monkeypatch.delenv(openf1.DISABLE_ENV)
+    monkeypatch.setattr(openf1, "_RETRY_WAIT_SECONDS", (0.0, 0.0, 0.0, 0.0))
+    monkeypatch.setattr(openf1, "_MIN_INTERVAL_SECONDS", 0.0)
+    calls = []
+
+    def cut_then_ok(request, timeout):
+        calls.append(request.full_url)
+        if len(calls) == 1:
+            raise http.client.IncompleteRead(b"[", 100)
+        return _Body(b'[{"meeting_key": 1}]')
+
+    monkeypatch.setattr(openf1.urllib.request, "urlopen", cut_then_ok)
+    assert openf1._get("meetings", year=2026) == [{"meeting_key": 1}]
+    assert len(calls) == 2
+
+    def dns_down(request, timeout):
+        calls.append(request.full_url)
+        raise urllib.error.URLError(socket.gaierror(11001, "getaddrinfo failed"))
+
+    calls.clear()
+    monkeypatch.setattr(openf1.urllib.request, "urlopen", dns_down)
+    with pytest.raises(openf1.OpenF1TransportError, match="after retries"):
+        openf1._get("meetings", year=2025)
+    assert len(calls) == 5
 
 
 class _Body:
@@ -254,6 +292,42 @@ def test_starting_grid_falls_back_to_openf1():
         rows = fetch_actual_starting_grid(2026, "Bahrain Grand Prix")
     assert rows is not None and rows[0]["driver"] == "D22"
     assert {row["start_type"] for row in rows} == {"grid"}
+
+
+def test_openf1_grid_is_the_order_the_race_started_in():
+    """Austin 2026: starting_grid kept pit-lane starter STR in slot 16; he started 22nd."""
+    grid = [{"driver_number": n, "position": n} for n in range(1, 23)]
+    starts = [n for n in range(1, 23) if n != 16] + [16]
+    positions = [
+        {"driver_number": n, "position": place, "date": "2026-10-04T15:03:00"}
+        for place, n in enumerate(starts, start=1)
+    ]
+    # A later row is a race move, not the start.
+    positions.append({"driver_number": 16, "position": 15, "date": "2026-10-04T15:30:00"})
+    with (
+        patch(
+            "src.data.actual_results_fetcher.fastf1.get_session", side_effect=RuntimeError("401")
+        ),
+        patch.object(openf1, "_get", _fake_get({}, grid=grid, positions=positions)),
+    ):
+        rows = fetch_actual_starting_grid(2026, "Bahrain Grand Prix")
+    assert rows is not None
+    by_driver = {row["driver"]: row["position"] for row in rows}
+    assert by_driver["D16"] == 22
+    assert by_driver["D17"] == 16
+
+
+def test_openf1_grid_ignores_an_incomplete_start_order():
+    grid = [{"driver_number": n, "position": n} for n in range(1, 23)]
+    positions = [{"driver_number": 1, "position": 2, "date": "2026-10-04T15:03:00"}]
+    with (
+        patch(
+            "src.data.actual_results_fetcher.fastf1.get_session", side_effect=RuntimeError("401")
+        ),
+        patch.object(openf1, "_get", _fake_get({}, grid=grid, positions=positions)),
+    ):
+        rows = fetch_actual_starting_grid(2026, "Bahrain Grand Prix")
+    assert rows is not None and rows[0]["driver"] == "D01"
 
 
 def test_detector_uses_openf1_when_fastf1_cannot_decide():

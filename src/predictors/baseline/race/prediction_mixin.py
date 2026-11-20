@@ -52,29 +52,6 @@ class BaselineRacePredictionMixin:
             race_name: str | None,
         ) -> tuple[dict[str, Any], int]: ...
 
-    @staticmethod
-    def _enforce_non_increasing(values: list[float]) -> list[float]:
-        """Apply isotonic-style smoothing so sequence is non-increasing."""
-        if not values:
-            return values
-
-        # Pool adjacent violators for monotone decreasing fit.
-        blocks: list[list[float]] = []  # [start, end, avg, count]
-        for idx, value in enumerate(values):
-            blocks.append([float(idx), float(idx), float(value), 1.0])
-            while len(blocks) >= 2 and blocks[-2][2] < blocks[-1][2]:
-                right = blocks.pop()
-                left = blocks.pop()
-                merged_count = left[3] + right[3]
-                merged_avg = ((left[2] * left[3]) + (right[2] * right[3])) / merged_count
-                blocks.append([left[0], right[1], merged_avg, merged_count])
-
-        smoothed = [0.0 for _ in values]
-        for start, end, avg, _ in blocks:
-            for idx in range(int(start), int(end) + 1):
-                smoothed[idx] = float(avg)
-        return smoothed
-
     def _get_learned_position_adjustment(
         self,
         *,
@@ -363,7 +340,6 @@ class BaselineRacePredictionMixin:
                     get_learned_grid_anchor_weight=self._get_learned_grid_anchor_weight,
                     apply_race_residual_model=self._apply_race_residual_model,
                     get_conformal_interval_radius=self._get_conformal_interval_radius,
-                    enforce_non_increasing=self._enforce_non_increasing,
                     load_track_specific_params=load_track_specific_params,
                     get_tire_stress_score=get_tire_stress_score,
                     get_available_compounds=get_available_compounds,

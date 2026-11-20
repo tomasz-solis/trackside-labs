@@ -11,7 +11,7 @@ It reads through ``PredictionLogger``, so it sees whichever backend
 answer; in ``file_only`` mode this reports the local artifacts instead.
 
 Usage:
-  uv run python scripts/report_dnf_label_coverage.py --year 2026
+  uv run python scripts/report_dnf_label_coverage.py --year 2026 --env-file .env.local
 """
 
 from __future__ import annotations
@@ -74,7 +74,12 @@ def main() -> None:
     """CLI entrypoint for the read-only coverage report."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--year", type=int, default=2026)
+    parser.add_argument("--env-file", type=Path, default=None)
     args = parser.parse_args()
+    if args.env_file is not None:
+        from src.utils.env_file import load_env_file
+
+        load_env_file(args.env_file)
 
     from src.utils.prediction_logger import PredictionLogger
 

@@ -117,8 +117,14 @@ class TestCalculateFuelDelta:
         result_end = calculate_fuel_delta(laps_remaining=5)
 
         assert result_start > result_mid > result_end
-        # Start: 60*1.5 = 90kg → 9 * 0.035 = 0.315s
-        assert result_start == pytest.approx(0.315, abs=0.01)
+        # 60 laps x 1.5 kg = 90 kg, 9 x 0.31 s = 2.79 s
+        assert result_start == pytest.approx(2.79, abs=0.01)
+
+    def test_fuel_gain_per_lap_matches_measured_2026_trend(self):
+        """One lap of burn gains about 0.047 s, the 2026 dry-race median trend."""
+        gain = calculate_fuel_delta(30) - calculate_fuel_delta(29)
+        assert gain == pytest.approx(0.0465, abs=0.001)
+        assert calculate_fuel_delta(30, burn_rate_kg_per_lap=1.0) == pytest.approx(0.93)
 
 
 class TestGetFreshTireAdvantage:
@@ -231,19 +237,17 @@ class TestIntegrationScenarios:
         # Lap 1: fresh tires, full fuel
         lap1_deg = calculate_tire_deg_delta(tire_deg_slope, 1, 110.0, initial_fuel)
         lap1_fresh = get_fresh_tire_advantage("SOFT", 0)
-        lap1_fuel = calculate_fuel_delta(60)
 
-        # Lap 1 should have low net penalty (fresh tire advantage > deg + fuel)
-        lap1_net = lap1_deg - lap1_fresh + lap1_fuel
+        # Lap 1 should have low net penalty (fresh tire advantage > deg)
+        lap1_net = lap1_deg - lap1_fresh
         assert lap1_net < 0.5  # Faster early in stint
 
         # Lap 20: worn tires, less fuel
         lap20_deg = calculate_tire_deg_delta(tire_deg_slope, 20, 50.0, initial_fuel)
         lap20_fresh = get_fresh_tire_advantage("SOFT", 20)  # 0 (past window)
-        lap20_fuel = calculate_fuel_delta(40)
 
         # Lap 20 should have higher penalty (no fresh advantage, high deg)
-        lap20_net = lap20_deg - lap20_fresh + lap20_fuel
+        lap20_net = lap20_deg - lap20_fresh
         assert lap20_net > 2.0  # Slower late in stint
 
     def test_red_bull_high_deg_scenario(self):

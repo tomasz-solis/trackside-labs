@@ -618,6 +618,7 @@ def simulate_race_lap_by_lap(
             fuel_delta = calculate_fuel_delta(
                 laps_remaining=(race_distance - lap_num),
                 fuel_effect_per_lap=race_params["fuel"]["effect_per_lap"],
+                burn_rate_kg_per_lap=race_params["fuel"].get("burn_rate_kg_per_lap", 1.5),
             )
 
             chaos = 0.0

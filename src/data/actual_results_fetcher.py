@@ -283,8 +283,9 @@ def _fetch_fastf1_session_results(
         grid_rows: list[dict[str, Any]] = []
         for row_index, (_, row) in enumerate(results.iterrows(), start=1):
             try:
-                driver_raw = row.get("Abbreviation", row.get("DriverNumber", ""))
-                driver = str(driver_raw).strip()
+                # A missing code fails the row so OpenF1 serves; NaN must never become "nan",
+                # and a car number matches no forecast row.
+                driver = _clean_result_str(row.get("Abbreviation"))
                 if not driver:
                     raise ValueError("missing driver identifier")
 
@@ -420,9 +421,7 @@ def _fetch_fastf1_starting_grid(year: int, race_name: str) -> list[QualifyingGri
         gridded: list[dict[str, Any]] = []
         pit_lane: list[dict[str, Any]] = []
         for _, row in results.iterrows():
-            driver = _clean_result_str(row.get("Abbreviation")) or _clean_result_str(
-                row.get("DriverNumber")
-            )
+            driver = _clean_result_str(row.get("Abbreviation"))
             team_raw = _clean_result_str(row.get("TeamName"))
             if not driver or not team_raw:
                 logger.error(

@@ -194,19 +194,18 @@ def calculate_tire_deg_delta(
 
 def calculate_fuel_delta(
     laps_remaining: int,
-    fuel_effect_per_lap: float = 0.035,
+    fuel_effect_per_lap: float = 0.31,
+    burn_rate_kg_per_lap: float = 1.5,
 ) -> float:
-    """Calculate lap time penalty from fuel weight.
+    """Return the lap time penalty in seconds from the fuel still on board.
 
-    Cars are slower when heavy with fuel. Effect diminishes as fuel burns.
+    ``fuel_effect_per_lap`` is seconds per lap per 10 kg. Every car gets the same
+    delta on a given lap, so this sets lap times, never the finish order.
     """
     if laps_remaining <= 0:
         return 0.0
 
-    # Fuel load estimate: ~1.5 kg per lap remaining
-    fuel_load_kg = laps_remaining * 1.5
-
-    # Convert to lap time penalty (per 10kg)
+    fuel_load_kg = laps_remaining * burn_rate_kg_per_lap
     fuel_penalty = (fuel_load_kg / 10.0) * fuel_effect_per_lap
 
     return float(max(0.0, fuel_penalty))

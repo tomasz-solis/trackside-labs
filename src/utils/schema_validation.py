@@ -335,6 +335,10 @@ TEAM_CHARACTERISTICS_SCHEMA = {
                             "type": "array",
                             "items": _UNIT_INTERVAL_NUMBER,
                         },
+                        "current_season_performance_rounds": {
+                            "type": "array",
+                            "items": {"type": "integer", "minimum": 1},
+                        },
                         "directionality": _DIRECTIONALITY_SCHEMA,
                         "testing_characteristics": _TESTING_CHARACTERISTICS_SCHEMA,
                         "testing_characteristics_profiles": {

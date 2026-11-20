@@ -1431,6 +1431,12 @@ def test_get_compound_adjusted_team_strength_branches(tmp_path, patcher):
     )
     assert predictor.get_compound_adjusted_team_strength("McLaren", "Bahrain", "SOFT") == 1.0
 
+    # Plan item 5b arm: the switch drops the compound modifier.
+    off = {"baseline_predictor.race.compound_pace_modifier": False}
+    config = type("Cfg", (), {"get": lambda self, key, default=None: off.get(key, default)})()
+    predictor.config = config
+    assert predictor.get_compound_adjusted_team_strength("McLaren", "Bahrain", "SOFT") == 0.9
+
 
 def test_get_compound_adjusted_team_strength_resolves_audi_to_sauber_payload(tmp_path, patcher):
     predictor = DummyPredictor(data_dir=tmp_path)

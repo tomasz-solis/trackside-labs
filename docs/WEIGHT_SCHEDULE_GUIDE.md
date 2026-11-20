@@ -23,9 +23,9 @@ For 2026, the closest analogs are the 2022 and 2014 resets. Use 2025 only as a s
 
 - `baseline`: `overall_performance` from car characteristics.
 - `testing_modifier`: currently also the baseline. Track suitability used to be added here, but it lost out of sample in 9 of 10 season and session cells (2022 to 2026), so it was removed. Its weight now just adds to the baseline weight.
-- `current`: a recency-weighted mean of `current_season_performance`, pulled toward the baseline by `stabilization_strength`. Race `i` gets weight `i ** recency_exponent`. Before any race it equals the baseline, never zero.
+- `current`: a recency-weighted mean of `current_season_performance`, pulled toward the baseline by `stabilization_strength`. Race `i` gets weight `i ** recency_exponent`, where `i` is the race's round. Before any race it equals the baseline, never zero.
 
-`update_from_race` appends to `current_season_performance`. It never overwrites the baseline.
+`update_from_race` appends to `current_season_performance` and the round to `current_season_performance_rounds`, so a missed or late race keeps its place. A list saved before 2026-11-15 has no rounds and is weighted by list order. It never overwrites the baseline.
 
 ## Example
 

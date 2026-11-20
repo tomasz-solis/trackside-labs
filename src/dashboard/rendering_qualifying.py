@@ -32,7 +32,10 @@ def _render_qualifying_result(df: pd.DataFrame) -> None:
         df_display["Likely range"] = df.apply(
             lambda r: f"P{int(r['likely_lo'])}-P{int(r['likely_hi'])}", axis=1
         )
-        st.caption("`Likely range`: past results for this spot landed here about 6 times in 10.")
+        st.caption(
+            "`Likely range`: built to hold half of past results for this spot. On the "
+            "2026 replay it held 58% of qualifying results."
+        )
     confidence_col = (
         "order_confidence"
         if "order_confidence" in df.columns
@@ -41,7 +44,7 @@ def _render_qualifying_result(df: pd.DataFrame) -> None:
     )
     if confidence_col is not None:
         df_display["Order Confidence %"] = (
-            pd.to_numeric(df[confidence_col], errors="coerce").round(1).to_numpy()
+            pd.to_numeric(df[confidence_col], errors="coerce").round(0).to_numpy()
         )
         st.caption(
             "`Order Confidence %` is the chance a driver qualifies within one place of "

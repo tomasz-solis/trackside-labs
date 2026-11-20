@@ -179,6 +179,40 @@ class PredictionMetrics:
         return {"hits": hits, "pct": (hits / field_size) * 100}
 
     @staticmethod
+    def shown_probability_brier(
+        predicted: list[dict[str, Any]],
+        actual: list[dict[str, Any]],
+        *,
+        field: str,
+        max_actual_position: int | None = None,
+        within_places: int | None = None,
+    ) -> float | None:
+        """Mean Brier score of a shown 0 to 100 probability over drivers with a result.
+
+        The event is a finish at or above ``max_actual_position`` (win 1, podium 3), or
+        within ``within_places`` of the shown position (order confidence). None when a
+        matched row has no value: a missing probability is never scored as zero.
+        """
+        if not predicted or not actual:
+            return None
+        predicted_norm, actual_norm = PredictionMetrics._normalize_result_lists(predicted, actual)
+        actual_positions = {row["driver"]: int(row["position"]) for row in actual_norm}
+        squared_errors: list[float] = []
+        for row in predicted_norm:
+            actual_position = actual_positions.get(row["driver"])
+            if actual_position is None:
+                continue
+            value = row.get(field)
+            if value is None:
+                return None
+            if max_actual_position is not None:
+                happened = actual_position <= max_actual_position
+            else:
+                happened = abs(actual_position - int(row["position"])) <= int(within_places or 0)
+            squared_errors.append((float(value) / 100.0 - float(happened)) ** 2)
+        return float(np.mean(squared_errors)) if squared_errors else None
+
+    @staticmethod
     def calculate_target_metrics(
         predicted_order: list[dict[str, Any]],
         actual_order: list[dict[str, Any]],
@@ -186,7 +220,7 @@ class PredictionMetrics:
         """Calculate the target-aware metric set for one predicted order."""
         top_3 = PredictionMetrics.top_k_overlap(predicted_order, actual_order, k=3)
         top_10 = PredictionMetrics.top_k_overlap(predicted_order, actual_order, k=10)
-        return {
+        metrics: dict[str, Any] = {
             "field_size": len(actual_order),
             "overall_mae": PredictionMetrics.mean_absolute_error(predicted_order, actual_order),
             "top_3_hits": top_3["hits"],
@@ -198,6 +232,18 @@ class PredictionMetrics:
             "within_3": PredictionMetrics.within_n_positions(predicted_order, actual_order, 3),
             "correlation": PredictionMetrics.correlation_coefficient(predicted_order, actual_order),
         }
+        # Score the probabilities the dashboard shows, as saved. Lower is better.
+        for key, field, kwargs in (
+            ("win_brier", "win_probability", {"max_actual_position": 1}),
+            ("podium_brier", "podium_probability", {"max_actual_position": 3}),
+            ("order_confidence_brier", "order_confidence", {"within_places": 1}),
+        ):
+            score = PredictionMetrics.shown_probability_brier(
+                predicted_order, actual_order, field=field, **kwargs
+            )
+            if score is not None:
+                metrics[key] = score
+        return metrics
 
     @staticmethod
     def calculate_prediction_target_metrics(

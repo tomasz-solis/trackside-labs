@@ -210,6 +210,25 @@ def get_schedule_rows(year: int) -> tuple[tuple[str, str], ...]:
     return _get_schedule_rows(year)
 
 
+def get_race_order_map(year: int) -> dict[str, int]:
+    """Return each race's 1-based order in the season, testing excluded; empty if unknown."""
+    try:
+        schedule_rows = get_schedule_rows(year)
+    except Exception as exc:
+        logger.debug("Could not load schedule rows for %s: %s", year, exc)
+        return {}
+    race_order_map: dict[str, int] = {}
+    race_index = 0
+    for raw_race_name, raw_event_format in schedule_rows:
+        race_name = str(raw_race_name).strip()
+        event_format = str(raw_event_format).strip().lower()
+        if not race_name or "testing" in race_name.lower() or "testing" in event_format:
+            continue
+        race_index += 1
+        race_order_map.setdefault(race_name, race_index)
+    return race_order_map
+
+
 def get_fallback_schedule_rows(year: int) -> tuple[tuple[str, str], ...]:
     """Return local fallback schedule rows without importing FastF1."""
     return _load_fallback_schedule_rows(year)

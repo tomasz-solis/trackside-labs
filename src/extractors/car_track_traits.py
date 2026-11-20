@@ -397,7 +397,11 @@ def _team_of(session: Any) -> dict[str, str]:
 
 
 def measure_completed_race(year: int, race_name: str) -> dict[str, Any] | None:
-    """Return one completed race's team traits and track profile, or None if not loadable."""
+    """Return one completed race's team traits and track profile, or None if not loadable.
+
+    Raises ``OpenF1TransportError`` when OpenF1 gave no usable answer; the caller decides.
+    """
+    from src.data.openf1 import OpenF1TransportError
     from src.data.openf1_session import get_session
 
     try:
@@ -410,6 +414,8 @@ def measure_completed_race(year: int, race_name: str) -> dict[str, Any] | None:
         profile = {**track_profile(quali), "deg_severity": race_deg_severity(race)}
         quali_gaps = team_quali_gaps(quali, _team_of(quali))
         compound_deg = race_compound_deg(race)
+    except OpenF1TransportError:
+        raise
     except Exception as exc:  # laps not published yet or a malformed session
         import logging
 
@@ -443,7 +449,11 @@ def measure_weekend_profile(
     came from, so an unchanged weekend loads no car data. ``sessions`` limits the search
     to sessions already run (the replay's checkpoint); None tries all. The profile
     records its session; degradation severity is left to the caller.
+
+    With ``sessions`` given, an OpenF1 transport failure raises: falling back to an older
+    session there would hand the replay a profile live would not have used.
     """
+    from src.data.openf1 import OpenF1TransportError
     from src.data.openf1_session import get_session
     from src.systems.testing_updater_metrics import _session_is_predominantly_wet
 
@@ -459,6 +469,10 @@ def measure_weekend_profile(
                 continue
             session = get_session(year, race_name, code, telemetry=True)
             return {**track_profile(session), "session": code}
+        except OpenF1TransportError:
+            if sessions is not None:
+                raise
+            continue
         except Exception:  # session missing on this weekend format or not run yet
             continue
     return None
@@ -473,7 +487,9 @@ def measure_practice_gaps(
     """Return team best-lap gaps for each completed FP session not in ``have``.
 
     ``sessions`` limits it to sessions already run (the replay's checkpoint); None tries all.
+    With ``sessions`` given, an OpenF1 transport failure raises instead of dropping the session.
     """
+    from src.data.openf1 import OpenF1TransportError
     from src.data.openf1_session import get_session
 
     out: dict[str, dict[str, float]] = {}
@@ -483,6 +499,10 @@ def measure_practice_gaps(
         try:
             session = get_session(year, race_name, code)
             gaps = team_quali_gaps(session, _team_of(session))
+        except OpenF1TransportError:
+            if sessions is not None:
+                raise
+            continue
         except Exception:  # session not run yet or not on this weekend format
             continue
         if gaps:
@@ -501,9 +521,12 @@ def refresh_car_track_traits(
 
     ``sessions_done`` names the upcoming weekend's sessions already run. Live leaves it
     None: a session not run yet fails to load. The replay passes its checkpoint's
-    sessions, because every session of a finished season loads.
+    sessions, because every session of a finished season loads; there an OpenF1 transport
+    failure raises, where live retries on the next run.
     """
     from datetime import UTC, datetime
+
+    from src.data.openf1 import OpenF1TransportError
 
     store = store or _default_store()
     payload = load_car_track_traits(year, store=store)
@@ -520,7 +543,12 @@ def refresh_car_track_traits(
     missing: list[str] = []
     for race_name in completed_races:
         if race_name not in payload["races"]:
-            measured = measure_completed_race(year, race_name)
+            try:
+                measured = measure_completed_race(year, race_name)
+            except OpenF1TransportError:
+                if sessions_done is not None:
+                    raise
+                measured = None
             if measured:
                 payload["races"][race_name] = measured
                 added["races"].append(race_name)

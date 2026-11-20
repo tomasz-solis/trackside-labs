@@ -51,7 +51,7 @@ class RegulationEra(StrictConfigModel):
 class ModelConfig(StrictConfigModel):
     """Model release metadata shared across generated artifacts."""
 
-    version: str = Field(default="3.8", min_length=1)
+    version: str = Field(default="3.9", min_length=1)
     # The seconds gap between a fast car and a slow one is a property of the
     # regulations. Fitting a seconds mapping across a regulation boundary averages
     # two different fields and describes neither, so calibration is scoped to an era
@@ -632,7 +632,7 @@ class TireStrategyConfig(StrictConfigModel):
 class FuelConfig(StrictConfigModel):
     """Fuel-load modeling."""
 
-    effect_per_lap: float = Field(default=0.035, ge=0.0)
+    effect_per_lap: float = Field(default=0.31, ge=0.0)
     initial_load_kg: float = Field(default=110.0, ge=0.0)
     burn_rate_kg_per_lap: float = Field(default=1.5, ge=0.0)
     deg_multiplier: float = Field(default=0.10, ge=0.0)
@@ -900,14 +900,6 @@ class FinalBlendConfig(StrictConfigModel):
     )
 
 
-class PodiumProbabilityConfig(StrictConfigModel):
-    """Post-processing settings for podium-probability estimates."""
-
-    min_sample_count: int = Field(default=250, ge=1)
-    resample_seed_offset: int = Field(default=99173, ge=0)
-    enforce_monotonic: bool = True
-
-
 class PitLapVarianceConfig(StrictConfigModel):
     """Per-strategy stop-window variance."""
 
@@ -971,6 +963,7 @@ class BaselineRaceConfig(StrictConfigModel):
     sprint_distance_scaling: bool = Field(default=False)
     track_trait_adjustment: bool = Field(default=False)
     tyre_deg_model: Literal["practice", "carry_over"] = "practice"
+    compound_pace_modifier: bool = Field(default=True)
     practice_pace_adjustment: bool = Field(default=False)
     teammate_variance_std: float = Field(default=0.13, ge=0.0)
     teammate_setup_offset_ratio: float = Field(default=0.30, ge=0.0)
@@ -1023,8 +1016,8 @@ class BaselineRaceConfig(StrictConfigModel):
     predicted_grid_uncertainty: PredictedGridUncertaintyConfig = Field(
         default_factory=PredictedGridUncertaintyConfig
     )
-    main_race_movement_floor: float = Field(default=0.70, ge=0.0)
-    main_race_movement_floor_track_scale: float = Field(default=0.25, ge=0.0, le=1.0)
+    main_race_movement_floor: float = Field(default=0.0, ge=0.0)
+    main_race_movement_floor_track_scale: float = Field(default=0.0, ge=0.0, le=1.0)
     main_race_movement_quantile: float = Field(default=20.0, ge=0.0)
     position_interval_floor: PositionIntervalFloorConfig = Field(
         default_factory=PositionIntervalFloorConfig
@@ -1033,11 +1026,12 @@ class BaselineRaceConfig(StrictConfigModel):
     # How the finish order is sorted before movement constraints. ``mean_rank``
     # lets a driver's DNF tail push him down; ``median_rank`` (mean as tie-break) does not.
     finish_order_sort: Literal["mean_rank", "median_rank"] = "mean_rank"
+    # Anchor draws to the grid by a shift that keeps the simulation spread (off: per-draw average).
+    grid_anchor_keeps_spread: bool = False
     overtaking_transition: OvertakingTransitionConfig = Field(
         default_factory=OvertakingTransitionConfig
     )
     final_blend: FinalBlendConfig = Field(default_factory=FinalBlendConfig)
-    podium_probability: PodiumProbabilityConfig = Field(default_factory=PodiumProbabilityConfig)
     strategy_constraints: StrategyConstraintsConfig = Field(
         default_factory=StrategyConstraintsConfig
     )

@@ -414,6 +414,43 @@ def test_auto_update_practice_characteristics_defers_when_telemetry_not_ready(pa
     ).get("races", {})
 
 
+def test_session_with_no_usable_running_is_skipped_once_a_later_session_landed(patcher, tmp_path):
+    """Las Vegas 2026: FP1 had 0 usable laps and was retried and alerted every hour."""
+    state_file = tmp_path / "practice_state.json"
+    state_file.write_text(
+        json.dumps({"races": {"2026::Las Vegas Grand Prix": {"sessions": ["FP2"]}}})
+    )
+    patcher.setattr(update_flow, "_PRACTICE_UPDATE_STATE_FILE", state_file)
+
+    class _Detector:
+        def get_completed_sessions(self, year: int, race_name: str, is_sprint: bool):
+            del year, race_name, is_sprint
+            return ["FP1", "FP2"]
+
+    patcher.setattr("src.utils.session_detector.SessionDetector", _Detector)
+    patcher.setattr("src.utils.config_loader.get", lambda key, default=None: default)
+
+    from src.systems.testing_updater_flow import NoUsableSessionTelemetryError
+
+    def _no_running(**kwargs):
+        del kwargs
+        raise NoUsableSessionTelemetryError("no usable team telemetry")
+
+    patcher.setattr("src.systems.testing_updater.update_from_testing_sessions", _no_running)
+    alerts: list[str] = []
+    patcher.setattr(update_flow, "record_alert", lambda name, *a, **k: alerts.append(name))
+
+    result = update_flow.auto_update_practice_characteristics_if_needed(
+        year=2026, race_name="Las Vegas Grand Prix", is_sprint=False
+    )
+
+    assert result["deferred_sessions"] == []
+    assert alerts == []
+    race_state = json.loads(state_file.read_text())["races"]["2026::Las Vegas Grand Prix"]
+    assert race_state["sessions"] == ["FP1", "FP2"]
+    assert race_state["skipped"] == ["FP1"]
+
+
 def test_auto_update_practice_characteristics_updates_only_new_sessions(patcher, tmp_path):
     state_file = tmp_path / "practice_state.json"
     state_file.write_text(

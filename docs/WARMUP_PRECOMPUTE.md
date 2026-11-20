@@ -35,16 +35,16 @@ A sprint or race that has finished but has no published classification yet shows
 
 ## Data sources
 
-Session data comes from FastF1. Its archive needs an F1 TV login since 2026-10 (FastF1 #978). FastF1 3.9 signs in from `F1_USERNAME` and `F1_PASSWORD` (an F1 account with F1 TV Access) and stores the token, valid about 4 days, in its user data folder; locally `python -m fastf1 auth f1tv --authenticate` does the same once. Render starts each cron run with an empty disk, so the cron keeps the token in `runtime_state` (`fastf1_auth` / `f1tv_token`, readable only with `service_role`) and signs in only when it has expired. Without a login it answers 401 as before. When FastF1 cannot load a session, session completion, competitive results and the race starting grid come from OpenF1 (`src/data/openf1.py`). Those rows carry `source: "openf1"`, and the counter `openf1_fallback_used_total` records each use. OpenF1's grid has no pit-lane marker. Set `TRACKSIDE_OPENF1_DISABLED=1` to turn the fallback off.
+Session data comes from FastF1. Its archive needs an F1 TV login since 2026-10 (FastF1 #978). FastF1 3.9 signs in from `F1_USERNAME` and `F1_PASSWORD` (an F1 account with F1 TV Access) and stores the token, valid about 4 days, in its user data folder; locally `python -m fastf1 auth f1tv --authenticate` does the same once. Render starts each cron run with an empty disk, so the cron keeps the token in `runtime_state` (`fastf1_auth` / `f1tv_token`, readable only with `service_role`) and signs in only when it has expired. Without a login it answers 401 as before. When FastF1 cannot load a session, session completion, competitive results and the race starting grid come from OpenF1 (`src/data/openf1.py`). Those rows carry `source: "openf1"`, and the counter `openf1_fallback_used_total` records each use. OpenF1's grid is each driver's first race position, which matched FastF1's grid on all 20 2026 races; its published `starting_grid` kept Austin's pit-lane starter in his slot and is used only before the race has position data. Neither marks pit-lane starts. Set `TRACKSIDE_OPENF1_DISABLED=1` to turn the fallback off.
 
-Practice laps, weather and car data for the FP blend and practice capture come from OpenF1 too (`src/data/openf1_session.py`): it fills the FastF1 session, so callers do not change. Measured against FastF1 on 2026 sessions:
+Practice laps, weather and car data for the FP blend and practice capture come from OpenF1 too (`src/data/openf1_session.py`): it fills the FastF1 session, so callers do not change. Measured against FastF1 on 2026 Singapore FP1, Italy FP2 and FP3 and Hungary FP2 (rerun 2026-11-20):
 
 | Output | Match |
 |---|---|
 | Lap times, compounds, stints | identical where both have a time |
-| Practice capture metrics (pace, corners, braking, tyre deg) | Spearman 1.00 on most; lowest 0.78 (Baku FP1 consistency) |
-| Top speed | Spearman 0.78 to 1.00; OpenF1 has no finish-line trap |
-| FP blend short run | Spearman 0.66 to 1.00; OpenF1 tyre age is wrong on some refitted sets |
+| Practice capture metrics (pace, corners, braking, tyre deg) | Spearman 0.95 to 1.00 |
+| Top speed | Spearman 0.74 to 1.00; OpenF1 has no finish-line trap |
+| FP blend short run | Spearman 0.67 to 1.00; OpenF1 tyre age is wrong on some refitted sets |
 
 Car traits, track profiles, practice gaps, team race pace and the seconds mapping load qualifying and race sessions the same way (`openf1_session.get_session`). `TrackStatus` and `Deleted` come from race control messages; corners come from FastF1 circuit info placed on the fastest lap. Measured against cached FastF1:
 
@@ -59,7 +59,7 @@ Car traits, track profiles, practice gaps, team race pace and the seconds mappin
 
 Misses: about 16 single laps a season disagree at a flag change; Italy's red-flag restart marks 21 laps safety car that FastF1 calls green (they are dropped, not kept). Not filled: `Position`.
 
-A session is loaded from OpenF1 only after its scheduled end and once every driver's laps reach their `session_result` lap count (true on 15 published 2026 sessions). Otherwise the stage logs a warning and retries next run, so a partial session is never saved.
+A session is loaded from OpenF1 only after its scheduled end and once every driver's laps reach their `session_result` lap count (true on 15 published 2026 sessions; Baku FP1 never qualifies, one driver stops a lap short). Otherwise the stage logs a warning and retries next run, so a partial session is never saved.
 
 During a live session OpenF1 answers 401 to every free request, past sessions included. The lock starts before the session: on 2026-10-24 it was on 29 minutes before Austin FP3 and off 82 minutes before, and it lifted about 30 minutes after FP3's scheduled end. The client then fails fast for 5 minutes. Expect the cron run before, during and just after each session to skip OpenF1 work. Cached responses expire after 10 minutes, so the web process picks up results published after its first look.
 

@@ -711,6 +711,7 @@ def auto_update_practice_characteristics_if_needed(
             }
             event_updated_teams: set[str] = set()
             event_had_update = False
+            event_deferred: list[str] = []
             for session_name in sessions_to_update:
                 if session_name in event_processed_sessions and not force_recheck:
                     continue
@@ -729,23 +730,15 @@ def auto_update_practice_characteristics_if_needed(
                     # backfilled enough laps to extract team telemetry. Defer it
                     # without marking it processed so a later run retries once the
                     # data lands, instead of failing the whole warmup cycle.
-                    deferred_session_id = f"{event_name}::{session_name}"
-                    deferred_sessions.append(deferred_session_id)
+                    event_deferred.append(session_name)
                     logger.warning(
-                        "Deferring practice capture for %s: %s",
-                        deferred_session_id,
+                        "Deferring practice capture for %s::%s: %s",
+                        event_name,
+                        session_name,
                         exc,
                     )
                     record_counter(
                         "practice_capture_telemetry_not_ready_total",
-                        labels={"year": year, "race_name": event_name},
-                    )
-                    record_alert(
-                        "practice_capture_telemetry_not_ready",
-                        (
-                            f"Deferred {deferred_session_id}: session is scheduled-complete "
-                            "but no usable team telemetry is available yet."
-                        ),
                         labels={"year": year, "race_name": event_name},
                     )
                     continue
@@ -771,6 +764,57 @@ def auto_update_practice_characteristics_if_needed(
                 }
                 _save_practice_update_state(state, keys=[event_key])
                 event_had_update = True
+
+            # Once a later session has landed, an earlier one with no usable running stays
+            # that way (Las Vegas 2026 FP1: 0 usable laps). Record it as skipped so the cron
+            # stops retrying and alerting every hour.
+            latest_done = max(
+                (_PRACTICE_CAPTURE_SESSION_ORDER.get(done, 0) for done in event_processed_sessions),
+                default=0,
+            )
+            skipped = [
+                session
+                for session in event_deferred
+                if _PRACTICE_CAPTURE_SESSION_ORDER.get(session, 99) < latest_done
+            ]
+            if skipped:
+                entry = state["races"].get(event_key, {})
+                event_processed_sessions.update(skipped)
+                state["races"][event_key] = {
+                    **entry,
+                    "sessions": sorted(
+                        event_processed_sessions,
+                        key=lambda session: _PRACTICE_CAPTURE_SESSION_ORDER.get(session, 99),
+                    ),
+                    "skipped": sorted(
+                        set(entry.get("skipped", [])) | set(skipped),
+                        key=lambda session: _PRACTICE_CAPTURE_SESSION_ORDER.get(session, 99),
+                    ),
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }
+                _save_practice_update_state(state, keys=[event_key])
+                logger.info(
+                    "Skipped practice capture for %s %s: no usable running after a later session",
+                    event_name,
+                    skipped,
+                )
+                record_counter(
+                    "practice_capture_session_skipped_total",
+                    labels={"year": year, "race_name": event_name},
+                )
+            for session_name in event_deferred:
+                if session_name in skipped:
+                    continue
+                deferred_session_id = f"{event_name}::{session_name}"
+                deferred_sessions.append(deferred_session_id)
+                record_alert(
+                    "practice_capture_telemetry_not_ready",
+                    (
+                        f"Deferred {deferred_session_id}: session is scheduled-complete "
+                        "but no usable team telemetry is available yet."
+                    ),
+                    labels={"year": year, "race_name": event_name},
+                )
         finally:
             if should_write_to_db() and lock_acquired:
                 try:

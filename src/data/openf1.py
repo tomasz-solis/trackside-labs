@@ -13,6 +13,7 @@ test suite does, so no test reaches the network.
 
 from __future__ import annotations
 
+import http.client
 import json
 import logging
 import os
@@ -53,13 +54,22 @@ CompletionState = Literal["completed", "incomplete", "unknown"]
 
 
 class OpenF1Unavailable(RuntimeError):
-    """Raised when OpenF1 is disabled, unreachable or returns an unreadable body."""
+    """Raised when OpenF1 is disabled, unreachable or has no data for the request."""
 
 
-# OpenF1 free tier: 3 requests a second and 30 a minute, 429 above that.
+class OpenF1TransportError(OpenF1Unavailable):
+    """OpenF1 gave no usable answer: rate limit, server error, broken read or live lock.
+
+    Unlike missing data, this says nothing about the session, so a replay must not
+    carry on as if the session had not run.
+    """
+
+
+# OpenF1 free tier: 3 requests a second and 30 a minute, 429 above that. The pacing is
+# per process, so two replays at once go over it. The retry waits add up to 75 s, past
+# the one-minute window (MODEL_LEDGER 2026-11-13).
 _MIN_INTERVAL_SECONDS = 2.1
-_RATE_LIMIT_RETRIES = 3
-_RATE_LIMIT_WAIT_SECONDS = 5.0
+_RETRY_WAIT_SECONDS = (5.0, 10.0, 20.0, 40.0)
 
 # The web process lives for days: a response cached before results are published
 # must not outlive the publication, so entries expire.
@@ -86,7 +96,7 @@ def _get(endpoint: str, *, cache: bool = True, **params: Any) -> list[dict[str, 
     if os.environ.get(DISABLE_ENV, "").strip():
         raise OpenF1Unavailable(f"{DISABLE_ENV} is set")
     if time.monotonic() < _locked_until:
-        raise OpenF1Unavailable("OpenF1 is closed to free users while a live session runs")
+        raise OpenF1TransportError("OpenF1 is closed to free users while a live session runs")
     url = f"{BASE_URL}/{endpoint}?{urllib.parse.urlencode(sorted(params.items()))}"
     cached = _response_cache.get(url)
     if cached is not None and time.monotonic() - cached[0] < _CACHE_TTL_SECONDS:
@@ -95,7 +105,7 @@ def _get(endpoint: str, *, cache: bool = True, **params: Any) -> list[dict[str, 
     if isinstance(payload, dict):
         payload = []
     if not isinstance(payload, list):
-        raise OpenF1Unavailable(f"{url} returned {type(payload).__name__}")
+        raise OpenF1TransportError(f"{url} returned {type(payload).__name__}")
     rows = [row for row in payload if isinstance(row, dict)]
     if cache:
         _response_cache[url] = (time.monotonic(), rows)
@@ -103,10 +113,14 @@ def _get(endpoint: str, *, cache: bool = True, **params: Any) -> list[dict[str, 
 
 
 def _request_json(url: str) -> Any:
-    """Fetch one URL with spacing between requests and a short wait on 429."""
+    """Fetch one URL with spacing between requests; wait and retry on 429, 5xx or a network failure.
+
+    A replay runs for hours and stops on a transport failure, so a DNS blip or a cut read
+    must not end it. In a full OpenF1 outage a call gives up after about two minutes.
+    """
     global _last_request_at, _locked_until
     request = urllib.request.Request(url, headers={"Accept": "application/json"})
-    for attempt in range(_RATE_LIMIT_RETRIES + 1):
+    for retry_wait in (*_RETRY_WAIT_SECONDS, None):
         wait = _MIN_INTERVAL_SECONDS - (time.monotonic() - _last_request_at)
         if wait > 0:
             time.sleep(wait)
@@ -120,14 +134,17 @@ def _request_json(url: str) -> Any:
                 return []
             if exc.code == 401 and _LIVE_LOCK_TEXT in _error_body(exc):
                 _locked_until = time.monotonic() + _LIVE_LOCK_SECONDS
-                raise OpenF1Unavailable(f"{url} returned 401: live session in progress") from exc
-            if exc.code == 429 and attempt < _RATE_LIMIT_RETRIES:
-                time.sleep(_RATE_LIMIT_WAIT_SECONDS * (attempt + 1))
-                continue
-            raise OpenF1Unavailable(f"{url} returned {exc.code}") from exc
-        except (OSError, ValueError) as exc:
-            raise OpenF1Unavailable(f"{url} failed: {exc}") from exc
-    raise OpenF1Unavailable(f"{url} kept returning 429")  # pragma: no cover - loop returns
+                raise OpenF1TransportError(f"{url} returned 401: live session in progress") from exc
+            if exc.code != 429 and exc.code < 500:
+                raise OpenF1TransportError(f"{url} returned {exc.code}") from exc
+            failure: Exception = exc
+        # A car data body is about 3 MB; a cut read raises IncompleteRead, not OSError.
+        except (OSError, ValueError, http.client.HTTPException) as exc:
+            failure = exc
+        if retry_wait is None:
+            raise OpenF1TransportError(f"{url} failed after retries: {failure}") from failure
+        time.sleep(retry_wait)
+    raise AssertionError("unreachable")  # pragma: no cover - the last pass returns or raises
 
 
 def _error_body(exc: urllib.error.HTTPError) -> str:
@@ -271,17 +288,43 @@ def fetch_session_results(year: int, race_name: str, session_name: str) -> list[
     return rows
 
 
-def fetch_starting_grid(year: int, race_name: str) -> list[dict[str, Any]]:
-    """Return the race starting grid published against the qualifying session.
+def _race_start_order(year: int, race_name: str) -> tuple[list[dict[str, Any]], Any] | None:
+    """Return each driver's first race ``position`` row, or None unless it is a full 1..N order."""
+    race = find_session(year, race_name, "R")
+    if race is None:
+        return None
+    first: dict[int, int] = {}
+    for row in sorted(
+        _get("position", session_key=race["session_key"]), key=lambda r: str(r.get("date", ""))
+    ):
+        if row.get("driver_number") is not None and row.get("position") is not None:
+            first.setdefault(int(row["driver_number"]), int(row["position"]))
+    complete = len(first) == len(_driver_table(race["session_key"]))
+    if not complete or sorted(first.values()) != list(range(1, len(first) + 1)):
+        return None
+    order = [{"driver_number": number, "position": place} for number, place in first.items()]
+    return order, race["session_key"]
 
-    OpenF1 keys the race grid to qualifying. Every row is a grid start; OpenF1 does
-    not mark pit-lane starts. Raises ``OpenF1Unavailable`` when it is not published.
+
+def fetch_starting_grid(year: int, race_name: str) -> list[dict[str, Any]]:
+    """Return the order the race started in.
+
+    Each driver's first race ``position`` row is the order the cars lined up in: it
+    matched FastF1's grid on all 20 2026 races checked, while ``starting_grid`` kept
+    Austin's pit-lane starter in his slot. Before the race has position data, the grid
+    published against qualifying stands in. OpenF1 marks no pit-lane starts, so every
+    row is a grid start. Raises ``OpenF1Unavailable`` when neither is published.
     """
-    qualifying = find_session(year, race_name, "Q")
-    if qualifying is None:
-        raise OpenF1Unavailable(f"no OpenF1 qualifying session for {year} {race_name}")
-    grid = _get("starting_grid", session_key=qualifying["session_key"])
-    drivers = _driver_table(qualifying["session_key"])
+    start_order = _race_start_order(year, race_name)
+    if start_order is not None:
+        grid, session_key = start_order
+    else:
+        qualifying = find_session(year, race_name, "Q")
+        if qualifying is None:
+            raise OpenF1Unavailable(f"no OpenF1 qualifying session for {year} {race_name}")
+        grid = _get("starting_grid", session_key=qualifying["session_key"])
+        session_key = qualifying["session_key"]
+    drivers = _driver_table(session_key)
     if not grid or not drivers:
         raise OpenF1Unavailable(f"OpenF1 has no starting grid for {year} {race_name}")
     rows: list[dict[str, Any]] = []

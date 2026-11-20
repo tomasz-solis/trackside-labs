@@ -276,3 +276,55 @@ def test_calculate_prediction_target_metrics_uses_explicit_targets():
 
     assert "sprint_qualifying" in metrics
     assert metrics["sprint_qualifying"]["top_3_hits"] == 3.0
+
+
+def test_shown_odds_are_scored_as_brier_and_missing_odds_are_not_scored():
+    predicted = [
+        {
+            "position": 1,
+            "driver": "VER",
+            "team": "Red Bull",
+            "win_probability": 60.0,
+            "podium_probability": 90.0,
+            "order_confidence": 50.0,
+        },
+        {
+            "position": 2,
+            "driver": "LEC",
+            "team": "Ferrari",
+            "win_probability": 40.0,
+            "podium_probability": 80.0,
+            "order_confidence": 50.0,
+        },
+        {
+            "position": 3,
+            "driver": "NOR",
+            "team": "McLaren",
+            "win_probability": 0.0,
+            "podium_probability": 30.0,
+            "order_confidence": 50.0,
+        },
+        {
+            "position": 4,
+            "driver": "HAM",
+            "team": "Ferrari",
+            "win_probability": 0.0,
+            "podium_probability": 100.0,
+            "order_confidence": 50.0,
+        },
+    ]
+    actual = [
+        {"position": 1, "driver": "VER", "team": "Red Bull"},
+        {"position": 2, "driver": "LEC", "team": "Ferrari"},
+        {"position": 3, "driver": "NOR", "team": "McLaren"},
+        {"position": 4, "driver": "HAM", "team": "Ferrari"},
+    ]
+
+    metrics = PredictionMetrics.calculate_target_metrics(predicted, actual)
+
+    assert metrics["win_brier"] == pytest.approx((0.4**2 + 0.4**2) / 4)
+    assert metrics["podium_brier"] == pytest.approx((0.1**2 + 0.2**2 + 0.7**2 + 1.0) / 4)
+    assert metrics["order_confidence_brier"] == pytest.approx(0.25)
+
+    del predicted[2]["win_probability"]
+    assert "win_brier" not in PredictionMetrics.calculate_target_metrics(predicted, actual)

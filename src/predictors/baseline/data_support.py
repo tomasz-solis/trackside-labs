@@ -103,6 +103,45 @@ def sanitize_performance_observations(observations: object) -> list[float]:
     return sanitized
 
 
+def live_observations_with_rounds(team_data: object) -> tuple[list[float], list[int] | None]:
+    """Return a team's live form scores and the round of each, or None for the rounds.
+
+    The updater stores each score in ``current_season_performance`` and its round in
+    ``current_season_performance_rounds``. A list saved without rounds, or with rounds
+    that do not line up, has no race identity and keeps list-order weighting.
+    """
+    if not isinstance(team_data, dict):
+        return [], None
+    values = team_data.get("current_season_performance")
+    rounds = team_data.get("current_season_performance_rounds")
+    if not isinstance(values, list) or not isinstance(rounds, list) or len(rounds) != len(values):
+        return sanitize_performance_observations(values), None
+    scores: list[float] = []
+    kept_rounds: list[int] = []
+    for value, race_round in zip(values, rounds, strict=True):
+        score = sanitize_performance_observations([value])
+        if score and isinstance(race_round, int) and race_round >= 1:
+            scores.append(score[0])
+            kept_rounds.append(race_round)
+    return scores, kept_rounds
+
+
+def cap_live_observations(
+    scores: list[float], rounds: list[int] | None, prior_race_limit: int | None
+) -> tuple[list[float], list[int] | None]:
+    """Keep the live scores of races before the target: by round, else by list order."""
+    if prior_race_limit is None:
+        return scores, rounds
+    if rounds is None:
+        return scores[:prior_race_limit], None
+    kept = [
+        (score, race_round)
+        for score, race_round in zip(scores, rounds, strict=True)
+        if race_round <= prior_race_limit
+    ]
+    return [score for score, _ in kept], [race_round for _, race_round in kept]
+
+
 def extract_target_actual_rows(
     prediction_data: dict[str, object],
     *,
@@ -328,6 +367,7 @@ def cross_season_team_proxy(data: dict, *, source_year: int, target_year: int) -
             if not isinstance(team_payload, dict):
                 continue
             team_payload["current_season_performance"] = []
+            team_payload.pop("current_season_performance_rounds", None)
             team_payload["races_completed"] = 0
             team_payload.pop("testing_reset", None)
             # A session's blend weight is 0.25 / sqrt(sessions so far + 1). Kept at the

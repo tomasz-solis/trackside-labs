@@ -215,6 +215,19 @@ def test_prepare_driver_info_with_compounds_builds_per_compound_strengths():
     assert info["tire_deg_by_compound"]["SOFT"] == pytest.approx(0.2)
     assert info["tire_deg_by_compound"]["MEDIUM"] == pytest.approx(0.12)
 
+    # Plan item 5b arm: the switch drops the pace modifier and keeps the deg slope.
+    prep.config._overrides["baseline_predictor.race.compound_pace_modifier"] = False
+    with patch(
+        "src.data.compound_performance.get_compound_performance_modifier",
+        lambda team_compound_chars, compound: 0.05,
+    ):
+        info_off, _ = prep._prepare_driver_info_with_compounds(
+            qualifying_grid=[{"driver": "NOR", "team": "McLaren", "position": 2}],
+            race_name="Bahrain Grand Prix",
+        )
+    assert info_off["NOR"]["team_strength_by_compound"]["SOFT"] == pytest.approx(0.8)
+    assert info_off["NOR"]["tire_deg_by_compound"]["SOFT"] == pytest.approx(0.2)
+
 
 def test_prepare_driver_info_with_compounds_defaults_missing_tire_deg_slope():
     prep = DummyPreparation()

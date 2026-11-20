@@ -237,3 +237,13 @@ def test_race_tails_count_misses_and_band_coverage(tmp_path: Path) -> None:
     tails = race_tails(tmp_path, 2026)
 
     assert (tails.rows, tails.misses_10, tails.misses_15, tails.covered) == (3, 2, 1, 1)
+
+
+def test_race_tails_count_only_the_given_checkpoints(tmp_path: Path) -> None:
+    """A root with an extra checkpoint must not add its rows to a paired tails count."""
+    _write_forecast(tmp_path, "British Grand Prix", "fp1", stamped=True)
+    _write_forecast(tmp_path, "British Grand Prix", "q", stamped=True)
+
+    tails = race_tails(tmp_path, 2026, keys={"british_grand_prix/fp1.json"})
+
+    assert (tails.rows, tails.misses_10) == (3, 2)

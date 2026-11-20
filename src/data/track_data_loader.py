@@ -17,7 +17,11 @@ from src.data.circuit_registry import (
     resolve_track_data_key,
 )
 from src.utils import config_loader
-from src.utils.prediction_context import get_config_value, get_prediction_reference_now
+from src.utils.prediction_context import (
+    get_active_prediction_context,
+    get_config_value,
+    get_prediction_reference_now,
+)
 from src.utils.track_overtaking import get_track_overtaking_baseline
 
 logger = logging.getLogger(__name__)
@@ -368,6 +372,21 @@ def _resolve_session_temperature_blend_weight(session_name: str) -> float:
     except (TypeError, ValueError):
         weight = default_weight
     return float(max(0.0, min(1.0, weight)))
+
+
+def _visible_at_active_checkpoint(session_name: str) -> bool:
+    """Return False for a session that runs after the active replay checkpoint.
+
+    The replay clock is the target session's start, so every session before the race
+    has ended at an FP1 checkpoint too. Live sets no checkpoint and reads by wall clock.
+    """
+    context = get_active_prediction_context()
+    checkpoint = context.checkpoint_session if context else None
+    if not checkpoint:
+        return True
+    from src.utils.historical_replay import session_is_available_at_checkpoint
+
+    return session_is_available_at_checkpoint(checkpoint, session_name)
 
 
 def _session_scheduled_end_passed(event: object, session_name: str, now_utc: datetime) -> bool:
@@ -1075,7 +1094,9 @@ def resolve_track_temperature_profile(
     blend_enabled = bool(_cfg_get("baseline_predictor.race.track_temperature.blend.enabled", True))
 
     for session_name in session_priority:
-        if not _session_scheduled_end_passed(event, session_name, now_utc):
+        if not _session_scheduled_end_passed(
+            event, session_name, now_utc
+        ) or not _visible_at_active_checkpoint(session_name):
             continue
 
         session_signal = _load_session_temperature_signal(
@@ -1216,7 +1237,9 @@ def resolve_non_competitive_weather_features(
     )
     now_utc = get_prediction_reference_now()
     for session_name in session_priority:
-        if not _session_scheduled_end_passed(event, session_name, now_utc):
+        if not _session_scheduled_end_passed(
+            event, session_name, now_utc
+        ) or not _visible_at_active_checkpoint(session_name):
             continue
 
         weather_features = _load_session_weather_features(

@@ -57,7 +57,7 @@ RACE_HYPERPARAMETERS_MARKDOWN = """
 - Driver skill is normalised with the grid and pace terms in each simulation
 - Includes retirements, lap 1 incidents, strategy variation and safety cars
 - Finish order by each driver's median simulated place
-- Podium odds from simulated finishing order, smoothed so they never rise down the grid
+- Win and podium odds from the simulated finishing order, as whole percentages
 """
 
 CONTACT_PAGE_HTML = """

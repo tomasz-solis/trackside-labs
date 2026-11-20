@@ -565,6 +565,7 @@ def prepare_driver_info_with_compounds_core(
         cfg.get("baseline_predictor.race.tire_physics.default_deg_slope", 0.15),
         default=0.15,
     )
+    use_compound_modifier = bool(cfg.get("baseline_predictor.race.compound_pace_modifier", True))
 
     driver_info_map: dict[str, DriverRaceInfo] = {}
     teams_with_long_profile: set[str] = set()
@@ -603,7 +604,11 @@ def prepare_driver_info_with_compounds_core(
         tire_deg_by_compound: dict[str, float] = {}
         for compound in ("SOFT", "MEDIUM", "HARD"):
             if compound in team_compound_chars:
-                modifier = get_compound_performance_modifier_fn(team_compound_chars, compound)
+                modifier = (
+                    get_compound_performance_modifier_fn(team_compound_chars, compound)
+                    if use_compound_modifier
+                    else 0.0
+                )
                 adjusted_strength = base_team_strength + modifier
                 tire_deg_slope = _coerce_tire_deg_slope(
                     team_compound_chars[compound].get("tire_deg_slope"),

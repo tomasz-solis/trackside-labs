@@ -474,6 +474,37 @@ def test_resolve_track_temperature_prefers_latest_completed_session_weather():
     get_session.assert_called_once_with(2026, "Bahrain Grand Prix", "Q")
 
 
+def test_replay_checkpoint_reads_no_session_weather_from_after_it():
+    """The replay clock is the race start, so Q has ended; an FP2 forecast must not read it."""
+    from src.utils.prediction_context import PredictionContext, activate_prediction_runtime
+
+    now_utc = datetime.now(UTC)
+    event = MagicMock()
+    event.get_session_date.side_effect = lambda session_name: {
+        "R": now_utc + timedelta(hours=2),
+        "Q": now_utc - timedelta(hours=3),
+        "FP3": now_utc - timedelta(hours=6),
+        "FP2": now_utc - timedelta(hours=9),
+        "FP1": now_utc - timedelta(hours=12),
+    }.get(session_name)
+    session = MagicMock()
+    session.weather_data = pd.DataFrame({"TrackTemp": [36.0, 37.0, 38.0]})
+    session.session_status = pd.DataFrame({"Status": ["Finished"]})
+    context = PredictionContext(mode="historical", checkpoint_session="FP2")
+
+    with (
+        patch("src.data.track_data_loader.fastf1.get_event", return_value=event),
+        patch("src.data.track_data_loader.fastf1.get_session", return_value=session) as get_session,
+        activate_prediction_runtime(prediction_context=context),
+    ):
+        temperature = resolve_track_temperature_profile(2026, "Bahrain Grand Prix")
+        weather = resolve_non_competitive_weather_features(2026, "Bahrain Grand Prix")
+
+    assert temperature["session_name"] == "FP2"
+    assert weather["source_session"] == "FP2"
+    assert {call.args[2] for call in get_session.call_args_list} == {"FP2"}
+
+
 def test_resolve_track_temperature_uses_air_temp_when_track_temp_missing():
     now_utc = datetime.now(UTC)
     event = MagicMock()

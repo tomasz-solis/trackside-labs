@@ -19,6 +19,7 @@ from src.persistence.artifact_store import ArtifactStore
 from src.predictors.baseline.compound_updates import update_compound_characteristics_from_session
 from src.predictors.baseline.data_support import (
     canonicalize_team_payload_keys,
+    cap_live_observations,
     coerce_non_negative_int,
     cross_season_driver_proxy,
     cross_season_team_proxy,
@@ -26,6 +27,7 @@ from src.predictors.baseline.data_support import (
     driver_characteristics_fallback_paths,
     extract_target_actual_rows,
     infer_payload_year_from_path,
+    live_observations_with_rounds,
     nearest_season_payload_path,
     sanitize_performance_observations,
     score_teams_from_actual_rows,
@@ -122,26 +124,9 @@ class BaselineDataMixin:
         if target_year in cache:
             return cache[target_year]
 
-        try:
-            from src.utils.weekend import get_schedule_rows
+        from src.utils.weekend import get_race_order_map
 
-            schedule_rows = get_schedule_rows(target_year)
-        except Exception as exc:
-            logger.debug("Could not load schedule rows for %s: %s", target_year, exc)
-            schedule_rows = ()
-
-        race_order_map: dict[str, int] = {}
-        race_index = 0
-        for raw_race_name, raw_event_format in schedule_rows:
-            race_name = str(raw_race_name).strip()
-            event_format = str(raw_event_format).strip().lower()
-            if not race_name:
-                continue
-            if "testing" in race_name.lower() or "testing" in event_format:
-                continue
-            race_index += 1
-            race_order_map.setdefault(race_name, race_index)
-
+        race_order_map = get_race_order_map(target_year)
         cache[target_year] = race_order_map
         self._race_order_map_cache = cache
         return race_order_map
@@ -536,8 +521,8 @@ class BaselineDataMixin:
 
         totals = {"live": 0, "saved": 0, "replayed": 0}
         for field_team_name, field_team_data in self.teams.items():
-            live_observations = sanitize_performance_observations(
-                field_team_data.get("current_season_performance")
+            live_observations, _live_rounds = cap_live_observations(
+                *live_observations_with_rounds(field_team_data), prior_race_limit
             )
             saved_observations = self._get_saved_actual_observations(
                 team_name=field_team_name, target_year=target_year, race_name=race_name
@@ -546,7 +531,6 @@ class BaselineDataMixin:
                 team_name=field_team_name, target_year=target_year, race_name=race_name
             )
             if prior_race_limit is not None:
-                live_observations = live_observations[:prior_race_limit]
                 saved_observations = saved_observations[:prior_race_limit]
                 replayed_observations = replayed_observations[:prior_race_limit]
             totals["live"] += len(live_observations)
@@ -603,12 +587,9 @@ class BaselineDataMixin:
         )
 
         if chosen_source == "live":
-            observations = sanitize_performance_observations(
-                team_data.get("current_season_performance")
+            return cap_live_observations(
+                *live_observations_with_rounds(team_data), prior_race_limit
             )
-            if prior_race_limit is not None:
-                observations = observations[:prior_race_limit]
-            return observations, None
 
         if chosen_source == "saved":
             scored_observations = self._get_saved_actual_observations(

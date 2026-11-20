@@ -19,7 +19,7 @@ It never runs updates, clears FastF1 caches or computes a forecast. If FastF1 da
 | `scripts/warmup_precompute.py --year 2026 --require-db` | Warms the next 3 races and rebuilds accuracy for finished races. See `WARMUP_PRECOMPUTE.md`. |
 | `scripts/run_session_automation.py --year 2026 --interval-seconds 300` | Polls recent events, applies session updates, saves forecast snapshots and attaches actuals after a race |
 
-Practice-derived car characteristics are captured by these workers. State lives in the `runtime_state` table (namespace `practice_characteristics`) or `data/systems/practice_characteristics_state.json`. Lock leases in `runtime_processing_locks` stop two workers applying the same session. Settings: `baseline_predictor.practice_capture.*`.
+Practice-derived car characteristics are captured by these workers. State lives in the `runtime_state` table (namespace `practice_characteristics`) or `data/systems/practice_characteristics_state.json`. Lock leases in `runtime_processing_locks` stop two workers applying the same session. Settings: `baseline_predictor.practice_capture.*`. A session with no usable laps is retried each run until a later session of the same weekend is captured; then it is recorded under `skipped` and no longer retried or alerted.
 
 When a session's completion status is unknown, forecast generation stops for that session instead of silently using a predicted grid. FastF1 failures raise runtime alerts.
 

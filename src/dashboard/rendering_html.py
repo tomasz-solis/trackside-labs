@@ -435,7 +435,7 @@ def _build_prediction_highlight_cards(
                 {
                     "label": "Podium leader",
                     "value": str(podium_leader["driver"]),
-                    "meta": f"{float(podium_leader['podium_probability']):.1f}% podium chance.",
+                    "meta": f"{float(podium_leader['podium_probability']):.0f}% podium chance.",
                     "tone": "neutral",
                 }
             )

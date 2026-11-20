@@ -117,6 +117,38 @@ def test_fetch_actual_session_results_never_saves_a_missing_team_as_the_text_non
     assert results is None
 
 
+def test_fetch_actual_session_results_fails_over_when_fastf1_has_no_driver_code():
+    """São Paulo 2026: an Ergast-only FastF1 load gave Câmara (51) no code and he became "nan"."""
+    rows = [
+        {"Abbreviation": float("nan"), "DriverNumber": "51", "TeamName": "Alpine", "Position": 1}
+    ]
+    rows.extend(
+        {"Abbreviation": f"DRV{i}", "TeamName": "Scuderia Ferrari", "Position": i}
+        for i in range(2, 21)
+    )
+    mock_session = MagicMock()
+    mock_session.results = pd.DataFrame(rows)
+    openf1_rows = [{"driver": "CAM", "team": "Alpine", "position": 1, "source": "openf1"}]
+    openf1_rows.extend(
+        {"driver": f"DRV{i}", "team": "Ferrari", "position": i, "source": "openf1"}
+        for i in range(2, 21)
+    )
+
+    with (
+        patch("src.data.actual_results_fetcher.fastf1.get_session", return_value=mock_session),
+        patch(
+            "src.data.actual_results_fetcher.openf1.fetch_session_results",
+            return_value=openf1_rows,
+        ),
+    ):
+        results = fetch_actual_session_results(2026, "São Paulo Grand Prix", "Q")
+
+    assert results is not None
+    drivers = {row["driver"] for row in results}
+    assert "CAM" in drivers
+    assert not drivers & {"nan", "51"}
+
+
 def test_fetch_actual_session_results_fails_closed_on_missing_position():
     rows = [
         {"Abbreviation": "VER", "TeamName": "Oracle Red Bull Racing", "Position": 1},

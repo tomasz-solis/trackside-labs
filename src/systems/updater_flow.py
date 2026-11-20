@@ -134,12 +134,18 @@ def _build_position_fallback_race_pace(
     return race_pace
 
 
-def _recency_weighted_mean(observations: Sequence[float], *, recency_exponent: float) -> float:
+def _recency_weighted_mean(
+    observations: Sequence[float],
+    *,
+    recency_exponent: float,
+    rounds: Sequence[int] | None = None,
+) -> float:
     """Average season observations with later races weighted more heavily.
 
     Matches the weighting the predictor already applies to saved-actual form in
     ``data_mixin._resolve_saved_actual_team_score``: weight race ``i`` (1-based) by
-    ``i ** recency_exponent``. A flat mean let five stale rounds outvote the most
+    ``i ** recency_exponent``, or by its round when ``rounds`` is given, so a missed
+    race does not age later ones. A flat mean let five stale rounds outvote the most
     recent weekend, so an in-season car upgrade could never move the baseline.
     """
     values = [float(value) for value in observations]
@@ -147,7 +153,12 @@ def _recency_weighted_mean(observations: Sequence[float], *, recency_exponent: f
         return 0.0
     if len(values) == 1 or recency_exponent == 0.0:
         return float(np.mean(values))
-    weights = np.power(np.arange(1, len(values) + 1, dtype=float), recency_exponent)
+    positions = (
+        np.asarray(rounds, dtype=float)
+        if rounds is not None and len(rounds) == len(values)
+        else np.arange(1, len(values) + 1, dtype=float)
+    )
+    weights = np.power(positions, recency_exponent)
     return float(np.average(values, weights=weights))
 
 
@@ -158,8 +169,13 @@ def _apply_team_performance_updates(
     config_get_fn: ConfigGetFn,
     logger: logging.Logger,
     now_iso: str,
+    race_round: int | None = None,
 ) -> None:
-    """Apply race-performance updates to team payload."""
+    """Apply race-performance updates to team payload.
+
+    ``race_round`` is stored beside each score so the predictor can weight and cap live
+    form by race. A list saved before rounds were stored stays unlabelled.
+    """
     baseline_learning_rate = float(
         np.clip(
             config_get_fn("baseline_predictor.baseline_learning_rate", 0.3),
@@ -175,14 +191,23 @@ def _apply_team_performance_updates(
         if team in char_data["teams"]:
             team_data = char_data["teams"][team]
 
-            if "current_season_performance" not in team_data:
-                team_data["current_season_performance"] = []
-
-            team_data["current_season_performance"].append(new_performance)
+            values = team_data.setdefault("current_season_performance", [])
+            rounds = team_data.get("current_season_performance_rounds")
+            if race_round is not None and (
+                not values or (isinstance(rounds, list) and len(rounds) == len(values))
+            ):
+                team_data["current_season_performance_rounds"] = [
+                    *(rounds if values and isinstance(rounds, list) else []),
+                    int(race_round),
+                ]
+            else:
+                team_data.pop("current_season_performance_rounds", None)
+            values.append(new_performance)
 
             running_avg = _recency_weighted_mean(
-                team_data["current_season_performance"],
+                values,
                 recency_exponent=recency_exponent,
+                rounds=team_data.get("current_season_performance_rounds"),
             )
             old_uncertainty = team_data["uncertainty"]
             updated_uncertainty = max(0.10, old_uncertainty * 0.9)
@@ -425,16 +450,19 @@ def update_team_characteristics_core(
             )
             race_pace = fallback_race_pace
 
+    from src.utils.weekend import get_race_order_map
+
     now_iso = datetime.now().isoformat()
+    race_name = _resolve_race_name(session)
     _apply_team_performance_updates(
         char_data=char_data,
         race_pace=race_pace,
         config_get_fn=config_get_fn,
         logger=logger,
         now_iso=now_iso,
+        race_round=get_race_order_map(int(year)).get(str(race_name).strip()),
     )
 
-    race_name = _resolve_race_name(session)
     logger.info("Extracting compound-specific performance from race...")
     try:
         normalized_compound_metrics = _extract_normalized_compound_metrics(

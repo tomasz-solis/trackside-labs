@@ -120,17 +120,21 @@ def test_traits_are_refreshed_before_every_checkpoint_from_earlier_races(monkeyp
         "checkpoint Australian Grand Prix PRE",
         "traits Australian Grand Prix FP1 after []",
         "checkpoint Australian Grand Prix FP1",
+        "traits Australian Grand Prix Q after []",
+        "checkpoint Australian Grand Prix Q",
         "race_update Australian Grand Prix",
         "traits Japanese Grand Prix PRE after ['Australian Grand Prix']",
         "checkpoint Japanese Grand Prix PRE",
         "traits Japanese Grand Prix FP1 after ['Australian Grand Prix']",
         "checkpoint Japanese Grand Prix FP1",
+        "traits Japanese Grand Prix Q after ['Australian Grand Prix']",
+        "checkpoint Japanese Grand Prix Q",
         "race_update Japanese Grand Prix",
     ]
 
 
 def test_normal_weekend_checkpoints_are_built_before_later_sessions(monkeypatch, tmp_path):
-    """PRE sees no session, FPn sees through FPn, and Q/R land only after the last forecast."""
+    """PRE sees no session, FPn sees through FPn, Q sees Q, and R lands after the last forecast."""
     plan = [
         {
             "event_name": "Australian Grand Prix",
@@ -150,13 +154,14 @@ def test_normal_weekend_checkpoints_are_built_before_later_sessions(monkeypatch,
         "apply Australian Grand Prix FP3",
         "checkpoint Australian Grand Prix FP3",
         "apply Australian Grand Prix Q",
+        "checkpoint Australian Grand Prix Q",
         "apply Australian Grand Prix R",
         "race_update Australian Grand Prix",
     ]
 
 
 def test_sprint_weekend_checkpoints_are_built_before_later_sessions(monkeypatch, tmp_path):
-    """The SQ forecast is built before the Sprint, Q and R sessions are applied."""
+    """The SQ forecast is built before the Sprint and Q are applied, the Q forecast before R."""
     plan = [
         {
             "event_name": "Chinese Grand Prix",
@@ -175,6 +180,7 @@ def test_sprint_weekend_checkpoints_are_built_before_later_sessions(monkeypatch,
         "checkpoint Chinese Grand Prix SQ",
         "apply Chinese Grand Prix SPRINT",
         "apply Chinese Grand Prix Q",
+        "checkpoint Chinese Grand Prix Q",
         "apply Chinese Grand Prix R",
         "sprint_update Chinese Grand Prix",
         "race_update Chinese Grand Prix",
@@ -221,9 +227,11 @@ class _StubPredictor:
         (False, "FP1", set()),
         (False, "FP2", set()),
         (False, "FP3", set()),
+        (False, "Q", {"Q", "R_STARTING_GRID"}),
         (True, "PRE", set()),
         (True, "FP1", set()),
         (True, "SQ", {"SQ"}),
+        (True, "Q", {"SQ", "SPRINT", "Q", "R_STARTING_GRID"}),
     ],
 )
 def test_checkpoint_reads_no_actual_result_from_a_later_session(
@@ -351,6 +359,22 @@ def test_live_form_is_capped_to_races_before_the_target(tmp_path, schedule):
     )
 
     assert observations == [0.1]
+
+
+def test_live_form_with_rounds_is_capped_by_round_not_list_order(tmp_path, schedule):
+    """A catch-up run can store round 3 before round 1; the cap must read the rounds."""
+    predictor = _FormPredictor(tmp_path, saved_records=[])
+    team_data = {
+        "current_season_performance": [0.9, 0.1],
+        "current_season_performance_rounds": [3, 1],
+    }
+
+    observations, rounds = predictor._get_current_season_observations_with_ordinals(
+        team_name="Ferrari", team_data=team_data, race_name="Japanese Grand Prix"
+    )
+
+    assert observations == [0.1]
+    assert rounds == [1]
 
 
 def test_a_target_missing_from_the_schedule_admits_no_saved_actuals(tmp_path, schedule):

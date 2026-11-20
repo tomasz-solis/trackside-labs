@@ -37,7 +37,7 @@ grid:
     #   LAW: TSU
 
 model:
-  version: "3.8"
+  version: "3.9"
   # Regulation eras for seconds calibration. The gap between a fast car and a slow
   # one is set by the regulations, so team_strength_seconds_mapping is fitted within
   # one era and never across a boundary: pooling 2022-2025 with 2026 produced a slope
@@ -572,6 +572,10 @@ baseline_predictor:
     # Sort the finish order by median rank (mean as tie-break), so a DNF tail does
     # not bury the usual winner. On since 3.1: accuracy-neutral, fixes the ordering.
     finish_order_sort: median_rank
+    # Move every simulation draw toward the grid by the same amount instead of averaging
+    # each draw with a grid draw, which halves the spread and makes race odds too sharp.
+    # Off: arm C39_spread leaned better on every odds score but was `noise` (ledger 2026-11-18).
+    grid_anchor_keeps_spread: false
     # Read the gap to the car ahead from the start-of-lap snapshot. Off read live
     # times, where the car ahead had already run this lap, so every gap clamped to 0.
     # On since 3.1: accuracy-neutral, fixes the bug.
@@ -593,6 +597,10 @@ baseline_predictor:
     # stints (src/models/tyre_deg.py). Replay 2026-10-04: better at PRE, worse at FP
     # checkpoints (practice slopes carry weekend pace). Retest after the practice term.
     tyre_deg_model: practice
+    # Shift team strength per compound by up to 0.05 from practice compound pace and
+    # deg scores (src/data/compound_performance.py). Same noisy practice data as the deg
+    # slopes. Off was `unresolvable` (ledger 2026-11-11), so it stays on.
+    compound_pace_modifier: true
     # Add this weekend's practice pace (best-lap gap vs the team's prior race pace,
     # slope fitted on earlier races) to measured race pace, using only sessions the
     # checkpoint may see (src/models/practice_pace.py). Replay 2026-10-04: unresolvable
@@ -754,7 +762,9 @@ baseline_predictor:
 
     # Fuel effect configuration
     fuel:
-      effect_per_lap: 0.035            # seconds per lap per 10kg fuel
+      # Seconds per lap per 10 kg. 0.31 x 1.5 kg/lap = 0.047 s/lap gained per lap, the
+      # median lap time trend over 16 dry 2026 races (fuel plus track evolution).
+      effect_per_lap: 0.31
       initial_load_kg: 110             # starting fuel load for 60-lap race
       burn_rate_kg_per_lap: 1.5        # fuel consumption per lap
       deg_multiplier: 0.10             # 10% worse tire deg when fully fueled
@@ -913,10 +923,11 @@ baseline_predictor:
       racecraft_damp_scale: 0.18
       max_gain_damp_scale: 0.24
 
-    # Guardrail to prevent over-anchoring in full-distance races.
-    # If movement is too low, re-rank with an upside quantile from simulation samples.
-    main_race_movement_floor: 0.70
-    main_race_movement_floor_track_scale: 0.25  # scales floor upward for low-overtaking tracks
+    # Movement floor: if drivers move too little from the grid, re-rank by a sample
+    # quantile or one simulation sample. 0 turns it off. Off since 3.9: on the replay it
+    # fired at 34 to 36 of 79 race forecasts and made them worse (MODEL_LEDGER 2026-11-14).
+    main_race_movement_floor: 0.0
+    main_race_movement_floor_track_scale: 0.0  # raises the floor on low-overtaking tracks
     main_race_movement_quantile: 20.0
 
     # Low-confidence interval floor for top positions.
@@ -983,11 +994,6 @@ baseline_predictor:
         top_grid_limit: 10
         team_strength_threshold: 0.50
         dnf_probability_cap: 0.12
-
-    podium_probability:
-      min_sample_count: 250
-      resample_seed_offset: 99173
-      enforce_monotonic: true
 
     # Pit strategy constraints
     strategy_constraints:

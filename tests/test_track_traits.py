@@ -306,6 +306,57 @@ def test_weekend_profile_and_practice_gaps_skip_sessions_not_run_at_the_checkpoi
     assert not {"Q", "SQ", "FP3"} & set(loads)
 
 
+def test_replay_raises_on_an_openf1_transport_failure_where_live_falls_back(monkeypatch):
+    """C38_compound_off_s42 got Bahrain's FP2 profile at FP3 after a failed car data load."""
+    from types import SimpleNamespace
+
+    import pandas as pd
+
+    from src.data import openf1_session
+    from src.data.openf1 import OpenF1TransportError
+
+    def _get_session(year, race_name, code, telemetry=False, weather=False):
+        if code == "FP2":
+            raise OpenF1TransportError("car_data failed after retries")
+        return SimpleNamespace(
+            laps=pd.DataFrame({"LapTime": [90.0]}),
+            weather_data=pd.DataFrame({"Rainfall": [False]}),
+        )
+
+    monkeypatch.setattr(openf1_session, "get_session", _get_session)
+    monkeypatch.setattr(ctt, "track_profile", lambda session: {"full_throttle": 0.6})
+    monkeypatch.setattr(ctt, "team_quali_gaps", lambda session, team_of: {"A": 0.0})
+    monkeypatch.setattr(ctt, "_team_of", lambda session: {})
+
+    with pytest.raises(OpenF1TransportError):
+        ctt.measure_weekend_profile(2026, "X", sessions={"FP1", "FP2"})
+    with pytest.raises(OpenF1TransportError):
+        ctt.measure_practice_gaps(2026, "X", set(), sessions={"FP1", "FP2"})
+    # Live: FP2 may simply not have run yet, and the next run retries it.
+    live_profile = ctt.measure_weekend_profile(2026, "X", sessions=None)
+    assert live_profile == {"full_throttle": 0.6, "session": "Q"}
+    assert set(ctt.measure_practice_gaps(2026, "X", set())) == {"FP1", "FP3"}
+
+    # A completed race: the replay stops, live retries on the next run.
+    class _Store:
+        payload: dict = {"races": {}}
+
+        def load_artifact(self, artifact_type, artifact_key):
+            return self.payload
+
+        def save_artifact(self, artifact_type, artifact_key, data):
+            self.payload = data
+
+    def _fail(year, race_name):
+        raise OpenF1TransportError("car_data failed after retries")
+
+    monkeypatch.setattr(ctt, "measure_completed_race", _fail)
+    monkeypatch.setattr(ctt, "measure_practice_gaps", lambda y, r, have, sessions=None: {})
+    with pytest.raises(OpenF1TransportError):
+        ctt.refresh_car_track_traits(2026, ["R0"], store=_Store(), sessions_done=["FP1"])
+    assert ctt.refresh_car_track_traits(2026, ["R0"], store=_Store())["races"] == []
+
+
 def test_refresh_limits_only_the_upcoming_race_to_the_sessions_done(monkeypatch):
     class _Store:
         payload = {"races": {"R0": {"traits": {}, "profile": {"deg_severity": 0.0}}}}

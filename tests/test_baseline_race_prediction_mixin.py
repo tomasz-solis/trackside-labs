@@ -9,6 +9,7 @@ import src.predictors.baseline.race.prediction_mixin as prediction_module
 from src.predictors.baseline.race.grid_uncertainty import prepare_grid_uncertainty_profile
 from src.predictors.baseline.race.prediction_mixin import BaselineRacePredictionMixin
 from src.predictors.baseline.race.result_processing import (
+    _compute_podium_probabilities,
     apply_early_season_team_uncertainty_adjustments,
     calibrated_dnf_probability,
     estimate_predicted_grid_uncertainty_share,
@@ -1229,19 +1230,21 @@ def test_predict_race_applies_learned_position_adjustment():
     assert by_position[1]["p95"] == 2
 
 
-@pytest.mark.parametrize(
-    ("input_values", "expected_first", "expected_last"),
-    [
-        ([100.0, 2.0, 10.0, 0.0], 100.0, 0.0),
-        ([75.0, 60.0, 62.0, 20.0], 75.0, 20.0),
-    ],
-)
-def test_enforce_non_increasing_podium_probabilities(input_values, expected_first, expected_last):
-    smoothed = BaselineRacePredictionMixin._enforce_non_increasing(input_values)
+def test_podium_odds_rank_each_joint_draw_even_with_few_draws():
+    # A and B swap between the two draws, so C and D are on the podium in both. Ranking
+    # each driver's draws independently could put A and B both first and push C or D off.
+    podium, ranks = _compute_podium_probabilities(
+        blended_samples_by_driver={
+            "A": [1.0, 10.0],
+            "B": [10.0, 1.0],
+            "C": [5.0, 5.0],
+            "D": [6.0, 6.0],
+        }
+    )
 
-    assert smoothed[0] == expected_first
-    assert smoothed[-1] == expected_last
-    assert all(smoothed[idx] >= smoothed[idx + 1] for idx in range(len(smoothed) - 1))
+    assert podium == {"A": 50.0, "B": 50.0, "C": 100.0, "D": 100.0}
+    assert sum(podium.values()) == 300.0
+    assert ranks["A"] == [1, 4]
 
 
 def test_calibrated_dnf_probability_default_lambda_reports_capped_rate_unchanged():

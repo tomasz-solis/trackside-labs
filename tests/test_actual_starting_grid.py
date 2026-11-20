@@ -89,3 +89,17 @@ def test_a_missing_grid_position_fails_closed():
 
 def test_a_race_that_has_not_run_returns_none():
     assert _fetch(pd.DataFrame([])) is None
+
+
+def test_driver_without_a_code_fails_the_grid_never_becomes_a_car_number():
+    # A car number matches no forecast row, so the grid goes to OpenF1 instead.
+    from src.data import openf1
+
+    results = _results({"D07": {"Abbreviation": float("nan"), "DriverNumber": "51"}})
+    with patch(
+        "src.data.actual_results_fetcher.openf1.fetch_starting_grid",
+        side_effect=openf1.OpenF1Unavailable("closed"),
+    ):
+        grid = _fetch(results)
+
+    assert grid is None

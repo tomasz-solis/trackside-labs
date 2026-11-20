@@ -40,8 +40,12 @@ METRIC_ORDER = (
     "exact_accuracy",
     "within_1",
     "within_3",
+    # Shown probabilities, scored as saved (ledger 2026-11-15). Older roots lack them.
+    "win_brier",
+    "podium_brier",
+    "order_confidence_brier",
 )
-LOWER_IS_BETTER = {"overall_mae"}
+LOWER_IS_BETTER = {"overall_mae", "win_brier", "podium_brier", "order_confidence_brier"}
 CHECKPOINT_ORDER = ("PRE", "FP1", "FP2", "FP3", "SQ")
 BOOTSTRAP_RNG_SEED = 0
 
@@ -108,11 +112,20 @@ class RaceTails:
     covered: int
 
 
-def _saved_forecasts(root: Path, year: int) -> list[dict]:
-    """Every saved checkpoint forecast under one replay root."""
+def _forecast_paths(root: Path, year: int) -> dict[str, Path]:
+    """Saved checkpoint forecast files under one replay root, keyed by `<event>/<file>`."""
+    return {
+        f"{path.parent.name}/{path.name}": path
+        for path in sorted((root / "predictions" / str(year)).glob("*/*.json"))
+    }
+
+
+def _saved_forecasts(root: Path, year: int, keys: set[str] | None = None) -> list[dict]:
+    """Every saved checkpoint forecast under one replay root, or only those in `keys`."""
     return [
         json.loads(path.read_text(encoding="utf-8"))
-        for path in sorted((root / "predictions" / str(year)).glob("*/*.json"))
+        for key, path in _forecast_paths(root, year).items()
+        if keys is None or key in keys
     ]
 
 
@@ -139,10 +152,12 @@ def replay_health(root: Path, year: int) -> ReplayHealth:
     return ReplayHealth(len(weekends), len(weekends & learned), off_clock)
 
 
-def race_tails(root: Path, year: int, target: str = "grand_prix_race") -> RaceTails:
+def race_tails(
+    root: Path, year: int, target: str = "grand_prix_race", keys: set[str] | None = None
+) -> RaceTails:
     """Count misses of 10+ and 15+ places and band coverage for one target's rows."""
     rows = misses_10 = misses_15 = covered = 0
-    for forecast in _saved_forecasts(root, year):
+    for forecast in _saved_forecasts(root, year, keys):
         actual_rows = ((forecast.get("actuals") or {}).get("targets") or {}).get(target) or []
         actual = {str(row["driver"]): int(row["position"]) for row in actual_rows}
         predicted = ((forecast.get("targets") or {}).get(target) or {}).get("predicted_order")
@@ -180,8 +195,10 @@ def _print_health(roots: list[Path], year: int) -> bool:
 
 
 def _print_tails(baseline_root: Path, candidate_root: Path, year: int) -> None:
-    """Print Grand Prix tails and coverage, baseline to candidate."""
-    before, after = race_tails(baseline_root, year), race_tails(candidate_root, year)
+    """Print Grand Prix tails and coverage, baseline to candidate, on checkpoints both saved."""
+    paired = set(_forecast_paths(baseline_root, year)) & set(_forecast_paths(candidate_root, year))
+    before = race_tails(baseline_root, year, keys=paired)
+    after = race_tails(candidate_root, year, keys=paired)
     if not before.rows or not after.rows:
         return
     print(f"  grand_prix_race tails ({before.rows} rows, baseline to candidate):")

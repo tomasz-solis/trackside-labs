@@ -271,7 +271,7 @@ def test_render_race_result_explains_sorting_and_interval(patcher):
 
     captions = [value for kind, value in calls if kind == "caption"]
     table_html_blocks = [value for kind, value in calls if kind == "markdown" and "<table" in value]
-    assert any("Rows are sorted by expected finishing position" in text for text in captions)
+    assert any("sorted by each driver's middle simulated place" in text for text in captions)
     assert any("90% Pos Range" in text for text in captions)
     assert table_html_blocks
     assert all(">Status<" not in html for html in table_html_blocks)
@@ -303,7 +303,7 @@ def test_render_race_result_shows_likely_range_when_present(patcher):
     captions = [value for kind, value in calls if kind == "caption"]
     table_html_blocks = [value for kind, value in calls if kind == "markdown" and "<table" in value]
     assert any("Likely range" in text for text in captions)
-    assert any("6 times in 10" in text for text in captions)
+    assert any("built to hold half" in text and "replay it held" in text for text in captions)
     assert any("P1 - P2" in html for html in table_html_blocks)
     assert not any("90% Pos Range" in text for text in captions)
 
@@ -766,7 +766,7 @@ def test_render_race_result_shows_win_probability(patcher):
     df = pd.DataFrame(
         [
             {"position": 1, "driver": "RUS", "team": "Mercedes", "win_probability": 24.0},
-            {"position": 2, "driver": "VER", "team": "Red Bull Racing", "win_probability": 31.5},
+            {"position": 2, "driver": "VER", "team": "Red Bull Racing", "win_probability": 31.4},
         ]
     )
 
@@ -774,4 +774,5 @@ def test_render_race_result_shows_win_probability(patcher):
 
     html = " ".join(value for kind, value in calls if kind == "markdown" and "<table" in value)
     assert "Win %" in html
-    assert "31.5" in html
+    assert ">31<" in html  # whole percent: 300 draws cannot support a decimal
+    assert "31.4" not in html

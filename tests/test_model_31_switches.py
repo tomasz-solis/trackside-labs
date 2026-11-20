@@ -56,14 +56,14 @@ def _finish_order(cfg) -> list[str]:
         weather_feature_modifiers={},
         get_learned_position_adjustment=lambda **_: 0.0,
         learned_interval_radius=0.0,
-        enforce_non_increasing=lambda values: values,
         base_seed=1,
     )
     return [row["driver"] for row in sorted(rows, key=lambda row: row["position"])]
 
 
 def test_shipped_31_switches():
-    assert config_loader.get("model.version") == "3.8"
+    assert config_loader.get("model.version") == "3.9"
+    assert config_loader.get("baseline_predictor.race.main_race_movement_floor") == 0.0
     assert config_loader.get("learning.max_adjustment") == 0.0
     assert config_loader.get("baseline_predictor.race.finish_order_sort") == "median_rank"
     assert config_loader.get("baseline_predictor.race.overtake_gap_from_lap_start") is True
@@ -155,3 +155,42 @@ def test_ridge_order_switch_is_on_in_the_live_config():
     """3.8 serves the qualifying_ridge order (ledger 2026-11-10)."""
     assert config_loader.get("baseline_predictor.qualifying.ridge_order") is True
     assert "qualifying_ridge" not in config_loader.get("challengers.enabled")
+
+
+def _win_probability_of_favourite(cfg) -> float:
+    # A starts P1 and wins 60 draws in 100, else finishes P6; B to E hold their grid slot.
+    info = {"overtaking_skill": 0.5, "race_advantage": 0.0, "skill": 0.5}
+    steady = {code: [slot] * 100 for code, slot in zip("BCDE", (2, 3, 4, 5), strict=True)}
+    rows = build_finish_order(
+        aggregated={
+            "median_positions": {"A": 1, "B": 2, "C": 3, "D": 4, "E": 5},
+            "position_distributions": {"A": [1] * 60 + [6] * 40, **steady},
+            "dnf_rates": dict.fromkeys("ABCDE", 0.0),
+        },
+        driver_info_map={
+            code: {**info, "team": f"T{code}", "grid_pos": slot}
+            for code, slot in zip("ABCDE", (1, 2, 3, 4, 5), strict=True)
+        },
+        grid_position_samples_by_driver={},
+        field_size=22,
+        weather="dry",
+        is_sprint=False,
+        input_confidence=1.0,
+        cfg=cfg,
+        race_params={},
+        weather_feature_modifiers={},
+        get_learned_position_adjustment=lambda **_: 0.0,
+        learned_interval_radius=0.0,
+        base_seed=1,
+        learned_grid_anchor_weight=0.8,
+    )
+    return next(row["win_probability"] for row in rows if row["driver"] == "A")
+
+
+def test_grid_anchor_keeps_spread_switch():
+    """Averaging each draw with a fixed grid slot hides A's 40 bad races; a shift keeps them."""
+    key = "baseline_predictor.race.grid_anchor_keeps_spread"
+    assert config_loader.get(key) is False
+
+    assert _win_probability_of_favourite(_Cfg(**{key: False})) == 100.0
+    assert _win_probability_of_favourite(_Cfg(**{key: True})) == 60.0

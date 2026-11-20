@@ -47,7 +47,6 @@ class RaceSimulationDeps:
     get_learned_interval_radius: Callable[..., float]
     apply_race_residual_model: Callable[..., dict[str, float]] | None
     get_conformal_interval_radius: Callable[..., float] | None
-    enforce_non_increasing: Callable[[list[float]], list[float]]
     load_track_specific_params: Callable[..., dict[str, Any]]
     get_tire_stress_score: Callable[..., float]
     get_available_compounds: Callable[..., list[str]]
@@ -185,7 +184,7 @@ def predict_race_core(
 
     race_params["fuel"] = {
         "initial_load_kg": cfg.get("baseline_predictor.race.fuel.initial_load_kg", 110.0),
-        "effect_per_lap": cfg.get("baseline_predictor.race.fuel.effect_per_lap", 0.035),
+        "effect_per_lap": cfg.get("baseline_predictor.race.fuel.effect_per_lap", 0.31),
         "burn_rate_kg_per_lap": cfg.get("baseline_predictor.race.fuel.burn_rate_kg_per_lap", 1.5),
     }
 
@@ -491,7 +490,6 @@ def predict_race_core(
                 else 0.0
             ),
         ),
-        enforce_non_increasing=deps.enforce_non_increasing,
         base_seed=base_seed,
         learned_grid_anchor_weight=(
             deps.get_learned_grid_anchor_weight() if deps.get_learned_grid_anchor_weight else None

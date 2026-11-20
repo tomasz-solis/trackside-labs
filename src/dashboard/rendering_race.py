@@ -737,9 +737,9 @@ def _style_race_table(df_display: pd.DataFrame):
         column: template
         for column, template in {
             "Expected Pos": "{:.2f}",
-            "Order Confidence %": "{:.1f}",
-            "Win %": "{:.1f}",
-            "Podium %": "{:.1f}",
+            "Order Confidence %": "{:.0f}",
+            "Win %": "{:.0f}",
+            "Podium %": "{:.0f}",
             "DNF Risk %": "{:.1f}",
         }.items()
         if column in df_display.columns
@@ -773,18 +773,18 @@ def _render_race_result(df: pd.DataFrame) -> None:
     if has_win_probability:
         race_df["win_probability"] = pd.to_numeric(
             race_df["win_probability"], errors="coerce"
-        ).round(1)
+        ).round(0)
     has_dnf_probability = SHOW_DNF_RISK and "dnf_probability" in race_df.columns
     if SHOW_DNF_RISK and not has_dnf_probability and "dnf_risk" in race_df.columns:
         race_df["dnf_probability"] = race_df["dnf_risk"]
         has_dnf_probability = True
     if has_confidence:
-        race_df["confidence"] = pd.to_numeric(race_df["confidence"], errors="coerce").round(1)
+        race_df["confidence"] = pd.to_numeric(race_df["confidence"], errors="coerce").round(0)
     if has_podium_probability:
         race_df["podium_probability"] = pd.to_numeric(
             race_df["podium_probability"],
             errors="coerce",
-        ).round(1)
+        ).round(0)
     if has_dnf_probability:
         race_df["dnf_probability"] = (
             pd.to_numeric(race_df["dnf_probability"], errors="coerce") * 100
@@ -851,36 +851,25 @@ def _render_race_result(df: pd.DataFrame) -> None:
 
     if has_expected_position:
         primary_caption = (
-            (
-                "Rows are sorted by expected finishing position across all simulations, not "
-                "by Order Confidence % or Podium %."
-            )
-            if has_podium_probability
-            else (
-                "Rows are sorted by expected finishing position across all simulations, not "
-                "by Order Confidence %."
-            )
+            "Rows are sorted by each driver's middle simulated place. `Expected Pos` is the "
+            "average place, which retirement risk pulls down, so it can run out of order."
         )
     else:
         primary_caption = "Rows are sorted by projected finishing order at the selected checkpoint."
     st.caption(primary_caption)
     if has_expected_position:
-        st.caption(
-            f"Key signal: `Expected Pos` (lower is better). Use `{range_label}` to judge "
-            "uncertainty."
-        )
+        st.caption(f"Use `{range_label}` to judge uncertainty.")
     if has_range_column:
         if has_likely_range:
             ci_caption = (
-                "`Likely range`: past results for this spot landed here about 6 times in 10. "
-                "`DNF Risk %` is separate."
+                "`Likely range`: built to hold half of past results for this spot. On the "
+                "2026 replay it held 55% of Grand Prix and 58% of sprint results."
             )
         else:
             ci_caption = (
-                "`90% Pos Range` is where a driver lands in 90% of simulations (P5 to P95)."
+                "`90% Pos Range` is where a driver lands in 90% of simulations (P5 to P95). "
+                "On the 2026 replay it held 84% of Grand Prix results."
             )
-        if has_podium_probability:
-            ci_caption += " Equal Podium % values are expected: podium odds are smoothed so they never rise down the order."
         st.caption(ci_caption)
 
     display_cols = ["position", "driver", "team"]
@@ -901,6 +890,10 @@ def _render_race_result(df: pd.DataFrame) -> None:
     if has_podium_probability:
         display_cols.append("podium_probability")
         display_names.append("Podium %")
+        st.caption(
+            "Race odds run high. On the 2026 replay, podium chances shown at 80% or more "
+            "came true about half the time."
+        )
     if has_dnf_probability:
         display_cols.append("dnf_probability")
         display_names.append("DNF Risk %")
@@ -914,7 +907,7 @@ def _render_race_result(df: pd.DataFrame) -> None:
         st.caption(
             "`Order Confidence %` is the chance a driver finishes within one place of the"
             " projected position. High when the order is clear, low when the field is "
-            "close."
+            "close. It runs high too: on the 2026 replay, 60% shown came true 43% of the time."
         )
 
     df_display = race_df[display_cols].copy()

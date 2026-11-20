@@ -22,8 +22,8 @@ from src.utils.historical_replay import (
 
 def test_checkpoint_sequence_for_weekend_matches_requested_outputs():
     """Normal and sprint weekends should expose the expected replay checkpoints."""
-    assert checkpoint_sequence_for_weekend(False) == ("PRE", "FP1", "FP2", "FP3")
-    assert checkpoint_sequence_for_weekend(True) == ("PRE", "FP1", "SQ")
+    assert checkpoint_sequence_for_weekend(False) == ("PRE", "FP1", "FP2", "FP3", "Q")
+    assert checkpoint_sequence_for_weekend(True) == ("PRE", "FP1", "SQ", "Q")
 
 
 def test_session_is_available_at_checkpoint_respects_weekend_order():
@@ -213,7 +213,7 @@ def test_replay_learns_from_a_weekend_only_after_its_last_checkpoint(monkeypatch
 
     replay.run_historical_checkpoint_replay(source_processed_dir=tmp_path, output_root=tmp_path)
 
-    weekend = ["PRE", "FP1", "FP2", "FP3"]
+    weekend = ["PRE", "FP1", "FP2", "FP3", "Q"]
     assert log == [
         *[("predict", "A GP", cp) for cp in weekend],
         ("learn", "A GP", weekend),

@@ -13,14 +13,22 @@ Re-fetching actuals is exact (the classification is ground truth). Re-derived
 probabilities use current model state and only ever fill gaps left by the old
 save bug; rows that already carry a probability are preserved.
 
+``--store`` labels the stored predictions instead (production with
+``--env-file .env.local``). It reads the ArtifactStore listing only, never local files,
+attaches DNF flags only, never refills probabilities or runs learning, and writes every
+original record it changes to ``--export`` before saving anything.
+
 Usage:
   python scripts/backfill_dnf_data.py --year 2026
   python scripts/backfill_dnf_data.py --year 2026 --dry-run
+  python scripts/backfill_dnf_data.py --year 2026 --store --env-file .env.local --dry-run
+  python scripts/backfill_dnf_data.py --year 2026 --store --env-file .env.local --export <file>
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import logging
 import os
@@ -31,12 +39,11 @@ from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-os.environ.setdefault("USE_DB_STORAGE", "file_only")
-
 import fastf1
 
 from src.data.actual_results_fetcher import fetch_actual_session_results
 from src.utils.accuracy_targets import TARGET_SESSION_BY_KEY
+from src.utils.env_file import load_env_file
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("backfill_dnf")
@@ -224,6 +231,89 @@ def _fill_missing_dnf_probabilities(
     return filled
 
 
+def _fetch_race_like(year: int, race_name: str) -> dict[str, list[dict[str, Any]] | None]:
+    """Fetch the race and sprint classifications, None for a session that fails."""
+    fetched: dict[str, list[dict[str, Any]] | None] = {}
+    for session_name in ("R", "Sprint"):
+        try:
+            result = fetch_actual_session_results(year, race_name, session_name)
+            fetched[session_name] = cast("list[dict[str, Any]] | None", result)
+        except Exception as exc:  # noqa: BLE001 - best effort per session
+            logger.warning("Could not fetch %s %s: %s", race_name, session_name, exc)
+            fetched[session_name] = None
+    return fetched
+
+
+def backfill_store(
+    year: int,
+    *,
+    logger_inst: Any,
+    export_path: Path | None,
+    dry_run: bool,
+    fetch_fn: Any = _fetch_race_like,
+) -> int:
+    """Attach DNF flags to stored predictions. Returns how many records changed.
+
+    Reads the ArtifactStore listing only: ``get_all_predictions`` also merges local
+    files, and saving a stale local copy would overwrite the stored record.
+    """
+    from src.utils.prediction_logger import PredictionLogger
+
+    store = logger_inst.artifact_store
+    if getattr(store, "storage_mode", "file_only") == "file_only":
+        raise SystemExit("--store needs USE_DB_STORAGE db_only or dual_write (--env-file)")
+    rows = store.list_artifacts("prediction", key_prefix=f"{year}::", limit=4096)
+    payloads = [logger_inst._prediction_payload_from_listing_row(row) for row in rows]
+    predictions = logger_inst._deduplicate_predictions([p for p in payloads if p])
+
+    fetched_by_race: dict[str, dict[str, list[dict[str, Any]] | None]] = {}
+    changes: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    for prediction in predictions:
+        metadata = prediction.get("metadata", {})
+        race_name = str(metadata.get("race_name", "")).strip()
+        session_name = str(metadata.get("session_name", "")).strip()
+        if not race_name or not session_name:
+            continue
+        if race_name not in fetched_by_race:
+            fetched_by_race[race_name] = fetch_fn(year, race_name)
+        updated = copy.deepcopy(prediction)
+        labelled = _backfill_actuals(updated, fetched=fetched_by_race[race_name])
+        if updated.get("actuals") != prediction.get("actuals"):
+            changes.append((prediction, updated))
+            logger.info(
+                "%s %s: flags added, %s retirements%s",
+                race_name,
+                session_name,
+                labelled,
+                " (dry-run)" if dry_run else "",
+            )
+
+    if dry_run or not changes:
+        return len(changes)
+    if export_path is None:
+        raise SystemExit("--export <file> is required before --store writes anything")
+    export_path.parent.mkdir(parents=True, exist_ok=True)
+    export_path.write_text(
+        json.dumps([original for original, _ in changes], indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    logger.info("Exported %s original record(s) to %s", len(changes), export_path)
+    stamp = datetime.now(UTC).isoformat()
+    for _, prediction in changes:
+        metadata = prediction.setdefault("metadata", {})
+        metadata["dnf_backfilled_at"] = stamp
+        store.save_artifact(
+            artifact_type="prediction",
+            artifact_key=PredictionLogger._artifact_key_for_prediction(
+                year, metadata["race_name"], metadata["session_name"]
+            ),
+            data=prediction,
+            version=1,
+            run_id=metadata.get("run_id"),
+        )
+    return len(changes)
+
+
 def backfill_file(
     path: Path,
     *,
@@ -244,17 +334,7 @@ def backfill_file(
         logger.warning("Skipping %s: missing year/race_name", path.name)
         return {"actual_dnfs": 0, "probs_filled": 0}
 
-    # Fetch race/sprint classifications once (cached); reuse for actuals.
-    fetched: dict[str, list[dict[str, Any]] | None] = {}
-    for session_name in ("R", "Sprint"):
-        try:
-            result = fetch_actual_session_results(year, race_name, session_name)
-            fetched[session_name] = cast("list[dict[str, Any]] | None", result)
-        except Exception as exc:  # noqa: BLE001 - best effort per session
-            logger.warning("Could not fetch %s %s: %s", race_name, session_name, exc)
-            fetched[session_name] = None
-
-    actual_dnfs = _backfill_actuals(prediction, fetched=fetched)
+    actual_dnfs = _backfill_actuals(prediction, fetched=_fetch_race_like(year, race_name))
 
     # A far-future reference time keeps all sessions "available"; DNF probability does
     # not depend on practice data, so this only affects session-availability gating.
@@ -294,10 +374,30 @@ def main() -> None:
         action="store_true",
         help="Report what would change without writing files.",
     )
+    parser.add_argument("--store", action="store_true", help="Label stored predictions.")
+    parser.add_argument("--env-file", type=Path, default=None)
+    parser.add_argument("--export", type=Path, default=None, help="Original records, --store.")
     args = parser.parse_args()
 
+    if args.env_file is not None:
+        load_env_file(args.env_file)
+    # File mode never touches the database unless the environment says so.
+    os.environ.setdefault("USE_DB_STORAGE", "file_only")
     _ = TARGET_SESSION_BY_KEY  # documents the target->session mapping source
     _enable_cache()
+
+    if args.store:
+        from src.utils.prediction_logger import PredictionLogger
+
+        changed = backfill_store(
+            args.year,
+            logger_inst=PredictionLogger(),
+            export_path=args.export,
+            dry_run=args.dry_run,
+        )
+        suffix = " (dry-run, nothing written)" if args.dry_run else ""
+        logger.info("Store backfill: %s record(s) changed%s.", changed, suffix)
+        return
 
     year_dir = Path(args.predictions_dir) / str(args.year)
     if not year_dir.exists():

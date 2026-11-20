@@ -8,13 +8,11 @@ from pathlib import Path
 
 from src.data.data_generator import create_baseline_if_missing
 from src.persistence.artifact_store import ArtifactStore
-from src.predictors.baseline import (
-    BaselineDataMixin,
-    BaselineQualifyingMixin,
-    BaselineRaceParamsMixin,
-    BaselineRacePredictionMixin,
-    BaselineRacePreparationMixin,
-)
+from src.predictors.baseline.data_mixin import BaselineDataMixin
+from src.predictors.baseline.qualifying_mixin import BaselineQualifyingMixin
+from src.predictors.baseline.race.params_mixin import BaselineRaceParamsMixin
+from src.predictors.baseline.race.prediction_mixin import BaselineRacePredictionMixin
+from src.predictors.baseline.race.preparation_mixin import BaselineRacePreparationMixin
 from src.systems.systematic_learning import SystematicLearningSystem
 from src.utils.config_loader import Config
 

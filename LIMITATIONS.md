@@ -34,11 +34,13 @@ Fix: a career prior built from all past seasons, pulled automatically by `script
 
 ## 6. Some constants were fitted on the season they predict
 
-The walk-forward replay removes the leaks it can (team pace, seconds mapping, overtaking rates; see the 2026-09-25 entry in `docs/MODEL_LEDGER.md`). Constants fitted on the 2026 season are still read at every round: the retirement rate and its multiplier, and possibly `skill_improvement_max`. Replay accuracy is slightly optimistic because of them.
+The walk-forward replay removes the leaks it can (team pace, seconds mapping, overtaking rates; see the 2026-09-25 entry in `docs/MODEL_LEDGER.md`). Two constants that move the race forecast are fitted on the 2026 season and read at every round: the retirement multiplier (1.415) and the driver skill pace (`skill_improvement_max` 1.75).
+
+Sized on 2026-11-15: a replay with both set back to their values from before 2026 scores race correlation +0.002 on both seeds and race MAE 0.02 to 0.03 places better. That is inside the seed-noise floor, and qualifying is identical. So these fits do not make replay accuracy look better than it is. They stay because they make the simulated retirement rate and teammate gaps match 2026.
 
 Until 2026-10-31 the replay also learned from each race before forecasting that race's own practice checkpoints. Race MAE looked 0.4 places better than it was. Fixed; replay levels now line up with the published forecasts at the same checkpoint (race MAE within 0.15 places at every checkpoint).
 
-Fix: refit those constants per round inside the replay.
+Fix: refit both at the next regulation change. A per-round refit inside the replay is not needed.
 
 ## 7. Safety car and lap 1 odds are curated, not learned
 
@@ -48,9 +50,9 @@ Fix: extract per-circuit safety car and lap 1 incident rates from past races and
 
 ## 8. Honest bands are wide, so the dashboard shows a narrower one
 
-Each driver gets a p5 to p95 band with a 90% target. Since model 3.5 the learning system widens race and sprint bands as it already did for qualifying. On the leak-free replay of 3.6 the band covers 85% of Grand Prix and 87% of sprint results, still short of 90%: the learned widening stops at its cap of 6 places. An honest 90% race band is about 10 to 11 places, too wide to show as the range a driver is likely to finish in.
+Each driver gets a p5 to p95 band with a 90% target. Since model 3.5 the learning system widens race and sprint bands as it already did for qualifying. On the replay of 3.9 the band covers 84% of Grand Prix and 86% to 87% of sprint results, still short of 90%: the learned widening stops at its cap of 6 places. An honest 90% race band is about 10 to 11 places, too wide to show as the range a driver is likely to finish in.
 
-So the race and qualifying tables show a "Likely range" instead: the 25th to 75th percentile of past error around the shown position, as whole places that include it. It is about 4 to 7 places (fitted 2026-10-27, `docs/MODEL_LEDGER.md`). On the leak-free replay of 3.6 it holds 58% of Grand Prix and qualifying results and 63% of sprint results. The back of the Grand Prix field is the loose part: 7 places, holding 70%, because finishers there gain places when cars ahead retire. p5/p95 stays for evaluation.
+So the race and qualifying tables show a "Likely range" instead: the 25th to 75th percentile of past error around the shown position, as whole places that include it. It is about 4 to 7 places (fitted 2026-10-27, `docs/MODEL_LEDGER.md`). On the replay of 3.9 it holds 54% to 55% of Grand Prix results and 58% of qualifying and sprint results (ledger 2026-11-15). The captions give both numbers. The back of the Grand Prix field is the loose part: 7 places, holding 70%, because finishers there gain places when cars ahead retire. p5/p95 stays for evaluation.
 
 Production has no sprint residuals yet: the sprint history began after the last 2026 sprint, so live sprint bands stay unwidened until 20 sprint residuals exist.
 
@@ -87,3 +89,13 @@ Fix: fit a practice term on the model's own residuals. The version fitted on raw
 The `qualifying_ridge` challenger, a ridge stacked on the live forecast, recent form, teammate gap and practice pace, beats the live qualifying model on the leak-free replay: MAE 0.18 to 0.19 places lower on both seeds, better on 29 to 31 of 48 checkpoints. It runs beside the live model and is not served.
 
 Fix: put it through the promotion gate in `docs/MODEL_PROMOTION.md`. The two seeds are close to one draw for a ridge, so watch it on the live record too.
+
+## 13. Race odds are too sharp
+
+On average the race odds are right: on the replay of 3.9, win chances average 4.6% shown and 4.6% happened. At the ends they are too sharp. Podium chances shown at 80% or more came true 48% to 49% of the time, and win chances of 50% or more 25% to 27%. Order confidence runs high in the race (61% shown, 42% to 44% happened) and separates drivers little in qualifying. The captions say so. Numbers are in `docs/MODEL_LEDGER.md`, 2026-11-15.
+
+Cause: the grid anchor averages each simulation draw with a grid draw. The two are close to independent, so each driver's spread halves, from about 4.7 places to 2.5 (ledger 2026-11-16).
+
+Tested 2026-11-18: arm `C39_spread` moves every draw by the same amount instead (`grid_anchor_keeps_spread`). Podium and win Brier fell on both seeds, the order held and p5 to p95 coverage rose from 84% to 93%, but the Brier gain stayed inside the noise of 17 weekends. The switch stays off and the captions warn.
+
+Fix: score the spread-keeping odds beside the served ones on live races, and decide once a season of them resolves.

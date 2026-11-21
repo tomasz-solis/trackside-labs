@@ -43,9 +43,11 @@ Adaptive learning state (driver errors, teammate gaps, interval residuals) is th
 
 The dashboard reads snapshots first and falls back to raw forecasts.
 
+`forecast_record` (migration 007) is the append-only record of issued forecasts: one row per target, checkpoint and weather scenario with the rows exactly as served, the information cutoff, the issue time set by the database, and the model version, config, learning state and artifact hashes. `content_hash` is unique, so a repeated write stores nothing. A changed forecast gets `replaces` and a reason. Triggers refuse every update, delete and truncate, and a row issued after its cutoff fails a check. Results never go in it. Nothing reads it yet.
+
 ## Setup
 
-1. Run the migrations in the Supabase SQL editor, in order: `migrations/001` to `006`. On tables created before the security defaults, `003_harden_rls_policies.sql` enforces RLS and removes `anon` and `authenticated` access.
+1. Run the migrations in the Supabase SQL editor, in order: `migrations/001` to `007`. On tables created before the security defaults, `003_harden_rls_policies.sql` enforces RLS and removes `anon` and `authenticated` access. After `007`, run `migrations/queries/forecast_record_append_only_check.sql`: it must finish without an error.
 2. Test the connection: `uv run python scripts/test_supabase_connection.py`
 3. Check artifact keys: `uv run python scripts/normalize_dashboard_artifacts_in_db.py --env-file .env.local` (add `--apply` to fix).
 4. Migrate data: `uv run python scripts/backfill_to_db.py --dry-run`, then with `USE_DB_STORAGE=dual_write` run it without `--dry-run`. This includes `driver_debuts.csv`.

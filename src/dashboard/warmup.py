@@ -13,6 +13,7 @@ import fastf1
 
 from src.dashboard.cache import construct_predictor, get_artifact_versions
 from src.dashboard.checkpoint_predictor import build_checkpoint_overlay_predictor
+from src.dashboard.forecast_record import record_served_forecast
 from src.dashboard.precomputed_predictions import (
     build_precomputed_base_features_key,
     build_precomputed_prediction_key,
@@ -663,6 +664,7 @@ class _WarmupRunState:
 
     # Populated during the compute stage
     artifact_hash: str = ""
+    artifact_versions: dict[str, tuple[int, str]] = field(default_factory=dict)
     predictor: Any = None
     race_boundaries: dict[str, str] = field(default_factory=dict)
     race_weather_coverage: dict[str, set[str]] = field(default_factory=dict)
@@ -821,6 +823,7 @@ def _stage_refresh_practice(ctx: _WarmupRunState) -> None:
 def _stage_load_predictor(ctx: _WarmupRunState) -> None:
     """Stage 2: resolve artifact hash and load the baseline predictor."""
     artifact_versions = get_artifact_versions(year=ctx.year)
+    ctx.artifact_versions = artifact_versions
     ctx.artifact_hash = compute_artifact_hash(artifact_versions)
     ctx.predictor = _load_predictor(artifact_versions, year=ctx.year)
     ctx.max_file_entries = max(16, int(ctx.settings.get("max_file_entries", 2048)))
@@ -999,6 +1002,17 @@ def _process_weather_scenario(
                     "computed_from_base_features": True,
                 },
                 max_file_entries=ctx.max_file_entries,
+            )
+            record_served_forecast(
+                year=ctx.year,
+                race_name=target_race,
+                checkpoint=target_checkpoint,
+                weather=target_weather,
+                is_sprint=target_is_sprint,
+                prediction_results=prediction_results,
+                boundary_signature=target_boundary_signature,
+                artifact_hash=ctx.artifact_hash,
+                artifact_versions=ctx.artifact_versions,
             )
             if ctx.db_verification_enabled:
                 prediction_state_key = build_precomputed_prediction_key(

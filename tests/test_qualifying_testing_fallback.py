@@ -77,7 +77,7 @@ def _patched_prediction_dependencies():
             patch.object(
                 qualifying_module,
                 "get_lineups",
-                lambda year, race_name: {"Team A": ["AAA"], "Team B": ["BBB"]},
+                lambda year, race_name, **_: {"Team A": ["AAA"], "Team B": ["BBB"]},
             )
         )
         stack.enter_context(
@@ -88,6 +88,29 @@ def _patched_prediction_dependencies():
             )
         )
         yield
+
+
+def test_the_checkpoint_reaches_the_line_up():
+    """From FP2 on, the line-up seats the session's entrants, so the checkpoint must reach it."""
+    seen: list[str | None] = []
+
+    def _lineups(year, race_name, **kwargs):
+        seen.append(kwargs.get("checkpoint_session"))
+        return {"Team A": ["AAA"], "Team B": ["BBB"]}
+
+    predictor = DummyQualifyingPredictor({})
+    with _patched_prediction_dependencies():
+        with patch.object(qualifying_module, "get_lineups", _lineups):
+            predictor._prepare_qualifying_prediction_inputs(
+                year=2026,
+                race_name="Bahrain Grand Prix",
+                qualifying_stage="auto",
+                practice_signal_mode="stored_profiles",
+                checkpoint_session_name="FP2",
+                weather="dry",
+            )
+
+    assert seen == ["FP2"]
 
 
 def test_predict_qualifying_uses_testing_short_run_fallback():
@@ -319,7 +342,7 @@ def test_predict_qualifying_can_force_stored_checkpoint_profiles():
             patch.object(
                 qualifying_module,
                 "get_lineups",
-                lambda year, race_name: {"Team A": ["AAA"], "Team B": ["BBB"]},
+                lambda year, race_name, **_: {"Team A": ["AAA"], "Team B": ["BBB"]},
             )
         )
         stack.enter_context(
@@ -392,7 +415,7 @@ def test_predict_qualifying_stored_profiles_without_snapshot_stays_fallback_like
             patch.object(
                 qualifying_module,
                 "get_lineups",
-                lambda year, race_name: {"Team A": ["AAA"], "Team B": ["BBB"]},
+                lambda year, race_name, **_: {"Team A": ["AAA"], "Team B": ["BBB"]},
             )
         )
         stack.enter_context(

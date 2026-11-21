@@ -2,7 +2,9 @@
 Team Lineup Management - Race-by-Race
 
 Extracts actual lineups from session data (handles all corner cases automatically).
-Falls back to current_lineups.json for future predictions.
+Falls back to current_lineups.json for future predictions. For the current season the
+configured line-up takes the drivers entered in the latest session before the
+forecast's checkpoint, from FP2 on; FP1 lists rookies who drive only that session.
 """
 
 import json
@@ -11,7 +13,8 @@ from pathlib import Path
 
 import fastf1 as ff1
 
-from src.utils.driver_substitutions import apply_substitutions
+from src.utils.driver_substitutions import apply_substitutions, entry_list_swaps, swap_drivers
+from src.utils.team_mapping import map_team_to_characteristics
 
 logging.getLogger("fastf1").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
@@ -64,6 +67,71 @@ def get_lineups_from_session(
         return None
 
 
+# Sessions in weekend order. FP1 never sets the line-up: rookies replace race drivers in it.
+_WEEKEND_SESSIONS = ("FP1", "FP2", "FP3", "SQ", "Sprint", "Q")
+_ENTRY_LISTS: dict[tuple[int, str, str], list[tuple[str, str]]] = {}
+
+
+def _session_entry_list(year: int, race_name: str, session_name: str) -> list[tuple[str, str]]:
+    """Return (driver code, raw team name) for one session, FastF1 first, then OpenF1.
+
+    shortcut: a found list is cached for the process and a missing one is asked again,
+    so a session that never loads costs two lookups per call.
+    """
+    key = (int(year), str(race_name), session_name)
+    if key in _ENTRY_LISTS:
+        return _ENTRY_LISTS[key]
+    entered: list[tuple[str, str]] = []
+    try:
+        session = ff1.get_session(year, race_name, session_name)
+        session.load(laps=False, telemetry=False, weather=False, messages=False)
+        results = getattr(session, "results", None)
+        if results is not None and len(results):
+            entered = [
+                (str(code), str(team))
+                for code, team in zip(results["Abbreviation"], results["TeamName"], strict=True)
+                if str(code).strip() and str(team).strip()
+            ]
+    except Exception as exc:  # noqa: BLE001 - a missing entry list keeps the configured line-up
+        logger.info("No FastF1 entry list for %s %s %s: %s", year, race_name, session_name, exc)
+        entered = []
+    if not entered:
+        from src.data import openf1
+
+        try:
+            entered = openf1.fetch_entry_list(year, race_name, session_name)
+        except openf1.OpenF1Unavailable:
+            entered = []
+    if entered:
+        _ENTRY_LISTS[key] = entered
+    return entered
+
+
+def seat_entered_drivers(
+    lineups: dict[str, list[str]], *, year: int, race_name: str, checkpoint_session: str
+) -> dict[str, list[str]]:
+    """Seat the drivers entered in the latest session before the checkpoint, from FP2 on."""
+    checkpoint = str(checkpoint_session).strip().upper()
+    order = [session.upper() for session in _WEEKEND_SESSIONS]
+    if checkpoint not in order:
+        return lineups
+    for session_name in reversed(_WEEKEND_SESSIONS[1 : order.index(checkpoint) + 1]):
+        entered: dict[str, list[str]] = {}
+        for code, team in _session_entry_list(year, race_name, session_name):
+            mapped = map_team_to_characteristics(team, known_teams=set(lineups))
+            if mapped:
+                entered.setdefault(mapped, []).append(code.strip().upper())
+        if entered:
+            return swap_drivers(
+                lineups,
+                entry_list_swaps(lineups, entered),
+                source=f"{session_name} entry list",
+                race_name=race_name,
+                year=year,
+            )
+    return lineups
+
+
 def load_current_lineups(
     config_path: str = "data/current_lineups.json",
 ) -> dict[str, list[str]] | None:
@@ -98,11 +166,13 @@ def get_lineups(
     year: int,
     race_name: str | None = None,
     config_path: str = "data/current_lineups.json",
+    checkpoint_session: str | None = None,
 ) -> dict[str, list[str]]:
     """Return the best available lineup mapping for one season or event.
 
-    A race-scoped driver substitution (injury, a mid-season drop) is applied on top of
-    whichever source answered, so every caller sees one consistent lineup for that race.
+    With a checkpoint, a current-season line-up seats the drivers entered in the latest
+    session before it (``seat_entered_drivers``). A race-scoped driver substitution typed
+    in the admin page is applied last, so it overrides the entry list.
     """
     # For historical seasons with specific race, extract from data
     if year <= 2025 and race_name:
@@ -117,6 +187,13 @@ def get_lineups(
     current_lineups = load_current_lineups(config_path)
 
     if current_lineups:
+        if race_name and checkpoint_session:
+            current_lineups = seat_entered_drivers(
+                current_lineups,
+                year=year,
+                race_name=race_name,
+                checkpoint_session=checkpoint_session,
+            )
         return apply_substitutions(current_lineups, race_name=race_name, year=year)
 
     raise ValueError(

@@ -554,7 +554,7 @@ class BaselineQualifyingMixin:
         """Prepare one complete qualifying feature context before simulation."""
         cfg = getattr(self, "config", config_loader)
         is_sprint = is_sprint_weekend(year, race_name)
-        lineups = get_lineups(year, race_name)
+        lineups = get_lineups(year, race_name, checkpoint_session=checkpoint_session_name)
 
         normalized_practice_signal_mode = str(practice_signal_mode).strip().lower()
         if normalized_practice_signal_mode == "stored_profiles":

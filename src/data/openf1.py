@@ -233,6 +233,20 @@ def _driver_table(session_key: Any, *, map_team: bool = True) -> dict[int, tuple
     return table
 
 
+def fetch_entry_list(year: int, race_name: str, session_name: str) -> list[tuple[str, str]]:
+    """Return (driver code, raw team name) for every driver OpenF1 lists in one session.
+
+    Raises ``OpenF1Unavailable`` when the session or its drivers cannot be read.
+    """
+    session = find_session(year, race_name, session_name)
+    if session is None:
+        raise OpenF1Unavailable(f"no OpenF1 session for {year} {race_name} {session_name}")
+    drivers = _driver_table(session["session_key"], map_team=False)
+    if not drivers:
+        raise OpenF1Unavailable(f"OpenF1 has no drivers for {year} {race_name} {session_name}")
+    return sorted(drivers.values())
+
+
 def _classified_position(value: Any) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 

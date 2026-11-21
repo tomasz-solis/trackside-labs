@@ -121,26 +121,61 @@ def apply_substitutions(
     substitutions = load_configured_substitutions(
         race_name=race_name, year=year, cfg=cfg, store=store
     )
-    if not lineups or not substitutions:
+    return swap_drivers(
+        lineups, substitutions, source="driver substitutions", race_name=race_name, year=year
+    )
+
+
+def swap_drivers(
+    lineups: dict[str, list[str]],
+    swaps: dict[str, str],
+    *,
+    source: str,
+    race_name: str | None,
+    year: int | None,
+) -> dict[str, list[str]]:
+    """Apply one flat swap map in a single pass; a map that does not hold is logged and skipped."""
+    if not lineups or not swaps:
         return lineups
 
     try:
-        _validate_against_lineups(substitutions, lineups)
+        _validate_against_lineups(swaps, lineups)
     except ValueError as exc:
-        logger.warning("Ignoring driver substitutions for %s %s: %s", race_name, year, exc)
+        logger.warning("Ignoring %s for %s %s: %s", source, race_name, year, exc)
         return lineups
 
     swapped = {
-        team: [substitutions.get(str(driver).strip().upper(), driver) for driver in drivers]
+        team: [swaps.get(str(driver).strip().upper(), driver) for driver in drivers]
         for team, drivers in lineups.items()
     }
     logger.info(
-        "Applied driver substitutions for %s %s: %s",
+        "Applied %s for %s %s: %s",
+        source,
         race_name,
         year,
-        ", ".join(f"{out} -> {into}" for out, into in sorted(substitutions.items())),
+        ", ".join(f"{out} -> {into}" for out, into in sorted(swaps.items())),
     )
     return swapped
+
+
+def entry_list_swaps(
+    lineups: dict[str, list[str]], entered: dict[str, list[str]]
+) -> dict[str, str]:
+    """Swaps that seat each team's entered drivers, for the teams the entry list names.
+
+    Swaps happen only one for one: an extra entrant may only be running practice, and a
+    driver missing from the list with nobody in his place keeps his configured seat.
+    """
+    swaps: dict[str, str] = {}
+    for team, drivers in lineups.items():
+        names = entered.get(team)
+        if not names:
+            continue
+        out = [driver for driver in drivers if driver not in names]
+        into = [driver for driver in names if driver not in drivers]
+        if len(out) == len(into):
+            swaps.update(zip(out, into, strict=True))
+    return swaps
 
 
 def _normalise(substitutions: dict[Any, Any]) -> dict[str, str]:

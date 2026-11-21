@@ -60,7 +60,9 @@ def render_driver_substitution_editor(
                 help=(
                     "One swap per line, driver out first: 'HAD > LAW'. Enter the whole "
                     "chain at once. Moving a driver up without freeing his seat is "
-                    "rejected."
+                    "rejected. From FP2 (sprint qualifying on a sprint weekend) the "
+                    "session entry list seats substitutes by itself; an entry here "
+                    "covers PRE and FP1 and overrides the entry list."
                 ),
             )
             submitted = st_module.form_submit_button("Save substitutions")

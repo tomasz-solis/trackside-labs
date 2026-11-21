@@ -94,3 +94,4 @@ uv run python scripts/compare_replay_arms.py --baseline <baseline> --seed-floor 
 2. Run the ablations with `scripts/evaluate_testing_team_seed_model.py`.
 3. Read the promotion gate and movement diagnostics together, then the audits.
 4. Promote the smallest set of components that passes on holdouts and live races.
+5. Before the push, write the rollback trigger in the ledger. After it, run `scripts/check_served_forecasts.py --race <next race> --model-version <new> --env-file .env.local` and roll back on a failure (example: ledger 2026-11-20).

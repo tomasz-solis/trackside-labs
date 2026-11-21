@@ -2299,6 +2299,25 @@ Reported, not decisive: sprint order confidence Brier 0.381 to 0.238 and 0.385 t
 
 Verdict: `noise`. The odds lean better on every score and both seeds and the order holds, but 17 weekends cannot resolve the gain. The switch stays off and the captions keep their warning. Row 29's own effect, measured here on qualifying: corr -0.0001 on both seeds, inside the floor. The next arm needs a baseline on today's code, since `C38_floor_off` predates O08 and row 29.
 
+## 2026-11-20: rollback trigger for the 3.9 push (plan row 18), fixed before the deploy
+
+Not a model change. The push replaces `398120d6` (3.7) with `1b508f9a` (3.9) on the web and the cron. Every check runs `scripts/check_served_forecasts.py --race "Qatar Grand Prix" --model-version 3.9 --env-file .env.local`, which reads the newest served payload per checkpoint and weather scenario.
+
+| When | What must hold |
+|---|---|
+| Within 2 hours of the deploy, before Friday 2026-11-27 | Qatar PRE passes in all three weather scenarios: model 3.9, positions 1 to N, three-letter codes, one field across sections, win and podium chances 0 to 100 that sum to 100 and 300 within 0.5 per driver, podium at least win, qualifying grid served by the ridge with `champion_position` |
+| After each Qatar checkpoint | The same checks pass |
+| Friday to Sunday | No failed cron run (row W) |
+| After the race | No target below 0 correlation (worse than a random order) at every checkpoint |
+
+Any failure before Friday: roll the web and cron back to the `398120d6` deploy in Render, then find the cause. A failure from Friday on is reported to Tomasz: a rollback is a deploy, and nothing deploys mid-weekend unless he decides.
+
+No accuracy threshold beyond that. One weekend cannot tell 3.9 from 3.7: live 2026 race correlation ran from 0.014 (Monaco FP3) to medians of 0.53 to 0.73 per checkpoint, while 3.9 moved replay race correlation by +0.007. No 2026 weekend was below 0 at every checkpoint; Monaco, the worst, stayed between 0.014 and 0.234.
+
+Checked on 3.7 on 2026-11-20: Las Vegas and São Paulo pass everything except the ridge, which 3.7 does not have. São Paulo FP3 and Q also served VER at 72% to win and 12% to finish on the podium, the podium smoothing removed in 3.9 (entry 2026-11-15); 3.9 counts both from the same ranked draws. Qatar PRE fails on model version and ridge until the push.
+
+A rollback loses no state. 3.9 adds `current_season_performance_rounds` beside each team's live form list; 3.7 leaves the key alone, and when it appends a score without a round 3.9 drops the rounds and weights by list order, as it already does for the unlabelled 2026 lists in production.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

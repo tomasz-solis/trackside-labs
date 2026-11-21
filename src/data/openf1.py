@@ -49,6 +49,10 @@ SESSION_NAMES = {
     "R": "Race",
 }
 _RACE_LIKE = {"R", "Sprint"}
+# Sessions whose classification comes from OpenF1 before FastF1. FastF1 builds a sprint
+# qualifying order from lap times and misses steward deletions: 2026 Miami ALB P14
+# (official P19), Singapore PER P22 (official P20). OpenF1 matched the official order at both.
+CLASSIFICATION_FIRST = frozenset({"SQ"})
 
 CompletionState = Literal["completed", "incomplete", "unknown"]
 

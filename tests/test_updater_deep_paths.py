@@ -1504,3 +1504,41 @@ def test_sprint_update_moves_race_and_qualifying_seconds_with_half_evidence(patc
     assert driver_payload["drivers"]["AAA"]["bayesian"]["race_rating_observations"] == 1
     assert driver_payload["drivers"]["AAA"]["bayesian"]["quali_rating_observations"] == 1
     assert evidence_scales == [0.5, 0.5]
+
+
+@pytest.mark.parametrize(
+    ("openf1_answer", "expected"),
+    [
+        (
+            [
+                {"driver": "HAM", "team": "Ferrari", "position": 1},
+                {"driver": "LEC", "team": "Ferrari", "position": 2},
+            ],
+            ["HAM", "LEC"],
+        ),
+        (updater.openf1.OpenF1TransportError("live session in progress"), ["LEC", "HAM"]),
+    ],
+)
+def test_sprint_qualifying_learns_from_the_openf1_classification_first(
+    patcher, tmp_path, openf1_answer, expected
+):
+    """FastF1 builds SQ from lap times and misses steward deletions (2026 Miami, Singapore)."""
+    patcher.chdir(tmp_path)
+    session = SimpleNamespace(
+        results=pd.DataFrame(
+            {"Abbreviation": ["LEC", "HAM"], "TeamName": ["Ferrari"] * 2, "Position": [1.0, 2.0]}
+        )
+    )
+    patcher.setattr(updater.fastf1.Cache, "configure", MagicMock())
+    patcher.setattr(updater.openf1_session, "get_session", lambda *_args, **_kwargs: session)
+
+    def fetch(*_args):
+        if isinstance(openf1_answer, Exception):
+            raise openf1_answer
+        return openf1_answer
+
+    patcher.setattr(updater.openf1, "fetch_session_results", fetch)
+
+    results, _ = updater.load_competitive_session(2026, "Miami Grand Prix", "SQ")
+
+    assert results["Abbreviation"].tolist() == expected

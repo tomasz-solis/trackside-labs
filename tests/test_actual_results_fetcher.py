@@ -328,3 +328,49 @@ def test_sprint_session_for_unknown_race_still_fetches():
         assert fetch_actual_session_results(2026, "Made Up Grand Prix", "Sprint") is None
 
     assert get_session.called
+
+
+def _sprint_qualifying_sources():
+    """FastF1 orders DRV1 to DRV20; OpenF1 has the reverse order."""
+    session = MagicMock()
+    session.results = pd.DataFrame(
+        {"Abbreviation": f"DRV{i}", "TeamName": "Scuderia Ferrari", "Position": i}
+        for i in range(1, 21)
+    )
+    openf1_rows = [
+        {"driver": f"DRV{i}", "team": "Ferrari", "position": 21 - i, "source": "openf1"}
+        for i in range(1, 21)
+    ]
+    return session, openf1_rows
+
+
+def test_sprint_qualifying_takes_the_openf1_classification_over_fastf1():
+    """Miami 2026: FastF1 built SQ from lap times and kept Albon's deleted laps (P14, official P19)."""
+    session, openf1_rows = _sprint_qualifying_sources()
+    with (
+        patch("src.data.actual_results_fetcher.fastf1.get_session", return_value=session),
+        patch(
+            "src.data.actual_results_fetcher.openf1.fetch_session_results",
+            return_value=openf1_rows,
+        ),
+    ):
+        results = fetch_actual_session_results(2026, "Miami Grand Prix", "SQ")
+
+    assert results is not None
+    assert [row["driver"] for row in results][:2] == ["DRV20", "DRV19"]
+    assert {row.get("source") for row in results} == {"openf1"}
+
+
+def test_sprint_qualifying_keeps_fastf1_when_openf1_is_closed():
+    session, _ = _sprint_qualifying_sources()
+    with (
+        patch("src.data.actual_results_fetcher.fastf1.get_session", return_value=session),
+        patch(
+            "src.data.actual_results_fetcher.openf1.fetch_session_results",
+            side_effect=openf1.OpenF1TransportError("live session in progress"),
+        ),
+    ):
+        results = fetch_actual_session_results(2026, "Miami Grand Prix", "SQ")
+
+    assert results is not None
+    assert [row["driver"] for row in results][:2] == ["DRV1", "DRV2"]

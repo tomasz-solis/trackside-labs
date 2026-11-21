@@ -219,7 +219,7 @@ def _openf1_fallback(
         logger.info("OpenF1 fallback for %s %s unavailable: %s", what, labels, exc)
         record_counter("openf1_fallback_failed_total", labels={**labels, "what": what})
         return None
-    logger.warning("FastF1 had no %s for %s; using OpenF1", what, labels)
+    logger.warning("Using OpenF1 %s for %s", what, labels)
     record_counter("openf1_fallback_used_total", labels={**labels, "what": what})
     grid.sort(key=lambda item: int(item["position"]))
     return grid
@@ -230,22 +230,26 @@ def fetch_actual_session_results(
 ) -> list[QualifyingGridEntry] | None:
     """Fetch actual results from competitive session (SQ, Sprint, Q, R).
 
-    FastF1 first. When it returns nothing, OpenF1 (``src.data.openf1``); those rows
+    FastF1 first, OpenF1 (``src.data.openf1``) when it returns nothing. Sprint
+    qualifying goes the other way (``openf1.CLASSIFICATION_FIRST``). OpenF1 rows
     carry ``source = "openf1"``.
     """
     if _sprint_session_on_conventional_weekend(year, race_name, session_name):
         # Expected absence, not a failure: skip FastF1 and its retries.
         logger.debug("No %s on conventional weekend %s %s", session_name, race_name, year)
         return None
-    grid = _fetch_fastf1_session_results(year, race_name, session_name)
-    if grid is not None:
-        return grid
-    return _openf1_fallback(
-        lambda: openf1.fetch_session_results(year, race_name, session_name),
-        what="results",
-        labels={"year": year, "race_name": race_name, "session_name": session_name},
-        min_entries=_MIN_COMPETITIVE_ENTRIES_BY_SESSION.get(str(session_name), 10),
-    )
+
+    def from_openf1() -> list[QualifyingGridEntry] | None:
+        return _openf1_fallback(
+            lambda: openf1.fetch_session_results(year, race_name, session_name),
+            what="results",
+            labels={"year": year, "race_name": race_name, "session_name": session_name},
+            min_entries=_MIN_COMPETITIVE_ENTRIES_BY_SESSION.get(str(session_name), 10),
+        )
+
+    if str(session_name).strip().upper() in openf1.CLASSIFICATION_FIRST:
+        return from_openf1() or _fetch_fastf1_session_results(year, race_name, session_name)
+    return _fetch_fastf1_session_results(year, race_name, session_name) or from_openf1()
 
 
 def _fetch_fastf1_session_results(

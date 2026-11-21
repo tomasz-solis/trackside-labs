@@ -299,7 +299,7 @@ def _openf1_results(year: int, race_name: str, session_name: str) -> pd.DataFram
         "openf1_fallback_used_total",
         labels={"year": year, "race_name": race_name, "session": session_name, "what": "results"},
     )
-    logger.warning("FastF1 had no %s %s %s results; using OpenF1", year, race_name, session_name)
+    logger.warning("Using OpenF1 %s %s %s results", year, race_name, session_name)
     return results
 
 
@@ -311,7 +311,8 @@ def load_competitive_session(
     """Load one competitive session and annotate the results table.
 
     Laps and weather come from OpenF1 when FastF1 has no laps, and results when
-    FastF1 has no finishing positions. Raises ``OpenF1Unavailable`` when neither has them.
+    FastF1 has no finishing positions. Sprint qualifying results come from OpenF1 first
+    (``openf1.CLASSIFICATION_FIRST``). Raises ``OpenF1Unavailable`` when neither has them.
     """
     logger.info("Loading %s %s %s results...", year, race_name, session_name)
 
@@ -323,6 +324,13 @@ def load_competitive_session(
     session = openf1_session.get_session(year, race_name, session_name, weather=True, messages=True)
 
     results = session.results.copy()
+    if str(session_name).strip().upper() in openf1.CLASSIFICATION_FIRST:
+        try:
+            results = _openf1_results(year, race_name, session_name)
+        except openf1.OpenF1Unavailable as exc:
+            logger.warning(
+                "No OpenF1 %s %s %s results, FastF1 serves: %s", year, race_name, session_name, exc
+            )
     if "Position" not in results.columns or results["Position"].isna().all():
         results = _openf1_results(year, race_name, session_name)
     results["race_name"] = race_name

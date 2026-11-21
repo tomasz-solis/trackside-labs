@@ -2318,6 +2318,14 @@ Checked on 3.7 on 2026-11-20: Las Vegas and São Paulo pass everything except th
 
 A rollback loses no state. 3.9 adds `current_season_performance_rounds` beside each team's live form list; 3.7 leaves the key alone, and when it appends a score without a round 3.9 drops the rounds and weights by list order, as it already does for the unlabelled 2026 lists in production.
 
+## 2026-11-20: sprint qualifying results from OpenF1 first (correctness fix)
+
+Not a model change on the replay. FastF1 builds a sprint qualifying order from lap times, and at 2 of 6 2026 sprint weekends it missed steward deletions: Miami had Albon P14 (official P19, his SQ2 laps deleted) and Singapore Pérez P22 (official P20). OpenF1's classification matched formula1.com at both, all positions. Production stored and learned from the FastF1 order; the replay already read OpenF1, because without an F1 TV login FastF1 has no sprint qualifying.
+
+Now `fetch_actual_session_results` and the updater's `load_competitive_session` take sprint qualifying from OpenF1 first and fall back to FastF1 when OpenF1 is closed (`openf1.CLASSIFICATION_FIRST`). No 2026 sprint weekend is left, so nothing served changes before 2027. Replay roots stay valid.
+
+The stored Miami and Singapore rows are still the FastF1 order. Against the official order the four scored sprint qualifying forecasts move by 0.09 to 0.18 MAE (Miami FP1 3.27 to 3.45, PRE 3.00 to 2.91; Singapore FP1 2.09 to 2.18, PRE 2.55 to 2.64). Open: correct them in place, or as a marked correction record once row 21 exists. The export of 2026-11-20 keeps the stored values either way.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

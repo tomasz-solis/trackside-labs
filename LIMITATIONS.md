@@ -28,7 +28,7 @@ Fix: a 2025 compound prior that fades as 2026 data arrives. The 2026 tyres diffe
 
 ## 5. Rookies and substitutes start conservative
 
-A driver with no 2026 history falls back to the team baseline with extra uncertainty, set by experience tier. That avoids wild forecasts but underrates an exceptional rookie for a few weekends. A mid-season substitute starts from the same fallback unless someone edits the driver file by hand.
+A driver with no 2026 history falls back to the team baseline with extra uncertainty, set by experience tier. That avoids wild forecasts but underrates an exceptional rookie for a few weekends. A mid-season substitute starts from the same fallback unless someone edits the driver file by hand. The line-up seats a substitute from the session entry list from FP2 on (sprint qualifying on a sprint weekend); before that, PRE and FP1 show the configured line-up unless the admin page names the swap, because FP1 lists rookies who drive only that session.
 
 Fix: a career prior built from all past seasons, pulled automatically by `scripts/extract_driver_characteristics.py`.
 
@@ -54,7 +54,7 @@ Each driver gets a p5 to p95 band with a 90% target. Since model 3.5 the learnin
 
 So the race and qualifying tables show a "Likely range" instead: the 25th to 75th percentile of past error around the shown position, as whole places that include it. It is about 4 to 7 places (fitted 2026-10-27, `docs/MODEL_LEDGER.md`). On the replay of 3.9 it holds 54% to 55% of Grand Prix results and 58% of qualifying and sprint results (ledger 2026-11-15). The captions give both numbers. The back of the Grand Prix field is the loose part: 7 places, holding 70%, because finishers there gain places when cars ahead retire. p5/p95 stays for evaluation.
 
-Production has no sprint residuals yet: the sprint history began after the last 2026 sprint, so live sprint bands stay unwidened until 20 sprint residuals exist.
+Production has no sprint residuals yet: the sprint history began after the last 2026 sprint, so live sprint bands stay unwidened until 20 sprint residuals exist. `scripts/rebuild_learning_state.py --sprint-only` rebuilds them from the 18 stored 2026 sprint forecasts without moving qualifying or race (plan row 25, not applied yet). The learning state is one store for every season, so 2027 starts from the same counts (2026-11-21: qualifying 1,135 and race 281, both at the 6-place cap; sprint 0). The 2027 opener is a sprint: its p5 to p95 is unwidened, and widening starts once its forecasts are learned. The shown Likely range comes from its own fitted table and is not affected.
 
 Fix: refit the likely range as races are added; give the back of the field its own treatment of retirements ahead.
 

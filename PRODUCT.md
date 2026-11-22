@@ -10,17 +10,21 @@ web
 
 ## Users
 
-F1 fans who want a credible, readable forecast for a race weekend without being data scientists. They come for a specific Grand Prix or sprint, check what the model expects and how sure it is, and leave.
+The creator first: an F1 fan who enjoys finding signals, building forecasts, reasoning with statistics and telling stories with data. An audience of one is enough. Second, analytically curious F1 fans. Traffic, followers and SEO do not set the roadmap; deep links, indexable pages and shareable graphics come built in, with no promotion work.
 
-The headline answer is plain and immediate. Depth is there on demand, and it is explained with the data, not asserted. One screen serves both the quick reader and the curious one.
+A visitor should leave with something specific to watch for, not just another ranking. The answer comes first; the evidence is one step away and shown with the data.
 
 ## Product purpose
 
-An independent F1 2026 prediction system. It forecasts qualifying and the race and updates after every session across the regulation reset. Launched around April 2026. The near-term goal is an audience: fans who come back each weekend because the forecasts have earned trust, with accuracy on the record all season.
+An autonomous, visual F1 performance-intelligence lab. About 60% of the interest is understanding performance: where a team or driver deviates from what was expected, where time is gained and lost, and what is observed versus what stays unknown. About 40% is forecasting: qualifying, sprint and race forecasts after every session, tested against what new evidence changed and scored on the record.
+
+The loop: what we expected, what could change our mind, what the new evidence shows, where the trade-off appears, what changes next, what happened. It runs unattended on ordinary weekends. Exceptional findings become optional research, never weekend tasks. Forecasts, constructor comparisons and the accuracy tracker stay fully working, secondary in navigation.
+
+Success is insight quality, forecast learning, clear visual evidence, reader understanding, autonomy and lasting curiosity. The full charter is `docs/TRACKSIDE_LABS_DIRECTION.md`.
 
 ## Positioning
 
-The F1 forecast that knows how much to trust each signal. In a reset year the hard part is weighting a stale baseline, hidden testing pace and noisy Friday practice. Every screen should show that the system is disciplined about what it believes and why.
+See where the usual picture of F1 performance may be incomplete, and see the evidence before the outcome is known. The gap from a recorded expectation is the starting point; a gain is shown with its cost; every forecast change is recorded and scored. When nothing passes the evidence bar, the site stays useful without inventing a surprise.
 
 ## Brand personality
 

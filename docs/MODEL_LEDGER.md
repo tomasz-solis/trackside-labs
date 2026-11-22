@@ -2326,6 +2326,97 @@ Now `fetch_actual_session_results` and the updater's `load_competitive_session` 
 
 The stored Miami and Singapore rows are still the FastF1 order. Against the official order the four scored sprint qualifying forecasts move by 0.09 to 0.18 MAE (Miami FP1 3.27 to 3.45, PRE 3.00 to 2.91; Singapore FP1 2.09 to 2.18, PRE 2.55 to 2.64). Open: correct them in place, or as a marked correction record once row 21 exists. The export of 2026-11-20 keeps the stored values either way.
 
+## 2026-11-21: 2027 prospective protocol, set on 2026-11-21 (plan row 23)
+
+Drafted by an agent; Tomasz set all five choices on 2026-11-21. In force from the first 2027 forecast. It fixes, before the first 2027 forecast, what counts as the record, what the champion is compared with and when a verdict is called. The 2026 numbers size it; they do not show that 2026 parameters carry into 2027.
+
+**What counts**
+
+1. Only `forecast_record` rows (migration 007). A weekend without rows is never scored later from another store.
+2. Per target, checkpoint and weather scenario, the scored row is the newest one issued before its information cutoff. The rows it `replaces` stay, unscored.
+3. The cron serves two scenarios, `dry` and `rain` (shown as wet); `mixed` was dropped on 2026-11-21. The scored scenario follows the target session by a fixed rule: `rain` when any driver set a timed lap on intermediate or wet tyres (FastF1 lap compounds, OpenF1 stints when FastF1 has none), otherwise `dry`. A session with neither source is scored `dry` and flagged. Nobody judges the weather after the race.
+4. Results are the official classification, from the result rows of row O07 (sprint qualifying from OpenF1 first, entry 2026-11-20). A corrected result is a new marked row; both scores are kept.
+
+**Champion**
+
+Frozen when the cron switches to 2027 (runbook step 2, plan row 26). Recorded in this entry at the freeze, not before: git commit, model version, and the `config/default.yaml` and learning-state hashes after the 2027 seed, as `get_artifact_versions` reports them. Today that would be 3.9.
+
+A later change becomes champion only through the measurement protocol above (replay arm, seed floor, verdict), deploys between weekends and is followed by `scripts/check_served_forecasts.py`. Every row carries its model version. A new champion starts its own verdict from its first scored weekend; a change never rewrites an earlier row.
+
+**Compared with**
+
+The naive forecast: the most recent official result of the same kind issued before the forecast's information cutoff. Qualifying and sprint qualifying compare with the last one-lap session (Q or SQ); the Grand Prix and the sprint with the last race (GP or sprint). Drivers missing from it follow in the champion's order, as in `previous_event_order`. The 2027 opener compares with the 2026 Abu Dhabi results (same regulations), so round 1 counts too.
+
+Why not the same target, as `previous_event_order` does: for the sprint race that is the previous sprint, often five weeks old. On the 3.9 replay it is the weaker baseline. Sprint race correlation, 5 weekends: champion 0.768, last sprint 0.681, last Grand Prix 0.752 (seed 42; seed 43 the same to 0.01). Against the last Grand Prix the champion's margin falls from +0.09 to +0.02. Sprint qualifying barely moves (last SQ 0.839, last Q 0.830, champion 0.883).
+
+Other challengers are reported, never decisive: their forecasts sit in the mutable `prediction` artifact, not in the record.
+
+**Metrics**
+
+Primary: Spearman correlation per checkpoint. A weekend's value is the mean over its scored checkpoints of champion minus naive. Secondary, reported: MAE in places, win and podium Brier.
+
+**Verdict, champion against naive, per target**
+
+Checked after every compared weekend from the 4th. A one-sample t-test of the weekend values so far against zero: `better` when p is 0.0082 or less and the mean is above zero, `worse` when p is 0.0082 or less and the mean is below zero. Until then the page and the report show the running margin and the weekend count, labelled provisional, from the first compared weekend. A season that ends without a verdict is `noise`. A verdict stands for that champion's season.
+
+The threshold keeps false verdicts at 5% per target per season with up to 24 looks: 60,000 simulated seasons with no difference, 4.8% with normal weekend values, 3.3% with heavy tails (t, 3 degrees of freedom). Using p below 0.05 at every look would give 24%. The same rule covers all four targets, sprint qualifying included, so no target needs sizing before its verdict.
+
+Sizing on the 3.9 replay (`C38_floor_off_s42` / `_s43`, naive = same target, 4,000 simulated seasons per row for the median):
+
+| Target | Weekends | Mean margin, seed 42 / 43 | sd | Verdict at weekend, replay order | Simulated median weekend |
+|---|---|---|---|---|---|
+| Qualifying | 16 | +0.088 / +0.085 | 0.093 | 15 / 15 | 10 |
+| Grand Prix | 16 | +0.216 / +0.214 | 0.139 | 9 / 9 | 6 |
+| Sprint qualifying | 5 | +0.062 / +0.065 | 0.082 | none in 5 | not sized |
+| Sprint race | 5 | +0.082 / +0.089 | 0.094 | none in 5 | not sized |
+
+Against the earlier draft (one look at 6 weekends) the rule is earlier on average and misses less: it reaches a verdict within the season in 97% of simulated seasons at the qualifying margin and 100% at the Grand Prix margin; one look at 6 reaches 47% and 86%. The replay's first weekends were weaker than its average, which is why the replay order lands later than the median.
+
+The live record holds the naive beside the champion on 4 weekends only (United States to Las Vegas, models 3.4 to 3.7): Grand Prix correlation 0.820 against 0.779. At a +0.04 Grand Prix margin, 18% of simulated seasons reach a verdict within 24 weekends; `noise` is then the expected result, not a failure. At the replay's Grand Prix margin even one single look at 3 weekends gives p = 0.11, so no verdict at that margin comes before the 4th or 5th weekend.
+
+**Coverage**
+
+Decisive: the Likely range, the band the page shows, which claims 50%. A weekend's value is the share of drivers whose result fell inside it, minus 0.50. `too narrow` when p is 0.0082 or less and the mean is below zero, with the same t-test and looks as the verdict. Covering more than 50% is not a failure: whole-place ranges held 54 to 60% on the replay (ledger 2026-11-15). A `too narrow` verdict refits that target's table with `scripts/fit_race_band_quantiles.py` on the 2027 record and deploys it between weekends.
+
+Reported, never decisive: p5 to p95 coverage against 90%, and the interval score (Gneiting and Raftery 2007; width plus a penalty for each miss) to compare versions.
+
+**A `worse` verdict**
+
+From the next weekend's PRE checkpoint, that target shows the naive forecast with the label "Model paused: it trailed repeating the last result over N weekends." The switch is a stored flag the cron reads, so it needs no deploy and never changes mid-weekend. The model keeps writing its forecasts to the record, unseen. The target returns only with a new champion that passes the measurement protocol; its verdict starts fresh. When the two models are equal, a false `worse` happens in under 2.5% of seasons per target.
+
+**Rollback**
+
+The 2026-11-20 trigger stays the only automatic rollback, and the `worse` switch the only automatic change to what is shown: `check_served_forecasts.py` after every deploy and checkpoint; a failure before a weekend rolls back to the previous deploy, from Friday on it goes to Tomasz.
+
+**Choices**
+
+| # | Choice | Set |
+|---|---|---|
+| 1 | Scored scenario | the observed one, by the tyre rule above; `mixed` dropped (Tomasz, 2026-11-21) |
+| 2 | When a verdict is called | after every compared weekend from the 4th, p of 0.0082 or less (Tomasz asked for the earliest valid one) |
+| 3 | Coverage | the shown Likely range, `too narrow` is decisive (Tomasz, 2026-11-21) |
+| 4 | A `worse` verdict | the target shows the naive forecast, labelled, until a new champion passes (Tomasz, 2026-11-21) |
+| 5 | Sprint qualifying | same verdict rule as the other targets (Tomasz asked for one that needs no later fix) |
+
+The opener's sprint p5 to p95 is unwidened while production holds 0 sprint residuals (`LIMITATIONS.md` section 8); Tomasz chose the sprint-only rebuild (`scripts/rebuild_learning_state.py --sprint-only`) on 2026-11-21, so this lifts once he applies it.
+
+## 2026-11-21: line-up from the session entry list (correctness fix, plan row 24)
+
+Not a model change. For the current season `get_lineups` read `data/current_lineups.json` plus swaps typed into the admin page. From FP2 on (sprint qualifying on a sprint weekend) it now seats the drivers entered in the latest session before the checkpoint: FastF1 first, OpenF1 when FastF1 has none. Swaps are one for one per team and go through the admin path (`swap_drivers`); an admin entry still applies last, so it overrides the list. PRE and FP1 keep the configured line-up: FP1 lists rookies who drive only that session.
+
+Every 2026 weekend through Las Vegas, read on 2026-11-21:
+
+| Round | Entry list seats | Stored admin entry |
+|---|---|---|
+| 12 Dutch | LAW at Red Bull, TSU at RB, HAD out | none: the admin editor came on 2026-09-02 (`801e4eaf`), after the weekend |
+| 13 Italian, 14 Spanish | the same chain | the same chain |
+| 19 Mexico City | HIR for OCO | the same |
+| 20 São Paulo, 21 Las Vegas | CAM for OCO | the same |
+
+The other 15 weekends do not change. HIR and CAM are in every session of their weekends, FP1 to the race, so they were race substitutes, not practice outings.
+
+Replay: the replay reads no stored admin entry, so roots built before this seat HAD at Red Bull and leave TSU out at rounds 12 to 14 at every checkpoint (`C38_floor_off_s42`, FP1 of all three). From now on those weekends are right from FP2; PRE and FP1 stay wrong in the replay. `C38_floor_off` and older roots therefore predate this fix at 3 weekends; a baseline rebuilt on today's code includes it.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

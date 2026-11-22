@@ -136,7 +136,7 @@ class DashboardPredictionPrecomputeConfig(StrictConfigModel):
 
     enabled: bool = True
     horizon_races: int = Field(default=3, ge=1)
-    weather_scenarios: list[str] = Field(default_factory=lambda: ["dry", "mixed", "rain"])
+    weather_scenarios: list[str] = Field(default_factory=lambda: ["dry", "rain"])
     max_file_entries: int = Field(default=2048, ge=1)
     qualifying_n_simulations: int = Field(default=300, ge=1)
     race_n_simulations: int = Field(default=300, ge=1)

@@ -146,7 +146,7 @@ dashboard:
   prediction_precompute:
     enabled: true
     horizon_races: 3
-    weather_scenarios: ["dry", "mixed", "rain"]
+    weather_scenarios: ["dry", "rain"]
     max_file_entries: 2048
     qualifying_n_simulations: 300
     race_n_simulations: 300

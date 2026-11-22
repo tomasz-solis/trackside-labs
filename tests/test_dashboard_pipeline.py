@@ -36,7 +36,7 @@ def _reset_prediction_cache(patcher):
         lambda: {
             "enabled": True,
             "horizon_races": 3,
-            "weather_scenarios": ["dry", "mixed", "rain"],
+            "weather_scenarios": ["dry", "rain"],
             "max_file_entries": 2048,
         },
     )

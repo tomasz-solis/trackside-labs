@@ -18,7 +18,7 @@ def get_prediction_precompute_settings(
     defaults: dict[str, Any] = {
         "enabled": True,
         "horizon_races": 3,
-        "weather_scenarios": ["dry", "mixed", "rain"],
+        "weather_scenarios": ["dry", "rain"],
         "max_file_entries": 2048,
     }
     try:
@@ -37,7 +37,7 @@ def get_prediction_precompute_settings(
     if not isinstance(weather_scenarios, list):
         settings["weather_scenarios"] = list(default_weather_scenarios)
     else:
-        valid_weather = {"dry", "mixed", "rain"}
+        valid_weather = set(default_weather_scenarios)
         normalized_weather = []
         for weather_option in weather_scenarios:
             normalized = str(weather_option).strip().lower()

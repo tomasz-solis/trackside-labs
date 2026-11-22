@@ -456,7 +456,7 @@ def filter_race_options_to_precomputed_horizon(
             year=year,
             race_names=planned_races,
             artifact_hash=artifact_hash,
-            weather_scenarios=list(settings.get("weather_scenarios", ["dry", "mixed", "rain"])),
+            weather_scenarios=list(settings.get("weather_scenarios", ["dry", "rain"])),
         )
         if ready_races:
             ready_set = set(ready_races)
@@ -576,7 +576,7 @@ def filter_race_options_to_precomputed_horizon(
             year=year,
             race_names=planned_races,
             artifact_hash=artifact_hash,
-            weather_scenarios=list(settings.get("weather_scenarios", ["dry", "mixed", "rain"])),
+            weather_scenarios=list(settings.get("weather_scenarios", ["dry", "rain"])),
         )
         if ready_races:
             ready_set = set(ready_races)

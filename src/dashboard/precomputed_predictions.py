@@ -28,7 +28,7 @@ _PRECOMPUTE_HORIZON_INDEX_FILE = resolve_repo_data_path(
 _STATE_NAMESPACE_PRECOMPUTE_HORIZON_INDEX = "prediction_precompute_horizon_index"
 _DEFAULT_MAX_FILE_ENTRIES = 2048
 _DEFAULT_PRECOMPUTE_HORIZON_RACES = 3
-_DEFAULT_WEATHER_SCENARIOS = ("dry", "mixed", "rain")
+_DEFAULT_WEATHER_SCENARIOS = ("dry", "rain")
 _STATE_ERRORS = (
     AttributeError,
     KeyError,
@@ -143,7 +143,7 @@ def get_prediction_precompute_config() -> dict[str, Any]:
         "dashboard.prediction_precompute.weather_scenarios",
         list(_DEFAULT_WEATHER_SCENARIOS),
     )
-    valid_weather = {"dry", "mixed", "rain"}
+    valid_weather = set(_DEFAULT_WEATHER_SCENARIOS)
     weather_scenarios: list[str] = []
     if isinstance(raw_weather, list):
         for item in raw_weather:

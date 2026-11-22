@@ -74,7 +74,7 @@ def test_run_warmup_precompute_cycle_is_idempotent(patcher):
         lambda: {
             "enabled": True,
             "horizon_races": 3,
-            "weather_scenarios": ["dry", "mixed", "rain"],
+            "weather_scenarios": ["dry", "rain"],
             "max_file_entries": 2048,
         },
     )
@@ -181,15 +181,15 @@ def test_run_warmup_precompute_cycle_is_idempotent(patcher):
 
     assert first.status == "success"
     assert first.base_generated == 1
-    assert first.predictions_generated == 3
+    assert first.predictions_generated == 2
     assert first.ready_races == ["Bahrain Grand Prix"]
     assert second.status == "success"
     assert second.base_reused == 1
-    assert second.predictions_reused == 3
+    assert second.predictions_reused == 2
     assert second.base_generated == 0
     assert second.predictions_generated == 0
     assert base_calls == {"compute": 1}
-    assert weather_calls == {"compute": 3}
+    assert weather_calls == {"compute": 2}
     assert len(horizon_calls) == 2
     assert horizon_calls[0]["race_boundaries"] == {"Bahrain Grand Prix": "boundary_sig"}
 
@@ -654,7 +654,7 @@ def test_run_warmup_precompute_cycle_returns_quickly_when_checkpoint_not_ready(p
         lambda: {
             "enabled": True,
             "horizon_races": 3,
-            "weather_scenarios": ["dry", "mixed", "rain"],
+            "weather_scenarios": ["dry", "rain"],
             "max_file_entries": 2048,
         },
     )
@@ -910,7 +910,7 @@ def test_run_warmup_precompute_cycle_dry_run_plans_without_writes(patcher):
         lambda: {
             "enabled": True,
             "horizon_races": 3,
-            "weather_scenarios": ["dry", "mixed", "rain"],
+            "weather_scenarios": ["dry", "rain"],
             "max_file_entries": 2048,
         },
     )
@@ -990,7 +990,7 @@ def test_run_warmup_precompute_cycle_dry_run_plans_without_writes(patcher):
     assert result.status == "dry_run"
     assert result.dry_run is True
     assert result.base_generated == 1
-    assert result.predictions_generated == 3
+    assert result.predictions_generated == 2
     assert result.ready_races == ["Bahrain Grand Prix"]
 
 
@@ -1213,7 +1213,7 @@ def test_run_warmup_precompute_cycle_returns_locked_when_another_worker_holds_lo
         lambda: {
             "enabled": True,
             "horizon_races": 3,
-            "weather_scenarios": ["dry", "mixed", "rain"],
+            "weather_scenarios": ["dry", "rain"],
             "max_file_entries": 2048,
         },
     )

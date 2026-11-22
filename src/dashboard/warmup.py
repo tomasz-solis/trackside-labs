@@ -74,7 +74,7 @@ _WARMUP_LOCK_KEY_PREFIX = "prediction_precompute_warmup"
 _WARMUP_LOCK_TTL_SECONDS = 5400
 _RENDER_CRON_LOCK_PREFIX = "render-cron:"
 _DEFAULT_HORIZON_RACES = 3
-_DEFAULT_WEATHER_SCENARIOS = ("dry", "mixed", "rain")
+_DEFAULT_WEATHER_SCENARIOS = ("dry", "rain")
 _VALID_WEATHER_SCENARIOS = frozenset(_DEFAULT_WEATHER_SCENARIOS)
 _WARMUP_ERRORS = (
     AttributeError,

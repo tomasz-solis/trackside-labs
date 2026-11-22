@@ -22,7 +22,7 @@ Exit code 0 means success, nothing to do, or checkpoint not ready. Anything else
 1. Picks the next race as the anchor and builds a 3-race horizon.
 2. Checks which checkpoints have real session data. Normal weekend: PRE, FP1, FP2, FP3, Q. Sprint weekend: PRE, FP1, SQ, Sprint, Q.
 3. If the expected data is not ready, writes a small status and exits.
-4. Otherwise, for each race: computes the base features once, then only the missing weather scenarios (`dry`, `mixed`, `rain`). Each race uses its own checkpoint key.
+4. Otherwise, for each race: computes the base features once, then only the missing weather scenarios (`dry`, `rain`). Each race uses its own checkpoint key.
 5. Takes a database lock so two workers do not overlap.
 6. Updates the horizon index (`ready_races`) that filters the dropdown.
 7. Rebuilds accuracy snapshots for recently finished races.

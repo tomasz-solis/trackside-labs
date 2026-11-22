@@ -847,8 +847,9 @@ def render_live_prediction_page(enable_logging: bool) -> None:
     with control_col3:
         weather = st.selectbox(
             "Weather",
-            ["dry", "rain", "mixed"],
-            help="Assumed race-day conditions. Switch it to see how wet or mixed weather changes the forecast.",
+            ["dry", "rain"],
+            format_func=lambda option: "wet" if option == "rain" else option,
+            help="Assumed conditions. Switch it to see how a wet weekend changes the forecast.",
         )
     selected_race_prediction_available = False
 

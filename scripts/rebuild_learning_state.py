@@ -7,11 +7,15 @@ live path uses, and prints what was learned.
 
 Dry run by default. ``--apply`` saves the rebuilt state to the artifact store,
 which changes the next forecasts. Do not apply during a race weekend.
+
+``--sprint-only`` keeps the stored state and replaces only its sprint interval
+residuals with the rebuilt ones, so qualifying and race do not move.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import sys
 import tempfile
 from pathlib import Path
@@ -45,12 +49,36 @@ def rebuild(predictions: list[dict], state_file: Path) -> tuple[SystematicLearni
     return system, counts
 
 
+def with_rebuilt_sprint_history(stored: dict, rebuilt: dict) -> dict:
+    """Return a copy of the stored state whose sprint interval residuals are the rebuilt ones."""
+    state = copy.deepcopy(stored)
+    history = state.setdefault("adaptive_calibration", {}).setdefault(
+        "interval_residual_history", {}
+    )
+    history["sprint"] = copy.deepcopy(
+        rebuilt["adaptive_calibration"]["interval_residual_history"].get("sprint", [])
+    )
+    return state
+
+
+def _sample_counts(state: dict) -> dict[str, int]:
+    history = (state.get("adaptive_calibration") or {}).get("interval_residual_history") or {}
+    return {
+        session: len(history.get(session) or []) for session in ("qualifying", "race", "sprint")
+    }
+
+
 def main() -> int:
     """Rebuild the state, print a summary and optionally save it."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--year", type=int, default=2026)
     parser.add_argument("--env-file", type=Path, default=None)
     parser.add_argument("--apply", action="store_true", help="Save to the artifact store")
+    parser.add_argument(
+        "--sprint-only",
+        action="store_true",
+        help="Replace only the stored sprint interval residuals",
+    )
     args = parser.parse_args()
     if args.env_file is not None:
         load_env_file(args.env_file)
@@ -69,10 +97,20 @@ def main() -> int:
             f"learned radius {radius['learned_radius']:.1f}"
         )
 
+    state = system.state
+    if args.sprint_only:
+        stored = ArtifactStore().load_artifact(_ARTIFACT_TYPE, _ARTIFACT_KEY)
+        if not isinstance(stored, dict):
+            print(f"No stored {_ARTIFACT_TYPE}::{_ARTIFACT_KEY} to update. Nothing saved.")
+            return 1
+        state = with_rebuilt_sprint_history(stored, system.state)
+        print(f"Stored interval samples: {_sample_counts(stored)}")
+        print(f"After --sprint-only:     {_sample_counts(state)}")
+
     if not args.apply:
         print("Dry run. Nothing saved. Pass --apply to save.")
         return 0
-    ArtifactStore().save_artifact(_ARTIFACT_TYPE, _ARTIFACT_KEY, system.state)
+    ArtifactStore().save_artifact(_ARTIFACT_TYPE, _ARTIFACT_KEY, state)
     print(f"Saved {_ARTIFACT_TYPE}::{_ARTIFACT_KEY}.")
     return 0
 

@@ -2518,6 +2518,47 @@ What follows:
 2. 2027 keeps the 2026 rules. The rollover seed already carries 2026 car and driver state into 2027 (`1557e05f`); on the old-rules controls that is the right prior for the first races.
 3. Row 15: 2023 to 2025 teammate gaps are no better a 2026 driver prior than zero, so a re-seed with the car removed cannot lean on them.
 
+## 2026-11-22: race passes read tyre state; arm `C39_tyre_pass` with its rule fixed before results (open risk B2, correctness fix)
+
+The overtake score compares the two cars' base pace (`_get_traffic_overtake_effect` in `src/utils/lap_by_lap_simulator.py`). Their lap times also carry tyre wear and the fresh-tyre bonus, so a car lapping faster on fresher tyres scores no pace edge, fails the pass threshold and stays queued behind. The switch `baseline_predictor.race.overtake_pace_includes_tyres` (default off) adds this lap's wear and fresh-tyre bonus to the compared pace. Fuel is the same for every car on a lap and cancels.
+
+Sizing, `scripts/probe_tyre_offset_passes.py`: 16 dry 2026 races through Singapore (Canada and São Paulo wet; the United States, Mexico City and Las Vegas laps are not in the local cache). Close pair-laps: adjacent, 1.2 s or less apart at the start of the lap, both laps green, no pit stop by either car, from lap 3. 3,115 pair-laps, 371 passes. Pace is each driver's median green lap in that race. Intervals from a race bootstrap, 1,000 resamples.
+
+| Term in the pass odds | Worth, seconds of pace a lap | 95% interval |
+|---|---|---|
+| Follower on tyres 3+ laps fresher | 0.53 | 0.21 to 0.91 |
+| Follower on tyres 3+ laps older | 0.08 | -0.24 to 0.40 |
+| Each lap of offset, clipped to 10 | 0.042 | 0.012 to 0.083 |
+
+Held-out log loss (each race predicted from the others): pace and gap 0.2514, adding the offset 0.2502 (per lap) or 0.2495 (3+ laps).
+
+| Pass rate | Follower 0 to 0.3 s faster | 0.3 s or more faster |
+|---|---|---|
+| Tyres within 3 laps | 8.7% (462) | 20.5% (591) |
+| Follower 3+ laps fresher | 23.5% (81) | 46.7% (227) |
+
+The model's own deg slopes, 6 sampled 2026 races, are 0.035 to 0.081 s per lap of age, team deltas up to 0.017. That sits inside the measured price of a lap of offset, so the switch feeds existing lap-time terms into the pass score and adds no tuned constant.
+
+Mechanism check, not a verdict: today's live state, real grids, 8 dry races (Bahrain, Spanish, Hungarian, Italian, Singapore, Belgian, Austrian, Dutch), 300 simulations, switch off then on.
+
+- 62 of 176 served positions move. Mean move from the grid: 0.79 to 1.11 places; the races moved 2.57.
+- Race correlation with the result: 0.795 to 0.785, lower at 6 of 8 races. The state has seen these races, so this is in-sample.
+- The moves point weakly toward the result: sim median shift against the miss, corr +0.09. Grid 1 to 5 lose 0.75 places (sim median), grid 16 to 22 gain 0.50. By team the shift follows the measured deg delta: Ferrari +1.8 places, Haas -1.7.
+
+Why it can still lean worse: each draw picks strategies at random (strategy choice does not use pace, plan row 4), so the simulated tyre offsets are drawn, not predicted.
+
+Arm `C39_tyre_pass_s42` / `_s43`: today's code with the switch on, one line different (`data/historical_replay_arms/configs/C39_tyre_pass.yaml`). Baseline and seed floor: `C39_lineup_s42` / `_s43` (plan row 24) on the same commit, switch off. All four `--through-round 21`.
+
+Rule, fixed before results. The arm adds no layer and no tuned constant: one term changes source, like arm K (2026-10-02), which shipped on correctness.
+
+1. Health: every weekend learned and 0 forecasts off the clock, on all four roots.
+2. Isolation: main and sprint qualifying identical to `C39_lineup` at every checkpoint. The switch only touches the race simulation.
+3. Adopt as 3.10 on correctness when, on both seeds, none of these is `worse`: Grand Prix correlation, Grand Prix MAE, sprint correlation; and misses of 10+ do not rise on both seeds.
+4. Any of those `worse` on either seed: reject. The switch stays off and B2 waits for strategy choice from pace (plan row 4), when the offset is predicted rather than drawn.
+5. Step 1 or 2 fails: no verdict; fix the cause and rerun.
+
+Reported, not decisive: mean move from the grid against the races, p5 to p95 and likely-range coverage, Grand Prix win and podium Brier.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

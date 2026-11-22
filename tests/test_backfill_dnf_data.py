@@ -5,6 +5,16 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_event_writes(monkeypatch):
+    """backfill_store suspends event writes for the process; undo it after each test."""
+    from src.utils import operational_observability as obs
+
+    monkeypatch.setattr(obs, "_db_writes_disabled_until", obs._db_writes_disabled_until)
+
 
 def _load_backfill_module():
     script_path = Path(__file__).resolve().parents[1] / "scripts" / "backfill_dnf_data.py"
@@ -185,6 +195,102 @@ def test_backfill_store_exports_before_saving_and_skips_labelled(tmp_path):
     (saved,) = store.saved
     assert saved["artifact_key"] == "2026::Monaco Grand Prix::FP1"
     assert saved["data"]["actuals"]["targets"]["grand_prix_race"][0]["dnf"] is True
+
+
+def test_backfill_store_skips_races_without_results_and_writes_no_events(monkeypatch):
+    """A race not run yet is never fetched, and no fetch can write an operational event."""
+    from src.utils import operational_observability as obs
+
+    monkeypatch.setattr(obs, "_db_writes_disabled_until", 0.0)
+    monkeypatch.setattr(obs, "should_write_to_db", lambda: True)
+    inserts = []
+
+    class _Client:
+        def table(self, name):
+            inserts.append(name)
+            raise AssertionError("operational event written")
+
+    monkeypatch.setattr(obs, "get_supabase_client", _Client)
+    module = _load_backfill_module()
+    future = {
+        "data": {"metadata": {"year": 2026, "race_name": "Qatar Grand Prix", "session_name": "PRE"}}
+    }
+    store = _FakeStore([future, _stored("Monaco Grand Prix", "FP1")])
+    fetched = []
+
+    def fetch(year, race):
+        fetched.append(race)
+        obs.record_counter("fastf1_results_empty_total", labels={"race_name": race})
+        return {"R": [{"driver": "NOR", "dnf": True}], "Sprint": None}
+
+    module.backfill_store(
+        2026, logger_inst=_FakeLogger(store), fetch_fn=fetch, export_path=None, dry_run=True
+    )
+    assert fetched == ["Monaco Grand Prix"]
+    assert inserts == []
+
+
+def test_backfill_store_reports_and_refuses_a_flip(tmp_path, caplog):
+    """A stored flag the fetch disagrees with is a flip: counted, and the write stops."""
+    import pytest
+
+    module = _load_backfill_module()
+    store = _FakeStore([_stored("Monaco Grand Prix", "FP1", False)])
+
+    def fetch(year, race):
+        return {"R": [{"driver": "NOR", "dnf": True}], "Sprint": None}
+
+    def run(**kwargs):
+        return module.backfill_store(2026, logger_inst=_FakeLogger(store), fetch_fn=fetch, **kwargs)
+
+    with caplog.at_level("INFO", logger="backfill_dnf"):
+        assert run(export_path=None, dry_run=True) == 1
+    assert "0 Grand Prix, 0 sprint, 0 legacy race; 1 flips, nothing written" in caplog.text
+    export = tmp_path / "originals.json"
+    with pytest.raises(SystemExit, match="1 stored flag"):
+        run(export_path=export, dry_run=False)
+    assert store.saved == [] and not export.exists()
+
+
+def test_flag_changes_counts_added_flags_per_block():
+    module = _load_backfill_module()
+    original = {
+        "actuals": {
+            "race": [{"driver": "NOR"}, {"driver": "VER"}],
+            "targets": {"grand_prix_race": [{"driver": "NOR", "dnf": True}]},
+        }
+    }
+    updated = {
+        "actuals": {
+            "race": [{"driver": "NOR", "dnf": True}, {"driver": "VER", "dnf": False}],
+            "targets": {"grand_prix_race": [{"driver": "NOR", "dnf": True}]},
+        }
+    }
+    added, flips = module._flag_changes(original, updated)
+    assert added == {"race": 2, "grand_prix_race": 0, "sprint_race": 0}
+    assert flips == 0
+
+
+def test_backfill_store_keeps_the_stored_run_id(tmp_path):
+    """An actuals update stamps its own run_id column; the label write must not reset it."""
+    module = _load_backfill_module()
+    row = {**_stored("Monaco Grand Prix", "FP1"), "artifact_key": "2026::Monaco Grand Prix::FP1"}
+    row["run_id"] = "11111111-1111-1111-1111-111111111111"
+    store = _FakeStore([row])
+
+    def fetch(year, race):
+        return {"R": [{"driver": "NOR", "dnf": True}], "Sprint": None}
+
+    module.backfill_store(
+        2026,
+        logger_inst=_FakeLogger(store),
+        fetch_fn=fetch,
+        export_path=tmp_path / "originals.json",
+        dry_run=False,
+    )
+    (saved,) = store.saved
+    assert saved["run_id"] == "11111111-1111-1111-1111-111111111111"
+    assert saved["data"]["metadata"]["run_id"] == "r1"
 
 
 def test_backfill_store_refuses_file_mode():

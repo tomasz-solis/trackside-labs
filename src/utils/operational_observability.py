@@ -69,6 +69,12 @@ def _write_event(
         )
 
 
+def suspend_db_writes() -> None:
+    """Keep events in this process: a dry run or maintenance job must not write them."""
+    global _db_writes_disabled_until
+    _db_writes_disabled_until = float("inf")
+
+
 def record_counter(
     metric_name: str,
     amount: int = 1,

@@ -16,7 +16,9 @@ save bug; rows that already carry a probability are preserved.
 ``--store`` labels the stored predictions instead (production with
 ``--env-file .env.local``). It reads the ArtifactStore listing only, never local files,
 attaches DNF flags only, never refills probabilities or runs learning, and writes every
-original record it changes to ``--export`` before saving anything.
+original record it changes to ``--export`` before saving anything. It writes no
+operational events, skips races with no stored result, and stops if a stored flag
+would flip. Check the summary line of the dry run: it must say ``0 flips``.
 
 Usage:
   python scripts/backfill_dnf_data.py --year 2026
@@ -157,6 +159,36 @@ def _backfill_actuals(
     return labelled
 
 
+_ACTUAL_BLOCKS = ("race", *_RACE_LIKE_TARGETS)
+
+
+def _race_like_blocks(prediction: dict[str, Any]) -> dict[str, list[Any]]:
+    """The legacy race block and each race-like target block, empty when absent."""
+    actuals = prediction.get("actuals")
+    actuals = actuals if isinstance(actuals, dict) else {}
+    targets = actuals.get("targets")
+    targets = targets if isinstance(targets, dict) else {}
+    blocks = {"race": actuals.get("race"), **{key: targets.get(key) for key in _RACE_LIKE_TARGETS}}
+    return {name: rows if isinstance(rows, list) else [] for name, rows in blocks.items()}
+
+
+def _flag_changes(original: dict[str, Any], updated: dict[str, Any]) -> tuple[dict[str, int], int]:
+    """Flags added per block, and stored flags the update would flip."""
+    added = dict.fromkeys(_ACTUAL_BLOCKS, 0)
+    flips = 0
+    before, after = _race_like_blocks(original), _race_like_blocks(updated)
+    for name in _ACTUAL_BLOCKS:
+        # The merge never reorders rows, so rows pair by index.
+        for old, new in zip(before[name], after[name], strict=True):
+            if not isinstance(old, dict) or "dnf" not in new:
+                continue
+            if "dnf" not in old:
+                added[name] += 1
+            elif bool(old["dnf"]) != bool(new["dnf"]):
+                flips += 1
+    return added, flips
+
+
 def _build_grid(prediction: dict[str, Any]) -> list[dict[str, Any]]:
     """Build a starting grid for re-deriving DNF probabilities."""
     quali = (prediction.get("qualifying") or {}).get("predicted_grid") or []
@@ -255,41 +287,72 @@ def backfill_store(
     """Attach DNF flags to stored predictions. Returns how many records changed.
 
     Reads the ArtifactStore listing only: ``get_all_predictions`` also merges local
-    files, and saving a stale local copy would overwrite the stored record.
+    files, and saving a stale local copy would overwrite the stored record. Writes
+    prediction records only: operational events stay in this process, and a race
+    with no stored actuals yet is never fetched. Any stored flag that would flip
+    stops the write.
     """
+    from src.utils.operational_observability import suspend_db_writes
     from src.utils.prediction_logger import PredictionLogger
 
+    suspend_db_writes()
     store = logger_inst.artifact_store
     if getattr(store, "storage_mode", "file_only") == "file_only":
         raise SystemExit("--store needs USE_DB_STORAGE db_only or dual_write (--env-file)")
     rows = store.list_artifacts("prediction", key_prefix=f"{year}::", limit=4096)
+    # The stored run_id column can differ from the payload's (an actuals update stamps
+    # its own run); the write must change DNF flags only, so it keeps the stored one.
+    run_id_by_key = {row.get("artifact_key"): row.get("run_id") for row in rows}
     payloads = [logger_inst._prediction_payload_from_listing_row(row) for row in rows]
     predictions = logger_inst._deduplicate_predictions([p for p in payloads if p])
 
     fetched_by_race: dict[str, dict[str, list[dict[str, Any]] | None]] = {}
     changes: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    added_total = dict.fromkeys(_ACTUAL_BLOCKS, 0)
+    flips_total = 0
+    suffix = " (dry-run)" if dry_run else ""
     for prediction in predictions:
         metadata = prediction.get("metadata", {})
         race_name = str(metadata.get("race_name", "")).strip()
         session_name = str(metadata.get("session_name", "")).strip()
         if not race_name or not session_name:
             continue
+        if not any(_race_like_blocks(prediction).values()):
+            continue  # no result stored yet, so nothing to label
         if race_name not in fetched_by_race:
             fetched_by_race[race_name] = fetch_fn(year, race_name)
         updated = copy.deepcopy(prediction)
         labelled = _backfill_actuals(updated, fetched=fetched_by_race[race_name])
         if updated.get("actuals") != prediction.get("actuals"):
             changes.append((prediction, updated))
+            added, flips = _flag_changes(prediction, updated)
+            for name, count in added.items():
+                added_total[name] += count
+            flips_total += flips
             logger.info(
-                "%s %s: flags added, %s retirements%s",
+                "%s %s: %s flags added, %s flips, %s retirements%s",
                 race_name,
                 session_name,
+                sum(added.values()),
+                flips,
                 labelled,
-                " (dry-run)" if dry_run else "",
+                suffix,
             )
 
+    logger.info(
+        "Store backfill: %s record(s) change; flags added: %s Grand Prix, %s sprint, "
+        "%s legacy race; %s flips%s.",
+        len(changes),
+        added_total["grand_prix_race"],
+        added_total["sprint_race"],
+        added_total["race"],
+        flips_total,
+        ", nothing written" if dry_run else "",
+    )
     if dry_run or not changes:
         return len(changes)
+    if flips_total:
+        raise SystemExit(f"{flips_total} stored flag(s) would flip; nothing written")
     if export_path is None:
         raise SystemExit("--export <file> is required before --store writes anything")
     export_path.parent.mkdir(parents=True, exist_ok=True)
@@ -302,14 +365,15 @@ def backfill_store(
     for _, prediction in changes:
         metadata = prediction.setdefault("metadata", {})
         metadata["dnf_backfilled_at"] = stamp
+        artifact_key = PredictionLogger._artifact_key_for_prediction(
+            year, metadata["race_name"], metadata["session_name"]
+        )
         store.save_artifact(
             artifact_type="prediction",
-            artifact_key=PredictionLogger._artifact_key_for_prediction(
-                year, metadata["race_name"], metadata["session_name"]
-            ),
+            artifact_key=artifact_key,
             data=prediction,
             version=1,
-            run_id=metadata.get("run_id"),
+            run_id=run_id_by_key.get(artifact_key, metadata.get("run_id")),
         )
     return len(changes)
 
@@ -389,14 +453,12 @@ def main() -> None:
     if args.store:
         from src.utils.prediction_logger import PredictionLogger
 
-        changed = backfill_store(
+        backfill_store(
             args.year,
             logger_inst=PredictionLogger(),
             export_path=args.export,
             dry_run=args.dry_run,
         )
-        suffix = " (dry-run, nothing written)" if args.dry_run else ""
-        logger.info("Store backfill: %s record(s) changed%s.", changed, suffix)
         return
 
     year_dir = Path(args.predictions_dir) / str(args.year)

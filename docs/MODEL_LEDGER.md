@@ -2488,6 +2488,36 @@ The rain sensor (`classify_session_weather`: over 5% of weather samples with Rai
 |---|---|---|
 | 2 | When a verdict is called | after every compared weekend from the 4th: p of 0.0079 or less for Grand Prix and sprint margins, 4.9e-6 for qualifying and sprint qualifying margins and for coverage |
 
+## 2026-11-22: earlier seasons do not carry into 2026 qualifying (plan row CH, sizing, no arm)
+
+Sizing only, so no arm follows. `scripts/probe_history_carryover.py`, official qualifying times from FastF1, walk-forward. 2023 into 2024 and 2023 to 2024 into 2025 are the positive controls within one rule set; 2026 is the target. Every p is two-sided, 1,000 null draws.
+
+**Car x track** (Tomasz's idea, 2026-10-18). A team's residual at a circuit: its gap to the fastest team in % of pole, minus its car pace. Set against its mean residual at the same circuit in the history seasons. Null: its residual at another circuit.
+
+| Target, from | Team rows | Corr | Null 95th | p | Walk-forward R2 |
+|---|---|---|---|---|---|
+| 2024, from 2023 | 167 | +0.305 | 0.165 | <0.001 | +0.088 |
+| 2025, from 2023 and 2024 | 189 | -0.031 | 0.153 | 0.70 | -0.043 |
+| 2026, from 2023 to 2025 | 135 | +0.071 | 0.168 | 0.42 | -0.035 |
+
+It carried once in the old rules and failed the next year. Across the 2026 break it is noise and hurts as a predictor. The 2026 traits fit in the champion (R2 0.068, ledger 2026-10-18) stays the only car x track term. Not tested: pooling similar circuits by track profile, which needs 2023 to 2025 telemetry; with same-circuit history at noise it does not earn the build.
+
+**Driver.** A driver's teammate gap: best lap minus the team mean, % of pole. Candidates from history: the mean teammate gap (shrunk by 2 sessions of zero) and qualifying sessions entered. Benchmark: the earlier target-season gap, shrunk the same way, which the champion's driver term already holds.
+
+| Target | History gap corr, all / races 1 to 4 | Sessions entered corr | R2 earlier gap / with history as prior, all | Same, races 1 to 4 |
+|---|---|---|---|---|
+| 2024 | +0.400 / +0.440 | -0.111 (p 0.046) | 0.185 / 0.197 | 0.134 / 0.127 |
+| 2025 | +0.382 / +0.501 | -0.145 (p 0.027) | 0.267 / 0.287 | 0.150 / 0.266 |
+| 2026 | +0.154 (p 0.012) / +0.251 (p 0.24) | -0.051 (p 0.54) | 0.047 / 0.033 | -0.082 / -0.225 |
+
+Within one rule set a driver's history is a good prior, best before the season has data (2025, races 1 to 4: R2 0.150 to 0.266). Across the break it hurts: 2026 teammate gaps are far less predictable (R2 0.047 against 0.19 to 0.27) and the history prior lowers that further. Experience adds nothing in 2026.
+
+What follows:
+
+1. Row CH closes: neither part earns an arm for 2026.
+2. 2027 keeps the 2026 rules. The rollover seed already carries 2026 car and driver state into 2027 (`1557e05f`); on the old-rules controls that is the right prior for the first races.
+3. Row 15: 2023 to 2025 teammate gaps are no better a 2026 driver prior than zero, so a re-seed with the car removed cannot lean on them.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

@@ -122,6 +122,22 @@ def _rank(drivers_in_order: list[str], champion_rows: Rows) -> Rows:
     ]
 
 
+def order_by_result(champion_rows: Rows, result_rows: Rows) -> list[str]:
+    """The champion's drivers in a result's order; drivers missing from it follow in the
+    champion's order. Shared with the 2027 protocol's naive (``prospective_protocol``)."""
+    result = {
+        str(row["driver"]): int(row["position"])
+        for row in result_rows
+        if row.get("driver") and row.get("position") is not None
+    }
+    champion_order = [str(row["driver"]) for row in champion_rows]
+    champion_index = {driver: index for index, driver in enumerate(champion_order)}
+    return sorted(
+        champion_order,
+        key=lambda driver: (driver not in result, result.get(driver, 0), champion_index[driver]),
+    )
+
+
 def previous_event_order(ctx: ChallengerContext) -> dict[str, Rows]:
     """Naive baseline: repeat the previous event's actual order for the same target.
 
@@ -133,21 +149,7 @@ def previous_event_order(ctx: ChallengerContext) -> dict[str, Rows]:
         history = ctx.prior_actuals(target_key)
         if not history:
             continue
-        previous = {
-            str(row["driver"]): int(row["position"])
-            for row in history[-1]
-            if row.get("driver") and row.get("position") is not None
-        }
-        champion_order = [str(row["driver"]) for row in champion_rows]
-        ordered = sorted(
-            champion_order,
-            key=lambda driver: (
-                driver not in previous,
-                previous.get(driver, 0),
-                champion_order.index(driver),
-            ),
-        )
-        forecasts[target_key] = _rank(ordered, champion_rows)
+        forecasts[target_key] = _rank(order_by_result(champion_rows, history[-1]), champion_rows)
     return forecasts
 
 

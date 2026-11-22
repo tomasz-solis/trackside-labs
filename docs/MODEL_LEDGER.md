@@ -2417,6 +2417,77 @@ The other 15 weekends do not change. HIR and CAM are in every session of their w
 
 Replay: the replay reads no stored admin entry, so roots built before this seat HAD at Red Bull and leave TSU out at rounds 12 to 14 at every checkpoint (`C38_floor_off_s42`, FP1 of all three). From now on those weekends are right from FP2; PRE and FP1 stay wrong in the replay. `C38_floor_off` and older roots therefore predate this fix at 3 weekends; a baseline rebuilt on today's code includes it.
 
+## 2026-11-22: 2027 protocol thresholds corrected; naive and tyre rule checked (plan row 45)
+
+Drafted by an agent on 2026-11-22. Supersedes the threshold and the sizing of the 2026-11-21 protocol entry; its other rules stand. Choice 2 keeps its intent, the earliest valid verdict: 0.0082 is not valid on the series that drift.
+
+**Thresholds in force**
+
+| Series | Null | p at or below | False verdicts per series per season |
+|---|---|---|---|
+| Grand Prix and sprint margins | independent weekends | 0.0079 | 5.00% |
+| Qualifying and sprint qualifying margins | drifting: AR(1), autocorrelation 0.66 | 4.9e-6 | 4.99% |
+| Likely range coverage, every target | drifting | 4.9e-6 | 4.99% |
+
+`scripts/calibrate_protocol_threshold.py`, 400,000 simulated seasons per null, looks at weekends 4 to 24, champion and naive exchangeable. A false `worse` is half of each rate.
+
+Why it changed:
+
+1. 0.0082 came from 60,000 seasons. 1,000,000 give 5.17% at 0.0082 and 5.00% at 0.0079.
+2. The 2026 weekend series are not independent. A t-test that assumes they are calls false verdicts far above 5% when weekends drift: 17% at autocorrelation 0.3, 51% at 0.66. An alternating series only lowers it (0.27% at -0.7). Newey-West (lag 1) does not fix it: 39% at 0.6 and the same p.
+
+Lag-1 autocorrelation on the 3.9 replay, 16 or 17 weekends, seed 42 / 43 (16 independent values give -0.53 to +0.42, 95%):
+
+| Series | Raw | Linear trend removed |
+|---|---|---|
+| Grand Prix margin | -0.69 / -0.68 | -0.68 / -0.67 |
+| Qualifying margin | +0.61 / +0.57 | +0.46 / +0.41 |
+| Qualifying coverage | +0.41 / +0.38 | +0.43 / +0.39 |
+| Grand Prix coverage | +0.24 / +0.30 | +0.15 / +0.26 |
+
+The drifting null's 0.66 is the autocorrelation whose 16-weekend samples average 0.48, above the worst detrended series (0.46): a short series understates it. The qualifying trend (+0.010 a weekend, p = 0.04) is the champion's lead growing, so it belongs to the alternative, not the null. Both nulls are symmetric, as a margin is when champion and naive are exchangeable and coverage is at its 50% claim.
+
+Residual risk, false verdicts at 4.9e-6: 17.7% if 2027 weekends drift at 0.8; 16.6% at 0.66 with skewness 1.75, which is what the 2026 sample skewness (up to 0.84) implies if it were noise. A later first look for drifting series does not help (threshold 5.0e-6 from weekend 4, 6.3e-6 from weekend 12, same median verdict weekend), so every series starts at the 4th.
+
+**Sizing against the same-kind naive**
+
+`C38_floor_off_s42` / `_s43`, cutoffs from `compute_information_cutoff_at`. Simulated: 40,000 seasons at the seed 42 mean and sd, with the null's dependence (race targets also at -0.69), over the 2027 calendar: 24 Grands Prix, 10 sprint weekends.
+
+| Target | Weekends | Mean margin, s42 / s43 | sd | Replay verdict | Simulated: verdict in season, median weekend |
+|---|---|---|---|---|---|
+| Grand Prix | 16 | +0.209 / +0.207 | 0.144 | `better` at 10 / 10 | 100%, 7 |
+| Qualifying | 16 | +0.074 / +0.071 | 0.089 | none | 38%, 17 |
+| Sprint qualifying | 6 | +0.055 / +0.055 | 0.060 | none | 6%, 9 |
+| Sprint race | 6 | +0.043 / +0.048 | 0.151 | none | 2 to 6%, 6 to 7 |
+
+At half the Grand Prix margin (+0.105) a verdict comes in 81 to 86% of seasons, median weekend 13 to 14; at half the qualifying margin in 13%. Sprints report the provisional margin; a verdict there is not expected within a season.
+
+The same-kind naive is the stronger baseline: against the same-target naive of the 2026-11-21 sizing the qualifying margin falls from +0.088 to +0.074 and the sprint race from +0.082 to +0.043. The module's Spearman equals `compute_prediction_accuracy` at every replay checkpoint.
+
+Coverage gives no verdict on the replay: qualifying +0.085 / +0.090 (wider than claimed), Grand Prix +0.046 / +0.038. A range that covers 40% instead of 50% (sd 0.11) is called `too narrow` in 43% of seasons, median weekend 16.
+
+**Tyre rule on every scored 2026 session through Las Vegas**
+
+54 sessions, all 54 with compounds (FastF1, or OpenF1 stints). 5 are `rain`:
+
+| Round | Session | Laps on wet tyres | Drivers | Rain flag share |
+|---|---|---|---|---|
+| 5 Canada | Race | 14 | 7 | 0% |
+| 16 Bahrain | Race | 107 | 15 | 31% |
+| 17 Singapore | Sprint | 214 | 15 | 16% |
+| 20 São Paulo | Qualifying | 295 | 22 | 66% |
+| 20 São Paulo | Race | 494 | 21 | 4.4% |
+
+The rain sensor (`classify_session_weather`: over 5% of weather samples with Rainfall) gets 5 of 54 wrong. It calls Canada (a damp start, laps 1 to 3 on intermediates) and the São Paulo race dry, and the Dutch sprint (9%), qualifying (6%) and race (17%) not dry, though every timed lap there was on slicks. No 2026 session turned on one driver's gamble.
+
+**Built, not wired**
+
+`src/analysis/prospective_protocol.py` (naive, Spearman, coverage, weekend value, verdicts, the two nulls and their critical t; no scipy, so the cron can load it) and `src/data/session_conditions.py` (the tyre rule; it raises when OpenF1 cannot be reached, so nothing is scored from a guess). 14 deliberate breaks of the code each fail a test. Still to build (plan row 45, after O07 writes result rows live): scoring each weekend into the record, the provisional label on the page and the stored `worse` flag.
+
+| # | Choice | Set |
+|---|---|---|
+| 2 | When a verdict is called | after every compared weekend from the 4th: p of 0.0079 or less for Grand Prix and sprint margins, 4.9e-6 for qualifying and sprint qualifying margins and for coverage |
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

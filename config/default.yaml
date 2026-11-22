@@ -580,6 +580,11 @@ baseline_predictor:
     # times, where the car ahead had already run this lap, so every gap clamped to 0.
     # On since 3.1: accuracy-neutral, fixes the bug.
     overtake_gap_from_lap_start: true
+    # Compare pass pace including this lap's tyre wear and fresh-tyre bonus. Off reads
+    # base pace only, so a car on fresh tyres never gets its offset in a pass (B2).
+    # 2026 passes price a lap of offset at 0.042 s; the model's slopes are 0.035 to
+    # 0.081 (ledger 2026-11-22). Off until arm C39_tyre_pass decides.
+    overtake_pace_includes_tyres: false
     # Centre the driver lap-time terms (race rating, skill, elite bonus, race
     # advantage) within each team. Measured worse alone (race corr -0.0085,
     # MODEL_LEDGER 2026-10-02). Off; re-test only after team strength is fixed.

@@ -466,6 +466,7 @@ def simulate_race_lap_by_lap(
     _lap_time_bounds = _lt_cfg.get("bounds", [70.0, 120.0])
 
     overtake_gap_from_lap_start = bool(race_params.get("overtake_gap_from_lap_start", False))
+    overtake_pace_includes_tyres = bool(race_params.get("overtake_pace_includes_tyres", False))
 
     # Per-lap retirement chance. p / N per lap only retires ~1 - e^-p of drivers over
     # the race (9% short at p 0.2); the hazard form delivers p exactly.
@@ -587,9 +588,6 @@ def simulate_race_lap_by_lap(
                 reference_base - team_pace_delta_s - driver_lap_bonus[driver] + wet_skill_delta
             )
 
-            # Cache base pace (used for overtake opportunity modeling)
-            state["base_pace"] = base_lap_time
-
             tire_deg_slope = info["tire_deg_by_compound"].get(compound, 0.15)
 
             # Adjust deg slope for traffic/dirty air
@@ -613,6 +611,13 @@ def simulate_race_lap_by_lap(
                 compound=compound,
                 laps_on_tire=int(laps_on_tire),
                 track_temp=track_temperature_c,
+            )
+
+            # The pace the overtake model compares. Tyre offset is what makes most passes
+            # (B2, ledger 2026-11-22), so with the switch on it carries this lap's wear and
+            # fresh-tyre bonus. Fuel is the same for every car on a lap and cancels.
+            state["base_pace"] = base_lap_time + (
+                tire_deg_delta - fresh_tire_bonus if overtake_pace_includes_tyres else 0.0
             )
 
             fuel_delta = calculate_fuel_delta(

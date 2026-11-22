@@ -959,6 +959,7 @@ class BaselineRaceConfig(StrictConfigModel):
     track_pass_cap_enabled: bool = Field(default=True)
     dnf_per_lap_hazard: bool = Field(default=False)
     overtake_gap_from_lap_start: bool = Field(default=False)
+    overtake_pace_includes_tyres: bool = Field(default=False)
     center_driver_lap_terms_by_team: bool = Field(default=False)
     sprint_distance_scaling: bool = Field(default=False)
     track_trait_adjustment: bool = Field(default=False)

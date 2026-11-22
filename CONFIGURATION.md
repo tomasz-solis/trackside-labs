@@ -32,7 +32,7 @@ Current values live in `config/default.yaml`. This page lists where to look, not
 | Learned driver and teammate shift (off since 3.6) | `learning.max_adjustment` (0 is off; 3.5 used 2.5) |
 | Tyre compound choice | `baseline_predictor.compound_selection.*_threshold`, `default_stress_fallback` |
 | Race randomness | `baseline_predictor.race.base_chaos.*`, `lap1_chaos.*`, `teammate_variance_std`, `track_chaos_multiplier` |
-| Overtaking | `baseline_predictor.race.overtake_model.*`, `overtaking_transition.*`, `grid_weight_*`, `overtaking_skill_multiplier`, `final_blend.*`, `track_pass_cap_enabled` (A/B switch, on by default), `overtake_gap_from_lap_start` (on since 3.1) |
+| Overtaking | `baseline_predictor.race.overtake_model.*`, `overtaking_transition.*`, `grid_weight_*`, `overtaking_skill_multiplier`, `final_blend.*`, `track_pass_cap_enabled` (A/B switch, on by default), `overtake_gap_from_lap_start` (on since 3.1), `overtake_pace_includes_tyres` (pass pace with tyre state, off until arm `C39_tyre_pass`) |
 | Finish order and DNF draw | `baseline_predictor.race.finish_order_sort` (`median_rank` since 3.1), `dnf_per_lap_hazard` (off) |
 | Retirements | `baseline_predictor.race.dnf_*` |
 | Dashboard "Likely range" band | `baseline_predictor.race.likely_range.race`, `.sprint`, `.qualifying` (q25/q75 around the shown position, by position bucket, fitted by `scripts/fit_race_band_quantiles.py`) |

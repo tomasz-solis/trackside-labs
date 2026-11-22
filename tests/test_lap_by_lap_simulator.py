@@ -558,3 +558,45 @@ def test_elite_skill_lap_bonus_improves_finishing_position():
     )
 
     assert result["finish_order"][0] == "B"
+
+
+def _tyre_offset_race(pace_includes_tyres: bool) -> list[str]:
+    """A on hard tyres that wear 0.3 s a lap leads B, equal in every other way."""
+    race_params = _base_race_params()
+    race_params["overtake_pace_includes_tyres"] = pace_includes_tyres
+    race_params["overtake_model"]["pass_probability_base"] = 1.0
+    for scale in ("skill_scale", "race_adv_scale", "track_ease_scale"):
+        race_params["overtake_model"][scale] = 0.0
+    car = {
+        "dnf_probability": 0.0,
+        "team_strength": 0.60,
+        "team_strength_by_compound": {"HARD": 0.60, "MEDIUM": 0.60},
+        "skill": 0.80,
+        "race_advantage": 0.0,
+        "overtaking_skill": 0.50,
+        "defensive_skill": 0.50,
+    }
+    driver_info_map = {
+        "A": {**car, "grid_pos": 1, "tire_deg_by_compound": {"HARD": 0.3}},
+        "B": {**car, "grid_pos": 2, "tire_deg_by_compound": {"MEDIUM": 0.0}},
+    }
+    strategies = {"A": {**_strategy(), "compound_sequence": ["HARD"]}, "B": _strategy()}
+    result = simulate_race_lap_by_lap(
+        driver_info_map=driver_info_map,
+        strategies=strategies,
+        race_params=race_params,
+        race_distance=8,
+        weather="dry",
+        rng=np.random.default_rng(3),
+    )
+    return result["finish_order"]
+
+
+def test_pass_pace_carries_tyre_state_only_with_the_switch():
+    """B2: B laps up to 2 s faster on fresher tyres but has A's base pace.
+
+    Off, the pass score sees no pace difference and B stays queued behind A.
+    On, the tyre offset enters the pass score and B gets by.
+    """
+    assert _tyre_offset_race(pace_includes_tyres=False) == ["A", "B"]
+    assert _tyre_offset_race(pace_includes_tyres=True) == ["B", "A"]

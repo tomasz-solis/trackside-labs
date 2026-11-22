@@ -62,6 +62,9 @@ class BaselineRaceParamsMixin:
             "overtake_gap_from_lap_start": bool(
                 cfg.get("baseline_predictor.race.overtake_gap_from_lap_start", False)
             ),
+            "overtake_pace_includes_tyres": bool(
+                cfg.get("baseline_predictor.race.overtake_pace_includes_tyres", False)
+            ),
             "center_driver_lap_terms_by_team": bool(
                 cfg.get("baseline_predictor.race.center_driver_lap_terms_by_team", False)
             ),

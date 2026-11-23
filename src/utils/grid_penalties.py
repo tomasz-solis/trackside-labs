@@ -98,13 +98,20 @@ def save_penalties(
     year: int,
     penalties: dict[str, Any],
     store: Any = None,
+    known_drivers: set[str] | None = None,
 ) -> dict[str, Any]:
-    """Persist one race's penalties to the runtime store, validating them first."""
+    """Persist one race's penalties to the runtime store, validating them first.
+
+    ``known_drivers`` is the race's line-up. A code outside it is refused here, where
+    the admin sees the error (Las Vegas 2026: "BER" for BEA froze the forecast at FP2).
+    """
     cleaned: dict[str, Any] = {}
     for driver, penalty in penalties.items():
         code = str(driver).strip().upper()
         if not code:
             raise ValueError("Grid penalty driver code cannot be empty")
+        if known_drivers is not None and code not in known_drivers:
+            raise ValueError(f"{code} is not in the {race_name} line-up: {sorted(known_drivers)}")
         _places_dropped(penalty)  # Reject a malformed value before it reaches the store.
         cleaned[code] = penalty if isinstance(penalty, int) else str(penalty).strip().lower()
 
@@ -158,7 +165,18 @@ def apply_grid_penalties(
     drops = {code: _places_dropped(penalty) for code, penalty in raw_by_code.items()}
     unknown = sorted(drops.keys() - {str(row["driver"]).strip().upper() for row in grid})
     if unknown:
-        raise ValueError(f"Grid penalties name drivers who are not on the grid: {unknown}")
+        # A driver who is not on the grid has no slot to lose. Raising here stopped every
+        # Las Vegas 2026 forecast after FP2 over one mistyped code, so skip it and alert.
+        from src.utils.operational_observability import record_alert
+
+        record_alert(
+            "grid_penalty_unknown_driver",
+            f"Grid penalties for {race_name} name drivers who are not on the grid: {unknown}",
+            labels={"race_name": str(race_name), "drivers": ",".join(unknown)},
+        )
+        drops = {code: drop for code, drop in drops.items() if code not in unknown}
+        if not drops:
+            return PenalisedGrid(grid, [])
 
     # The stewards do not re-sort the classification by "position + places". They take the
     # penalised cars out, let everyone behind close up, and put each penalised car back in

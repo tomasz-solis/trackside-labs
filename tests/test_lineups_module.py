@@ -201,3 +201,28 @@ def test_an_entry_list_comes_from_openf1_when_fastf1_fails_and_is_cached(patcher
 
     assert first == second == [("BEA", "Haas F1 Team"), ("CAM", "Haas F1 Team")]
     assert calls == ["fastf1", "openf1"]
+
+
+def test_an_entry_list_with_a_missing_code_goes_to_openf1_and_is_not_cached(patcher):
+    """One São Paulo 2026 Q load named Câmara "nan"; that must never take a seat."""
+    import math
+
+    class _Session:
+        results = {
+            "Abbreviation": ["BEA", math.nan],
+            "TeamName": ["Haas F1 Team", "Haas F1 Team"],
+        }
+
+        def load(self, **kwargs):
+            return None
+
+    answers = {"openf1": [("BEA", "Haas F1 Team"), ("CAM", "Haas F1 Team")]}
+    patcher.setattr(lineups.ff1, "get_session", lambda *args: _Session())
+    patcher.setattr("src.data.openf1.fetch_entry_list", lambda *args: answers["openf1"])
+    patcher.setattr(lineups, "_ENTRY_LISTS", {})
+
+    assert lineups._session_entry_list(2026, "Qatar Grand Prix", "FP2") == answers["openf1"]
+
+    answers["openf1"] = [("BEA", "Haas F1 Team"), ("51", "Haas F1 Team")]
+    assert lineups._session_entry_list(2026, "Qatar Grand Prix", "FP3") == []
+    assert (2026, "Qatar Grand Prix", "FP3") not in lineups._ENTRY_LISTS

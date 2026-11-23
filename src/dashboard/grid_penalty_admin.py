@@ -121,13 +121,30 @@ def _save(
     updated = dict(stored)
     updated[code] = str(penalty).strip()
     try:
-        save_penalties(race_name=race_name, year=year, penalties=updated)
+        save_penalties(
+            race_name=race_name,
+            year=year,
+            penalties=updated,
+            known_drivers=_race_drivers(year, race_name),
+        )
     except (ValueError, RuntimeError) as exc:
         st_module.error(f"Could not save the penalty: {exc}")
         return
 
     st_module.success(f"Saved {code} {str(penalty).strip()} for {race_name}.")
     st_module.rerun()
+
+
+def _race_drivers(year: int, race_name: str) -> set[str] | None:
+    """The race's line-up as served from qualifying on; ``None`` when it cannot be read."""
+    from src.utils.lineups import get_lineups
+
+    try:
+        lineups = get_lineups(year, race_name, checkpoint_session="Q")
+    except Exception as exc:  # noqa: BLE001 - an unreadable line-up must not block a save
+        logger.warning("Could not read the %s %s line-up: %s", year, race_name, exc)
+        return None
+    return {str(code).strip().upper() for drivers in lineups.values() for code in drivers}
 
 
 def _clear(*, race_name: str, year: int, st_module: Any) -> None:

@@ -53,6 +53,7 @@ from src.persistence.config import should_read_db_first, should_write_to_db
 from src.persistence.runtime_state_store import RuntimeStateStore
 from src.utils.accuracy_targets import legacy_target_keys_for_prediction, weekend_format_name
 from src.utils.model_version import get_model_version
+from src.utils.operational_observability import record_alert
 from src.utils.prediction_logger import PredictionLogger
 from src.utils.race_input_confidence import cap_predicted_main_race_input_confidence
 from src.utils.session_detector import SessionDetector
@@ -872,6 +873,16 @@ def _resolve_race_checkpoint(
     return target_boundary_signature, target_checkpoint
 
 
+def _alert_race_failed(race_name: str, checkpoint: str, message: str) -> None:
+    """Alert on a race the run could not compute: the site keeps the last forecast."""
+    record_alert(
+        "warmup_race_failed",
+        f"Warmup could not compute {race_name} at {checkpoint}; the last forecast stays served: "
+        f"{message}",
+        labels={"race_name": race_name, "checkpoint": checkpoint},
+    )
+
+
 def _ensure_base_features(
     ctx: _WarmupRunState,
     target_race: str,
@@ -946,6 +957,7 @@ def _ensure_base_features(
         error_message = f"{target_race} [base_features]: {exc}"
         ctx.summary.errors.append(error_message)
         logger.warning("Warmup base-feature compute failed: %s", error_message)
+        _alert_race_failed(target_race, target_checkpoint, error_message)
         return None
 
 
@@ -975,6 +987,20 @@ def _process_weather_scenario(
         ctx.summary.predictions_reused += 1
         ctx.race_weather_coverage.setdefault(target_race, set()).add(target_weather)
         prediction_results = persisted
+        if not ctx.dry_run:
+            # A record write that failed when this payload was computed gets another try
+            # every run until the cutoff; an identical record is skipped by the writer.
+            record_served_forecast(
+                year=ctx.year,
+                race_name=target_race,
+                checkpoint=target_checkpoint,
+                weather=target_weather,
+                is_sprint=target_is_sprint,
+                prediction_results=prediction_results,
+                boundary_signature=target_boundary_signature,
+                artifact_hash=ctx.artifact_hash,
+                artifact_versions=ctx.artifact_versions,
+            )
     elif ctx.dry_run:
         ctx.summary.predictions_generated += 1
         ctx.race_weather_coverage.setdefault(target_race, set()).add(target_weather)
@@ -1035,6 +1061,7 @@ def _process_weather_scenario(
             error_message = f"{target_race} [{target_weather}]: {exc}"
             ctx.summary.errors.append(error_message)
             logger.warning("Warmup weather precompute failed: %s", error_message)
+            _alert_race_failed(target_race, target_checkpoint, error_message)
             return
 
     try:

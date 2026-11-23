@@ -9,6 +9,7 @@ forecast's checkpoint, from FP2 on; FP1 lists rookies who drive only that sessio
 
 import json
 import logging
+import re
 from pathlib import Path
 
 import fastf1 as ff1
@@ -95,16 +96,35 @@ def _session_entry_list(year: int, race_name: str, session_name: str) -> list[tu
     except Exception as exc:  # noqa: BLE001 - a missing entry list keeps the configured line-up
         logger.info("No FastF1 entry list for %s %s %s: %s", year, race_name, session_name, exc)
         entered = []
-    if not entered:
+    if not _valid_entry_list(entered, "FastF1", key):
         from src.data import openf1
 
         try:
             entered = openf1.fetch_entry_list(year, race_name, session_name)
         except openf1.OpenF1Unavailable:
             entered = []
+        if not _valid_entry_list(entered, "OpenF1", key):
+            entered = []
     if entered:
         _ENTRY_LISTS[key] = entered
     return entered
+
+
+def _valid_entry_list(entered: list[tuple[str, str]], source: str, key: tuple) -> bool:
+    """True when every driver has a three-letter code.
+
+    One FastF1 load of São Paulo 2026 Q named Câmara "nan" (ledger 2026-11-20). A list
+    with such a row would seat "NAN" in his place, so the whole list is refused.
+    """
+    # No upper-casing first: "nan" would pass as "NAN".
+    bad = [
+        code
+        for code, _ in entered
+        if not re.fullmatch(r"[A-Z]{3}", str(code).strip()) or str(code).strip() == "NAN"
+    ]
+    if bad:
+        logger.warning("Refusing the %s entry list for %s: bad driver codes %s", source, key, bad)
+    return bool(entered) and not bad
 
 
 def seat_entered_drivers(

@@ -1174,11 +1174,15 @@ def test_run_warmup_precompute_cycle_backfills_prediction_logger_from_reused_pre
     patcher.setattr(warmup, "save_precomputed_base_features", lambda **kwargs: None)
     patcher.setattr(warmup, "save_precomputed_prediction", lambda **kwargs: None)
     patcher.setattr(warmup, "save_precompute_horizon_index", lambda **kwargs: None)
+    recorded: list[dict[str, object]] = []
+    patcher.setattr(warmup, "record_served_forecast", lambda **kwargs: recorded.append(kwargs))
 
     result = warmup.run_warmup_precompute_cycle(2026, now_utc=fixed_now)
 
     assert result.status == "success"
     assert result.predictions_reused == 1
+    # A reused payload is offered to the forecast record too, so a failed write is retried.
+    assert [(r["checkpoint"], r["weather"]) for r in recorded] == [("FP1", "dry")]
     assert len(saved_predictions) == 1
     assert saved_predictions[0]["session_name"] == "FP1"
     assert saved_predictions[0]["metadata"]["source"] == "warmup_precompute"
@@ -1751,3 +1755,34 @@ def test_cron_imports_load_neither_streamlit_nor_scipy():
         cwd=Path(__file__).resolve().parents[1],
     )
     assert result.stdout.strip().splitlines()[-1] == "[]"
+
+
+def test_a_race_that_cannot_be_computed_raises_an_alert(patcher):
+    """Las Vegas 2026 failed every run after FP2 as a quiet partial_success."""
+    from types import SimpleNamespace
+
+    alerts: list[tuple[str, dict]] = []
+    patcher.setattr(warmup, "record_alert", lambda name, message, **kw: alerts.append((name, kw)))
+    patcher.setattr(warmup, "load_precomputed_base_features", lambda **kwargs: None)
+
+    def fails(*args, **kwargs):
+        raise ValueError("Grid penalties name drivers who are not on the grid: ['BER']")
+
+    patcher.setattr(warmup, "compute_base_features", fails)
+    ctx = SimpleNamespace(
+        year=2026,
+        artifact_hash="h",
+        dry_run=False,
+        summary=SimpleNamespace(errors=[], base_reused=0, base_generated=0),
+    )
+
+    assert (
+        warmup._ensure_base_features(ctx, "Las Vegas Grand Prix", False, "FP3", "sig", object())
+        is None
+    )
+    assert ctx.summary.errors and alerts == [
+        (
+            "warmup_race_failed",
+            {"labels": {"race_name": "Las Vegas Grand Prix", "checkpoint": "FP3"}},
+        )
+    ]

@@ -2559,6 +2559,23 @@ Rule, fixed before results. The arm adds no layer and no tuned constant: one ter
 
 Reported, not decisive: mean move from the grid against the races, p5 to p95 and likely-range coverage, Grand Prix win and podium Brier.
 
+## 2026-11-23: serving fixes before the Qatar push (correctness fixes, no model change)
+
+Las Vegas 2026 served its FP2 forecast through FP3, qualifying and the race. An admin penalty for `BER` (BEA mistyped) made `apply_grid_penalties` raise in every cron run from 2026-11-21 00:11 UTC. Each run logged `partial_success` and raised no alert. Six fixes, each with a test that fails without it:
+
+| Fix | Before | After |
+|---|---|---|
+| Penalty save (admin) | any code stored | a code outside the race line-up is refused with an error |
+| Penalty apply | unknown code raised, race not computed | unknown code skipped, `grid_penalty_unknown_driver` alert, other penalties apply |
+| Race not computed | warning in the log only | `warmup_race_failed` alert |
+| Entry-list line-up | a FastF1 `NaN` code would be seated as `NAN` (one São Paulo 2026 Q load named CAM `nan`, ledger 2026-11-20) | a list with any code that is not three capital letters is refused, OpenF1 tried, a bad list never cached |
+| OpenF1 results | a part-published classification was renumbered from 1 | positions must run 1 to k, else `OpenF1Unavailable` |
+| Forecast record | written only when the payload was computed | also offered on a reused payload; the writer skips identical content |
+
+`check_served_forecasts.py` now also fails when a payload has no starting grid or qualifying grid, PRE is not served, or a served checkpoint lacks one of `dashboard.prediction_precompute.weather_scenarios` (dry and rain; the 2026-11-20 rule said three scenarios before `c22a848a`).
+
+No replay needed. The replay reads no admin penalty: its store is file-only under the replay root and `config/default.yaml` has no `grid.penalties`. The entry-list check changes a line-up only when a code is malformed; the local FastF1 cache has all 22 codes at São Paulo and Las Vegas, FP2 to R, checked 2026-11-23.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

@@ -272,6 +272,11 @@ def fetch_session_results(year: int, race_name: str, session_name: str) -> list[
         (row for row in results if _classified_position(row.get("position")) is not None),
         key=lambda row: int(row["position"]),
     )
+    if [int(row["position"]) for row in classified] != list(range(1, len(classified) + 1)):
+        # A part-published classification (P2 to P19 only) would renumber P2 as the winner.
+        raise OpenF1Unavailable(
+            f"OpenF1 classification for {year} {race_name} {session_name} has gaps"
+        )
     unclassified = sorted(
         (row for row in results if _classified_position(row.get("position")) is None),
         key=lambda row: -int(row.get("number_of_laps") or 0),

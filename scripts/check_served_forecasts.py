@@ -12,6 +12,8 @@ on any problem:
 - a win or podium chance is outside 0 to 100, below the driver's win chance, or the
   chances do not sum to 100 and 300 within whole-percent rounding (0.5 per driver)
 - a forecast qualifying grid was not served by the ridge with ``champion_position``
+- a payload has no starting grid or qualifying grid, PRE is not served, or a served
+  checkpoint lacks one of the configured weather scenarios
 
 After the race it also reads the accuracy snapshots: a target whose correlation is
 below 0 (worse than a random order) at every scored checkpoint fails.
@@ -68,10 +70,12 @@ def payload_problems(state: dict[str, Any], model_version: str) -> list[str]:
         ("starting grid", race.get("starting_grid")),
         ("qualifying grid", qualifying.get("grid")),
     ):
-        if rows:
-            problems += _order_problems(label, rows)
-            if {row.get("driver") for row in rows} != field:
-                problems.append(f"{label}: drivers differ from the race finish order")
+        if not rows:
+            problems.append(f"no {label}")
+            continue
+        problems += _order_problems(label, rows)
+        if {row.get("driver") for row in rows} != field:
+            problems.append(f"{label}: drivers differ from the race finish order")
 
     win = [row.get("win_probability") for row in finish]
     podium = [row.get("podium_probability") for row in finish]
@@ -93,6 +97,22 @@ def payload_problems(state: dict[str, Any], model_version: str) -> list[str]:
             problems.append("qualifying grid not served by the ridge")
         elif any("champion_position" not in row for row in grid):
             problems.append("ridge grid rows lack champion_position")
+    return problems
+
+
+def coverage_problems(payloads: list[dict[str, Any]], weathers: list[str]) -> list[str]:
+    """Every served checkpoint needs every weather scenario, and PRE must be served."""
+    served: dict[str, set[str]] = defaultdict(set)
+    for row in payloads:
+        state = row["state"]
+        served[str((state.get("metadata") or {}).get("boundary_session_name"))].add(
+            str(state.get("weather"))
+        )
+    problems = [] if "PRE" in served else ["no PRE payload"]
+    for checkpoint, present in sorted(served.items()):
+        missing = sorted(set(weathers) - present)
+        if missing:
+            problems.append(f"{checkpoint}: no {', '.join(missing)} scenario")
     return problems
 
 
@@ -186,6 +206,15 @@ def main() -> int:
         problems = payload_problems(state, args.model_version)
         failed = failed or bool(problems)
         print(f"{'FAIL' if problems else 'ok'} {label}" + "".join(f"\n  {p}" for p in problems))
+    from src.utils import config_loader
+
+    weathers = list(config_loader.get("dashboard.prediction_precompute.weather_scenarios", []))
+    problems = coverage_problems(payloads, weathers)
+    failed = failed or bool(problems)
+    print(
+        f"{'FAIL' if problems else 'ok'} coverage: {', '.join(weathers)} at every checkpoint"
+        + "".join(f"\n  {p}" for p in problems)
+    )
     snapshots = _accuracy_snapshots(client, args.year, args.race)
     problems = accuracy_problems(snapshots)
     failed = failed or bool(problems)

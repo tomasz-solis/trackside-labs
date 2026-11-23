@@ -348,3 +348,13 @@ def test_detector_stays_unknown_when_openf1_is_off():
         SessionDetector, "_compute_session_completion_state", side_effect=RuntimeError("401")
     ):
         assert detector.get_session_completion_state(2026, "Bahrain Grand Prix", "R") == "unknown"
+
+
+def test_a_part_published_classification_is_refused():
+    # P1 and P20 to P22 not published yet: renumbering would make P2 the winner.
+    partial = [{"driver_number": n, "position": n, "number_of_laps": 12} for n in range(2, 20)]
+    with (
+        patch.object(openf1, "_get", _fake_get({21: partial})),
+        pytest.raises(openf1.OpenF1Unavailable, match="gaps"),
+    ):
+        openf1.fetch_session_results(2026, "Bahrain Grand Prix", "Q")

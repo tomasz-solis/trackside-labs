@@ -31,7 +31,7 @@ def _payload() -> dict:
         "metadata": {"model_version": "3.9", "boundary_session_name": "PRE"},
         "weather": "dry",
         "prediction_results": {
-            "race": {"finish_order": finish},
+            "race": {"finish_order": finish, "starting_grid": copy.deepcopy(grid)},
             "qualifying": {"grid": grid, "qualifying_order_source": "qualifying_ridge"},
         },
     }
@@ -103,3 +103,21 @@ def test_accuracy_fails_only_when_every_checkpoint_is_below_zero():
     assert module.accuracy_problems(all_bad) == [
         "grand_prix_race: correlation below 0 at all 2 checkpoints"
     ]
+
+
+def test_missing_grids_and_missing_coverage_fail():
+    module = _load_module()
+    no_grids = _payload()
+    del no_grids["prediction_results"]["qualifying"]["grid"]
+    assert "no qualifying grid" in module.payload_problems(no_grids, "3.9")
+    no_start = _payload()
+    del no_start["prediction_results"]["race"]["starting_grid"]
+    assert "no starting grid" in module.payload_problems(no_start, "3.9")
+
+    def row(checkpoint, weather):
+        return {"state": {"metadata": {"boundary_session_name": checkpoint}, "weather": weather}}
+
+    full = [row("PRE", "dry"), row("PRE", "rain"), row("FP1", "dry"), row("FP1", "rain")]
+    assert module.coverage_problems(full, ["dry", "rain"]) == []
+    assert module.coverage_problems(full[:3], ["dry", "rain"]) == ["FP1: no rain scenario"]
+    assert module.coverage_problems(full[2:], ["dry", "rain"]) == ["no PRE payload"]

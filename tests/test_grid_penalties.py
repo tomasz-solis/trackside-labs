@@ -115,11 +115,60 @@ def test_other_races_and_an_empty_config_leave_the_grid_untouched():
     assert apply_grid_penalties(grid, race_name="Italian Grand Prix", cfg=_Cfg({})).grid is grid
 
 
-def test_a_penalty_for_a_driver_who_is_not_on_the_grid_fails_closed():
-    cfg = _Cfg({"Italian Grand Prix": {"HAM": 5}})
+def test_a_penalty_for_a_driver_who_is_not_on_the_grid_is_skipped_with_an_alert(monkeypatch):
+    # Las Vegas 2026: "BER" (for BEA) raised here and froze every forecast after FP2.
+    from src.utils import operational_observability as obs
 
-    with pytest.raises(ValueError, match="not on the grid"):
-        apply_grid_penalties(_grid("VER", "ANT"), race_name="Italian Grand Prix", cfg=cfg)
+    alerts = []
+    monkeypatch.setattr(obs, "record_alert", lambda name, message, **kw: alerts.append(name))
+    cfg = _Cfg({"Italian Grand Prix": {"BER": "back", "VER": 5}})
+
+    result = apply_grid_penalties(
+        _grid("VER", "ANT", "LEC", "HAM", "NOR", "PIA", "RUS"),
+        race_name="Italian Grand Prix",
+        cfg=cfg,
+    )
+
+    assert [row["driver"] for row in result.grid] == [
+        "ANT",
+        "LEC",
+        "HAM",
+        "NOR",
+        "PIA",
+        "VER",
+        "RUS",
+    ]
+    assert [applied.driver for applied in result.applied] == ["VER"]
+    assert alerts == ["grid_penalty_unknown_driver"]
+    only_unknown = _Cfg({"Italian Grand Prix": {"BER": 5}})
+    grid = _grid("VER", "ANT")
+    assert apply_grid_penalties(grid, race_name="Italian Grand Prix", cfg=only_unknown).grid is grid
+
+
+def test_saving_a_penalty_for_a_driver_outside_the_line_up_is_refused():
+    class _Store:
+        saved = []
+
+        def save_artifact(self, **kwargs):
+            self.saved.append(kwargs)
+
+    store = _Store()
+    with pytest.raises(ValueError, match="BER is not in the Las Vegas Grand Prix line-up"):
+        save_penalties(
+            race_name="Las Vegas Grand Prix",
+            year=2026,
+            penalties={"BER": "back"},
+            store=store,
+            known_drivers={"BEA", "CAM", "VER"},
+        )
+    save_penalties(
+        race_name="Las Vegas Grand Prix",
+        year=2026,
+        penalties={"bea": "back"},
+        store=store,
+        known_drivers={"BEA", "CAM", "VER"},
+    )
+    assert [s["data"]["penalties"] for s in store.saved] == [{"BEA": "back"}]
 
 
 def test_a_malformed_penalty_fails_closed():

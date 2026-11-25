@@ -2592,6 +2592,21 @@ A Codex review of the Qatar push rated four bugs "fix before 2027". Each fix has
 
 No replay needed. The replay has no admin swap (`grid.substitutions: {}`, no stored substitution in the replay roots, checked 2026-11-24), so its line-ups do not change. The late-session rule lives in the cron's update flow, the naive scores 2027 only, and the guard only refuses to start.
 
+## 2026-11-25: ridge form counts every earlier result; checker skips dropped scenarios (correctness fixes, no model change)
+
+Live Qatar PRE put teammates side by side for 9 of 11 teams. Real 2026 qualifying did it for 37% of pairs over 17 rounds (1 to 8 of 11 per weekend); replay PRE forecasts for 42 to 45%.
+
+Cause: the ridge built recent form (`drv_q_mean3`, `team_q_mean3`, `drv_vs_mate_q`) only from weekends with a saved last pre-qualifying forecast. Live has none for Japan, Mexico City (FP3 lost to the OCO to HIR swap) and Las Vegas (frozen at FP2 by the `BER` penalty), so Qatar's form came from Singapore, the US and São Paulo. Rebuilt read-only from production, the old code gives the served order exactly; the fixed code gives 5 of 11.
+
+| Fix | Before | After |
+|---|---|---|
+| Ridge recent form | weekends with an FP3 (sprint: SQ) forecast only | every earlier weekend with a qualifying result; a training row still needs the forecast |
+| `check_served_forecasts.py` | a stored row of a dropped weather scenario failed the check (Qatar's 3.7 `mixed` PRE of 2026-11-23) | listed as `skip`; only `dashboard.prediction_precompute.weather_scenarios` is checked |
+
+No replay change: a complete replay saves the training forecast at every weekend (`C38_floor_off_s42`: 17 of 17), so old and new form are the same there. The void `*_cachegap` C39 roots miss some through their missing sessions; check the C39 reruns before their verdict. The lap-time challengers share the skip; they are shadow-only and left as is.
+
+Open for 2027, found the same day: live never captures Q or R car snapshots. `SessionDetector` lists FP1 to FP3 (sprint: FP1, SQ, Sprint), while the capture has expected Q and R since `6989c6a9` (2026-03-11). Live state stops before Q at every weekend since Japan; the replay captures both. Every replay verdict so far measured a system that learns from Q and R, and live does not. Tomasz, 2026-11-25: fix for 2027.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

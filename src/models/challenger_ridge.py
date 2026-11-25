@@ -187,13 +187,30 @@ def _training_events(ctx: Any) -> list[tuple[str, dict[str, Any], list[dict[str,
     return events
 
 
+def _earlier_events(ctx: Any) -> list[tuple[str, dict[str, Any] | None, list[dict[str, Any]]]]:
+    """Earlier events with a qualifying result, in order, as (race, forecast or None, actual).
+
+    An event without a saved last pre-qualifying forecast still counts for recent form; it
+    only gives no training row. Live 2026 lost three (Japan, Mexico City, Las Vegas), and
+    skipping their results built Qatar's form from Singapore, the US and São Paulo.
+    """
+    training = {race: (forecast, actual) for race, forecast, actual in _training_events(ctx)}
+    events: dict[str, tuple[str, dict[str, Any] | None, list[dict[str, Any]]]] = {}
+    for prediction in ctx.prior_predictions():
+        race = str(prediction.get("metadata", {}).get("race_name", ""))
+        actual = ((prediction.get("actuals") or {}).get("targets") or {}).get(TARGET)
+        if race and actual and race not in events:
+            events[race] = (race, *training.get(race, (None, actual)))
+    return list(events.values())
+
+
 def qualifying_ridge(ctx: Any) -> dict[str, list[dict[str, Any]]]:
     """Forecast main qualifying with a ridge refitted on earlier events."""
     champion_rows = ctx.champion_targets.get(TARGET)
     if not champion_rows:
         return {}
-    events = _training_events(ctx)
-    if len(events) < MIN_TRAINING_EVENTS:
+    events = _earlier_events(ctx)
+    if sum(forecast is not None for _, forecast, _ in events) < MIN_TRAINING_EVENTS:
         return {}
     snapshots = _Snapshots(ctx.predictor, ctx.year)
     quali_gaps = _quali_gaps(ctx.predictor, ctx.year)
@@ -201,19 +218,20 @@ def qualifying_ridge(ctx: Any) -> dict[str, list[dict[str, Any]]]:
     frames: list[pd.DataFrame] = []
     prior: list[tuple[str, dict[str, int], dict[str, str]]] = []
     for race, prediction, actual_rows in events:
-        rows = (prediction.get("targets") or {}).get(TARGET, {}).get("predicted_order") or []
-        fmt = str(prediction.get("metadata", {}).get("weekend_format", "normal"))
-        checkpoint = _LAST_PRE_QUALIFYING.get(fmt, "FP3")
-        frame = _feature_rows(
-            race=race,
-            champion_rows=rows,
-            prior=prior,
-            practice=snapshots.load(race, _VISIBLE_SESSIONS[checkpoint]),
-            quali_gaps=quali_gaps,
-        )
         actual = _order(actual_rows)
-        frame["y"] = frame["driver"].map(actual)
-        frames.append(frame)
+        if prediction is not None:
+            rows = (prediction.get("targets") or {}).get(TARGET, {}).get("predicted_order") or []
+            fmt = str(prediction.get("metadata", {}).get("weekend_format", "normal"))
+            checkpoint = _LAST_PRE_QUALIFYING.get(fmt, "FP3")
+            frame = _feature_rows(
+                race=race,
+                champion_rows=rows,
+                prior=prior,
+                practice=snapshots.load(race, _VISIBLE_SESSIONS[checkpoint]),
+                quali_gaps=quali_gaps,
+            )
+            frame["y"] = frame["driver"].map(actual)
+            frames.append(frame)
         prior.append((race, actual, _teams(actual_rows)))
 
     train = pd.concat(frames, ignore_index=True).dropna(subset=["y"])

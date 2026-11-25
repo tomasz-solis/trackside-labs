@@ -121,3 +121,5 @@ def test_missing_grids_and_missing_coverage_fail():
     assert module.coverage_problems(full, ["dry", "rain"]) == []
     assert module.coverage_problems(full[:3], ["dry", "rain"]) == ["FP1: no rain scenario"]
     assert module.coverage_problems(full[2:], ["dry", "rain"]) == ["no PRE payload"]
+    # Qatar 2026 still stores a 3.7 "mixed" PRE from before the scenario was dropped.
+    assert module.served_rows([*full, row("PRE", "mixed")], ["dry", "rain"]) == full

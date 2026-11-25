@@ -309,6 +309,29 @@ def test_ridge_reads_no_practice_at_pre(monkeypatch):
     assert not [key for key in store.loaded if "Monaco" in key]
 
 
+def test_ridge_recent_form_counts_a_race_without_a_last_practice_forecast(monkeypatch):
+    """Live 2026 saved no FP3 forecast at three weekends; their results still feed form."""
+    current, history, predictor, _ = _ridge_ctx(monkeypatch, "Monaco Grand Prix", "PRE", 4)
+
+    def scores(extra):
+        result = run_challengers(
+            current,
+            historical_predictions=history + extra,
+            predictor=predictor,
+            names=["qualifying_ridge"],
+        )
+        rows = result["qualifying_ridge"]["targets"]["main_qualifying"]["predicted_order"]
+        return {row["driver"]: row["score"] for row in rows}
+
+    canada = _ridge_prediction(
+        "Canadian Grand Prix", "FP1", _rows(*DRIVERS), _rows(*reversed(DRIVERS))
+    )
+    assert scores([canada]) != scores([])
+    # A result already counted through its FP3 forecast is counted once.
+    japan_fp1 = _ridge_prediction("Japanese Grand Prix", "FP1", _rows(*DRIVERS), _rows(*DRIVERS))
+    assert scores([japan_fp1]) == scores([])
+
+
 # --- ridge order served (model 3.8) ------------------------------------------------------
 
 

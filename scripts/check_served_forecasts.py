@@ -100,6 +100,11 @@ def payload_problems(state: dict[str, Any], model_version: str) -> list[str]:
     return problems
 
 
+def served_rows(payloads: list[dict[str, Any]], weathers: list[str]) -> list[dict[str, Any]]:
+    """Payloads of a weather scenario the site still offers; a dropped one stays stored, unseen."""
+    return [row for row in payloads if row["state"].get("weather") in weathers]
+
+
 def coverage_problems(payloads: list[dict[str, Any]], weathers: list[str]) -> list[str]:
     """Every served checkpoint needs every weather scenario, and PRE must be served."""
     served: dict[str, set[str]] = defaultdict(set)
@@ -195,8 +200,17 @@ def main() -> int:
     from src.persistence.db import get_supabase_client
 
     client = get_supabase_client()
+    from src.utils import config_loader
+
+    weathers = list(config_loader.get("dashboard.prediction_precompute.weather_scenarios", []))
     failed = False
-    payloads = _served_payloads(client, args.year, args.race)
+    stored = _served_payloads(client, args.year, args.race)
+    payloads = served_rows(stored, weathers)
+    for row in stored:
+        if row not in payloads:
+            print(
+                f"skip {row['state'].get('weather')} {row['updated_at'][:16]}: not offered by the site"
+            )
     if not payloads:
         print(f"FAIL {args.race}: no served payload")
         return 1
@@ -206,9 +220,6 @@ def main() -> int:
         problems = payload_problems(state, args.model_version)
         failed = failed or bool(problems)
         print(f"{'FAIL' if problems else 'ok'} {label}" + "".join(f"\n  {p}" for p in problems))
-    from src.utils import config_loader
-
-    weathers = list(config_loader.get("dashboard.prediction_precompute.weather_scenarios", []))
     problems = coverage_problems(payloads, weathers)
     failed = failed or bool(problems)
     print(

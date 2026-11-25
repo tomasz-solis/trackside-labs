@@ -418,7 +418,16 @@ def test_session_with_no_usable_running_is_skipped_once_a_later_session_landed(p
     """Las Vegas 2026: FP1 had 0 usable laps and was retried and alerted every hour."""
     state_file = tmp_path / "practice_state.json"
     state_file.write_text(
-        json.dumps({"races": {"2026::Las Vegas Grand Prix": {"sessions": ["FP2"]}}})
+        json.dumps(
+            {
+                "races": {
+                    "2026::Las Vegas Grand Prix": {
+                        "sessions": ["FP2"],
+                        "deferred_since": {"FP1": "2026-11-20T03:00:00+00:00"},
+                    }
+                }
+            }
+        )
     )
     patcher.setattr(update_flow, "_PRACTICE_UPDATE_STATE_FILE", state_file)
 
@@ -1196,3 +1205,47 @@ def test_detect_event_boundary_refresh_sprint_session_delta(patcher, tmp_path):
     assert second_result["refresh_needed"] is True
     assert second_result["new_sessions"] == ["SQ"]
     assert second_result["latest_elapsed_session"] == "SQ"
+
+
+def test_a_late_session_behind_a_later_one_is_retried_quietly_until_it_lands(patcher, tmp_path):
+    """Codex 2026-11-23: FP1 data late but FP2 in; FP1 must still be captured when it lands."""
+    state_file = tmp_path / "practice_state.json"
+    state_file.write_text(json.dumps({"races": {"2026::Qatar Grand Prix": {"sessions": ["FP2"]}}}))
+    patcher.setattr(update_flow, "_PRACTICE_UPDATE_STATE_FILE", state_file)
+
+    class _Detector:
+        def get_completed_sessions(self, year: int, race_name: str, is_sprint: bool):
+            del year, race_name, is_sprint
+            return ["FP1", "FP2"]
+
+    patcher.setattr("src.utils.session_detector.SessionDetector", _Detector)
+    patcher.setattr("src.utils.config_loader.get", lambda key, default=None: default)
+
+    from src.systems.testing_updater_flow import NoUsableSessionTelemetryError
+
+    landed = {"FP1": False}
+
+    def _capture(**kwargs):
+        if not landed["FP1"]:
+            raise NoUsableSessionTelemetryError("FastF1 has not backfilled FP1 yet")
+        return {"updated_teams": ["Ferrari"]}
+
+    patcher.setattr("src.systems.testing_updater.update_from_testing_sessions", _capture)
+    alerts: list[str] = []
+    patcher.setattr(update_flow, "record_alert", lambda name, *a, **k: alerts.append(name))
+
+    def run():
+        return update_flow.auto_update_practice_characteristics_if_needed(
+            year=2026, race_name="Qatar Grand Prix", is_sprint=False
+        )
+
+    run()
+    race_state = json.loads(state_file.read_text())["races"]["2026::Qatar Grand Prix"]
+    assert race_state["sessions"] == ["FP2"] and "skipped" not in race_state
+    assert set(race_state["deferred_since"]) == {"FP1"}
+    assert alerts == []
+
+    landed["FP1"] = True
+    run()
+    race_state = json.loads(state_file.read_text())["races"]["2026::Qatar Grand Prix"]
+    assert race_state["sessions"] == ["FP1", "FP2"] and "skipped" not in race_state

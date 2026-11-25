@@ -1236,6 +1236,30 @@ def _apply_session_update(
     raise ValueError(f"Could not replay {event_name} {session_name}: {joined_errors}")
 
 
+_WEEKEND_SESSIONS = {
+    False: ("FP1", "FP2", "FP3", "Q", "R"),
+    True: ("FP1", "SQ", "SPRINT", "Q", "R"),
+}
+
+
+def _uncached_weekend_sessions(
+    year: int, race_entries: list[dict[str, Any]], *, last_may_be_partial: bool
+) -> list[str]:
+    """Sessions of the replayed weekends that the local FastF1 cache does not hold.
+
+    The plan lists cached sessions only, so an uncached one used to drop out unseen:
+    C39 seed 42 replayed Mexico City and Sao Paulo 2026 from PRE alone (2026-11-23).
+    """
+    checked = race_entries[:-1] if last_may_be_partial else race_entries
+    missing: list[str] = []
+    for entry in checked:
+        race_name = str(entry["event_name"])
+        cached = {str(session).strip().upper() for session in entry.get("sessions", [])}
+        expected = _WEEKEND_SESSIONS[bool(is_sprint_weekend(year, race_name))]
+        missing += [f"{race_name}::{session}" for session in expected if session not in cached]
+    return missing
+
+
 def run_historical_checkpoint_replay(
     *,
     year: int = 2026,
@@ -1275,22 +1299,6 @@ def run_historical_checkpoint_replay(
         use_fastf1_schedule(),
         _walk_forward_car_track_traits(replay_output_root),
     ):
-        processed_dir = _prepare_output_root(
-            source_processed_dir=processed_source,
-            output_root=replay_output_root,
-            year=year,
-            overwrite=overwrite,
-        )
-        actual_cache: dict[tuple[int, str, str], list[QualifyingGridEntry]] = {}
-        driver_update_traces: list[dict[str, Any]] = []
-        summary = HistoricalReplaySummary(
-            year=year,
-            output_root=str(replay_output_root),
-            processed_data_dir=str(processed_dir),
-            excluded_scoring_targets=sorted(scoring_exclusions),
-        )
-        predictor_config = _build_replay_predictor_config()
-
         replay_plan = _season_snapshot_plan(year)
         testing_entries = [
             entry for entry in replay_plan if "testing" in str(entry.get("event_name", "")).lower()
@@ -1307,6 +1315,30 @@ def run_historical_checkpoint_replay(
                     f"weekend(s) are cached for {year}"
                 )
             race_entries = race_entries[:through_round]
+        # shortcut: a session cancelled upstream blocks the replay; add an allow-list then.
+        uncached = _uncached_weekend_sessions(
+            year, race_entries, last_may_be_partial=through_round is None
+        )
+        if uncached:
+            raise ValueError(
+                f"Sessions missing from the local FastF1 cache: {uncached}. Load each once "
+                "with FastF1 and rerun: a replay without them does not match one with them."
+            )
+        processed_dir = _prepare_output_root(
+            source_processed_dir=processed_source,
+            output_root=replay_output_root,
+            year=year,
+            overwrite=overwrite,
+        )
+        actual_cache: dict[tuple[int, str, str], list[QualifyingGridEntry]] = {}
+        driver_update_traces: list[dict[str, Any]] = []
+        summary = HistoricalReplaySummary(
+            year=year,
+            output_root=str(replay_output_root),
+            processed_data_dir=str(processed_dir),
+            excluded_scoring_targets=sorted(scoring_exclusions),
+        )
+        predictor_config = _build_replay_predictor_config()
 
         for plan_entry in testing_entries:
             event_name = str(plan_entry["event_name"])

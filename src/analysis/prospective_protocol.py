@@ -111,12 +111,18 @@ _CRITICAL_T = {
 
 @dataclass(frozen=True)
 class OfficialResult:
-    """One session's official classification and when the session was scheduled to start."""
+    """One revision of a session's official classification.
+
+    ``issued_at`` is when this revision was known (for stored actuals, when it was
+    fetched). A correction is another ``OfficialResult`` for the same session with a
+    later ``issued_at``.
+    """
 
     target: str
     event: str
     session_start: datetime
     rows: Rows
+    issued_at: datetime
 
 
 @dataclass(frozen=True)
@@ -146,10 +152,10 @@ def same_kind_naive(
     """The champion's drivers in the latest same-kind result issued before the cutoff.
 
     Qualifying and sprint qualifying compare with the last one-lap session, the Grand
-    Prix and the sprint with the last race. A result counts when its session started at
-    or before the cutoff: the cutoff is one second before the target's deadline session,
-    and sessions never overlap, so such a session had finished. Drivers missing from the
-    result follow in the champion's order. ``None`` when no result qualifies.
+    Prix and the sprint with the last race. A revision counts when it was issued at or
+    before the cutoff, so a correction published after it never reaches the naive; of
+    those, the latest session's latest revision is used. Drivers missing from the result
+    follow in the champion's order. ``None`` when no result qualifies.
     """
     kind = SESSION_KIND[target]
     if information_cutoff_at.tzinfo is None:
@@ -157,11 +163,11 @@ def same_kind_naive(
     eligible = [
         result
         for result in results
-        if SESSION_KIND.get(result.target) == kind and result.session_start <= information_cutoff_at
+        if SESSION_KIND.get(result.target) == kind and result.issued_at <= information_cutoff_at
     ]
     if not eligible:
         return None
-    latest = max(eligible, key=lambda result: result.session_start)
+    latest = max(eligible, key=lambda result: (result.session_start, result.issued_at))
     team_by_driver = {str(row["driver"]): row.get("team") for row in champion_rows}
     return [
         {"driver": driver, "team": team_by_driver[driver], "position": position}

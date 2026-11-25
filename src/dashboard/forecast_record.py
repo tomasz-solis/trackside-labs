@@ -6,7 +6,8 @@ the forecast rows exactly as served and what produced them, never results. The t
 refuses updates and deletes (``migrations/007_create_forecast_record.sql``), so this
 module only inserts:
 
-- the same forecast twice stores one row (``content_hash`` is unique);
+- a repeat of the latest row for the identity stores nothing; A, B, then A stores three
+  (migration 008 makes ``content_hash`` unique per ``replaces``);
 - a changed forecast for the same identity gets ``replaces`` and a reason;
 - a forecast issued after its information cutoff, or with no cutoff, is not written.
 """
@@ -25,6 +26,7 @@ from src.utils.operational_observability import record_counter
 logger = logging.getLogger(__name__)
 
 TABLE = "forecast_record"
+_UNIQUE_VIOLATION = "23505"  # PostgreSQL unique_violation, as PostgREST reports it
 _IDENTITY = ("season", "event", "target", "checkpoint", "weather")
 _PRODUCED_BY = (
     "model_version",
@@ -92,10 +94,12 @@ def build_forecast_records(
 def write_forecast_records(
     records: list[dict[str, Any]], *, client: Any, now: datetime | None = None
 ) -> int:
-    """Insert the records that are new and on time; return how many were sent.
+    """Insert the records that are new and on time; return how many were stored.
 
-    shortcut: a forecast that returns to an older content (A, B, then A) is not stored
-    again, because ``content_hash`` is unique; key it by identity too if that ever happens.
+    Only a repeat of the latest record for the identity is skipped, so A, B, then A
+    stores three issuances. Migration 008 lets the table hold the returning A (unique
+    per ``content_hash`` and ``replaces``); before it, the table refuses that row as a
+    duplicate key, which is skipped, as is a row a parallel run stored first.
     """
     now = now or datetime.now(UTC)
     sent = 0
@@ -119,9 +123,13 @@ def write_forecast_records(
             row["replace_reason"] = (
                 "changed: " + ", ".join(changed) if changed else "recomputed from the same inputs"
             )
-        client.table(TABLE).upsert(
-            row, on_conflict="content_hash", ignore_duplicates=True
-        ).execute()
+        try:
+            client.table(TABLE).insert(row).execute()
+        except Exception as exc:
+            if getattr(exc, "code", None) != _UNIQUE_VIOLATION:
+                raise
+            record_counter("forecast_record_duplicate_total", labels=labels)
+            continue
         sent += 1
     return sent
 

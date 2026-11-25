@@ -58,7 +58,7 @@ def render_driver_substitution_editor(
                 value=_format(stored),
                 placeholder=_PLACEHOLDER,
                 help=(
-                    "One swap per line, driver out first: 'HAD > LAW'. Enter the whole "
+                    "One swap per line, the configured driver out first: 'HAD > LAW'. Enter the whole "
                     "chain at once. Moving a driver up without freeing his seat is "
                     "rejected. From FP2 (sprint qualifying on a sprint weekend) the "
                     "session entry list seats substitutes by itself; an entry here "

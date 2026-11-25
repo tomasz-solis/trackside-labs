@@ -14,6 +14,7 @@ from pathlib import Path
 
 import fastf1 as ff1
 
+from src.utils import driver_substitutions
 from src.utils.driver_substitutions import apply_substitutions, entry_list_swaps, swap_drivers
 from src.utils.team_mapping import map_team_to_characteristics
 
@@ -128,9 +129,21 @@ def _valid_entry_list(entered: list[tuple[str, str]], source: str, key: tuple) -
 
 
 def seat_entered_drivers(
-    lineups: dict[str, list[str]], *, year: int, race_name: str, checkpoint_session: str
+    lineups: dict[str, list[str]],
+    *,
+    year: int,
+    race_name: str,
+    checkpoint_session: str,
+    admin_swaps: dict[str, str] | None = None,
 ) -> dict[str, list[str]]:
-    """Seat the drivers entered in the latest session before the checkpoint, from FP2 on."""
+    """Seat the drivers entered in the latest session before the checkpoint, from FP2 on.
+
+    ``admin_swaps`` (configured driver out, driver in) wins: the entry list leaves those
+    seats alone and does not seat the admin's driver elsewhere, so the admin swap still
+    applies afterwards.
+    """
+    held_out = set(admin_swaps or {})
+    held_in = set((admin_swaps or {}).values())
     checkpoint = str(checkpoint_session).strip().upper()
     order = [session.upper() for session in _WEEKEND_SESSIONS]
     if checkpoint not in order:
@@ -142,9 +155,14 @@ def seat_entered_drivers(
             if mapped:
                 entered.setdefault(mapped, []).append(code.strip().upper())
         if entered:
+            swaps = {
+                out: into
+                for out, into in entry_list_swaps(lineups, entered).items()
+                if out not in held_out and into not in held_in
+            }
             return swap_drivers(
                 lineups,
-                entry_list_swaps(lineups, entered),
+                swaps,
                 source=f"{session_name} entry list",
                 race_name=race_name,
                 year=year,
@@ -207,14 +225,24 @@ def get_lineups(
     current_lineups = load_current_lineups(config_path)
 
     if current_lineups:
+        admin_swaps = driver_substitutions.load_configured_substitutions(
+            race_name=race_name, year=year
+        )
         if race_name and checkpoint_session:
             current_lineups = seat_entered_drivers(
                 current_lineups,
                 year=year,
                 race_name=race_name,
                 checkpoint_session=checkpoint_session,
+                admin_swaps=admin_swaps,
             )
-        return apply_substitutions(current_lineups, race_name=race_name, year=year)
+        return swap_drivers(
+            current_lineups,
+            admin_swaps,
+            source="driver substitutions",
+            race_name=race_name,
+            year=year,
+        )
 
     raise ValueError(
         f"No lineup data available for {year}"

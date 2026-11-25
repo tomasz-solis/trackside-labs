@@ -185,9 +185,13 @@ _CHAMPION = [
 ]
 
 
-def _result(target: str, hours: int, order: list[str]) -> OfficialResult:
+def _result(
+    target: str, hours: int, order: list[str], issued_hours: float | None = None
+) -> OfficialResult:
     rows = [{"driver": driver, "position": index} for index, driver in enumerate(order, start=1)]
-    return OfficialResult(target, "event", _T0 + timedelta(hours=hours), rows)
+    start = _T0 + timedelta(hours=hours)
+    issued = start if issued_hours is None else _T0 + timedelta(hours=issued_hours)
+    return OfficialResult(target, "event", start, rows, issued)
 
 
 _RESULTS = [
@@ -306,3 +310,22 @@ def test_the_protocol_module_loads_no_scipy_or_pandas():
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False"
+
+
+def test_a_correction_issued_after_the_cutoff_never_reaches_the_naive():
+    """Codex 2026-11-23: SQ at 11:00, cutoff 12:00, reversed correction at 12:30."""
+    original = _result("sprint_qualifying", 0, ["AAA", "BBB", "CCC"], issued_hours=0.5)
+    correction = _result("sprint_qualifying", 0, ["CCC", "BBB", "AAA"], issued_hours=1.5)
+
+    def naive(cutoff_hours: float) -> list[str]:
+        rows = same_kind_naive(
+            target="main_qualifying",
+            champion_rows=_CHAMPION,
+            results=[original, correction],
+            information_cutoff_at=_T0 + timedelta(hours=cutoff_hours),
+        )
+        assert rows is not None
+        return [row["driver"] for row in rows]
+
+    assert naive(1.0) == ["AAA", "BBB", "CCC", "NEW"]
+    assert naive(2.0) == ["CCC", "BBB", "AAA", "NEW"]

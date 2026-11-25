@@ -3,7 +3,7 @@
 import hashlib
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -27,6 +27,9 @@ _PRACTICE_CAPTURE_SESSIONS_BY_WEEKEND: dict[bool, tuple[str, ...]] = {
     False: ("FP1", "FP2", "FP3", "Q", "R"),
     True: ("FP1", "SQ", "Sprint", "Q", "R"),
 }
+# A deferred session behind a later one that has landed is retried quietly for this long,
+# then dropped as having no usable running.
+_DEFERRED_SKIP_AFTER = timedelta(hours=6)
 _PRACTICE_CAPTURE_SESSION_ORDER = {
     "FP1": 1,
     "FP2": 2,
@@ -440,6 +443,15 @@ def _load_practice_update_state() -> dict:
     return {"races": file_races}
 
 
+def _parse_utc(value: Any, default: datetime) -> datetime:
+    """Parse a stored ISO time; an unreadable one counts as now, so nothing is dropped early."""
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        return default
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
 def _save_practice_update_state(state: dict, keys: list[str] | None = None) -> None:
     """Persist state for practice characteristic updates.
 
@@ -758,6 +770,8 @@ def auto_update_practice_characteristics_if_needed(
                     key=lambda session: _PRACTICE_CAPTURE_SESSION_ORDER.get(session, 99),
                 )
                 state["races"][event_key] = {
+                    # Keep "skipped" and "deferred_since" from earlier runs.
+                    **state["races"].get(event_key, {}),
                     "sessions": ordered_processed_sessions,
                     "updated_at": datetime.now(UTC).isoformat(),
                     "teams_updated": len(event_updated_teams),
@@ -765,20 +779,34 @@ def auto_update_practice_characteristics_if_needed(
                 _save_practice_update_state(state, keys=[event_key])
                 event_had_update = True
 
-            # Once a later session has landed, an earlier one with no usable running stays
-            # that way (Las Vegas 2026 FP1: 0 usable laps). Record it as skipped so the cron
-            # stops retrying and alerting every hour.
+            # Las Vegas 2026 FP1 had 0 usable laps and alerted every hour. Once a later
+            # session has landed, an earlier deferred one stops alerting; it is dropped for
+            # good _DEFERRED_SKIP_AFTER later, so a session whose data is late still lands
+            # (Codex 2026-11-23).
             latest_done = max(
                 (_PRACTICE_CAPTURE_SESSION_ORDER.get(done, 0) for done in event_processed_sessions),
                 default=0,
             )
-            skipped = [
+            now = datetime.now(UTC)
+            entry = state["races"].get(event_key, {})
+            behind_later = {
                 session
                 for session in event_deferred
                 if _PRACTICE_CAPTURE_SESSION_ORDER.get(session, 99) < latest_done
+            }
+            deferred_since = dict(entry.get("deferred_since") or {})
+            for session in behind_later:
+                deferred_since.setdefault(session, now.isoformat())
+            skipped = [
+                session
+                for session in behind_later
+                if now - _parse_utc(deferred_since[session], now) >= _DEFERRED_SKIP_AFTER
             ]
+            if deferred_since != (entry.get("deferred_since") or {}):
+                entry = {**entry, "deferred_since": deferred_since}
+                state["races"][event_key] = entry
+                _save_practice_update_state(state, keys=[event_key])
             if skipped:
-                entry = state["races"].get(event_key, {})
                 event_processed_sessions.update(skipped)
                 state["races"][event_key] = {
                     **entry,
@@ -803,7 +831,7 @@ def auto_update_practice_characteristics_if_needed(
                     labels={"year": year, "race_name": event_name},
                 )
             for session_name in event_deferred:
-                if session_name in skipped:
+                if session_name in behind_later:
                     continue
                 deferred_session_id = f"{event_name}::{session_name}"
                 deferred_sessions.append(deferred_session_id)

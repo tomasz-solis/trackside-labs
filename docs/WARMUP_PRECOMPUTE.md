@@ -27,7 +27,7 @@ Exit code 0 means success, nothing to do, or checkpoint not ready. Anything else
 6. Updates the horizon index (`ready_races`) that filters the dropdown.
 7. Rebuilds accuracy snapshots for recently finished races.
 
-Each newly computed payload is also appended to `forecast_record` ([persistence](PERSISTENCE_SUPABASE.md)), one row per target still forecast, unless it is past its information cutoff. A failed write logs a warning and counts `forecast_record_write_failed_total`; it never stops the run.
+Each served payload, newly computed or reused, is also offered to `forecast_record` ([persistence](PERSISTENCE_SUPABASE.md)), one row per target still forecast, unless it is past its information cutoff. A failed write logs a warning and counts `forecast_record_write_failed_total`; it never stops the run.
 
 Before computing, each run learns from finished races and refreshes three measured inputs: team race pace, the strength to seconds mapping and car traits. A slow first run after a deploy is a full recompute, not a stale lock.
 

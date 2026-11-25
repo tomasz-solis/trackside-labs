@@ -383,3 +383,51 @@ def test_a_weekend_the_replay_cannot_learn_from_fails_the_replay(monkeypatch, tm
         replay._learn_from_weekend(checkpoint_sessions=["FP1"], **weekend)
     with pytest.raises(RuntimeError, match="lost its Belgian Grand Prix FP2 forecast"):
         replay._learn_from_weekend(checkpoint_sessions=["FP2"], **weekend)
+
+
+def test_uncached_sessions_of_a_replayed_weekend_are_named(monkeypatch):
+    import src.utils.historical_replay as replay
+
+    monkeypatch.setattr(replay, "is_sprint_weekend", lambda year, race: race == "Sprint GP")
+    entries = [
+        {"event_name": "Full GP", "sessions": ["FP1", "FP2", "FP3", "Q", "R"]},
+        {"event_name": "Sprint GP", "sessions": ["FP1", "SQ", "Sprint", "Q", "R"]},
+        {"event_name": "Mexico City GP", "sessions": ["R"]},
+        {"event_name": "Live GP", "sessions": ["FP1"]},
+    ]
+
+    assert replay._uncached_weekend_sessions(2026, entries, last_may_be_partial=True) == [
+        f"Mexico City GP::{s}" for s in ("FP1", "FP2", "FP3", "Q")
+    ]
+    assert replay._uncached_weekend_sessions(2026, entries, last_may_be_partial=False)[-4:] == [
+        f"Live GP::{s}" for s in ("FP2", "FP3", "Q", "R")
+    ]
+
+
+def test_a_replay_with_an_uncached_session_stops_before_building_its_root(monkeypatch, tmp_path):
+    """C39 seed 42 ran Mexico City and Sao Paulo from PRE alone; that must now refuse."""
+    from contextlib import nullcontext
+
+    import pytest
+
+    import src.utils.historical_replay as replay
+
+    prepared: list[object] = []
+    monkeypatch.setattr(replay, "_force_file_only_storage", nullcontext)
+    monkeypatch.setattr(replay, "_walk_forward_car_track_traits", lambda root: nullcontext())
+    monkeypatch.setattr(replay, "_prepare_output_root", lambda **kw: prepared.append(kw))
+    monkeypatch.setattr(replay, "is_sprint_weekend", lambda year, race: False)
+    monkeypatch.setattr(
+        replay,
+        "_season_snapshot_plan",
+        lambda year: [
+            {"event_name": "A GP", "sessions": ["FP1", "FP2", "FP3", "Q", "R"]},
+            {"event_name": "B GP", "sessions": ["R"]},
+        ],
+    )
+
+    with pytest.raises(ValueError, match=r"missing from the local FastF1 cache: \['B GP::FP1'"):
+        replay.run_historical_checkpoint_replay(
+            source_processed_dir=tmp_path, output_root=tmp_path / "out", through_round=2
+        )
+    assert prepared == []

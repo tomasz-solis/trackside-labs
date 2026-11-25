@@ -76,6 +76,8 @@ def _run_replay_recording_order(
         replay_module, "_prepare_output_root", lambda **_kwargs: tmp_path / "processed"
     )
     monkeypatch.setattr(replay_module, "_season_snapshot_plan", lambda year: plan)
+    # These plans are short on purpose; the cache-completeness guard has its own tests.
+    monkeypatch.setattr(replay_module, "_uncached_weekend_sessions", lambda *a, **kw: [])
     monkeypatch.setattr(
         replay_module, "is_sprint_weekend", lambda year, race_name: race_name in sprint_races
     )

@@ -2576,6 +2576,22 @@ Las Vegas 2026 served its FP2 forecast through FP3, qualifying and the race. An 
 
 No replay needed. The replay reads no admin penalty: its store is file-only under the replay root and `config/default.yaml` has no `grid.penalties`. The entry-list check changes a line-up only when a code is malformed; the local FastF1 cache has all 22 codes at São Paulo and Las Vegas, FP2 to R, checked 2026-11-23.
 
+## 2026-11-24: Codex fixes 3, 6, 7 and 8, replay guard, investigation backtest script (correctness fixes, no model change)
+
+A Codex review of the Qatar push rated four bugs "fix before 2027". Each fix has a test that fails without it:
+
+| Fix | Before | After |
+|---|---|---|
+| Admin swap against the entry list (Codex 6) | an entry list that put someone else in the swapped seat (Haas `BEA, HIR` against a saved `OCO` to `CAM`) failed the saved map's validation, so the swap never applied | the admin swap is keyed to the configured seat; an entry-list swap that touches the same seat or driver is skipped, so the admin swap wins |
+| Late session (Codex 3) | a session with no telemetry yet when a later one landed (FP1 after FP2) was skipped for good | it is retried without alerts for 6 hours from the first miss, then skipped |
+| Forecast record (Codex 7) | forecasts A, B, then A again stored A and B only, so the latest record read B | the writer inserts; migration `008` stores the returning A as a third row. Before `008` it is counted in `forecast_record_duplicate_total` and skipped; any other database error raises |
+| 2027 naive (Codex 8) | a correction issued after the cutoff could reach the naive | each `OfficialResult` carries `issued_at`; only results issued by the cutoff count |
+| Replay plan | a session missing from the local FastF1 cache at start was left out without a word (first C39 roots: seed 42 missed 9 sessions, seed 43 missed 3, kept as `*_cachegap`) | the replay refuses to start and names each missing session; only the last weekend may be partial, and only without `--through-round` |
+
+`scripts/investigation_backtest.py` (plan row 33) is built and tested on synthetic data only. It has not run on real data. Its bar goes in this ledger before it does.
+
+No replay needed. The replay has no admin swap (`grid.substitutions: {}`, no stored substitution in the replay roots, checked 2026-11-24), so its line-ups do not change. The late-session rule lives in the cron's update flow, the naive scores 2027 only, and the guard only refuses to start.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.

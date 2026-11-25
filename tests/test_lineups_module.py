@@ -84,14 +84,15 @@ def test_get_lineups_applies_a_race_scoped_substitution(patcher, tmp_path):
         json.dumps({"current_lineups": {"Red Bull Racing": ["VER", "HAD"], "RB": ["LAW", "LIN"]}})
     )
     patcher.setattr(
-        lineups,
-        "apply_substitutions",
-        lambda mapping, *, race_name, year: {**mapping, "Red Bull Racing": ["VER", "LAW"]},
+        driver_substitutions,
+        "load_configured_substitutions",
+        lambda **_: {"HAD": "LAW", "LAW": "TSU"},
     )
 
     resolved = lineups.get_lineups(2026, "Dutch Grand Prix", str(config_path))
 
     assert resolved["Red Bull Racing"] == ["VER", "LAW"]
+    assert resolved["RB"] == ["TSU", "LIN"]
 
 
 _CONFIGURED = {
@@ -226,3 +227,49 @@ def test_an_entry_list_with_a_missing_code_goes_to_openf1_and_is_not_cached(patc
     answers["openf1"] = [("BEA", "Haas F1 Team"), ("51", "Haas F1 Team")]
     assert lineups._session_entry_list(2026, "Qatar Grand Prix", "FP3") == []
     assert (2026, "Qatar Grand Prix", "FP3") not in lineups._ENTRY_LISTS
+
+
+def test_an_admin_swap_keyed_to_the_configured_seat_beats_a_conflicting_entry_list(
+    patcher, tmp_path
+):
+    """Codex 2026-11-23: entry list seats HIR for OCO, admin saved OCO > CAM; CAM must race.
+
+    The swap is saved through the admin's own validation, not patched in.
+    """
+    config_path = tmp_path / "current_lineups.json"
+    config_path.write_text(json.dumps({"current_lineups": _CONFIGURED}))
+
+    class _Store:
+        saved: dict = {}
+
+        def save_artifact(self, **kwargs):
+            self.saved = kwargs["data"]
+            return kwargs
+
+        def load_artifact(self, artifact_type, artifact_key):
+            return self.saved
+
+    store = _Store()
+    driver_substitutions.save_substitutions(
+        race_name="Qatar Grand Prix",
+        year=2026,
+        substitutions={"OCO": "CAM"},
+        lineups=_CONFIGURED,
+        store=store,
+    )
+    patcher.setattr(driver_substitutions, "_default_store", lambda: store)
+    fp2 = [("HIR", "Haas F1 Team"), ("BEA", "Haas F1 Team"), ("LAW", "Racing Bulls")]
+    patcher.setattr(lineups, "_session_entry_list", _entry_lists({"FP2": fp2}, []))
+
+    resolved = lineups.get_lineups(
+        2026, "Qatar Grand Prix", str(config_path), checkpoint_session="FP2"
+    )
+    assert resolved["Haas F1 Team"] == ["CAM", "BEA"]
+
+    # The entry list may not seat the admin's driver in another seat either.
+    fp2 = [("CAM", "Haas F1 Team"), ("HIR", "Haas F1 Team")]
+    patcher.setattr(lineups, "_session_entry_list", _entry_lists({"FP2": fp2}, []))
+    resolved = lineups.get_lineups(
+        2026, "Qatar Grand Prix", str(config_path), checkpoint_session="FP2"
+    )
+    assert resolved["Haas F1 Team"] == ["CAM", "HIR"]

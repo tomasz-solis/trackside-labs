@@ -47,25 +47,46 @@ class _Query:
         return type("Result", (), {"data": copy.deepcopy(rows)})
 
 
-class _Table:
-    """In-memory stand-in for the table: unique content_hash, insert only."""
+class _UniqueViolation(Exception):
+    code = "23505"
 
-    def __init__(self) -> None:
+
+class _Table:
+    """In-memory stand-in for the table, insert only.
+
+    Unique per ``content_hash`` and ``replaces`` as migration 008 sets it, or per
+    ``content_hash`` alone as 007 left it (``unique_on_hash_only``).
+    """
+
+    def __init__(self, unique_on_hash_only: bool = False) -> None:
         self.rows: list[dict] = []
+        self.unique_on_hash_only = unique_on_hash_only
 
     def select(self, columns: str) -> _Query:
         return _Query(self).select(columns)
 
-    def upsert(self, row: dict, *, on_conflict: str, ignore_duplicates: bool):
-        assert on_conflict == "content_hash" and ignore_duplicates
-        if all(r["content_hash"] != row["content_hash"] for r in self.rows):
+    def _key(self, row: dict) -> tuple:
+        return (
+            (row["content_hash"],)
+            if self.unique_on_hash_only
+            else (
+                row["content_hash"],
+                row.get("replaces"),
+            )
+        )
+
+    def insert(self, row: dict):
+        def execute(_self):
+            if any(self._key(r) == self._key(row) for r in self.rows):
+                raise _UniqueViolation("duplicate key value violates unique constraint")
             self.rows.append({**copy.deepcopy(row), "id": len(self.rows) + 1})
-        return type("Insert", (), {"execute": lambda _self: None})()
+
+        return type("Insert", (), {"execute": execute})()
 
 
 class _Client:
-    def __init__(self) -> None:
-        self.forecast_record = _Table()
+    def __init__(self, unique_on_hash_only: bool = False) -> None:
+        self.forecast_record = _Table(unique_on_hash_only)
 
     def table(self, name: str) -> _Table:
         assert name == forecast_record.TABLE
@@ -194,3 +215,51 @@ def test_a_record_failure_never_stops_serving(monkeypatch, caplog):
     )
 
     assert "Could not record forecast" in caplog.text
+
+
+def _swapped(payload: dict) -> dict:
+    changed = copy.deepcopy(payload)
+    grid = changed["prediction_results"]["qualifying"]["grid"]
+    grid[0]["driver"], grid[1]["driver"] = grid[1]["driver"], grid[0]["driver"]
+    return changed
+
+
+def test_a_forecast_that_returns_to_an_earlier_content_is_a_new_issuance():
+    """Codex 2026-11-23: A, B, then A left B as the latest record while A was served."""
+    a = _fixture("normal_las_vegas_fp2_dry")
+    client = _Client()
+    for payload in (a, _swapped(a), a, a):
+        forecast_record.write_forecast_records(_records(payload), client=client, now=_NOW)
+
+    quali = [r for r in client.forecast_record.rows if r["target"] == "main_qualifying"]
+    assert len(quali) == 3
+    assert quali[2]["content_hash"] == quali[0]["content_hash"] != quali[1]["content_hash"]
+    assert [r.get("replaces") for r in quali] == [None, quali[0]["id"], quali[1]["id"]]
+
+
+def test_before_migration_008_a_returning_forecast_is_skipped_not_raised():
+    a = _fixture("normal_las_vegas_fp2_dry")
+    client = _Client(unique_on_hash_only=True)
+    sent = [
+        forecast_record.write_forecast_records(_records(payload), client=client, now=_NOW)
+        for payload in (a, _swapped(a), a)
+    ]
+
+    assert sent == [2, 1, 0]
+    assert len(client.forecast_record.rows) == 3
+
+
+def test_an_error_that_is_not_a_duplicate_key_still_raises():
+    class _Down(Exception):
+        code = "57P01"
+
+    class _BrokenTable(_Table):
+        def insert(self, row: dict):
+            return type("Insert", (), {"execute": lambda _self: (_ for _ in ()).throw(_Down())})()
+
+    client = _Client()
+    client.forecast_record = _BrokenTable()
+    with pytest.raises(_Down):
+        forecast_record.write_forecast_records(
+            _records(_fixture("normal_las_vegas_fp2_dry")), client=client, now=_NOW
+        )

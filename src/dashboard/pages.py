@@ -1,6 +1,7 @@
 """Page-level dashboard helpers and route handlers."""
 
 import logging
+import re
 import unicodedata
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -1015,43 +1016,92 @@ def render_model_insights_page() -> None:
 
 
 def render_model_diagnostics_page() -> None:
-    """Render persisted model diagnostics."""
-    from .model_diagnostics import render_model_diagnostics
+    """Render the model audit: the model in use, the ledger behind it, then stored checks."""
+    from src.utils.model_version import get_model_version
 
-    selected_season = _get_selected_season()
+    from .model_diagnostics import load_replay_leakage_diagnostics, render_model_diagnostics
+    from .model_ledger import champion_history, ledger_entries, read_ledger, rows_to_markdown
+
+    season = _get_selected_season()
+    ledger = read_ledger()
+    entries = ledger_entries(ledger)
+    history = champion_history(ledger)
+    cards = [
+        {
+            "label": "Model in use",
+            "value": BRAND_MODEL_VERSION,
+            "meta": "Read from the deployed config.",
+            "tone": "accent",
+        }
+    ]
+    if history:
+        cards.append(
+            {
+                "label": "Last adopted",
+                "value": history[0].get("Date", ""),
+                "meta": _short_text(history[0].get("Change", "")),
+                "tone": "success",
+            }
+        )
+    if entries:
+        cards.append(
+            {
+                "label": "Last ledger entry",
+                "value": entries[0].date,
+                "meta": _short_text(entries[0].title),
+                "tone": "neutral",
+            }
+        )
+    stored = load_replay_leakage_diagnostics(year=season) or {}
+    stored_model = str(stored.get("model_version") or "")
+    cards.append(
+        {
+            "label": "Stored checks",
+            "value": str(stored.get("built_at") or "None")[:10],
+            "meta": (
+                "None saved for this season."
+                if not stored
+                else "Built for the model in use."
+                if stored_model == get_model_version()
+                else f"Built for model {stored_model}: history, not today's model."
+            ),
+            "tone": "success" if stored and stored_model == get_model_version() else "warning",
+        }
+    )
     render_page_hero_deck(
         title="Model Diagnostics",
-        summary=("Replay and leakage checks, read from the saved diagnostics."),
+        summary=(
+            "Every model change is measured on a season replay and written to the model "
+            "ledger before it ships. This page reads the ledger deployed with the code."
+        ),
         eyebrow="Model audit",
-        cards=[
-            {
-                "label": "Season",
-                "value": str(selected_season),
-                "meta": "Uses the shared dashboard season.",
-                "tone": "neutral",
-            },
-            {
-                "label": "Source",
-                "value": "Persisted",
-                "meta": "Read from saved diagnostics, not recomputed.",
-                "tone": "accent",
-            },
-            {
-                "label": "Dry leakage",
-                "value": "Measured",
-                "meta": "Legacy proxy until schema migration.",
-                "tone": "warning",
-            },
-            {
-                "label": "Wet invariant",
-                "value": "Guarded",
-                "meta": "Depends on weather-routed replay rows.",
-                "tone": "neutral",
-            },
-        ],
+        cards=cards,
         st_module=st,
     )
-    render_model_diagnostics(year=selected_season, st_module=st)
+
+    st.subheader("Changes in the model")
+    if history:
+        st.markdown(rows_to_markdown(history))
+    else:
+        st.info("The ledger has no champion history table.")
+
+    st.subheader("Latest ledger entries")
+    st.caption("Newest first. Each entry keeps the verdict it was given.")
+    for entry in entries[:_LEDGER_ENTRIES_SHOWN]:
+        with st.expander(f"{entry.date}: {entry.title.replace('`', '')}"):
+            st.markdown(entry.body)
+
+    st.subheader("Stored checks")
+    render_model_diagnostics(year=season, st_module=st)
+
+
+_LEDGER_ENTRIES_SHOWN = 8
+
+
+def _short_text(text: str) -> str:
+    """Return a card-sized lead: the first clause, before any aside or second sentence."""
+    lead = re.split(r" \(|; |\. ", text.replace("`", ""), maxsplit=1)[0]
+    return lead.rstrip(".") + "."
 
 
 def _render_accuracy_page_controls() -> tuple[int, bool]:

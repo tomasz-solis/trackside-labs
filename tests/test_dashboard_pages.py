@@ -994,6 +994,39 @@ def _stub_page_streamlit(patcher):
     patcher.setattr(pages, "_dashboard_refresh_label", lambda year: "2026-03-11 09:16 UTC")
 
 
+def test_render_model_diagnostics_page_reads_the_ledger(patcher):
+    """The audit page shows the newest ledger entries first, then the stored checks."""
+    from src.dashboard import model_diagnostics
+    from src.dashboard.model_ledger import ledger_entries, read_ledger
+
+    _stub_page_streamlit(patcher)
+    expanders: list[str] = []
+    stored: list[int] = []
+
+    class _Ctx:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+    patcher.setattr(pages.st, "expander", lambda label: expanders.append(label) or _Ctx())
+    patcher.setattr(pages, "_get_selected_season", lambda default=pages.DEFAULT_SEASON: 2026)
+    patcher.setattr(
+        model_diagnostics,
+        "render_model_diagnostics",
+        lambda *, year, st_module: stored.append(year),
+    )
+    patcher.setattr(model_diagnostics, "load_replay_leakage_diagnostics", lambda *, year: None)
+
+    pages.render_model_diagnostics_page()
+
+    newest = ledger_entries(read_ledger())[0]
+    assert expanders[0] == f"{newest.date}: {newest.title.replace('`', '')}"
+    assert len(expanders) == pages._LEDGER_ENTRIES_SHOWN
+    assert stored == [2026]
+
+
 def test_render_model_insights_page_executes(patcher):
     _stub_page_streamlit(patcher)
     pages.render_model_insights_page()

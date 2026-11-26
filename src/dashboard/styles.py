@@ -560,6 +560,13 @@ button[kind="primary"]:focus-visible,
   border-radius: 12px;
 }
 
+/* Markdown tables scroll sideways instead of being cut off on a phone */
+[data-testid="stMarkdownContainer"] table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 /* ---- HTML tables (our controlled dark tables) ---- */
 .rc-table {
   margin: 0.45rem 0 1.1rem;

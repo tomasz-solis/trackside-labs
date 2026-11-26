@@ -235,3 +235,36 @@ def test_render_model_diagnostics_includes_construct_audit_table() -> None:
         "Candidate MSE",
         "MSE delta (%)",
     ]
+
+
+def test_render_model_diagnostics_warns_once_when_built_for_another_model(monkeypatch) -> None:
+    """Checks built for an older model are labelled as history, once, with their dates."""
+    monkeypatch.setattr("src.dashboard.model_diagnostics.get_model_version", lambda: "3.9")
+    replay = {"built_at": "2026-05-22T07:56:00+00:00", "model_version": "2.2", "status": "ok"}
+    audit = {"built_at": "2026-05-20T09:04:00+00:00", "model_version": "2.1", "status": "ok"}
+    store = _FakeArtifactStore(
+        {
+            ("model_diagnostics", "2026::replay_leakage_diagnostics"): replay,
+            ("model_diagnostics", "2026::team_strength_construct_row_audit"): audit,
+        }
+    )
+    fake_st = _FakeStreamlit()
+
+    render_model_diagnostics(year=2026, st_module=fake_st, artifact_store=store)
+
+    assert fake_st.warnings == [
+        "Built 2026-05-20 to 2026-05-22 for model 2.1, 2.2. The model in use is 3.9, "
+        "so read these as history, not as checks of today's model."
+    ]
+    assert "Built 2026-05-22 for model 2.2, status `ok`." in fake_st.captions
+
+
+def test_render_model_diagnostics_no_warning_for_the_model_in_use(monkeypatch) -> None:
+    monkeypatch.setattr("src.dashboard.model_diagnostics.get_model_version", lambda: "3.9")
+    replay = {"built_at": "2026-11-26T10:00:00+00:00", "model_version": "3.9", "status": "ok"}
+    store = _FakeArtifactStore({("model_diagnostics", "2026::replay_leakage_diagnostics"): replay})
+    fake_st = _FakeStreamlit()
+
+    render_model_diagnostics(year=2026, st_module=fake_st, artifact_store=store)
+
+    assert fake_st.warnings == []

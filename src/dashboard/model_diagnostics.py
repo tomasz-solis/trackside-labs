@@ -24,6 +24,7 @@ from src.analysis.team_strength_refit_candidate_test import (
     team_strength_refit_test_artifact_key,
 )
 from src.persistence.artifact_store import ArtifactStore
+from src.utils.model_version import get_model_version
 
 _DISPLAY_COLUMN_LABELS = {
     "candidate": "Candidate",
@@ -140,15 +141,22 @@ def render_model_diagnostics(
         )
         return
 
+    construct_audit = load_team_strength_construct_audit(year=year, artifact_store=artifact_store)
+    refit_test = load_team_strength_refit_candidate_test(year=year, artifact_store=artifact_store)
+    prediction_replay = load_team_strength_prediction_replay_test(
+        year=year,
+        artifact_store=artifact_store,
+    )
+    _render_other_model_warning(
+        [artifact, construct_audit, refit_test, prediction_replay], st_module=st_module
+    )
+
     source_state = artifact.get("source_state", {})
     dry_leakage = artifact.get("dry_leakage", {})
     regulation_reset = artifact.get("regulation_reset_monitoring", {})
     wet_leakage = artifact.get("wet_leakage", {})
 
-    st_module.caption(
-        f"Built {artifact.get('built_at', 'unknown')} • "
-        f"status `{artifact.get('status', 'unknown')}`"
-    )
+    st_module.caption(_built_caption(artifact))
     _render_warning_block(artifact.get("warnings", []), st_module=st_module)
     _render_note_block(
         artifact.get("limitations", []),
@@ -178,18 +186,12 @@ def render_model_diagnostics(
     _render_regulation_reset_table(regulation_reset, st_module=st_module)
 
     st_module.subheader("Construct-row audit")
-    construct_audit = load_team_strength_construct_audit(year=year, artifact_store=artifact_store)
     _render_construct_audit(construct_audit, st_module=st_module)
 
     st_module.subheader("Refit candidate test")
-    refit_test = load_team_strength_refit_candidate_test(year=year, artifact_store=artifact_store)
     _render_refit_candidate_test(refit_test, st_module=st_module)
 
     st_module.subheader("Prediction replay test")
-    prediction_replay = load_team_strength_prediction_replay_test(
-        year=year,
-        artifact_store=artifact_store,
-    )
     _render_prediction_replay_test(prediction_replay, st_module=st_module)
 
     st_module.subheader("Dry leakage")
@@ -295,10 +297,7 @@ def _render_construct_audit(
         st_module.caption("No construct-row audit artifact found yet.")
         return
 
-    st_module.caption(
-        f"Built {construct_audit.get('built_at', 'unknown')} • "
-        f"status `{construct_audit.get('status', 'unknown')}`"
-    )
+    st_module.caption(_built_caption(construct_audit))
     metrics = construct_audit.get("metrics_by_session_kind", {})
     rows: list[dict[str, Any]] = []
     if isinstance(metrics, Mapping):
@@ -354,10 +353,7 @@ def _render_refit_candidate_test(
         st_module.caption("No refit-candidate test artifact found yet.")
         return
 
-    st_module.caption(
-        f"Built {refit_test.get('built_at', 'unknown')} • "
-        f"status `{refit_test.get('status', 'unknown')}`"
-    )
+    st_module.caption(_built_caption(refit_test))
     aggregate = refit_test.get("aggregate", [])
     if isinstance(aggregate, list) and aggregate:
         st_module.dataframe(
@@ -386,10 +382,7 @@ def _render_prediction_replay_test(
         st_module.caption("No full prediction replay test artifact found yet.")
         return
 
-    st_module.caption(
-        f"Built {replay_test.get('built_at', 'unknown')} • "
-        f"status `{replay_test.get('status', 'unknown')}`"
-    )
+    st_module.caption(_built_caption(replay_test))
     race_target_aggregate = replay_test.get("race_target_aggregate", [])
     if isinstance(race_target_aggregate, list) and race_target_aggregate:
         st_module.dataframe(
@@ -406,6 +399,30 @@ def _render_prediction_replay_test(
             f"Decision state: `{decision.get('state', 'unknown')}` - "
             f"{decision.get('recommendation', '')}"
         )
+
+
+def _built_caption(artifact: Mapping[str, Any]) -> str:
+    """Name the day a stored check was built, the model it checked and its status."""
+    built = str(artifact.get("built_at") or "unknown")[:10]
+    model = artifact.get("model_version") or "unknown"
+    return f"Built {built} for model {model}, status `{artifact.get('status', 'unknown')}`."
+
+
+def _render_other_model_warning(
+    artifacts: list[Mapping[str, Any] | None], *, st_module: Any
+) -> None:
+    """Warn once when the stored checks were built for a model other than the one in use."""
+    stored = [artifact for artifact in artifacts if artifact]
+    current = get_model_version()
+    models = sorted({str(artifact.get("model_version") or "unknown") for artifact in stored})
+    if models == [current]:
+        return
+    dates = sorted(str(artifact.get("built_at") or "unknown")[:10] for artifact in stored)
+    span = dates[0] if dates[0] == dates[-1] else f"{dates[0]} to {dates[-1]}"
+    st_module.warning(
+        f"Built {span} for model {', '.join(models)}. The model in use is {current}, "
+        "so read these as history, not as checks of today's model."
+    )
 
 
 def _render_warning_block(warnings: Any, *, st_module: Any) -> None:

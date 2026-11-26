@@ -27,6 +27,7 @@ One model makes both the qualifying and the race forecast.
 - Per-driver and teammate errors are tracked but no longer shift the order: since 3.6, tests showed the shift made forecasts slightly worse.
 - Since 3.7, results also set how much the Grand Prix forecast leans on the grid, once 4 races are in.
 - Since 3.8, a ridge model refitted on earlier races sets the qualifying order, and the race starts from it.
+- Since 3.9, the race forecast no longer re-ranks drivers who move too little from the grid: on the replay that rule made forecasts worse.
 - It skips replays, duplicate runs and missing or partial results.
 
 **5. Model changes**
@@ -37,12 +38,14 @@ One model makes both the qualifying and the race forecast.
 - The grid predicts the race better than simulated pace, so the race forecast leans on qualifying.
 - Car traits by track help the qualifying forecast. For the race the gain was too small to measure.
 - Practice barely improves the forecast: about 0.1 places for qualifying, none for the race.
-- A ridge model stacked on this forecast beats it for qualifying and ties for the race. It runs beside the live model and is not served yet.
+- A ridge model stacked on this forecast beats it for qualifying and ties for the race, which is why it has served the qualifying order since 3.8.
+- Letting race passes read tyre age made the race forecast slightly worse, because strategies are drawn at random, not predicted. It stays off until strategy choice uses pace.
 """
 
 QUALIFYING_HYPERPARAMETERS_MARKDOWN = """
 **Qualifying:**
 - Team 60%, driver 40% to start
+- Served order: the ridge model, once 4 earlier races are in
 - Practice pace when available, testing runs otherwise
 - With no session data, weights rebalance and teammate and experience limits apply
 - Learned band width applies once there is history

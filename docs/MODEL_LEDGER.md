@@ -2607,6 +2607,38 @@ No replay change: a complete replay saves the training forecast at every weekend
 
 Open for 2027, found the same day: live never captures Q or R car snapshots. `SessionDetector` lists FP1 to FP3 (sprint: FP1, SQ, Sprint), while the capture has expected Q and R since `6989c6a9` (2026-03-11). Live state stops before Q at every weekend since Japan; the replay captures both. Every replay verdict so far measured a system that learns from Q and R, and live does not. Tomasz, 2026-11-25: fix for 2027.
 
+## 2026-11-26: tyre-aware pass score rejected (arm `C39_tyre_pass`, open risk B2); entry-list line-up checked on the round 21 replay (plan row 24)
+
+Verdict: `worse`, by rule 4 of 2026-11-22: Grand Prix correlation is `worse` on seed 42. The switch stays off; B2 waits for strategy choice from pace (plan row 4).
+
+Roots: `C39_lineup_s42` / `_s43` (baseline and seed floor) and `C39_tyre_pass_s42` / `_s43`, all on `0bab4fd3`, `--through-round 21`. Seed 43 of both arms was rerun from scratch on 2026-11-26: the PC slept at 23:20 and Windows Update rebooted it at 05:20. Seed 42 had finished at 22:27.
+
+| Rule step | Seed 42 | Seed 43 |
+|---|---|---|
+| 1. Health | 21 of 21 learned, 0 off the clock, both arms | the same |
+| 2. Isolation, main and sprint qualifying | identical at 90 of 90 | identical at 90 of 90 |
+| Grand Prix correlation | 0.6656 to 0.6607, -0.0050 [-0.0113, -0.0002], better/worse/tied 33/51/15: `worse` | 0.6643 to 0.6603, -0.0040 [-0.0086, +0.0002], 32/48/19: `unresolvable` |
+| Grand Prix MAE | 3.6765 to 3.7085: `unresolvable` | 3.6815 to 3.6960: `unresolvable` |
+| Sprint correlation | 0.7820 to 0.7830: `unresolvable` | 0.7887 to 0.7862: `unresolvable` |
+| Grand Prix misses of 10+ | 163 to 168 | 166 to 166 |
+
+Seed floor, `C39_lineup_s42` against `_s43`: Grand Prix correlation -0.0014 [-0.0049, +0.0027], qualifying correlation -0.0022 [-0.0050, +0.0001], all `noise`.
+
+Reported, not decisive:
+
+| Metric | Seed 42 | Seed 43 |
+|---|---|---|
+| Mean move from the grid, 21 Q checkpoints (the races moved 3.08) | 0.74 to 0.75 | 0.76 to 0.77 |
+| p5 to p95 coverage | 83.8% to 84.0% | 83.8% to 83.7% |
+| Grand Prix win Brier | 0.0406 to 0.0406 | 0.0404 to 0.0406 |
+| Grand Prix podium Brier | 0.0906 to 0.0925 | 0.0914 to 0.0934 |
+
+Both seeds lean the same way: correlation down, MAE and podium Brier up. In the replay the switch moves cars 0.01 places more off the grid, against 0.32 in the in-sample check of 2026-11-22.
+
+Line-up, plan row 24: `C39_lineup_s42` seats the drivers of the real qualifying at 35 of the 36 checkpoints from FP2 (sprint: SQ) to FP3. The other one is right too: Mexico City FP2 seats OCO, and the FastF1 cache lists Haas as HIR and BEA in FP1, OCO and BEA in FP2, HIR and BEA from FP3 to the race. This corrects one line of 2026-11-21: HIR did not drive every session of that weekend.
+
+Next baseline: the `C39_lineup` pair. `46ac80f` and `6b6e3c94` change no replay output (entries 2026-11-24 and 2026-11-25), so it stands for today's code.
+
 ## Adding an entry
 
 - What changed, in one line: the idea, not the code.
